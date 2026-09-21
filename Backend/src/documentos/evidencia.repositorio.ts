@@ -1,0 +1,261 @@
+import { Injectable } from '@nestjs/common';
+
+import { PrismaService } from '../prisma/prisma.module';
+
+import { Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
+
+
+
+export interface FiltrosEvidencia {
+
+  programaId?: string;
+
+  periodo?: string;
+
+  factor?: string;
+
+  indicador?: string;
+
+  estado?: EstadoEvidencia;
+
+  busqueda?: string;
+
+  autorId?: string;
+
+  soloValidados?: boolean;
+
+  pagina?: number;
+
+  limite?: number;
+
+}
+
+
+
+@Injectable()
+
+export class EvidenciaRepositorio {
+
+  constructor(private readonly prisma: PrismaService) {}
+
+
+
+  crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
+
+    return this.prisma.evidencia.create({ data: datos });
+
+  }
+
+
+
+  buscarPorId(id: string) {
+
+    return this.prisma.evidencia.findUnique({
+
+      where: { id },
+
+      include: { programa: true, autor: { select: { id: true, nombre: true, correo: true } } },
+
+    });
+
+  }
+
+
+
+  listar(filtros: FiltrosEvidencia) {
+
+    const where: Prisma.EvidenciaWhereInput = {};
+
+
+
+    if (filtros.programaId) where.programaId = filtros.programaId;
+
+    if (filtros.periodo) where.periodo = filtros.periodo;
+
+    if (filtros.factor) where.factor = filtros.factor;
+
+    if (filtros.indicador) where.indicador = filtros.indicador;
+
+    if (filtros.estado) where.estado = filtros.estado;
+
+    if (filtros.autorId) where.autorId = filtros.autorId;
+
+    if (filtros.soloValidados) where.estado = EstadoEvidencia.Validado;
+
+
+
+    if (filtros.busqueda) {
+
+      where.OR = [
+
+        { nombre: { contains: filtros.busqueda, mode: 'insensitive' } },
+
+        { factor: { contains: filtros.busqueda, mode: 'insensitive' } },
+
+        { indicador: { contains: filtros.busqueda, mode: 'insensitive' } },
+
+        { periodo: { contains: filtros.busqueda, mode: 'insensitive' } },
+
+        { nombreArchivo: { contains: filtros.busqueda, mode: 'insensitive' } },
+
+      ];
+
+    }
+
+
+
+    const pagina = filtros.pagina ?? 1;
+
+    const limite = filtros.limite ?? 20;
+
+    const skip = (pagina - 1) * limite;
+
+
+
+    return this.prisma.$transaction([
+
+      this.prisma.evidencia.findMany({
+
+        where,
+
+        include: {
+
+          programa: { select: { id: true, nombre: true, codigo: true } },
+
+          autor: { select: { id: true, nombre: true, correo: true } },
+
+        },
+
+        orderBy: { fechaCarga: 'desc' },
+
+        skip,
+
+        take: limite,
+
+      }),
+
+      this.prisma.evidencia.count({ where }),
+
+    ]);
+
+  }
+
+
+
+  actualizar(id: string, datos: Prisma.EvidenciaUpdateInput): Promise<Evidencia> {
+
+    return this.prisma.evidencia.update({ where: { id }, data: datos });
+
+  }
+
+
+
+  eliminar(id: string): Promise<Evidencia> {
+
+    return this.prisma.evidencia.delete({ where: { id } });
+
+  }
+
+
+
+  registrarHistorial(
+
+    evidenciaId: string,
+
+    estado: EstadoEvidencia,
+
+    observacion?: string,
+
+    actorId?: string,
+
+  ) {
+
+    return this.prisma.historialEvidencia.create({
+
+      data: { evidenciaId, estado, observacion, actorId },
+
+    });
+
+  }
+
+
+
+  obtenerHistorial(evidenciaId: string) {
+
+    return this.prisma.historialEvidencia.findMany({
+
+      where: { evidenciaId },
+
+      orderBy: { createdAt: 'asc' },
+
+    });
+
+  }
+
+
+
+  registrarVersion(datos: {
+
+    evidenciaId: string;
+
+    numero: number;
+
+    nombreArchivo: string;
+
+    rutaArchivo: string;
+
+    mimeType?: string;
+
+    tamanoBytes?: number;
+
+    subidoPorId: string;
+
+  }) {
+
+    return this.prisma.evidenciaVersion.create({ data: datos });
+
+  }
+
+
+
+  eliminarVersion(evidenciaId: string, numero: number) {
+
+    return this.prisma.evidenciaVersion.delete({
+
+      where: { evidenciaId_numero: { evidenciaId, numero } },
+
+    });
+
+  }
+
+
+
+  listarVersiones(evidenciaId: string) {
+
+    return this.prisma.evidenciaVersion.findMany({
+
+      where: { evidenciaId },
+
+      include: { subidoPor: { select: { id: true, nombre: true } } },
+
+      orderBy: { numero: 'desc' },
+
+    });
+
+  }
+
+
+
+  buscarVersion(evidenciaId: string, numero: number) {
+
+    return this.prisma.evidenciaVersion.findUnique({
+
+      where: { evidenciaId_numero: { evidenciaId, numero } },
+
+    });
+
+  }
+
+}
+
+
