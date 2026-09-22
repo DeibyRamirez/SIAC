@@ -1,0 +1,6 @@
+node_modules/
+dist/
+almacen-local/
+.env
+coverage/
+*.log

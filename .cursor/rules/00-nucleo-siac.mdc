@@ -1,0 +1,23 @@
+---
+description: Núcleo SIAC — memoria compartida, documentación y convenciones para agentes
+alwaysApply: true
+---
+
+# Núcleo — SIAC
+
+## Memoria compartida (Git)
+
+- Antes de tareas amplias, contrastar **`.cursor/memory.jsonl`** (MCP Memory) con **`MemoriaGlobal.md`** y **`AGENTS.md`**.
+- Tras trabajo significativo en arquitectura o flujos HU, **actualizar observaciones** en `.cursor/memory.jsonl` y las secciones correspondientes en `MemoriaGlobal.md`.
+- El archivo `.cursor/memory.jsonl` está pensado para **commit y push** — el compañero lo recibe al hacer pull.
+
+## Grafo de código (opcional)
+
+- **codebase-memory-mcp** indexa en cache local (`~/.cache/codebase-memory-mcp/`). Cada desarrollador debe indexar el repo tras clonar.
+- Opcional en equipo: generar `.codebase-memory/graph.db.zst` al indexar con persistencia y versionarlo (bootstrap más rápido).
+
+## Idioma y alcance
+
+- Código, comentarios de dominio y UI en **español**.
+- No ampliar alcance sin contrastar **`docs/etapa-1/`** (y sprint activo documentado).
+- UI: aplicar `.agents/skills/siac-diseno-web-responsive`.

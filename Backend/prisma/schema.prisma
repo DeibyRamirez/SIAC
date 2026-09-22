@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RolUsuario {
+  Cargador
+  Revisor
+  ParAcademico
+  Administrador
+  SuperAdmin
+}
+
+enum EstadoEvidencia {
+  Borrador
+  EnRevision
+  Validado
+  Rechazado
+}
+
+enum EstadoVigencia {
+  Vigente
+  Proximo
+  Vencido
+}
+
+enum FormatoArchivo {
+  PDF
+  DOCX
+  XLSX
+}
+
+enum CategoriaPlantilla {
+  Institucional
+  Programa
+  Autoevaluacion
+}
+
+enum OrigenDato {
+  API
+  CSV
+  Manual
+}
+
+model Usuario {
+  id                   String        @id @default(cuid())
+  codigoInstitucional  String?       @db.VarChar(50)
+  nombre               String        @db.VarChar(255)
+  correo               String        @unique @db.VarChar(255)
+  contrasena           String        @db.VarChar(255)
+  cargo                String?       @db.VarChar(150)
+  dependencia          String?       @db.VarChar(150)
+  rol                  RolUsuario
+  activo               Boolean       @default(true)
+  idExterno            String?       @unique @db.VarChar(100)
+  origenDato           OrigenDato    @default(Manual)
+  fechaSincronizacion  DateTime?
+  evidencias           Evidencia[]
+  versionesEvidencia   EvidenciaVersion[]
+  alertas              AlertaInApp[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  usuarioProgramas UsuarioPrograma[]
+}
+
+model Programa {
+  id                  String          @id @default(cuid())
+  nombre              String          @db.VarChar(200)
+  codigo              String          @unique @db.VarChar(20)
+  codigoSnies         String?         @db.VarChar(20)
+  nivel               String          @db.VarChar(50)
+  modalidad           String?         @db.VarChar(50)
+  duracionSemestres   Int?
+  activo              Boolean         @default(true)
+  semaforo            String          @default("Verde") @db.VarChar(20)
+  porcentajeAvance    Float           @default(0)
+  estadoProceso       String          @default("En curso") @db.VarChar(50)
+  idExterno           String?         @unique @db.VarChar(100)
+  origenDato          OrigenDato      @default(Manual)
+  fechaSincronizacion DateTime?
+  evidencias          Evidencia[]
+  anexos              AnexoVigencia[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  usuarioProgramas UsuarioPrograma[]
+}
+
+model UsuarioPrograma {
+  id         String   @id @default(cuid())
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  programaId String
+  programa   Programa @relation(fields: [programaId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([programaId])
+}
+
+model Evidencia {
+  id            String               @id @default(cuid())
+  nombre        String               @db.VarChar(300)
+  programaId    String
+  programa      Programa             @relation(fields: [programaId], references: [id])
+  periodo       String               @db.VarChar(100)
+  factor        String               @db.VarChar(100)
+  indicador     String               @db.VarChar(200)
+  estado        EstadoEvidencia      @default(Borrador)
+  autorId       String
+  autor         Usuario              @relation(fields: [autorId], references: [id])
+  nombreArchivo String               @db.VarChar(255)
+  rutaArchivo   String?              @db.VarChar(500)
+  mimeType      String?              @db.VarChar(100)
+  tamanoBytes   Int?
+  version       Int                  @default(1)
+  fechaCarga    DateTime             @default(now())
+  observaciones String?
+  responsable   String?              @db.VarChar(150)
+  historial     HistorialEvidencia[]
+  versiones     EvidenciaVersion[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([programaId])
+  @@index([autorId])
+  @@index([estado])
+  @@index([factor, indicador, periodo])
+}
+
+model EvidenciaVersion {
+  id            String    @id @default(cuid())
+  evidenciaId   String
+  evidencia     Evidencia @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numero        Int
+  nombreArchivo String    @db.VarChar(255)
+  rutaArchivo   String    @db.VarChar(500)
+  mimeType      String?   @db.VarChar(100)
+  tamanoBytes   Int?
+  subidoPorId   String
+  subidoPor     Usuario   @relation(fields: [subidoPorId], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@unique([evidenciaId, numero])
+  @@index([evidenciaId])
+}
+
+model HistorialEvidencia {
+  id          String          @id @default(cuid())
+  evidenciaId String
+  evidencia   Evidencia       @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  estado      EstadoEvidencia
+  observacion String?
+  actorId     String?
+  createdAt   DateTime        @default(now())
+}
+
+model Plantilla {
+  id            String             @id @default(cuid())
+  nombre        String             @db.VarChar(200)
+  factor        String             @db.VarChar(100)
+  formato       FormatoArchivo
+  version       String             @db.VarChar(20)
+  vigente       Boolean            @default(true)
+  categoria     CategoriaPlantilla
+  descripcion   String?
+  nombreArchivo String?            @db.VarChar(255)
+  rutaArchivo   String?            @db.VarChar(500)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([factor, vigente])
+}
+
+model AnexoVigencia {
+  id               String         @id @default(cuid())
+  titulo           String         @db.VarChar(200)
+  programaId       String
+  programa         Programa       @relation(fields: [programaId], references: [id])
+  tipo             String         @db.VarChar(100)
+  carpeta          String         @default("general") @db.VarChar(150)
+  nombreArchivo    String?        @db.VarChar(255)
+  rutaArchivo      String?        @db.VarChar(500)
+  mimeType         String?        @db.VarChar(100)
+  aniosVigencia    Int            @default(7)
+  fechaCarga       DateTime       @default(now())
+  fechaVencimiento DateTime
+  estado           EstadoVigencia @default(Vigente)
+  responsable      String         @db.VarChar(150)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([programaId])
+  @@index([fechaVencimiento])
+  @@index([carpeta])
+}
+
+model AlertaInApp {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  mensaje   String
+  leida     Boolean  @default(false)
+  tipo      String   @default("general") @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId, leida])
+}
+
+model EtapaAcreditacion {
+  id          String             @id @default(cuid())
+  nombre      String             @db.VarChar(200)
+  tipo        String             @db.VarChar(100)
+  descripcion String
+  orden       Int
+  activa      Boolean            @default(true)
+  carpetas    CarpetaNormativa[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model CarpetaNormativa {
+  id          String               @id @default(cuid())
+  etapaId     String
+  etapa       EtapaAcreditacion    @relation(fields: [etapaId], references: [id])
+  condicionId String?
+  nombre      String               @db.VarChar(200)
+  descripcion String
+  orden       Int
+  activa      Boolean              @default(true)
+  documentos  DocumentoRequerido[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model DocumentoRequerido {
+  id          String           @id @default(cuid())
+  carpetaId   String
+  carpeta     CarpetaNormativa @relation(fields: [carpetaId], references: [id])
+  nombre      String           @db.VarChar(200)
+  esPlantilla Boolean          @default(false)
+  formato     FormatoArchivo
+  obligatorio Boolean          @default(true)
+  orden       Int
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}

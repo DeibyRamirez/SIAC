@@ -1,0 +1,106 @@
+﻿name: CD
+
+# Producción opcional:
+# - VERCEL_TOKEN, VERCEL_ORG_ID y VERCEL_PROJECT_ID para el frontend.
+# - RENDER_DEPLOY_HOOK_URL para disparar el despliegue del backend.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PNPM_VERSION: "10"
+
+jobs:
+  build:
+    name: Build production artifacts
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/siac
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
+      JWT_SECRETO: ci-only-not-for-production
+      S3_USAR_ALMACEN_LOCAL: "true"
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: |
+            Backend/pnpm-lock.yaml
+            Frontend/pnpm-lock.yaml
+      - name: Build backend
+        working-directory: Backend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm prisma:generate
+          pnpm build
+      - name: Build frontend
+        working-directory: Frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Package backend
+        run: tar -czf siac-backend.tgz Backend/dist Backend/prisma Backend/package.json Backend/pnpm-lock.yaml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siac-backend-${{ github.sha }}
+          path: siac-backend.tgz
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siac-frontend-${{ github.sha }}
+          path: |
+            Frontend/.next
+            Frontend/public
+            Frontend/package.json
+            Frontend/pnpm-lock.yaml
+          retention-days: 14
+
+  deploy-backend:
+    name: Deploy backend
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    steps:
+      - name: Trigger Render deploy
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        run: curl --fail-with-body --request POST "$RENDER_DEPLOY_HOOK_URL"
+      - name: Deployment not configured
+        if: env.RENDER_DEPLOY_HOOK_URL == ''
+        run: echo "Configure RENDER_DEPLOY_HOOK_URL to enable backend deployment."
+
+  deploy-frontend:
+    name: Deploy frontend
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - name: Deploy to Vercel
+        if: env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
+        working-directory: Frontend
+        run: |
+          pnpm dlx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx vercel build --prod --token="$VERCEL_TOKEN"
+          pnpm dlx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - name: Deployment not configured
+        if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
+        run: echo "Configure VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID to enable frontend deployment."
