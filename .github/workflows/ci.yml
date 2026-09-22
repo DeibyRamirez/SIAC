@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: Backend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
-      - run: pnpm test -- --runInBand
+      - run: pnpm exec jest --runInBand
       - run: pnpm build
 
   frontend:
