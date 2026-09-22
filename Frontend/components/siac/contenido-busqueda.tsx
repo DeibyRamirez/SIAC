@@ -141,11 +141,11 @@ export function ContenidoBusqueda({
       {resultados.length === 0 ? (
         <PanelVacio mensaje="No se encontraron evidencias." />
       ) : (
-        <Card>
+        <Card className="border-l-4 border-cyan-tecnico">
           <CardContent className="overflow-x-auto pt-6">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-primary/10 bg-primary/5 text-xs font-bold tracking-wide text-primary uppercase">
                   <th className="py-3 pr-4">Documento</th>
                   <th className="py-3 pr-4">Programa</th>
                   <th className="py-3 pr-4">Factor</th>
@@ -157,7 +157,7 @@ export function ContenidoBusqueda({
                 {resultados.map((evidencia) => (
                   <tr key={evidencia.id} className="border-b border-border/70">
                     <td className="py-3 pr-4">
-                      <p className="font-medium text-[#102f55]">{evidencia.nombre}</p>
+                      <p className="font-medium text-primary">{evidencia.nombre}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatearFecha(evidencia.fechaCarga)}
                       </p>

@@ -2,20 +2,19 @@
 
 import { ClipboardCheck, FileCheck2, Files } from 'lucide-react'
 
-import { GuardiaSesion } from '@/components/auth/guardia-sesion'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
-import { ShellAplicacion } from '@/components/layout/shell-aplicacion'
-import { InsigniaEstado } from '@/components/siac/insignia-estado'
+import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
+import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina, TarjetaAcceso } from '@/components/siac/tarjeta-acceso'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function InicioCargadorPage() {
   return (
-    <GuardiaSesion rolPermitido="Cargador">
+    <PlantillaPaginaApp titulo="Resumen general" rol="Cargador">
       <ContenidoInicioCargador />
-    </GuardiaSesion>
+    </PlantillaPaginaApp>
   )
 }
 
@@ -25,66 +24,52 @@ function ContenidoInicioCargador() {
   const misEvidencias = datos.evidencias.filter(
     (evidencia) => evidencia.autorId === sesion?.usuarioId,
   )
+  const borradores = misEvidencias.filter((e) => e.estado === 'Borrador').length
+  const enRevision = misEvidencias.filter((e) => e.estado === 'EnRevision').length
+  const validadas = misEvidencias.filter((e) => e.estado === 'Validado').length
 
   return (
-    <ShellAplicacion titulo="Inicio del Cargador">
+    <div className="space-y-6">
       <EncabezadoPagina
-        etiqueta="ROL CARGADOR"
-        titulo={`Bienvenida, ${sesion?.nombre.split(' ')[0]}`}
+        etiqueta="Rol cargador"
+        titulo={`${obtenerSaludo()}, ${sesion?.nombre.split(' ')[0]}`}
         descripcion="Accede rápidamente a la carga de evidencias, plantillas oficiales y el estado de tus documentos."
       />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
+        <TarjetaKpi titulo="Mis documentos" valor={misEvidencias.length} icono={Files} acento="cyan" />
+        <TarjetaKpi titulo="En borrador" valor={borradores} icono={ClipboardCheck} acento="ocre" />
+        <TarjetaKpi titulo="Aprobados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
         <TarjetaAcceso
           titulo="Cargar evidencia"
           descripcion="Sube PDF o Excel con metadatos de programa, periodo, factor e indicador."
           href="/cargador/evidencias/nueva"
           icono={Files}
+          acento="cyan"
         />
         <TarjetaAcceso
           titulo="Biblioteca de plantillas"
           descripcion="Descarga formatos oficiales vigentes para diligenciar fuera del sistema."
           href="/cargador/plantillas"
           icono={FileCheck2}
+          acento="esmeralda"
         />
         <TarjetaAcceso
           titulo="Mis evidencias"
           descripcion="Consulta, corrige o elimina borradores antes de enviarlos a revisión."
           href="/cargador/evidencias"
           icono={ClipboardCheck}
-          detalle={`${misEvidencias.length} documentos registrados`}
+          detalle={`${enRevision} en revisión`}
+          acento="purpura"
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Estado de tus documentos</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-3 pr-4">Documento</th>
-                <th className="py-3 pr-4">Programa</th>
-                <th className="py-3 pr-4">Periodo</th>
-                <th className="py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {misEvidencias.map((evidencia) => (
-                <tr key={evidencia.id} className="border-b border-border/70">
-                  <td className="py-3 pr-4 font-medium text-[#102f55]">{evidencia.nombre}</td>
-                  <td className="py-3 pr-4">{obtenerNombrePrograma(evidencia.programaId)}</td>
-                  <td className="py-3 pr-4">{evidencia.periodo}</td>
-                  <td className="py-3">
-                    <InsigniaEstado estado={evidencia.estado} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-    </ShellAplicacion>
+      {misEvidencias.length > 0 && (
+        <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} />
+      )}
+    </div>
   )
 }

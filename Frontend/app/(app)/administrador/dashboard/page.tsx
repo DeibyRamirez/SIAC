@@ -1,84 +1,169 @@
 'use client'
 
-import { useState } from 'react'
+import { TrendingDown, TrendingUp } from 'lucide-react'
 
-import { GuardiaSesion } from '@/components/auth/guardia-sesion'
-import { ShellAplicacion } from '@/components/layout/shell-aplicacion'
+import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
+import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
+import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-powerbi'
+import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { programasSemilla } from '@/lib/datos-semilla'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  distribucionEstadosSemilla,
+  resumenInstitucionalSemilla,
+  tarjetasResumenSemilla,
+  tendenciaMensualSemilla,
+} from '@/lib/datos-semilla'
+import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { informesPowerBiSemilla } from '@/lib/informes-powerbi'
+import Image from 'next/image'
 
-export default function DashboardPowerBiPage() {
+export default function DashboardMetricasPage() {
   return (
-    <GuardiaSesion rolPermitido="Administrador">
+    <PlantillaPaginaApp titulo="Dashboard de métricas" roles={ROLES_CONSULTA_INSTITUCIONAL}>
       <ContenidoDashboard />
-    </GuardiaSesion>
+    </PlantillaPaginaApp>
   )
 }
 
 function ContenidoDashboard() {
-  const [programaId, setProgramaId] = useState(programasSemilla[0]?.id ?? '')
-  const [tokenValido, setTokenValido] = useState(true)
-
-  const programa = programasSemilla.find((item) => item.id === programaId)
-
   return (
-    <ShellAplicacion titulo="Dashboard Power BI">
-      <EncabezadoPagina
-        etiqueta="HU-009"
-        titulo="Dashboard del programa"
-        descripcion="Contenedor embebido para métricas de Power BI. En producción se usará un embed token de Azure."
-      />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <EncabezadoPagina
+          className="mb-0"
+          etiqueta="Inteligencia institucional"
+          titulo="Dashboard de métricas"
+          descripcion="Analiza el comportamiento de la acreditación y compara ciclos de autoevaluación."
+        />
+        <Select defaultValue="2021-2023">
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2021-2023">2021 — 2023</SelectItem>
+            <SelectItem value="2024-2026">2024 — 2026</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Card className="mb-4">
-        <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-end">
-          <label className="block space-y-2 text-sm">
-            <span className="font-medium">Programa</span>
-            <select
-              value={programaId}
-              onChange={(evento) => setProgramaId(evento.target.value)}
-              className="w-full min-w-[280px] rounded-lg border border-input px-3 py-2"
-            >
-              {programasSemilla.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button variant="outline" onClick={() => setTokenValido((prev) => !prev)}>
-            Simular token {tokenValido ? 'expirado' : 'válido'}
-          </Button>
-        </CardContent>
-      </Card>
+      <Tabs
+        defaultValue="metricas"
+        orientation="horizontal"
+        className="flex w-full flex-col gap-4"
+      >
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0"
+        >
+          <TabsTrigger
+            value="metricas"
+            className="h-auto flex-none px-3 py-2 after:bg-esmeralda data-active:text-primary"
+          >
+            Métricas SIAC
+          </TabsTrigger>
+          <TabsTrigger
+            value="powerbi"
+            className="h-auto flex-none px-3 py-2 after:bg-esmeralda data-active:text-primary"
+          >
+            Power BI
+          </TabsTrigger>
+        </TabsList>
 
-      {tokenValido ? (
-        <div className="overflow-hidden rounded-xl border border-border bg-white">
-          <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-            Informe embebido · {programa?.nombre}
+        <TabsContent value="metricas" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            {tarjetasResumenSemilla.map((tarjeta) => (
+              <Card key={tarjeta.id} className="overflow-hidden border-l-4 border-primary">
+                <div className="relative aspect-video w-full bg-accent">
+                  {tarjeta.urlImagen && (
+                    <Image
+                      src={tarjeta.urlImagen}
+                      alt={tarjeta.titulo}
+                      fill
+                      className="object-cover opacity-90"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  )}
+                </div>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground uppercase">{tarjeta.titulo}</p>
+                  <p className="mt-2 text-3xl font-bold text-primary">{tarjeta.valor}</p>
+                  {tarjeta.detalle && (
+                    <p className="text-xs text-muted-foreground">{tarjeta.detalle}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <div className="flex min-h-[420px] items-center justify-center bg-[#f8fafc] p-8 text-center">
-            <div>
-              <p className="text-lg font-semibold text-[#102f55]">Power BI embebido</p>
-              <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-                Placeholder del informe institucional. Aquí se renderizará el iframe con el embed
-                token cuando la integración con Azure esté disponible.
-              </p>
-            </div>
+
+          {/* <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {informesPowerBiSemilla.map((cat) => (
+              <Card key={cat.id} className="overflow-hidden border-l-4 border-esmeralda">
+                <div className="relative aspect-[4/3] w-full bg-accent">
+                  {cat.urlImagen && (
+                    <Image
+                      src={cat.urlImagen}
+                      alt={cat.titulo}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                    />
+                  )}
+                </div>
+                <CardContent className="pt-4">
+                  <p className="text-sm font-medium text-primary">{cat.titulo}</p>
+                  <p className="text-xs text-muted-foreground">{cat.descripcion}</p>
+                  <p className="mt-2 text-lg font-bold text-esmeralda">{cat.valor} / 5</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div> */}
+
+          <p className="text-xs text-muted-foreground">
+            Datos consolidados de SIAC · Última sincronización: hoy, 08:42
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <TarjetaKpi
+              titulo="Cumplimiento institucional"
+              valor={`${resumenInstitucionalSemilla.cumplimientoInstitucional}%`}
+              tendencia={{ valor: '↑ 2.3% frente al ciclo anterior', positiva: true }}
+              icono={TrendingUp}
+            />
+            <TarjetaKpi titulo="Promedio de condiciones" valor="4.2 / 5" descripcion="6 condiciones evaluadas" />
+            <TarjetaKpi
+              titulo="Tiempo medio de aplicación"
+              valor="3.8 días"
+              tendencia={{ valor: '↓ 1.2 días este trimestre', positiva: true }}
+              icono={TrendingDown}
+            />
+            <TarjetaKpi titulo="Programas en ruta" valor="12" descripcion="5 con visita próxima" />
           </div>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="space-y-4 pt-6">
-            <p className="text-sm text-red-700">
-              No fue posible cargar el informe de Power BI. El token embebido expiró o Azure no
-              respondió.
-            </p>
-            <Button onClick={() => setTokenValido(true)}>Reintentar carga</Button>
-          </CardContent>
-        </Card>
-      )}
-    </ShellAplicacion>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <GraficoTendencia datos={tendenciaMensualSemilla} />
+            <GraficoDistribucion
+              datos={distribucionEstadosSemilla}
+              titulo="Resultado global"
+              subtitulo="Distribución por estado"
+              totalEtiqueta="81% cumplimiento"
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="powerbi">
+          <RejillaInformesPowerBi />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

@@ -1,56 +1,89 @@
 'use client'
 
-import { programasSemilla } from '@/lib/datos-semilla'
-import { GuardiaSesion } from '@/components/auth/guardia-sesion'
-import { ShellAplicacion } from '@/components/layout/shell-aplicacion'
-import { Semaforo } from '@/components/siac/insignia-estado'
+import { useEffect, useMemo, useState } from 'react'
+import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
+import { RejillaProgramas } from '@/components/siac/rejilla-programas'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { programasSemilla } from '@/lib/datos-semilla'
+import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
+import type { Programa } from '@/lib/tipos'
+import { manejarCambioSelect } from '@/lib/utilidades-siac'
 
-export default function ProgramasPage() {
+export default function ProgramasAdministradorPage() {
   return (
-    <GuardiaSesion rolPermitido="Administrador">
+    <PlantillaPaginaApp titulo="Programas académicos" roles={ROLES_CONSULTA_INSTITUCIONAL}>
       <ContenidoProgramas />
-    </GuardiaSesion>
+    </PlantillaPaginaApp>
   )
 }
 
 function ContenidoProgramas() {
+  const [busqueda, setBusqueda] = useState('')
+  const [nivel, setNivel] = useState('todos')
+  const [programas, setProgramas] = useState<Programa[]>(programasSemilla)
+
+  useEffect(() => {
+    async function cargar() {
+      if (!apiDisponible()) return
+      try {
+        const lista = await listarProgramasApi()
+        if (lista.length > 0) setProgramas(lista)
+      } catch {
+        // Mantiene semilla como fallback
+      }
+    }
+    cargar()
+  }, [])
+
+  const programasFiltrados = useMemo(() => {
+    return programas.filter((programa) => {
+      const coincideTexto =
+        programa.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        programa.codigo.toLowerCase().includes(busqueda.toLowerCase())
+      const coincideNivel = nivel === 'todos' || programa.nivel === nivel
+      return coincideTexto && coincideNivel
+    })
+  }, [busqueda, nivel, programas])
+
   return (
-    <ShellAplicacion titulo="Panel de programas">
+    <div className="space-y-6">
       <EncabezadoPagina
-        etiqueta="HU-010"
-        titulo="Panel de programas"
-        descripcion="Listado de programas de pregrado y posgrado con semáforo agregado de cumplimiento."
+        etiqueta="Catálogo académico"
+        titulo="Programas académicos"
+        descripcion={`Monitorea el avance de ${programas.length} programas en proceso de acreditación (pregrado y posgrado).`}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {programasSemilla.map((programa) => (
-          <Card key={programa.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{programa.nombre}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {programa.nivel} · {programa.codigo}
-              </p>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Semáforo agregado
-                </p>
-                <div className="mt-2">
-                  <Semaforo valor={programa.semaforo} />
-                </div>
-              </div>
-              {programa.semaforo === 'Rojo' && (
-                <p className="max-w-xs text-xs text-red-700">
-                  Anexo de infraestructura vencido detectado en el programa.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </ShellAplicacion>
+      <BarraHerramientasTabla
+        placeholder="Buscar programa…"
+        valorBusqueda={busqueda}
+        onBuscar={setBusqueda}
+      >
+        <Select value={nivel} onValueChange={manejarCambioSelect(setNivel)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Nivel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los niveles</SelectItem>
+            <SelectItem value="Pregrado">Pregrado</SelectItem>
+            <SelectItem value="Posgrado">Posgrado</SelectItem>
+          </SelectContent>
+        </Select>
+      </BarraHerramientasTabla>
+
+      <RejillaProgramas
+        programas={programasFiltrados}
+        enlaceDetalle={(id) => `/administrador/programas/${id}`}
+      />
+    </div>
   )
 }

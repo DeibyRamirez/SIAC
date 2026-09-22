@@ -11,26 +11,40 @@ export function TarjetaAcceso({
   href,
   icono: Icono,
   detalle,
+  acento = 'cyan',
 }: {
   titulo: string
   descripcion: string
   href: string
   icono: LucideIcon
   detalle?: string
+  acento?: 'cyan' | 'esmeralda' | 'purpura' | 'coral'
 }) {
+  const iconoClases = {
+    cyan: 'bg-cyan-tecnico/15 text-cyan-tecnico',
+    esmeralda: 'bg-esmeralda/15 text-esmeralda',
+    purpura: 'bg-purpura/15 text-purpura',
+    coral: 'bg-coral/15 text-coral',
+  }
+
   return (
     <Link href={href} className="group block">
-      <Card className="h-full transition-shadow hover:shadow-md">
+      <Card className="h-full transition-all hover:-translate-y-1 hover:shadow-lg">
         <CardHeader>
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-[#e3f2ef] text-[#3a9c98]">
+          <div
+            className={cn(
+              'mb-2 flex size-11 items-center justify-center rounded-xl',
+              iconoClases[acento],
+            )}
+          >
             <Icono className="size-5" />
           </div>
           <CardTitle>{titulo}</CardTitle>
           <CardDescription>{descripcion}</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center justify-between text-sm text-[#3a9c98]">
+        <CardContent className="flex items-center justify-between text-sm font-semibold text-cyan-tecnico">
           <span>{detalle ?? 'Abrir módulo'}</span>
-          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
         </CardContent>
       </Card>
     </Link>
@@ -42,20 +56,27 @@ export function EncabezadoPagina({
   titulo,
   descripcion,
   accion,
+  className,
 }: {
   etiqueta: string
   titulo: string
   descripcion: string
   accion?: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#3a9c98] uppercase">
-          {etiqueta}
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102f55]">{titulo}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{descripcion}</p>
+    <div
+      className={cn(
+        'mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between',
+        className,
+      )}
+    >
+      <div className="borde-institucional">
+        <p className="etiqueta-seccion">{etiqueta}</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-primary md:text-3xl">
+          {titulo}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{descripcion}</p>
       </div>
       {accion}
     </div>
@@ -64,7 +85,7 @@ export function EncabezadoPagina({
 
 export function PanelVacio({ mensaje }: { mensaje: string }) {
   return (
-    <div className={cn('rounded-xl border border-dashed bg-white p-10 text-center text-sm text-muted-foreground')}>
+    <div className="rounded-xl border-2 border-dashed border-primary/20 bg-white/80 p-10 text-center text-sm text-muted-foreground">
       {mensaje}
     </div>
   )

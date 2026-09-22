@@ -47,10 +47,16 @@ export async function peticionApi<T>(
 
   if (!respuesta.ok) {
     const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
-    throw new ErrorApi(
-      Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
-      respuesta.status,
-    );
+    const mensajeBase = Array.isArray(error.message)
+      ? error.message.join(', ')
+      : (error.message ?? `HTTP ${respuesta.status}`);
+    const detalle =
+      typeof error.detalle === 'string' && error.detalle.trim().length > 0
+        ? error.detalle.trim()
+        : '';
+    const mensaje =
+      detalle && !mensajeBase.includes(detalle) ? `${mensajeBase} (${detalle})` : mensajeBase;
+    throw new ErrorApi(mensaje, respuesta.status);
   }
 
   if (respuesta.status === 204) return undefined as T;

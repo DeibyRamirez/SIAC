@@ -21,6 +21,7 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { CrearEvidenciaDto, ActualizarEvidenciaDto } from './dto/evidencia.dto';
 
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
+import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 
 
 
@@ -76,7 +77,7 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-
+    const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
 
     const evidencia = await this.evidenciaRepo.crear({
 
@@ -92,7 +93,7 @@ export class DocumentosService {
 
       autor: { connect: { id: usuario.id } },
 
-      nombreArchivo: archivo.originalname,
+      nombreArchivo,
 
       responsable: dto.responsable,
 
@@ -106,7 +107,7 @@ export class DocumentosService {
 
       evidencia.id,
 
-      archivo.originalname,
+      nombreArchivo,
 
       1,
 
@@ -136,7 +137,7 @@ export class DocumentosService {
 
         numero: 1,
 
-        nombreArchivo: archivo.originalname,
+        nombreArchivo,
 
         rutaArchivo: clave,
 
@@ -306,7 +307,7 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-
+    const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
 
     const evidencia = await this.obtenerPorId(id, usuario);
 
@@ -354,7 +355,7 @@ export class DocumentosService {
 
       id,
 
-      archivo.originalname,
+      nombreArchivo,
 
       nuevaVersion,
 
@@ -384,7 +385,7 @@ export class DocumentosService {
 
         numero: nuevaVersion,
 
-        nombreArchivo: archivo.originalname,
+        nombreArchivo,
 
         rutaArchivo: clave,
 
@@ -400,7 +401,7 @@ export class DocumentosService {
 
       await this.evidenciaRepo.actualizar(id, {
 
-        nombreArchivo: archivo.originalname,
+        nombreArchivo,
 
         rutaArchivo: clave,
 

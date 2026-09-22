@@ -1,9 +1,17 @@
 import type { Metadata, Viewport } from 'next'
+import { Montserrat } from 'next/font/google'
 
 import { ProveedorAlmacen } from '@/components/auth/proveedor-almacen'
 import { ProveedorSesion } from '@/components/auth/proveedor-sesion'
+import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
+
+const montserrat = Montserrat({
+  subsets: ['latin'],
+  variable: '--font-montserrat',
+  weight: ['400', '500', '600', '700', '800'],
+})
 
 export const metadata: Metadata = {
   title: 'SIAC | Calidad académica CUAC',
@@ -30,7 +38,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#102f55',
+  themeColor: '#0A3B74',
 }
 
 export default function RootLayout({
@@ -40,9 +48,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased">
+      <body className={`${montserrat.variable} fondo-app font-sans antialiased`}>
         <ProveedorSesion>
-          <ProveedorAlmacen>{children}</ProveedorAlmacen>
+          <ProveedorAlmacen>
+            {children}
+            <Toaster position="top-right" richColors closeButton />
+          </ProveedorAlmacen>
         </ProveedorSesion>
       </body>
     </html>

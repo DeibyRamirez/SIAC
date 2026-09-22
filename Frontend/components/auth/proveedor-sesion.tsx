@@ -21,7 +21,7 @@ import {
 } from '@/lib/auth-mock'
 import { iniciarSesionApi, cerrarSesionApi, obtenerPerfilApi } from '@/lib/servicios/auth.servicio'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import type { RolUsuario, SesionUsuario } from '@/lib/tipos'
+import type { SesionUsuario } from '@/lib/tipos'
 
 interface ContextoSesion {
   sesion: SesionUsuario | null
@@ -33,11 +33,6 @@ interface ContextoSesion {
 }
 
 const ContextoSesionSiac = createContext<ContextoSesion | null>(null)
-
-function mapearRolApi(rol: RolUsuario): RolUsuario {
-  if (rol === 'ParAcademico') return 'Administrador'
-  return rol
-}
 
 export function ProveedorSesion({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -54,7 +49,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
             usuarioId: perfil.id,
             nombre: perfil.nombre,
             correo: perfil.correo,
-            rol: mapearRolApi(perfil.rol),
+            rol: perfil.rol,
           })
         } catch {
           setSesion(leerSesionLocal())
@@ -80,7 +75,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
             usuarioId: respuesta.usuario.id,
             nombre: respuesta.usuario.nombre,
             correo: respuesta.usuario.correo,
-            rol: mapearRolApi(respuesta.usuario.rol),
+            rol: respuesta.usuario.rol,
           }
           guardarSesionLocal(nuevaSesion)
           setSesion(nuevaSesion)

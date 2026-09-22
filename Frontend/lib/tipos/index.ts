@@ -1,8 +1,9 @@
 export type RolUsuario =
   | 'Cargador'
   | 'Revisor'
-  | 'Administrador'
   | 'ParAcademico'
+  | 'Administrador'
+  | 'SuperAdmin'
 
 export type EstadoEvidencia = 'Borrador' | 'EnRevision' | 'Validado' | 'Rechazado'
 
@@ -11,6 +12,16 @@ export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 export type NivelPrograma = 'Pregrado' | 'Posgrado'
 
 export type SemaforoPrograma = 'Verde' | 'Amarillo' | 'Rojo'
+
+export type TipoEtapaAcreditacion =
+  | 'PreRadicacion'
+  | 'Radicacion'
+  | 'Autoevaluacion'
+  | 'Renovacion'
+
+export type TipoCondicionDecreto = 'Institucional' | 'Programa'
+
+export type CategoriaPlantilla = 'Institucional' | 'Programa' | 'Autoevaluacion'
 
 export interface Usuario {
   id: string
@@ -26,6 +37,9 @@ export interface Programa {
   codigo: string
   nivel: NivelPrograma
   semaforo: SemaforoPrograma
+  porcentajeAvance: number
+  estadoProceso: string
+  urlImagen?: string
 }
 
 export interface Evidencia {
@@ -40,6 +54,9 @@ export interface Evidencia {
   nombreArchivo: string
   fechaCarga: string
   observaciones?: string
+  responsable?: string
+  documentoRequeridoId?: string
+  version?: number
 }
 
 export interface Plantilla {
@@ -49,7 +66,9 @@ export interface Plantilla {
   formato: 'PDF' | 'DOCX' | 'XLSX'
   version: string
   vigente: boolean
-  categoria?: string
+  categoria: CategoriaPlantilla
+  descripcion?: string
+  urlDocumento?: string
 }
 
 export interface AnexoVigencia {
@@ -57,9 +76,14 @@ export interface AnexoVigencia {
   titulo: string
   programaId: string
   tipo: string
+  carpeta?: string
+  nombreArchivo?: string
+  aniosVigencia?: number
+  fechaCarga?: string
   fechaVencimiento: string
   estado: EstadoVigencia
   responsable: string
+  porcentajeTranscurrido?: number
 }
 
 export interface AlertaInApp {
@@ -74,4 +98,41 @@ export interface SesionUsuario {
   nombre: string
   correo: string
   rol: RolUsuario
+}
+
+export interface CondicionDecreto {
+  id: string
+  tipo: TipoCondicionDecreto
+  numero: number
+  nombre: string
+  descripcion: string
+}
+
+export interface EtapaAcreditacion {
+  id: string
+  nombre: string
+  tipo: TipoEtapaAcreditacion
+  descripcion: string
+  orden: number
+  activa: boolean
+}
+
+export interface CarpetaNormativa {
+  id: string
+  etapaId: string
+  condicionId?: string
+  nombre: string
+  descripcion: string
+  orden: number
+  activa: boolean
+}
+
+export interface DocumentoRequerido {
+  id: string
+  carpetaId: string
+  nombre: string
+  esPlantilla: boolean
+  formato: 'PDF' | 'DOCX' | 'XLSX'
+  obligatorio: boolean
+  orden: number
 }

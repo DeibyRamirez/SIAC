@@ -1,23 +1,24 @@
 import type { EstadoEvidencia, EstadoVigencia, SemaforoPrograma } from '@/lib/tipos'
+import { etiquetaEstadoEvidencia } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 const estilosEvidencia: Record<EstadoEvidencia, string> = {
-  Borrador: 'bg-slate-100 text-slate-700',
-  EnRevision: 'bg-amber-100 text-amber-800',
-  Validado: 'bg-emerald-100 text-emerald-800',
-  Rechazado: 'bg-red-100 text-red-800',
+  Borrador: 'bg-secondary text-primary border border-primary/20',
+  EnRevision: 'bg-ocre/15 text-ocre border border-ocre/30',
+  Validado: 'bg-esmeralda/15 text-esmeralda border border-esmeralda/30',
+  Rechazado: 'bg-fucsia/15 text-fucsia border border-fucsia/30',
 }
 
 const estilosVigencia: Record<EstadoVigencia, string> = {
-  Vigente: 'bg-emerald-100 text-emerald-800',
-  Proximo: 'bg-amber-100 text-amber-800',
-  Vencido: 'bg-red-100 text-red-800',
+  Vigente: 'bg-esmeralda/15 text-esmeralda border border-esmeralda/30',
+  Proximo: 'bg-coral/15 text-coral border border-coral/30',
+  Vencido: 'bg-fucsia/15 text-fucsia border border-fucsia/30',
 }
 
 const estilosSemaforo: Record<SemaforoPrograma, string> = {
-  Verde: 'bg-emerald-500',
-  Amarillo: 'bg-amber-500',
-  Rojo: 'bg-red-500',
+  Verde: 'bg-esmeralda',
+  Amarillo: 'bg-ocre',
+  Rojo: 'bg-fucsia',
 }
 
 export function InsigniaEstado({
@@ -32,17 +33,22 @@ export function InsigniaEstado({
       ? estilosVigencia[estado as EstadoVigencia]
       : estilosEvidencia[estado as EstadoEvidencia]
 
+  const etiqueta =
+    tipo === 'evidencia'
+      ? etiquetaEstadoEvidencia(estado as EstadoEvidencia)
+      : estado
+
   return (
-    <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', clases)}>
-      {estado}
+    <span className={cn('inline-flex rounded-full px-3 py-1 text-[11px] font-bold', clases)}>
+      {etiqueta}
     </span>
   )
 }
 
 export function Semaforo({ valor }: { valor: SemaforoPrograma }) {
   return (
-    <span className="inline-flex items-center gap-2 text-xs font-medium text-foreground">
-      <span className={cn('size-2.5 rounded-full', estilosSemaforo[valor])} />
+    <span className="inline-flex items-center gap-2 text-xs font-bold text-primary">
+      <span className={cn('size-2.5 rounded-full ring-2 ring-white', estilosSemaforo[valor])} />
       {valor}
     </span>
   )

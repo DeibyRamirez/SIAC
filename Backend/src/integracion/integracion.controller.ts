@@ -19,6 +19,12 @@ export class IntegracionController {
     return this.almacenamiento.obtenerEstadoConexion();
   }
 
+  @Post('probar-storage')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  probarStorage() {
+    return this.almacenamiento.probarConexion();
+  }
+
   @Post('sincronizar')
   @Roles(RolUsuario.Administrador)
   sincronizar() {

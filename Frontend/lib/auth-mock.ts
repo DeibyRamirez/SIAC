@@ -42,8 +42,11 @@ export function rutaInicioPorRol(rol: RolUsuario): string {
     case 'Revisor':
       return '/revisor'
     case 'Administrador':
+      return '/administrador'
     case 'ParAcademico':
       return '/administrador'
+    case 'SuperAdmin':
+      return '/superadmin'
   }
 }
 
@@ -54,8 +57,11 @@ export function prefijoRol(rol: RolUsuario): string {
     case 'Revisor':
       return '/revisor'
     case 'Administrador':
+      return '/administrador'
     case 'ParAcademico':
       return '/administrador'
+    case 'SuperAdmin':
+      return '/superadmin'
   }
 }
 
@@ -66,10 +72,36 @@ export function etiquetaRol(rol: RolUsuario): string {
     case 'Revisor':
       return 'Revisora de calidad'
     case 'Administrador':
-      return 'Administrador / Par académico'
+      return 'Administrador'
     case 'ParAcademico':
       return 'Par académico MEN'
+    case 'SuperAdmin':
+      return 'Super administrador SIAC'
   }
+}
+
+const RUTAS_SUPERADMIN = ['/superadmin', '/cargador', '/revisor', '/administrador'] as const
+
+/** Rutas de consulta institucional para Par académico (HU-002): sin carga ni dictamen. */
+const RUTAS_PAR_ACADEMICO = [
+  '/administrador/dashboard',
+  '/administrador/programas',
+  '/administrador/evidencias',
+] as const
+
+export const ROLES_CONSULTA_INSTITUCIONAL: RolUsuario[] = ['Administrador', 'ParAcademico']
+
+export function rutaPermitidaSuperAdmin(pathname: string): boolean {
+  return RUTAS_SUPERADMIN.some(
+    (prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`),
+  )
+}
+
+export function rutaPermitidaParAcademico(pathname: string): boolean {
+  if (pathname === '/administrador') return true
+  return RUTAS_PAR_ACADEMICO.some(
+    (prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`),
+  )
 }
 
 export function leerSesionLocal(): SesionUsuario | null {

@@ -24,4 +24,11 @@ export const usuariosSemilla: Usuario[] = [
     contrasena: 'Admin2026',
     rol: 'Administrador',
   },
+  {
+    id: 'usr-superadmin',
+    nombre: 'Ana SuperAdmin',
+    correo: 'superadmin@uniautonoma.edu.co',
+    contrasena: 'SuperAdmin2026',
+    rol: 'SuperAdmin',
+  },
 ]

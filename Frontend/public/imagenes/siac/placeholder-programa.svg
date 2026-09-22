@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" fill="none">
+  <rect width="360" height="640" fill="#E8F6F6"/>
+  <rect x="24" y="24" width="312" height="592" rx="20" fill="#0A3B74" opacity="0.15"/>
+  <text x="180" y="330" text-anchor="middle" fill="#0A3B74" font-family="Arial,sans-serif" font-size="22" font-weight="700">Programa</text>
+</svg>

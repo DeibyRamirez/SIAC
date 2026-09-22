@@ -1,85 +1,113 @@
 'use client'
 
-import Link from 'next/link'
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { GuardiaSesion } from '@/components/auth/guardia-sesion'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
-import { ShellAplicacion } from '@/components/layout/shell-aplicacion'
-import { InsigniaEstado } from '@/components/siac/insignia-estado'
+import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { FiltroPrograma } from '@/components/siac/filtro-programa'
+import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { listarPendientesApi } from '@/lib/servicios/evidencias.servicio'
+import type { Evidencia } from '@/lib/tipos'
+
+function mapearEvidencia(e: Evidencia): Evidencia {
+  return {
+    ...e,
+    fechaCarga:
+      typeof e.fechaCarga === 'string'
+        ? e.fechaCarga.slice(0, 10)
+        : new Date().toISOString().slice(0, 10),
+  }
+}
+
+function pendientesDesdeSemilla(evidencias: Evidencia[]): Evidencia[] {
+  return evidencias.filter((e) => e.estado === 'EnRevision').map(mapearEvidencia)
+}
 
 export default function BandejaRevisorPage() {
   return (
-    <GuardiaSesion rolPermitido="Revisor">
+    <PlantillaPaginaApp titulo="Bandeja de revisión" rol="Revisor">
       <ContenidoBandeja />
-    </GuardiaSesion>
+    </PlantillaPaginaApp>
   )
 }
 
 function ContenidoBandeja() {
   const { datos } = usarAlmacen()
-  const borradores = useMemo(
+  const [pendientes, setPendientes] = useState<Evidencia[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [programaId, setProgramaId] = useState('todos')
+  const [origenDatos, setOrigenDatos] = useState<'api' | 'semilla'>('api')
+
+  const cargarPendientes = useCallback(async () => {
+    setCargando(true)
+    try {
+      if (apiDisponible()) {
+        try {
+          const resp = await listarPendientesApi()
+          const mapeadas = resp.datos.map(mapearEvidencia)
+          if (mapeadas.length > 0) {
+            setPendientes(mapeadas)
+            setOrigenDatos('api')
+            return
+          }
+        } catch {
+          // Fallback a semilla local si la API falla
+        }
+      }
+
+      const semilla = pendientesDesdeSemilla(datos.evidencias)
+      setPendientes(semilla)
+      setOrigenDatos('semilla')
+    } finally {
+      setCargando(false)
+    }
+  }, [datos.evidencias])
+
+  useEffect(() => {
+    cargarPendientes()
+    const intervalo = setInterval(cargarPendientes, 30000)
+    const alFoco = () => cargarPendientes()
+    window.addEventListener('focus', alFoco)
+    return () => {
+      clearInterval(intervalo)
+      window.removeEventListener('focus', alFoco)
+    }
+  }, [cargarPendientes])
+
+  const filtradas = useMemo(
     () =>
-      datos.evidencias.filter(
-        (evidencia) => evidencia.estado === 'Borrador' || evidencia.estado === 'EnRevision',
-      ),
-    [datos.evidencias],
+      programaId === 'todos'
+        ? pendientes
+        : pendientes.filter((evidencia) => evidencia.programaId === programaId),
+    [pendientes, programaId],
   )
 
   return (
-    <ShellAplicacion titulo="Bandeja de revisión">
+    <div className="space-y-6">
       <EncabezadoPagina
-        etiqueta="HU-006"
+        etiqueta="Flujo de aprobación"
         titulo="Bandeja de revisión"
-        descripcion="Solo se listan evidencias en estado Borrador pendientes de dictamen."
+        descripcion={
+          origenDatos === 'semilla'
+            ? 'Mostrando evidencias de demostración. Conecte la API y ejecute la semilla del backend para datos reales.'
+            : 'Evidencias en revisión pendientes de dictamen. Se actualiza automáticamente.'
+        }
       />
 
-      {borradores.length === 0 ? (
+      <FiltroPrograma valor={programaId} onCambiar={setProgramaId} />
+
+      {cargando ? (
+        <p className="text-sm text-muted-foreground">Cargando bandeja…</p>
+      ) : filtradas.length === 0 ? (
         <PanelVacio mensaje="No hay evidencias pendientes de revisión." />
       ) : (
-        <Card>
-          <CardContent className="overflow-x-auto pt-6">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="py-3 pr-4">Documento</th>
-                  <th className="py-3 pr-4">Programa</th>
-                  <th className="py-3 pr-4">Factor</th>
-                  <th className="py-3 pr-4">Periodo</th>
-                  <th className="py-3 pr-4">Estado</th>
-                  <th className="py-3 pr-4">Fecha</th>
-                  <th className="py-3">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {borradores.map((evidencia) => (
-                  <tr key={evidencia.id} className="border-b border-border/70">
-                    <td className="py-3 pr-4 font-medium text-[#102f55]">{evidencia.nombre}</td>
-                    <td className="py-3 pr-4">{obtenerNombrePrograma(evidencia.programaId)}</td>
-                    <td className="py-3 pr-4">{evidencia.factor}</td>
-                    <td className="py-3 pr-4">{evidencia.periodo}</td>
-                    <td className="py-3 pr-4">
-                      <InsigniaEstado estado={evidencia.estado} />
-                    </td>
-                    <td className="py-3 pr-4">{formatearFecha(evidencia.fechaCarga)}</td>
-                    <td className="py-3">
-                      <Link href={`/revisor/bandeja/${evidencia.id}`}>
-                        <Button size="sm" variant="outline">
-                          Revisar
-                        </Button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <TablaEvidencias
+          evidencias={filtradas}
+          enlaceDetalle={(id) => `/revisor/bandeja/${id}`}
+        />
       )}
-    </ShellAplicacion>
+    </div>
   )
 }

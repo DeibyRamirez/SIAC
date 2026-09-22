@@ -4,10 +4,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { GuardiaSesion } from '@/components/auth/guardia-sesion'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
-import { ShellAplicacion } from '@/components/layout/shell-aplicacion'
+import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,15 +15,15 @@ import {
   periodosSemilla,
   programasSemilla,
 } from '@/lib/datos-semilla'
-import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
 import type { Programa } from '@/lib/tipos'
 
 export default function NuevaEvidenciaPage() {
   return (
-    <GuardiaSesion rolPermitido="Cargador">
+    <PlantillaPaginaApp titulo="Cargar evidencia" rol="Cargador">
       <ContenidoNuevaEvidencia />
-    </GuardiaSesion>
+    </PlantillaPaginaApp>
   )
 }
 
@@ -52,7 +51,7 @@ function ContenidoNuevaEvidencia() {
         }
       })
       .catch(() => {
-        // Mantiene datos semilla
+        // Mantiene semilla local
       })
   }, [])
 
@@ -71,8 +70,8 @@ function ContenidoNuevaEvidencia() {
       return
     }
 
-    if (archivo.size > 25 * 1024 * 1024) {
-      setError('El archivo supera el tamaño máximo permitido (25 MB).')
+    if (archivo.size > 20 * 1024 * 1024) {
+      setError('El archivo supera el tamaño máximo permitido (20 MB).')
       return
     }
 
@@ -99,7 +98,7 @@ function ContenidoNuevaEvidencia() {
   }
 
   return (
-    <ShellAplicacion titulo="Carga de evidencias">
+    <div className="space-y-6">
       <EncabezadoPagina
         etiqueta="HU-003"
         titulo="Cargar evidencia"
@@ -195,7 +194,7 @@ function ContenidoNuevaEvidencia() {
 
             <div className="flex gap-3">
               <Button type="submit" disabled={enviando}>
-                {enviando ? 'Guardando...' : 'Guardar borrador'}
+                {enviando ? 'Guardando…' : 'Guardar borrador'}
               </Button>
               <Link href="/cargador/evidencias">
                 <Button type="button" variant="outline">
@@ -206,6 +205,6 @@ function ContenidoNuevaEvidencia() {
           </form>
         </CardContent>
       </Card>
-    </ShellAplicacion>
+    </div>
   )
 }
