@@ -2,12 +2,12 @@
 
 > **InstrucciÃ³n para agentes de IA:** Leer este archivo **completo** antes de modificar Backend, Frontend o Documentos. Tras cada sesiÃ³n significativa, actualizar **Estado actual**, **Tareas** y **Registro de cambios**.
 
-> **Checkout de entrega (este repo):** E:\Universidad\SEMESTRE 8\Practica Profesional\SIAC · remoto https://github.com/DeibyRamirez/SIAC.git · frontend en `Frontend/` (no `Frontend/frontend`).
+> **Checkout de entrega (este repo):** E:\Universidad\SEMESTRE 8\Practica Profesional\SIAC · remoto https://github.com/DeibyRamirez/SIAC.git · Next.js en `Frontend/` (`app/`, `components/`, `lib/`).
 
 | Campo | Valor |
 |-------|-------|
 | **Ãšltima actualizaciÃ³n** | 2026-09-17 |
-| **VersiÃ³n frontend** | `0.1.0` (`Frontend/frontend/package.json`) |
+| **VersiÃ³n frontend** | `0.1.0` (`Frontend/package.json`) |
 | **VersiÃ³n backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` Â· ref `olknaoacxwenqlawxysx` Â· regiÃ³n `ca-central-1` |
 | **Ruta local** | `D:\Proyectos\Simulacion_SIAC` |
@@ -42,9 +42,8 @@ Simulacion_SIAC/
 â”œâ”€â”€ Backend/                      â† NestJS 10 + Prisma + Supabase
 â”‚   â”œâ”€â”€ src/modules/              â† auth, documentos, integracion, ingestaâ€¦
 â”‚   â””â”€â”€ prisma/schema.prisma      â† Modelo F-03
-â”œâ”€â”€ Frontend/
-â”‚   â”œâ”€â”€ MEMORIA_PROYECTO.md       â† Memoria detallada frontend
-â”‚   â””â”€â”€ frontend/                 â† Next.js 16 App Router
+â”œâ”€â”€ Frontend/                      â† Next.js 16 App Router (app/, components/, lib/)
+â”‚   â””â”€â”€ MEMORIA_PROYECTO.md       â† Memoria detallada frontend
 â”œâ”€â”€ Documentos/                   â† F-00..F-03, APIs, normativa
 â”œâ”€â”€ docs/
 â”‚   â”œâ”€â”€ etapa-0/                  â† Inception
@@ -136,7 +135,7 @@ Next.js 16, React 19, Tailwind 4, shadcn, Recharts, TanStack Table.
 
 ### IntegraciÃ³n API
 
-- Cliente: `Frontend/frontend/lib/servicios/cliente-api.ts`
+- Cliente: `Frontend/lib/servicios/cliente-api.ts`
 - Base: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
 - Fallback mock via `ProveedorAlmacen` si API no responde
 
@@ -206,7 +205,7 @@ PUERTO=3001
 CORS_ORIGEN="http://localhost:3000"
 ```
 
-**Frontend (`Frontend/frontend/.env.local`):**
+**Frontend (`Frontend/.env.local`):**
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1

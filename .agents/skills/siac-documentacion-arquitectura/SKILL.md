@@ -266,5 +266,5 @@ Un adapter por sistema externo; no mezclar en Service de dominio.
 | `docs/etapa-0/README.md` | Plantilla etapa completada |
 | `Documentos/Información del Proyecto.md` | Módulos y usuarios |
 | `Documentos/estructura_decreto_etapas_documentos.md` | Normativa Decreto 1330 |
-| `Frontend/frontend/lib/tipos/index.ts` | Estados evidencia |
+| `Frontend/lib/tipos/index.ts` | Estados evidencia |
 | `Documentos/Información del Proyecto.md` § Patrones | Repository, Adapter, DTO, DI |

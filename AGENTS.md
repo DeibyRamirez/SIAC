@@ -28,7 +28,7 @@ Instrucciones para agentes de IA que trabajen en este repositorio.
 ## Estructura relevante
 
 - `Backend/` — NestJS + Prisma + Supabase
-- `Frontend/` — Next.js App Router (raíz del front; no `Frontend/frontend`)
+- `Frontend/` — Next.js App Router en `Frontend/` (`app/`, `components/`, `lib/`)
 - `docs/` — etapas, backlog, sprint reviews
 - `Documentos/` — F-00..F-03 y material normativo
 - `.github/workflows/` — CI/CD (cuando esté presente)

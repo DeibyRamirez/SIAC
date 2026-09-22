@@ -19,7 +19,7 @@ Alinear equipo, cliente (Planeación CUAC) y docente sobre alcance, arquitectura
 | Diseño de APIs Backend | [Documentos/Diseno_APIs_SIAC.docx.pdf](../../Documentos/Diseno_APIs_SIAC.docx.pdf) | ✅ |
 | Estructura normativa Decreto 1330 | [Documentos/estructura_decreto_etapas_documentos.md](../../Documentos/estructura_decreto_etapas_documentos.md) | ✅ |
 | Información del proyecto | [Documentos/Información del Proyecto.md](../../Documentos/Información%20del%20Proyecto.md) | ✅ |
-| Prototipo Next.js alta fidelidad | `Frontend/frontend/` | ✅ |
+| Prototipo Next.js alta fidelidad | `Frontend/` | ✅ |
 | Memoria frontend | [Frontend/MEMORIA_PROYECTO.md](../../Frontend/MEMORIA_PROYECTO.md) | ✅ |
 
 ## Diagrama de componentes (F-03 §1.1)

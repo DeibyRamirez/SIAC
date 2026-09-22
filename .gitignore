@@ -7,3 +7,7 @@ dist/
 .DS_Store
 Backend/almacen-local/
 package-lock.json
+
+*.tsbuildinfo
+.codebase-memory/
+

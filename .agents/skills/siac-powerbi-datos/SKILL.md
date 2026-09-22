@@ -3,7 +3,7 @@ name: siac-powerbi-datos
 description: >-
   Implementa ingesta Excel, pipeline de datos hacia dashboards y Power BI Embedded
   (App Owns Data, embed tokens Azure) con fallback Recharts. Usar para HU-009, métricas
-  administrador, parseo xlsx/exceljs o integración BI en Frontend/frontend/.
+  administrador, parseo xlsx/exceljs o integración BI en Frontend/.
 ---
 
 # Power BI y pipeline de datos — SIAC
@@ -23,7 +23,7 @@ description: >-
 | ID | HU-009 |
 | Título | Métricas embebidas Power BI |
 | Sprint | 3 (Etapa 3) |
-| Ruta UI | `Frontend/frontend/app/(app)/administrador/dashboard/page.tsx` |
+| Ruta UI | `Frontend/app/(app)/administrador/dashboard/page.tsx` |
 | Estado prototipo | Tab "Power BI" con placeholder + simulación token expirado |
 | Producción | iframe embed + token desde backend NestJS |
 
@@ -192,8 +192,8 @@ Regla: **nunca** dejar al administrador sin métricas visibles; el tab Recharts 
 
 | Archivo | Contenido |
 |---------|-----------|
-| `Frontend/frontend/app/(app)/administrador/dashboard/page.tsx` | Tabs métricas + Power BI |
-| `Frontend/frontend/lib/datos-semilla/metricas-dashboard.ts` | Datos mock/fallback |
-| `Frontend/frontend/components/siac/grafico-*.tsx` | Gráficos Recharts |
+| `Frontend/app/(app)/administrador/dashboard/page.tsx` | Tabs métricas + Power BI |
+| `Frontend/lib/datos-semilla/metricas-dashboard.ts` | Datos mock/fallback |
+| `Frontend/components/siac/grafico-*.tsx` | Gráficos Recharts |
 | `docs/etapa-0/README.md` | HU-009 en backlog |
 | `Documentos/Información del Proyecto.md` | Módulo ingesta + Power BI |

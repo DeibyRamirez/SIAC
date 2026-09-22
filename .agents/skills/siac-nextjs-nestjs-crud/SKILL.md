@@ -3,7 +3,7 @@ name: siac-nextjs-nestjs-crud
 description: >-
   Guía CRUD full-stack SIAC con Next.js 16 App Router SSR, NestJS 10, Prisma Repository,
   pnpm, DTOs class-validator y JWT por rol. Usar al implementar APIs, módulos backend,
-  páginas SSR o alinear contratos con Frontend/frontend/lib/tipos/index.ts.
+  páginas SSR o alinear contratos con Frontend/lib/tipos/index.ts.
 ---
 
 # Next.js + NestJS CRUD — SIAC
@@ -24,13 +24,13 @@ description: >-
 | **Frontend/backend separados** | Repos distintos o carpetas `Frontend/` y `backend/`; API REST JSON |
 | **pnpm exclusivo** | Nunca `npm install`; usar `pnpm` en frontend y backend |
 | **Código en español** | Variables, DTOs, mensajes de error, textos UI |
-| **Contratos tipados** | Fuente de verdad TS: `Frontend/frontend/lib/tipos/index.ts` |
+| **Contratos tipados** | Fuente de verdad TS: `Frontend/lib/tipos/index.ts` |
 
 ## Gestor de paquetes
 
 ```bash
 # Frontend
-cd Frontend/frontend
+cd Frontend
 pnpm install
 pnpm dev
 
@@ -47,7 +47,7 @@ pnpm start:dev
 ### Estructura rutas
 
 ```text
-Frontend/frontend/app/
+Frontend/app/
 ├── layout.tsx              # Root layout
 ├── login/page.tsx          # Pública
 └── (app)/                  # Grupo autenticado
@@ -285,7 +285,7 @@ async revisar(@Param('id') id: string, @Body() dto: RevisarEvidenciaDto) { ... }
 
 ### Alineación tipos TS
 
-Al cambiar schema Prisma, **actualizar** `Frontend/frontend/lib/tipos/index.ts` en la misma PR.
+Al cambiar schema Prisma, **actualizar** `Frontend/lib/tipos/index.ts` en la misma PR.
 
 Tipos clave exportados:
 
@@ -319,8 +319,8 @@ export interface Plantilla { /* ... */ }
 
 | Archivo | Contenido |
 |---------|-----------|
-| `Frontend/frontend/lib/tipos/index.ts` | Contratos dominio |
-| `Frontend/frontend/components/auth/proveedor-almacen.tsx` | CRUD mock a reemplazar |
-| `Frontend/frontend/components/auth/guardia-sesion.tsx` | Guardia rol cliente |
+| `Frontend/lib/tipos/index.ts` | Contratos dominio |
+| `Frontend/components/auth/proveedor-almacen.tsx` | CRUD mock a reemplazar |
+| `Frontend/components/auth/guardia-sesion.tsx` | Guardia rol cliente |
 | `Frontend/MEMORIA_PROYECTO.md` | Stack y rutas |
 | `docs/etapa-0/README.md` | HUs por sprint |
