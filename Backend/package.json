@@ -20,6 +20,7 @@
     "prisma:backfill-versiones": "ts-node prisma/backfill-versiones-evidencia.ts",
     "prisma:setup": "pnpm prisma:repair-schema && pnpm prisma:verify && prisma generate && ts-node prisma/semilla.ts && ts-node prisma/backfill-versiones-evidencia.ts",
     "prisma:seed": "ts-node prisma/semilla.ts",
+    "storage:probar": "ts-node scripts/probar-storage.ts",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {

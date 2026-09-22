@@ -15,13 +15,14 @@ Establecer infraestructura backend real sobre **Supabase** (PostgreSQL + Storage
 |---------|-------|
 | Proyecto | `Simulacion_siac` |
 | Región | `ca-central-1` |
-| URL | `https://olknaoacxwenqlawxysx.supabase.co` |
-| Ref | `olknaoacxwenqlawxysx` |
+| URL | `https://[PROJECT_REF].supabase.co` |
+| Ref | `[PROJECT_REF]` (Dashboard → Project Settings) |
 
 ### Checklist de configuración
 
 - [x] Migración inicial aplicada (12 tablas + enums F-03)
-- [ ] Crear buckets Storage: `evidencias`, `plantillas` (Dashboard → Storage)
+- [ ] Crear buckets Storage: `evidencias`, `plantillas`, `documentos` (Dashboard → Storage)
+- [ ] Verificar esquema: `pnpm prisma:verify` (tabla `EvidenciaVersion`)
 - [ ] Configurar S3 Access Keys (Dashboard → Storage → S3 Connection)
 - [ ] Copiar `Backend/.env.example` → `Backend/.env` con credenciales reales
 - [ ] Ejecutar semilla: `pnpm prisma:seed`
@@ -30,9 +31,9 @@ Establecer infraestructura backend real sobre **Supabase** (PostgreSQL + Storage
 
 ```env
 DATABASE_URL="postgresql://postgres.[ref]:[PASSWORD]@aws-0-ca-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.[ref]:[PASSWORD]@db.olknaoacxwenqlawxysx.supabase.co:5432/postgres"
+DIRECT_URL="postgresql://postgres.[ref]:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres"
 S3_USAR_ALMACEN_LOCAL="false"
-S3_ENDPOINT="https://olknaoacxwenqlawxysx.supabase.co/storage/v1/s3"
+S3_ENDPOINT="https://[PROJECT_REF].supabase.co/storage/v1/s3"
 S3_BUCKET="evidencias"
 S3_BUCKET_PLANTILLAS="plantillas"
 ```

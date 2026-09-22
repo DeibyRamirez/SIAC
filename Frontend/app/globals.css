@@ -1,0 +1,243 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-institucional: var(--institucional);
+  --color-cyan-tecnico: var(--cyan-tecnico);
+  --color-esmeralda: var(--esmeralda);
+  --color-coral: var(--coral);
+  --color-ocre: var(--ocre);
+  --color-fucsia: var(--fucsia);
+  --color-purpura: var(--purpura);
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --color-chart-1: #0a3b74;
+  --color-chart-2: #1cbca6;
+  --color-chart-3: #1d70b8;
+  --color-chart-4: #c28b10;
+  --color-chart-5: #f25c30;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Paleta institucional CUAC */
+  --institucional: #0a3b74;
+  --cyan-tecnico: #1d70b8;
+  --esmeralda: #1cbca6;
+  --coral: #f25c30;
+  --ocre: #c28b10;
+  --fucsia: #d82b5a;
+  --purpura: #904179;
+  --texto-principal: #333333;
+  --texto-secundario: #555555;
+
+  /* Tokens shadcn */
+  --background: #fff8f6;
+  --foreground: #333333;
+  --card: #ffffff;
+  --card-foreground: #333333;
+  --popover: #ffffff;
+  --popover-foreground: #333333;
+  --primary: #0a3b74;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f4f8;
+  --secondary-foreground: #0a3b74;
+  --muted: #eef6f8;
+  --muted-foreground: #555555;
+  --border: #c5d8e8;
+  --input: #b8ccd9;
+  --ring: #1d70b8;
+  --destructive: #d82b5a;
+  --accent: #e8f6f6;
+  --accent-foreground: #0a3b74;
+
+  --sombra-institucional: 0 4px 24px rgba(10, 59, 116, 0.12);
+  --sombra-tarjeta: 0 2px 16px rgba(10, 59, 116, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #fff2ee 0%, #e8f6f6 50%, #eef4fa 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ——— Utilidades institucionales ——— */
+
+.fondo-app {
+  background: linear-gradient(135deg, #fff2ee 0%, #e8f6f6 50%, #eef4fa 100%);
+  min-height: 100%;
+}
+
+.titulo-institucional {
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--institucional);
+}
+
+.etiqueta-seccion {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--esmeralda);
+}
+
+.borde-institucional {
+  border-left: 3px solid var(--institucional);
+  padding-left: 1rem;
+}
+
+.badge-categoria {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.tarjeta-institucional {
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: 1px solid rgba(10, 59, 116, 0.12);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.tarjeta-visual {
+  border-radius: 20px;
+  background-color: #ffffff;
+  border: 1px solid rgba(10, 59, 116, 0.1);
+  box-shadow: var(--sombra-institucional);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tarjeta-hero-institucional {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0a3b74 0%, #0d4a8c 50%, #1d70b8 100%);
+  border: none;
+  box-shadow: var(--sombra-institucional);
+  color: #ffffff;
+}
+
+.tarjeta-visual:hover {
+  box-shadow: 0 12px 32px rgba(10, 59, 116, 0.18);
+  transform: translateY(-3px);
+}
+
+.panel-sidebar {
+  background: linear-gradient(180deg, #0a3b74 0%, #0d4a8c 120px, #ffffff 120px);
+}
+
+.panel-topbar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 2px solid rgba(10, 59, 116, 0.15);
+}
+
+.footer-institucional {
+  width: 100%;
+  background: var(--institucional);
+  color: #ffffff;
+  letter-spacing: 0.25em;
+  text-transform: lowercase;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.875rem 1rem;
+}
+
+.cta-institucional {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--institucional);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.625rem 1.5rem;
+}
+
+.tabla-institucional {
+  border-radius: 12px;
+  border: 1px solid rgba(10, 59, 116, 0.12);
+  background: #ffffff;
+  box-shadow: var(--sombra-tarjeta);
+  overflow: hidden;
+}
+
+/* Tabs activos institucionales (variante pastilla) */
+[data-slot='tabs-list'][data-variant='default'] [data-slot='tabs-trigger'][data-active] {
+  background: var(--institucional) !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+}
+
+[data-slot='tabs-list'][data-variant='default'] {
+  background: rgba(10, 59, 116, 0.08);
+  border: 1px solid rgba(10, 59, 116, 0.12);
+  padding: 4px;
+  border-radius: 10px;
+}
+
+/* Encabezados de tabla */
+[data-slot='table-head'] {
+  background: rgba(10, 59, 116, 0.06);
+  color: var(--institucional);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-slot='table-row']:hover {
+  background: rgba(28, 188, 166, 0.08) !important;
+}
