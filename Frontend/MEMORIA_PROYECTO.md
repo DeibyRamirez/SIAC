@@ -5,7 +5,7 @@
 | Campo | Valor |
 |-------|-------|
 | **Última actualización** | 2026-09-08 |
-| **Versión frontend** | `0.1.0` (`Frontend/frontend/package.json`) |
+| **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`backend/package.json`) |
 | **Rama activa** | Simulación SIAC — implementación completa |
 | **Repositorio remoto** | `https://github.com/BICHO128/SISTEMA-SIAC.git` |
@@ -55,7 +55,7 @@ Cargador descarga plantilla → diligencia y sube evidencia (borrador)
 1. Código, comentarios, variables y textos UI en **español**.
 2. Cambios mínimos y enfocados; no commitear sin petición explícita.
 3. Antes de UI nueva, revisar reglas en `.agents/skills/` si existen.
-4. Tras cambios en frontend: `pnpm run build` en `frontend/`.
+4. Tras cambios en frontend: `pnpm run build` en `Frontend/`.
 5. Actualizar esta memoria al cerrar sesiones relevantes.
 
 ---
@@ -80,7 +80,7 @@ Simulacion_SIAC/
 ├── backend/                     ← NestJS 10 + Prisma + PostgreSQL (ACTIVO)
 │   ├── src/                     ← Módulos: auth, documentos, plantillas, etc.
 │   └── prisma/                  ← Schema, migraciones, semilla
-├── Frontend/frontend/           ← Next.js 16 App Router (ACTIVO)
+├── Frontend/                    ← Next.js 16 App Router (ACTIVO)
 │   ├── app/                     ← Rutas por rol
 │   ├── components/              ← auth, layout, siac, ui
 │   └── lib/servicios/           ← Cliente HTTP hacia API
@@ -92,13 +92,13 @@ Simulacion_SIAC/
 
 | Archivo | Función |
 |---------|---------|
-| `frontend/lib/almacen-prototipo.ts` | Lectura/escritura mock + merge con semillas |
-| `frontend/components/auth/proveedor-almacen.tsx` | Contexto React con CRUD completo |
-| `frontend/components/auth/proveedor-sesion.tsx` | Auth mock + redirección por rol |
-| `frontend/lib/datos-semilla/estructura-decreto-1330.ts` | 6 CI + 9 CP + etapas + documentos |
-| `frontend/components/layout/shell-aplicacion.tsx` | Shell v0 + `PlantillaPaginaApp` |
-| `frontend/components/layout/barra-lateral.tsx` | Navegación por rol |
-| `frontend/app/login/page.tsx` | Login estilo Moodle institucional |
+| `Frontend/lib/almacen-prototipo.ts` | Lectura/escritura mock + merge con semillas |
+| `Frontend/components/auth/proveedor-almacen.tsx` | Contexto React con CRUD completo |
+| `Frontend/components/auth/proveedor-sesion.tsx` | Auth mock + redirección por rol |
+| `Frontend/lib/datos-semilla/estructura-decreto-1330.ts` | 6 CI + 9 CP + etapas + documentos |
+| `Frontend/components/layout/shell-aplicacion.tsx` | Shell v0 + `PlantillaPaginaApp` |
+| `Frontend/components/layout/barra-lateral.tsx` | Navegación por rol |
+| `Frontend/app/login/page.tsx` | Login estilo Moodle institucional |
 
 ---
 
@@ -122,7 +122,7 @@ Simulacion_SIAC/
 **Comandos frontend:**
 
 ```bash
-cd frontend
+cd Frontend
 pnpm install
 pnpm dev      # http://localhost:3000
 pnpm run build
@@ -146,7 +146,7 @@ pnpm run build
 | Revisor | `revisor.calidad@uniautonoma.edu.co` | `Revisor2026` |
 | Administrador | `admin.planeacion@uniautonoma.edu.co` | `Admin2026` |
 
-Definidas en `frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel lateral con botones **Copiar correo** / **Copiar contraseña**.
+Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel lateral con botones **Copiar correo** / **Copiar contraseña**.
 
 ---
 
@@ -187,7 +187,7 @@ Definidas en `frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel la
 
 ## 8. Modelo de dominio (Decreto 1330)
 
-Tipos en `frontend/lib/tipos/index.ts`:
+Tipos en `Frontend/lib/tipos/index.ts`:
 
 - `EtapaAcreditacion` — Pre-radicación, Radicación, Autoevaluación, Renovación
 - `CondicionDecreto` — 6 institucionales (CI) + 9 de programa (CP)
@@ -195,7 +195,7 @@ Tipos en `frontend/lib/tipos/index.ts`:
 - `DocumentoRequerido` — Documentos/plantillas dentro de cada carpeta
 - `Evidencia`, `Plantilla`, `Programa`, `AlertaVigencia`, etc.
 
-Semilla normativa: `frontend/lib/datos-semilla/estructura-decreto-1330.ts`
+Semilla normativa: `Frontend/lib/datos-semilla/estructura-decreto-1330.ts`
 
 ### Contratos API futuros (NestJS)
 
