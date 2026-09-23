@@ -183,13 +183,13 @@ pnpm prisma migrate deploy   # contra Supabase con DIRECT_URL
 pnpm prisma:seed
 pnpm start:dev               # http://localhost:3001/api/v1
 
-cd Frontend/frontend
+cd Frontend
 pnpm dev                     # http://localhost:3000
 ```
 
 ## Frontend — integración API
 
-- Cliente HTTP: `Frontend/frontend/lib/servicios/cliente-api.ts`
+- Cliente HTTP: `Frontend/lib/servicios/cliente-api.ts`
 - Base URL: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
 - Servicios: evidencias, plantillas, programas
 - Fallback mock si API no disponible

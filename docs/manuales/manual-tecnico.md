@@ -20,7 +20,7 @@
 
 ## Variables de entorno
 
-Ver `backend/.env.example` y `Frontend/frontend/.env.local.example`.
+Ver `Backend/.env.example` y `Frontend/.env.local.example`.
 
 ## Comandos
 
@@ -35,7 +35,7 @@ pnpm start:dev
 pnpm test
 
 # Frontend
-cd Frontend/frontend
+cd Frontend
 pnpm install
 pnpm dev
 pnpm run build

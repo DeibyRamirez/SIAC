@@ -26,8 +26,8 @@ Swagger: `http://localhost:3001/api/docs`
 ### Frontend
 
 ```bash
-cd Frontend/frontend
-cp .env.example .env.local
+cd Frontend
+cp .env.local.example .env.local
 pnpm install
 pnpm dev
 ```
