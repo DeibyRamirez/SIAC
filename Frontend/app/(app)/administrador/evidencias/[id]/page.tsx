@@ -114,6 +114,8 @@ function ContenidoDetalleAdmin() {
           urlDocumento={urlDocumento}
           formato={formato}
           claveCache={versionActual}
+          evidenciaId={evidencia.id}
+          versionDocumento={versionActual}
         />
         <Card>
           <CardContent className="space-y-4 pt-6 text-sm">

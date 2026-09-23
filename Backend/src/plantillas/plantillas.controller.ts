@@ -6,11 +6,14 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   Request,
   UploadedFile,
   UseInterceptors,
+  StreamableFile,
 } from '@nestjs/common';
+import { TipoTramitePlantilla } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { RolUsuario } from '@prisma/client';
@@ -24,8 +27,11 @@ export class PlantillasController {
   constructor(private readonly plantillasService: PlantillasService) {}
 
   @Get()
-  listar(@Request() req: { user: { rol: RolUsuario } }) {
-    return this.plantillasService.listar(req.user.rol);
+  listar(
+    @Request() req: { user: { rol: RolUsuario } },
+    @Query('tipoTramite') tipoTramite?: TipoTramitePlantilla,
+  ) {
+    return this.plantillasService.listar(req.user.rol, tipoTramite);
   }
 
   @Post()
@@ -60,5 +66,25 @@ export class PlantillasController {
   @Get(':id/descargar')
   descargar(@Param('id') id: string) {
     return this.plantillasService.obtenerUrlDescarga(id);
+  }
+
+  @Get(':id/contenido')
+  async contenido(@Param('id') id: string) {
+    const archivo = await this.plantillasService.obtenerContenidoArchivo(id);
+    return new StreamableFile(archivo.buffer, {
+      type: archivo.mimeType,
+      disposition: `inline; filename="${encodeURIComponent(archivo.nombreArchivo)}"`,
+    });
+  }
+
+  @Patch(':id/archivo')
+  @Roles(RolUsuario.Administrador, RolUsuario.Revisor)
+  @UseInterceptors(FileInterceptor('archivo'))
+  reemplazarArchivo(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File,
+    @Request() req: { user: { rol: RolUsuario } },
+  ) {
+    return this.plantillasService.reemplazarArchivo(id, archivo, req.user.rol);
   }
 }

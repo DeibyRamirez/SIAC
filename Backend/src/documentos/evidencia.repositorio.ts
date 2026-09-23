@@ -54,10 +54,52 @@ export class EvidenciaRepositorio {
 
       where: { id },
 
-      include: { programa: true, autor: { select: { id: true, nombre: true, correo: true } } },
+      include: {
+        programa: true,
+        autor: { select: { id: true, nombre: true, correo: true } },
+        evaluacionesCondicion: {
+          orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+        },
+      },
 
     });
 
+  }
+
+  guardarEvaluacionesCondicion(
+    evidenciaId: string,
+    numeroRevision: number,
+    revisorId: string,
+    filas: {
+      codigoCondicion: import('@prisma/client').CodigoCondicionDocumentoMaestro;
+      cumple: boolean;
+      observacion?: string;
+    }[],
+  ) {
+    return this.prisma.$transaction(
+      filas.map((fila) =>
+        this.prisma.evaluacionCondicionEvidencia.create({
+          data: {
+            evidenciaId,
+            numeroRevision,
+            revisorId,
+            codigoCondicion: fila.codigoCondicion,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+        }),
+      ),
+    );
+  }
+
+  listarEvaluacionesCondicion(evidenciaId: string, numeroRevision?: number) {
+    return this.prisma.evaluacionCondicionEvidencia.findMany({
+      where: {
+        evidenciaId,
+        ...(numeroRevision !== undefined ? { numeroRevision } : {}),
+      },
+      orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+    });
   }
 
 

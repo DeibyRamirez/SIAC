@@ -30,6 +30,13 @@ export class CrearEvidenciaDto {
   @IsString()
   @IsOptional()
   responsable?: string;
+
+  @IsString()
+  @IsOptional()
+  documentoRequeridoId?: string;
+
+  @IsOptional()
+  requiereChecklistMaestro?: string;
 }
 
 export class ActualizarEvidenciaDto {

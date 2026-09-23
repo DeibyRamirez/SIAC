@@ -1,8 +1,18 @@
 import { peticionApi } from './cliente-api';
-import type { Programa } from '@/lib/tipos';
+import type { NivelPrograma, Programa } from '@/lib/tipos';
 
 export async function listarProgramasApi(): Promise<Programa[]> {
   return peticionApi<Programa[]>('/programas');
+}
+
+export async function crearProgramaApi(datos: {
+  nombre: string
+  nivel: NivelPrograma
+}): Promise<Programa> {
+  return peticionApi<Programa>('/programas', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
 }
 
 export async function obtenerProgramaApi(id: string) {

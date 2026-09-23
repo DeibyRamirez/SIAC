@@ -6,10 +6,130 @@ import {
   FormatoArchivo,
   CategoriaPlantilla,
   OrigenDato,
+  TipoTramitePlantilla,
+  CodigoCondicionDocumentoMaestro,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
+
+const MIME_DOCX =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const RUTA_FORMATOS_GUIA = path.join(__dirname, '..', '..', 'FormatosGuia');
+
+async function sembrarPlantillasFormatosGuia() {
+  const entradas: {
+    id: string;
+    nombre: string;
+    archivo: string;
+    categoria: CategoriaPlantilla;
+    tipoTramite: TipoTramitePlantilla;
+    esGuiaDocumentoMaestro: boolean;
+    factor: string;
+    descripcion: string;
+  }[] = [
+    {
+      id: 'plt-guia-ci',
+      nombre: 'Documento Maestro — Condiciones institucionales',
+      archivo: 'Informe de Autoevaluación de Condiciones Institucionales (CI).docx',
+      categoria: CategoriaPlantilla.Institucional,
+      tipoTramite: TipoTramitePlantilla.General,
+      esGuiaDocumentoMaestro: true,
+      factor: 'CI · Autoevaluación institucional',
+      descripcion: 'Guía para el informe de autoevaluación de condiciones institucionales.',
+    },
+    {
+      id: 'plt-guia-cp-ren',
+      nombre: 'Documento Maestro — Condiciones de programa (Renovación)',
+      archivo: 'Documento Maestro (Condiciones de Programa).docx',
+      categoria: CategoriaPlantilla.Programa,
+      tipoTramite: TipoTramitePlantilla.Renovacion,
+      esGuiaDocumentoMaestro: true,
+      factor: 'CP · Renovación de registro calificado',
+      descripcion: 'Guía del documento maestro para procesos de renovación.',
+    },
+    {
+      id: 'plt-guia-cp-nuevo',
+      nombre: 'Documento Maestro — Condiciones de programa (Nuevo)',
+      archivo: 'Plan de Desarrollo (solo para primera vez).docx',
+      categoria: CategoriaPlantilla.Programa,
+      tipoTramite: TipoTramitePlantilla.NuevoPrograma,
+      esGuiaDocumentoMaestro: true,
+      factor: 'CP · Creación de programa',
+      descripcion: 'Guía del documento maestro para programas de primera vez.',
+    },
+    {
+      id: 'plt-auto-ren',
+      nombre: 'Evidencias de autoevaluación de programa (Renovación)',
+      archivo: 'Evidencias de Autoevaluación de Programa (Renovación).docx',
+      categoria: CategoriaPlantilla.Autoevaluacion,
+      tipoTramite: TipoTramitePlantilla.Renovacion,
+      esGuiaDocumentoMaestro: false,
+      factor: 'Autoevaluación · Renovación',
+      descripcion: 'Matriz de evidencias para renovación de registro calificado.',
+    },
+    {
+      id: 'plt-contingencia',
+      nombre: 'Plan de contingencia',
+      archivo: 'Plan de Contingencia.docx',
+      categoria: CategoriaPlantilla.Institucional,
+      tipoTramite: TipoTramitePlantilla.General,
+      esGuiaDocumentoMaestro: false,
+      factor: 'CI · Gestión de riesgos',
+      descripcion: 'Formato de plan de contingencia institucional.',
+    },
+    {
+      id: 'plt-modificacion',
+      nombre: 'Solicitud de modificación',
+      archivo: 'Solicitud de Modificación.docx',
+      categoria: CategoriaPlantilla.Programa,
+      tipoTramite: TipoTramitePlantilla.General,
+      esGuiaDocumentoMaestro: false,
+      factor: 'CP · Modificación curricular',
+      descripcion: 'Solicitud de modificación de programa.',
+    },
+  ];
+
+  for (const item of entradas) {
+    const origen = path.join(RUTA_FORMATOS_GUIA, item.archivo);
+    const rutaAlmacen = `plantillas/formatos-guia/${item.id}/${item.archivo}`;
+    if (fs.existsSync(origen)) {
+      const destinoDir = path.join(__dirname, '..', 'almacen-local', 'plantillas', 'formatos-guia', item.id);
+      fs.mkdirSync(destinoDir, { recursive: true });
+      fs.copyFileSync(origen, path.join(destinoDir, item.archivo));
+    }
+
+    await prisma.plantilla.upsert({
+      where: { id: item.id },
+      update: {
+        nombre: item.nombre,
+        tipoTramite: item.tipoTramite,
+        esGuiaDocumentoMaestro: item.esGuiaDocumentoMaestro,
+        nombreArchivo: item.archivo,
+        rutaArchivo: fs.existsSync(origen) ? rutaAlmacen : null,
+        formato: FormatoArchivo.DOCX,
+        vigente: true,
+      },
+      create: {
+        id: item.id,
+        nombre: item.nombre,
+        factor: item.factor,
+        formato: FormatoArchivo.DOCX,
+        version: '2026.1',
+        vigente: true,
+        categoria: item.categoria,
+        tipoTramite: item.tipoTramite,
+        esGuiaDocumentoMaestro: item.esGuiaDocumentoMaestro,
+        descripcion: item.descripcion,
+        nombreArchivo: item.archivo,
+        rutaArchivo: fs.existsSync(origen) ? rutaAlmacen : null,
+      },
+    });
+  }
+}
 
 async function main() {
   console.log('Sembrando base de datos SIAC...');
@@ -102,6 +222,13 @@ async function main() {
     { codigo: 'ESP-CIB', nombre: 'Especialización en Ciberseguridad', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 2 },
     { codigo: 'ESP-INN', nombre: 'Especialización en Innovación', nivel: 'Posgrado', modalidad: 'Presencial', duracionSemestres: 2 },
     { codigo: 'MAE-GES', nombre: 'Maestría en Gestión de Proyectos', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 4 },
+    {
+      codigo: 'ING-SWC',
+      nombre: 'Ingeniería de Software y Computación',
+      nivel: 'Pregrado',
+      modalidad: 'Presencial',
+      duracionSemestres: 10,
+    },
     { codigo: 'TEC-SOF', nombre: 'Tecnología en Desarrollo de Software', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 6 },
   ];
 
@@ -131,35 +258,7 @@ async function main() {
     },
   });
 
-  await prisma.plantilla.upsert({
-    where: { id: 'plt-seed-001' },
-    update: {},
-    create: {
-      id: 'plt-seed-001',
-      nombre: 'Informe de Autoevaluación',
-      factor: 'CI-3 Cultura de autoevaluación',
-      formato: FormatoArchivo.DOCX,
-      version: '2026.1',
-      vigente: true,
-      categoria: CategoriaPlantilla.Autoevaluacion,
-      descripcion: 'Plantilla oficial para informe de autoevaluación institucional.',
-    },
-  });
-
-  await prisma.plantilla.upsert({
-    where: { id: 'plt-seed-002' },
-    update: {},
-    create: {
-      id: 'plt-seed-002',
-      nombre: 'Estudio de Pertinencia',
-      factor: 'CP-2 Justificación',
-      formato: FormatoArchivo.PDF,
-      version: '2026.1',
-      vigente: true,
-      categoria: CategoriaPlantilla.Programa,
-      descripcion: 'Formato para estudio de pertinencia de programas nuevos.',
-    },
-  });
+  await sembrarPlantillasFormatosGuia();
 
   await prisma.evidencia.upsert({
     where: { id: 'ev-seed-001' },
@@ -173,7 +272,7 @@ async function main() {
       indicador: 'Reglamento estudiantil',
       estado: EstadoEvidencia.Borrador,
       autorId: cargador.id,
-      nombreArchivo: 'reglamento-estudiantil.pdf',
+      nombreArchivo: 'reglamento-estudiantil.docx',
       responsable: cargador.nombre,
     },
   });
@@ -190,7 +289,7 @@ async function main() {
       indicador: 'Informe de autoevaluación',
       estado: EstadoEvidencia.Validado,
       autorId: cargador.id,
-      nombreArchivo: 'informe-autoevaluacion-2024.pdf',
+      nombreArchivo: 'informe-autoevaluacion-2024.docx',
       responsable: cargador.nombre,
     },
   });
@@ -203,7 +302,7 @@ async function main() {
       periodo: '2024-2',
       factor: 'CI-3 Cultura de autoevaluación',
       indicador: 'Autoevaluación CI',
-      nombreArchivo: 'informe-autoevaluacion-institucional.pdf',
+      nombreArchivo: 'informe-autoevaluacion-institucional.docx',
     },
     {
       id: 'ev-seed-004',
@@ -212,7 +311,7 @@ async function main() {
       periodo: '2025-1',
       factor: 'CP-4 Pertinencia curricular',
       indicador: 'Actas comité curricular',
-      nombreArchivo: 'actas-comite-curricular.pdf',
+      nombreArchivo: 'actas-comite-curricular.docx',
     },
     {
       id: 'ev-seed-005',
@@ -221,7 +320,7 @@ async function main() {
       periodo: '2025-2',
       factor: 'CI-5 Seguimiento al plan',
       indicador: 'Plan de mejoramiento',
-      nombreArchivo: 'plan-mejoramiento-academico.pdf',
+      nombreArchivo: 'plan-mejoramiento-academico.docx',
     },
   ];
 
@@ -236,7 +335,7 @@ async function main() {
         autorId: cargador.id,
         responsable: cargador.nombre,
         rutaArchivo,
-        mimeType: 'application/pdf',
+        mimeType: MIME_DOCX,
         version: 1,
       },
     });
@@ -251,7 +350,7 @@ async function main() {
         numero: 1,
         nombreArchivo: ev.nombreArchivo,
         rutaArchivo,
-        mimeType: 'application/pdf',
+        mimeType: MIME_DOCX,
         subidoPorId: cargador.id,
       },
     });
@@ -328,6 +427,118 @@ async function main() {
       activa: true,
     },
   });
+
+  const carpetaCp = await prisma.carpetaNormativa.upsert({
+    where: { id: 'carp-seed-cp' },
+    update: {},
+    create: {
+      id: 'carp-seed-cp',
+      etapaId: etapa.id,
+      nombre: 'Condiciones de programa',
+      descripcion: 'Documento maestro y anexos de programa',
+      orden: 2,
+      activa: true,
+    },
+  });
+
+  const docMaestro = await prisma.documentoRequerido.upsert({
+    where: { id: 'doc-seed-maestro' },
+    update: { requiereChecklistMaestro: true, formato: FormatoArchivo.DOCX },
+    create: {
+      id: 'doc-seed-maestro',
+      carpetaId: carpetaCp.id,
+      nombre: 'Documento maestro de programa',
+      esPlantilla: true,
+      formato: FormatoArchivo.DOCX,
+      obligatorio: true,
+      requiereChecklistMaestro: true,
+      orden: 1,
+    },
+  });
+
+  const programaIngSw = programasCreados.find((p) => p.codigo === 'ING-SWC');
+
+  if (programaIngSw) {
+    const evMaestroId = 'ev-seed-maestro-ing-sw';
+    await prisma.evidencia.upsert({
+      where: { id: evMaestroId },
+      update: {
+        porcentajeCompletitud: 89,
+        estado: EstadoEvidencia.Rechazado,
+        requiereChecklistMaestro: true,
+      },
+      create: {
+        id: evMaestroId,
+        nombre: 'Documento Maestro Ingeniería de Software 2026',
+        programaId: programaIngSw.id,
+        documentoRequeridoId: docMaestro.id,
+        periodo: '2026-1',
+        factor: 'Factor 1 · Proyecto educativo',
+        indicador: 'Indicador 1.1 · Diseño curricular y plan de estudios',
+        estado: EstadoEvidencia.Rechazado,
+        autorId: cargador.id,
+        nombreArchivo: 'Documento_Maestro_IngSoftware.docx',
+        responsable: cargador.nombre,
+        requiereChecklistMaestro: true,
+        porcentajeCompletitud: 89,
+        observaciones:
+          '• Aspectos curriculares: Falta profundizar el enfoque en competencias transversales.',
+        rutaArchivo: `evidencias/2026/${evMaestroId}/v1/Documento_Maestro_IngSoftware.docx`,
+        mimeType: MIME_DOCX,
+        version: 1,
+      },
+    });
+
+    const condicionesDemo: {
+      codigo: CodigoCondicionDocumentoMaestro;
+      cumple: boolean;
+      observacion?: string;
+    }[] = [
+      { codigo: CodigoCondicionDocumentoMaestro.Denominacion, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.Justificacion, cumple: true },
+      {
+        codigo: CodigoCondicionDocumentoMaestro.AspectosCurriculares,
+        cumple: false,
+        observacion:
+          'Falta profundizar el enfoque en competencias transversales del plan de estudios.',
+      },
+      { codigo: CodigoCondicionDocumentoMaestro.OrganizacionActividades, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.InvestigacionInnovacion, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.RelacionSectorExterno, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.Profesores, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.MediosEducativos, cumple: true },
+      { codigo: CodigoCondicionDocumentoMaestro.Infraestructura, cumple: true },
+    ];
+
+    for (const fila of condicionesDemo) {
+      await prisma.evaluacionCondicionEvidencia.upsert({
+        where: {
+          evidenciaId_numeroRevision_codigoCondicion: {
+            evidenciaId: evMaestroId,
+            numeroRevision: 1,
+            codigoCondicion: fila.codigo,
+          },
+        },
+        update: {
+          cumple: fila.cumple,
+          observacion: fila.observacion,
+        },
+        create: {
+          evidenciaId: evMaestroId,
+          numeroRevision: 1,
+          codigoCondicion: fila.codigo,
+          cumple: fila.cumple,
+          observacion: fila.observacion,
+          revisorId: revisor.id,
+        },
+      });
+    }
+
+    await prisma.programa.update({
+      where: { id: programaIngSw.id },
+      data: { porcentajeAvance: 89, estadoProceso: 'En revisión documental' },
+    });
+  }
 
   console.log('Semilla completada:', {
     usuarios: 5,

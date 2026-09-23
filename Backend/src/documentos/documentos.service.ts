@@ -21,17 +21,24 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { CrearEvidenciaDto, ActualizarEvidenciaDto } from './dto/evidencia.dto';
 
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
-import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
+
+import { AvanceProgramaService } from '../programas/avance-programa.service';
+
+import {
+
+  CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
+
+  calcularPorcentajeCondiciones,
+
+  etiquetaCondicion,
+
+} from '../dominio/condiciones-documento-maestro';
 
 
 
 const TIPOS_PERMITIDOS = [
 
-  'application/pdf',
-
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-
-  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 
 ];
 
@@ -61,6 +68,8 @@ export class DocumentosService {
 
     private readonly notificaciones: NotificacionesService,
 
+    private readonly avancePrograma: AvanceProgramaService,
+
   ) {}
 
 
@@ -77,7 +86,11 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-    const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
+
+
+    const requiereChecklist =
+      dto.requiereChecklistMaestro === 'true' ||
+      dto.requiereChecklistMaestro === '1';
 
     const evidencia = await this.evidenciaRepo.crear({
 
@@ -93,11 +106,23 @@ export class DocumentosService {
 
       autor: { connect: { id: usuario.id } },
 
-      nombreArchivo,
+      nombreArchivo: archivo.originalname,
 
       responsable: dto.responsable,
 
       estado: EstadoEvidencia.Borrador,
+
+      requiereChecklistMaestro: requiereChecklist,
+
+      ...(dto.documentoRequeridoId
+
+        ? {
+
+            documentoRequerido: { connect: { id: dto.documentoRequeridoId } },
+
+          }
+
+        : {}),
 
     });
 
@@ -107,7 +132,7 @@ export class DocumentosService {
 
       evidencia.id,
 
-      nombreArchivo,
+      archivo.originalname,
 
       1,
 
@@ -137,7 +162,7 @@ export class DocumentosService {
 
         numero: 1,
 
-        nombreArchivo,
+        nombreArchivo: archivo.originalname,
 
         rutaArchivo: clave,
 
@@ -307,7 +332,7 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-    const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
+
 
     const evidencia = await this.obtenerPorId(id, usuario);
 
@@ -355,7 +380,7 @@ export class DocumentosService {
 
       id,
 
-      nombreArchivo,
+      archivo.originalname,
 
       nuevaVersion,
 
@@ -385,7 +410,7 @@ export class DocumentosService {
 
         numero: nuevaVersion,
 
-        nombreArchivo,
+        nombreArchivo: archivo.originalname,
 
         rutaArchivo: clave,
 
@@ -401,7 +426,7 @@ export class DocumentosService {
 
       await this.evidenciaRepo.actualizar(id, {
 
-        nombreArchivo,
+        nombreArchivo: archivo.originalname,
 
         rutaArchivo: clave,
 
@@ -569,20 +594,6 @@ export class DocumentosService {
 
 
 
-    if (
-
-      dto.estado !== EstadoEvidencia.Validado &&
-
-      dto.estado !== EstadoEvidencia.Rechazado
-
-    ) {
-
-      throw new BadRequestException('El dictamen debe ser Validado o Rechazado.');
-
-    }
-
-
-
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
     if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
@@ -597,11 +608,163 @@ export class DocumentosService {
 
 
 
+    const usaChecklist =
+
+      evidencia.requiereChecklistMaestro ||
+
+      (dto.condiciones && dto.condiciones.length > 0);
+
+
+
+    let estadoFinal = dto.estado;
+
+    let porcentajeCompletitud = evidencia.porcentajeCompletitud;
+
+    let observacionesResumen = dto.observaciones;
+
+
+
+    if (usaChecklist) {
+
+      if (!dto.condiciones || dto.condiciones.length !== CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length) {
+
+        throw new BadRequestException(
+
+          'Debe evaluar las 9 condiciones del Documento Maestro.',
+
+        );
+
+      }
+
+
+
+      const codigosRecibidos = new Set(dto.condiciones.map((c) => c.codigo));
+
+      for (const codigo of CODIGOS_CONDICION_DOCUMENTO_MAESTRO) {
+
+        if (!codigosRecibidos.has(codigo)) {
+
+          throw new BadRequestException(
+
+            `Falta la condición ${etiquetaCondicion(codigo)} en el dictamen.`,
+
+          );
+
+        }
+
+      }
+
+
+
+      for (const condicion of dto.condiciones) {
+
+        if (!condicion.cumple && !condicion.observacion?.trim()) {
+
+          throw new BadRequestException(
+
+            `Registra una observación para la condición «${etiquetaCondicion(condicion.codigo)}».`,
+
+          );
+
+        }
+
+      }
+
+
+
+      const cumplidas = dto.condiciones.filter((c) => c.cumple).length;
+
+      porcentajeCompletitud = calcularPorcentajeCondiciones(cumplidas);
+
+      estadoFinal =
+
+        cumplidas === CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length
+
+          ? EstadoEvidencia.Validado
+
+          : EstadoEvidencia.Rechazado;
+
+
+
+      await this.evidenciaRepo.guardarEvaluacionesCondicion(
+
+        id,
+
+        evidencia.version,
+
+        revisor.id,
+
+        dto.condiciones.map((c) => ({
+
+          codigoCondicion: c.codigo,
+
+          cumple: c.cumple,
+
+          observacion: c.observacion,
+
+        })),
+
+      );
+
+
+
+      const lineasObservacion = dto.condiciones
+
+        .filter((c) => !c.cumple && c.observacion?.trim())
+
+        .map(
+
+          (c) =>
+
+            `• ${etiquetaCondicion(c.codigo)}: ${c.observacion?.trim()}`,
+
+        );
+
+      observacionesResumen =
+
+        lineasObservacion.length > 0
+
+          ? lineasObservacion.join('\n')
+
+          : dto.observaciones;
+
+    } else {
+
+      if (
+
+        estadoFinal !== EstadoEvidencia.Validado &&
+
+        estadoFinal !== EstadoEvidencia.Rechazado
+
+      ) {
+
+        throw new BadRequestException('El dictamen debe ser Validado o Rechazado.');
+
+      }
+
+      porcentajeCompletitud =
+
+        estadoFinal === EstadoEvidencia.Validado ? 100 : porcentajeCompletitud;
+
+    }
+
+
+
+    if (!estadoFinal) {
+
+      throw new BadRequestException('El dictamen debe incluir un estado válido.');
+
+    }
+
+
+
     const actualizada = await this.evidenciaRepo.actualizar(id, {
 
-      estado: dto.estado,
+      estado: estadoFinal,
 
-      observaciones: dto.observaciones,
+      observaciones: observacionesResumen,
+
+      porcentajeCompletitud,
 
     });
 
@@ -611,9 +774,9 @@ export class DocumentosService {
 
       id,
 
-      dto.estado,
+      estadoFinal,
 
-      dto.observaciones,
+      observacionesResumen,
 
       revisor.id,
 
@@ -621,15 +784,19 @@ export class DocumentosService {
 
 
 
-    const tipo = dto.estado === EstadoEvidencia.Validado ? 'aprobacion' : 'rechazo';
+    await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
+
+
+
+    const tipo = estadoFinal === EstadoEvidencia.Validado ? 'aprobacion' : 'rechazo';
 
     const mensaje =
 
-      dto.estado === EstadoEvidencia.Validado
+      estadoFinal === EstadoEvidencia.Validado
 
-        ? `Tu evidencia "${evidencia.nombre}" fue aprobada.`
+        ? `Tu evidencia "${evidencia.nombre}" fue aprobada (${porcentajeCompletitud}%).`
 
-        : `Tu evidencia "${evidencia.nombre}" fue rechazada: ${dto.observaciones ?? 'Sin observaciones.'}`;
+        : `Tu evidencia "${evidencia.nombre}" requiere corrección (${porcentajeCompletitud}%): ${observacionesResumen ?? 'Revisa las condiciones marcadas.'}`;
 
 
 
@@ -637,7 +804,23 @@ export class DocumentosService {
 
 
 
-    return actualizada;
+    return this.evidenciaRepo.buscarPorId(id);
+
+  }
+
+
+
+  async obtenerEvaluacionesCondicion(id: string, usuario: UsuarioToken) {
+
+    await this.obtenerPorId(id, usuario);
+
+    const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(id);
+
+    if (evaluaciones.length === 0) return [];
+
+    const ultimaRevision = evaluaciones[0].numeroRevision;
+
+    return evaluaciones.filter((e) => e.numeroRevision === ultimaRevision);
 
   }
 
@@ -699,13 +882,93 @@ export class DocumentosService {
 
 
 
+  async obtenerContenidoArchivo(
+
+    id: string,
+
+    usuario: UsuarioToken,
+
+    version?: number,
+
+  ): Promise<{ buffer: Buffer; nombreArchivo: string; mimeType: string }> {
+
+    const evidencia = await this.obtenerPorId(id, usuario);
+
+    let rutaArchivo = evidencia.rutaArchivo;
+
+    let nombreArchivo = evidencia.nombreArchivo;
+
+    let mimeType =
+
+      evidencia.mimeType ??
+
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+
+
+    if (version !== undefined) {
+
+      const versionRegistro = await this.evidenciaRepo.buscarVersion(id, version);
+
+      if (!versionRegistro) {
+
+        throw new NotFoundException('Versión no encontrada.');
+
+      }
+
+      rutaArchivo = versionRegistro.rutaArchivo;
+
+      nombreArchivo = versionRegistro.nombreArchivo;
+
+      mimeType =
+
+        versionRegistro.mimeType ??
+
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    }
+
+
+
+    if (!rutaArchivo) {
+
+      throw new NotFoundException('Archivo no disponible.');
+
+    }
+
+
+
+    const buffer = await this.almacenamiento.obtenerBuffer(rutaArchivo, 'evidencias');
+
+    return { buffer, nombreArchivo, mimeType };
+
+  }
+
+
+
   private validarArchivo(archivo: Express.Multer.File) {
 
     if (!archivo) throw new BadRequestException('Se requiere un archivo.');
 
+    const extension = archivo.originalname.split('.').pop()?.toLowerCase();
+
+    if (extension !== 'docx') {
+
+      throw new BadRequestException(
+
+        'Solo se permiten documentos Word (.docx) para que el revisor pueda editarlos.',
+
+      );
+
+    }
+
     if (!TIPOS_PERMITIDOS.includes(archivo.mimetype)) {
 
-      throw new BadRequestException('Solo se permiten PDF o XLSX.');
+      throw new BadRequestException(
+
+        'Formato no válido. Suba un archivo .docx de Microsoft Word.',
+
+      );
 
     }
 

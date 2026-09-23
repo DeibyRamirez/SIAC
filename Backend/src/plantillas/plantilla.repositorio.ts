@@ -10,9 +10,12 @@ export class PlantillaRepositorio {
     return this.prisma.plantilla.create({ data: datos });
   }
 
-  listar(soloVigentes = false) {
+  listar(soloVigentes = false, tipoTramite?: import('@prisma/client').TipoTramitePlantilla) {
     return this.prisma.plantilla.findMany({
-      where: soloVigentes ? { vigente: true } : undefined,
+      where: {
+        ...(soloVigentes ? { vigente: true } : {}),
+        ...(tipoTramite ? { tipoTramite } : {}),
+      },
       orderBy: [{ factor: 'asc' }, { version: 'desc' }],
     });
   }

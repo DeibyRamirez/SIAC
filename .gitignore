@@ -7,3 +7,11 @@ dist/
 .DS_Store
 Backend/almacen-local/
 package-lock.json
+
+.cursor/memory.jsonl
+*.tsbuildinfo
+.codebase-memory/
+Frontend/.env
+Frontend/.env.local
+Backend/.env
+

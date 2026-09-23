@@ -24,8 +24,13 @@ import {
   listarEvidenciasApi,
   crearEvidenciaApi,
   dictaminarEvidenciaApi,
+  type CondicionDictamenPayload,
 } from '@/lib/servicios/evidencias.servicio'
-import { listarPlantillasApi } from '@/lib/servicios/plantillas.servicio'
+import {
+  crearPlantillaApi,
+  eliminarPlantillaApi,
+  listarPlantillasApi,
+} from '@/lib/servicios/plantillas.servicio'
 import {
   listarVigenciasApi,
   listarNotificacionesApi,
@@ -46,17 +51,23 @@ interface ContextoAlmacen {
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-  ) => Promise<void>
+    opciones?: { requiereChecklistMaestro?: boolean },
+  ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
     estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
     observaciones?: string,
+    condiciones?: CondicionDictamenPayload[],
+    porcentajeCompletitud?: number,
   ) => void
-  crearPlantilla: (plantilla: Omit<Plantilla, 'id'>) => void
+  crearPlantilla: (
+    plantilla: Omit<Plantilla, 'id'>,
+    archivo?: File,
+  ) => Promise<Plantilla>
   actualizarPlantilla: (id: string, cambios: Partial<Plantilla>) => void
-  eliminarPlantilla: (id: string) => void
+  eliminarPlantilla: (id: string) => Promise<void>
   crearAnexoVigencia: (anexo: Omit<AnexoVigencia, 'id'>) => void
   actualizarAnexoVigencia: (id: string, cambios: Partial<AnexoVigencia>) => void
   eliminarAnexoVigencia: (id: string) => void
@@ -103,6 +114,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       if (apiDisponible()) {
         try {
           const [evResp, plantillas, anexos, alertas] = await Promise.all([
+            // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
             listarEvidenciasApi({ limite: 100 }),
             listarPlantillasApi(),
             listarVigenciasApi(),
@@ -175,7 +187,11 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   }, [])
 
   const crearEvidencia = useCallback(
-    async (evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>, archivo?: File) => {
+    async (
+      evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
+      archivo?: File,
+      opciones?: { requiereChecklistMaestro?: boolean },
+    ) => {
       if (apiDisponible() && archivo) {
         const formData = new FormData()
         formData.append('nombre', evidencia.nombre)
@@ -184,6 +200,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         formData.append('factor', evidencia.factor)
         formData.append('indicador', evidencia.indicador)
         formData.append('archivo', archivo)
+        if (opciones?.requiereChecklistMaestro) {
+          formData.append('requiereChecklistMaestro', 'true')
+        }
 
         const creada = await crearEvidenciaApi(formData)
         const mapeada: Evidencia = {
@@ -202,9 +221,11 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
               : new Date().toISOString().slice(0, 10),
           observaciones: creada.observaciones,
           responsable: creada.responsable,
+          requiereChecklistMaestro: creada.requiereChecklistMaestro,
+          porcentajeCompletitud: creada.porcentajeCompletitud,
         }
         persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
-        return
+        return mapeada
       }
 
       const nueva: Evidencia = {
@@ -212,8 +233,10 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         id: generarId('ev'),
         estado: 'Borrador',
         fechaCarga: new Date().toISOString().slice(0, 10),
+        requiereChecklistMaestro: opciones?.requiereChecklistMaestro,
       }
       persistir((prev) => ({ ...prev, evidencias: [nueva, ...prev.evidencias] }))
+      return nueva
     },
     [persistir],
   )
@@ -243,10 +266,16 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       id: string,
       estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
       observaciones?: string,
+      condiciones?: CondicionDictamenPayload[],
+      porcentajeCompletitud?: number,
     ) => {
       if (apiDisponible()) {
         try {
-          await dictaminarEvidenciaApi(id, estado, observaciones)
+          await dictaminarEvidenciaApi(id, {
+            estado: condiciones?.length ? undefined : estado,
+            observaciones,
+            condiciones,
+          })
         } catch {
           // Continúa con actualización local
         }
@@ -254,7 +283,15 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       persistir((prev) => ({
         ...prev,
         evidencias: prev.evidencias.map((e) =>
-          e.id === id ? { ...e, estado, observaciones: observaciones ?? e.observaciones } : e,
+          e.id === id
+            ? {
+                ...e,
+                estado,
+                observaciones: observaciones ?? e.observaciones,
+                porcentajeCompletitud:
+                  porcentajeCompletitud ?? e.porcentajeCompletitud,
+              }
+            : e,
         ),
       }))
     },
@@ -262,11 +299,33 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   )
 
   const crearPlantilla = useCallback(
-    (plantilla: Omit<Plantilla, 'id'>) => {
+    async (plantilla: Omit<Plantilla, 'id'>, archivo?: File) => {
+      if (apiDisponible() && archivo) {
+        const formData = new FormData()
+        formData.append('nombre', plantilla.nombre)
+        formData.append('factor', plantilla.factor)
+        formData.append('formato', 'DOCX')
+        formData.append('version', plantilla.version)
+        formData.append('categoria', plantilla.categoria)
+        if (plantilla.descripcion) formData.append('descripcion', plantilla.descripcion)
+        if (plantilla.tipoTramite) formData.append('tipoTramite', plantilla.tipoTramite)
+        if (plantilla.esGuiaDocumentoMaestro) {
+          formData.append('esGuiaDocumentoMaestro', 'true')
+        }
+        formData.append('archivo', archivo)
+        const creada = await crearPlantillaApi(formData)
+        persistir((prev) => ({
+          ...prev,
+          plantillas: [creada, ...prev.plantillas.filter((p) => p.id !== creada.id)],
+        }))
+        return creada
+      }
+      const nueva = { ...plantilla, id: generarId('plt') }
       persistir((prev) => ({
         ...prev,
-        plantillas: [{ ...plantilla, id: generarId('plt') }, ...prev.plantillas],
+        plantillas: [nueva, ...prev.plantillas],
       }))
+      return nueva
     },
     [persistir],
   )
@@ -282,10 +341,19 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   )
 
   const eliminarPlantilla = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      if (apiDisponible()) {
+        try {
+          await eliminarPlantillaApi(id)
+        } catch {
+          // Continúa con eliminación local
+        }
+      }
       persistir((prev) => ({
         ...prev,
-        plantillas: prev.plantillas.filter((p) => p.id !== id),
+        plantillas: prev.plantillas.map((p) =>
+          p.id === id ? { ...p, vigente: false } : p,
+        ),
       }))
     },
     [persistir],

@@ -2,8 +2,8 @@
 
 import { Download, X } from 'lucide-react'
 
+import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { esUrlPdf } from '@/lib/constantes/documentos'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -19,6 +19,7 @@ interface ModalVisualizadorDocumentoProps {
   titulo: string
   formato: Plantilla['formato']
   urlDocumento?: string
+  plantillaId?: string
 }
 
 export function ModalVisualizadorDocumento({
@@ -27,9 +28,9 @@ export function ModalVisualizadorDocumento({
   titulo,
   formato,
   urlDocumento,
+  plantillaId,
 }: ModalVisualizadorDocumentoProps) {
   const urlEfectiva = urlDocumento?.trim() ?? ''
-  const puedePrevisualizarPdf = Boolean(urlEfectiva) && esUrlPdf(urlEfectiva)
 
   return (
     <Dialog open={abierto} onOpenChange={(open) => !open && onCerrar()}>
@@ -74,34 +75,22 @@ export function ModalVisualizadorDocumento({
         </header>
 
         <div className="min-h-0 flex-1 bg-zinc-200">
-          {puedePrevisualizarPdf ? (
-            <iframe
-              src={urlEfectiva}
-              title={titulo}
-              className="h-full w-full border-0 bg-zinc-100"
+          {plantillaId && formato === 'DOCX' ? (
+            <VisorDocumentoInline
+              titulo={titulo}
+              urlDocumento={urlEfectiva}
+              formato="DOCX"
+              plantillaId={plantillaId}
+              variant="fill"
+              className="h-full min-h-0 rounded-none border-0"
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
               <p className="max-w-md text-sm text-zinc-700">
-                La vista previa en línea está disponible solo para documentos PDF. Descargue el
-                formato para abrirlo en {formato === 'XLSX' ? 'Excel' : 'Word'}.
+                {urlEfectiva
+                  ? 'Descargue el archivo para abrirlo.'
+                  : 'No hay un archivo asociado a esta plantilla todavía.'}
               </p>
-              {urlEfectiva ? (
-                <a
-                  href={urlEfectiva}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(buttonVariants())}
-                >
-                  <Download className="size-4" />
-                  Descargar {formato}
-                </a>
-              ) : (
-                <p className="text-xs text-zinc-500">
-                  No hay un archivo asociado a esta plantilla todavía.
-                </p>
-              )}
             </div>
           )}
         </div>
