@@ -11,3 +11,5 @@ package-lock.json
 *.tsbuildinfo
 .codebase-memory/
 
+# Archivos temporales
+temp/*
