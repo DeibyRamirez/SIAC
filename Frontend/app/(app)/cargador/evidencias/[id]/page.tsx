@@ -11,7 +11,9 @@ import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
+import { ResumenObservacionesPorCondicion } from '@/components/siac/resumen-observaciones-por-condicion'
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
+import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -24,6 +26,7 @@ import {
   obtenerUrlDescargaApi,
   actualizarEvidenciaApi,
   subirVersionArchivoApi,
+  obtenerEvaluacionesCondicionApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
@@ -49,6 +52,9 @@ function ContenidoDetalle() {
   const [cargando, setCargando] = useState(true)
   const [procesando, setProcesando] = useState(false)
   const [confirmarReenvio, setConfirmarReenvio] = useState(false)
+  const [evaluacionesCondicion, setEvaluacionesCondicion] = useState<
+    EvaluacionCondicionEvidencia[]
+  >([])
 
   async function refrescarDocumento(id: string) {
     if (!apiDisponible()) return
@@ -61,10 +67,11 @@ function ContenidoDetalle() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, historial] = await Promise.all([
+          const [ev, descarga, historial, evaluaciones] = await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerHistorialApi(params.id).catch(() => []),
+            obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
           ])
           const mapeada: Evidencia = {
             ...ev,
@@ -84,6 +91,13 @@ function ContenidoDetalle() {
           if (ultimoRechazo?.observacion) {
             setObservacionHistorial(ultimoRechazo.observacion)
           }
+          setEvaluacionesCondicion(
+            evaluaciones.map((e) => ({
+              codigoCondicion: e.codigoCondicion,
+              cumple: e.cumple,
+              observacion: e.observacion,
+            })),
+          )
         } else {
           const local = datos.evidencias.find((e) => e.id === params.id) ?? null
           setEvidencia(local)
@@ -128,7 +142,7 @@ function ContenidoDetalle() {
   const esRechazada = evidencia.estado === 'Rechazado'
   const puedeReenviar = evidencia.estado === 'Rechazado' || evidencia.estado === 'Borrador'
   const extension = evidencia.nombreArchivo.split('.').pop()?.toLowerCase()
-  const formato = extension === 'xlsx' ? 'XLSX' : 'PDF'
+  const formato = extension === 'docx' ? 'DOCX' : extension === 'xlsx' ? 'XLSX' : 'PDF'
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
   const versionActual = evidencia.version ?? 1
 
@@ -227,7 +241,14 @@ function ContenidoDetalle() {
         }
       />
 
-      {esRechazada && observacionesTexto && (
+      {esRechazada && evaluacionesCondicion.length > 0 && (
+        <ResumenObservacionesPorCondicion
+          evaluaciones={evaluacionesCondicion}
+          porcentajeCompletitud={evidencia.porcentajeCompletitud}
+        />
+      )}
+
+      {esRechazada && observacionesTexto && evaluacionesCondicion.length === 0 && (
         <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant="destructive">Con observaciones</Badge>
@@ -235,7 +256,9 @@ function ContenidoDetalle() {
             <InsigniaEstado estado={evidencia.estado} />
           </div>
           <p className="text-sm font-medium text-primary">Observaciones del revisor</p>
-          <p className="mt-1 text-sm text-muted-foreground">{observacionesTexto}</p>
+          <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+            {observacionesTexto}
+          </p>
         </div>
       )}
 
@@ -247,6 +270,8 @@ function ContenidoDetalle() {
               urlDocumento={urlDocumento}
               formato={formato}
               claveCache={versionActual}
+              evidenciaId={evidencia.id}
+              versionDocumento={versionActual}
             />
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
@@ -300,7 +325,7 @@ function ContenidoDetalle() {
                   </p>
                   <input
                     type="file"
-                    accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     onChange={(e) => setArchivoNuevo(e.target.files?.[0] ?? null)}
                     className="mt-3 w-full text-sm"
                   />
@@ -327,7 +352,7 @@ function ContenidoDetalle() {
                   onClick={() => setConfirmarReenvio(true)}
                   disabled={procesando}
                 >
-                  Enviar a revisión
+                  Reenviar a revisión
                 </Button>
               </>
             )}
@@ -348,7 +373,7 @@ function ContenidoDetalle() {
 
       <DialogoConfirmacion
         abierto={confirmarReenvio}
-        titulo="Enviar a revisión?"
+        titulo="¿Reenviar a revisión?"
         descripcion="La evidencia pasará a estado En revisión y el revisor podrá dictaminarla nuevamente."
         etiquetaConfirmar="Sí, reenviar"
         variant="default"

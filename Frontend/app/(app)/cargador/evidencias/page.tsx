@@ -18,9 +18,8 @@ import { Input } from '@/components/ui/input'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
+import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { contarNovedadesCargador } from '@/lib/utilidades-siac'
-
-const LIMITE_POR_PAGINA = 10
 
 export default function MisEvidenciasPage() {
   return (
@@ -53,7 +52,7 @@ function ContenidoMisEvidencias() {
       if (apiDisponible()) {
         const resp = await listarEvidenciasApi({
           pagina,
-          limite: LIMITE_POR_PAGINA,
+          limite: LIMITE_FILAS_TABLA,
           programaId: programaId === 'todos' ? undefined : programaId,
         })
         setEvidencias(
@@ -74,8 +73,8 @@ function ContenidoMisEvidencias() {
         lista = lista.filter((evidencia) => evidencia.programaId === programaId)
       }
       setTotal(lista.length)
-      const inicio = (pagina - 1) * LIMITE_POR_PAGINA
-      setEvidencias(lista.slice(inicio, inicio + LIMITE_POR_PAGINA))
+      const inicio = (pagina - 1) * LIMITE_FILAS_TABLA
+      setEvidencias(lista.slice(inicio, inicio + LIMITE_FILAS_TABLA))
     } finally {
       setCargando(false)
     }
@@ -145,24 +144,25 @@ function ContenidoMisEvidencias() {
         </div>
       )}
 
-      <ControlesPaginacion
-        pagina={pagina}
-        limite={LIMITE_POR_PAGINA}
-        total={total}
-        onCambiarPagina={setPagina}
-      />
-
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando evidencias…</p>
       ) : evidencias.length === 0 ? (
         <PanelVacio mensaje="Aún no has registrado evidencias." />
       ) : (
-        <TablaEvidencias
-          evidencias={evidencias}
-          enlaceDetalle={(id) => `/cargador/evidencias/${id}`}
-          mostrarNovedades
-          onEliminar={(id) => setIdEliminar(id)}
-        />
+        <>
+          <TablaEvidencias
+            evidencias={evidencias}
+            enlaceDetalle={(id) => `/cargador/evidencias/${id}`}
+            mostrarNovedades
+            onEliminar={(id) => setIdEliminar(id)}
+          />
+          <ControlesPaginacion
+            pagina={pagina}
+            limite={LIMITE_FILAS_TABLA}
+            total={total}
+            onCambiarPagina={setPagina}
+          />
+        </>
       )}
 
       <DialogoConfirmacion

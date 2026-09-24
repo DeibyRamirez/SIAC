@@ -1,5 +1,10 @@
 export { usuariosSemilla, DOMINIO_INSTITUCIONAL } from './usuarios'
-export { programasSemilla, factoresSemilla, periodosSemilla } from './programas'
+export {
+  programasSemilla,
+  factoresSemilla,
+  periodosSemilla,
+  catalogoFactoresIndicadores,
+} from './programas'
 export { evidenciasSemilla } from './evidencias'
 export { plantillasSemilla } from './plantillas'
 export { anexosVigenciaSemilla, alertasSemilla } from './vigencias'

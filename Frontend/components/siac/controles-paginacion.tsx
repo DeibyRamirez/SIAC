@@ -1,10 +1,14 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface ControlesPaginacionProps {
   pagina: number
   limite: number
   total: number
   onCambiarPagina: (pagina: number) => void
+  className?: string
 }
 
 export function ControlesPaginacion({
@@ -12,38 +16,42 @@ export function ControlesPaginacion({
   limite,
   total,
   onCambiarPagina,
+  className,
 }: ControlesPaginacionProps) {
-  const totalPaginas = Math.max(1, Math.ceil(total / limite))
-
-  if (total <= limite) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {total} {total === 1 ? 'registro' : 'registros'}
-      </p>
-    )
+  if (total <= 0) {
+    return null
   }
 
+  const totalPaginas = Math.max(1, Math.ceil(total / limite))
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm',
+        className,
+      )}
+    >
       <span className="text-muted-foreground">
-        Página {pagina} de {totalPaginas} · {total} registros
+        Página {pagina} de {totalPaginas} · {total} {total === 1 ? 'registro' : 'registros'}
       </span>
-      <div className="flex gap-2">
+      <div className="flex gap-1">
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           disabled={pagina <= 1}
+          aria-label="Página anterior"
           onClick={() => onCambiarPagina(pagina - 1)}
         >
-          Anterior
+          <ChevronLeft className="size-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           disabled={pagina >= totalPaginas}
+          aria-label="Página siguiente"
           onClick={() => onCambiarPagina(pagina + 1)}
         >
-          Siguiente
+          <ChevronRight className="size-4" />
         </Button>
       </div>
     </div>

@@ -23,6 +23,8 @@ export type TipoCondicionDecreto = 'Institucional' | 'Programa'
 
 export type CategoriaPlantilla = 'Institucional' | 'Programa' | 'Autoevaluacion'
 
+export type TipoTramitePlantilla = 'Renovacion' | 'NuevoPrograma' | 'General'
+
 export interface Usuario {
   id: string
   nombre: string
@@ -57,18 +59,23 @@ export interface Evidencia {
   responsable?: string
   documentoRequeridoId?: string
   version?: number
+  porcentajeCompletitud?: number
+  requiereChecklistMaestro?: boolean
 }
 
 export interface Plantilla {
   id: string
   nombre: string
   factor: string
-  formato: 'PDF' | 'DOCX' | 'XLSX'
+  formato: 'PDF' | 'DOCX'
   version: string
   vigente: boolean
   categoria: CategoriaPlantilla
+  tipoTramite?: TipoTramitePlantilla
+  esGuiaDocumentoMaestro?: boolean
   descripcion?: string
   urlDocumento?: string
+  nombreArchivo?: string | null
 }
 
 export interface AnexoVigencia {

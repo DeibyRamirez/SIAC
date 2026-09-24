@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { use, useMemo, useState } from 'react'
+import type { TipoTramitePlantilla } from '@/lib/tipos'
 import { ArrowLeft, Plus } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { toast } from 'sonner'
@@ -27,7 +28,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { categoriaDesdeSlug } from '@/lib/categorias-plantilla'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import {
+  actualizarPlantillaApi,
+  subirArchivoPlantillaApi,
+} from '@/lib/servicios/plantillas.servicio'
 import type { Plantilla } from '@/lib/tipos'
+import { extraerMetadatosDocx } from '@/lib/utilidades/extraer-metadatos-docx'
+import { catalogoFactoresIndicadores } from '@/lib/datos-semilla'
 
 export default function PlantillasCategoriaAdminPage({
   params,
@@ -55,42 +63,49 @@ function ContenidoCategoria({
 }) {
   const { datos, crearPlantilla, actualizarPlantilla, eliminarPlantilla } = usarAlmacen()
   const [busqueda, setBusqueda] = useState('')
+  const [tipoTramite, setTipoTramite] = useState<'todos' | 'Renovacion' | 'NuevoPrograma'>(
+    'todos',
+  )
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [editando, setEditando] = useState<Plantilla | null>(null)
   const [formulario, setFormulario] = useState({
     nombre: '',
     factor: '',
-    formato: 'DOCX' as Plantilla['formato'],
-    version: 'v1.0',
+    version: '2026.1',
     vigente: true,
     categoria: meta.categoria,
     descripcion: '',
-    urlDocumento: '',
+    tipoTramite: 'General' as TipoTramitePlantilla,
+    esGuiaDocumentoMaestro: false,
   })
+  const [archivoPlantilla, setArchivoPlantilla] = useState<File | null>(null)
+  const [guardando, setGuardando] = useState(false)
 
   const plantillasFiltradas = useMemo(() => {
     return datos.plantillas.filter((p) => {
       if (p.categoria !== meta.categoria) return false
+      if (tipoTramite !== 'todos' && p.tipoTramite !== tipoTramite) return false
       const texto = busqueda.toLowerCase()
       return (
         p.nombre.toLowerCase().includes(texto) ||
         p.factor.toLowerCase().includes(texto)
       )
     })
-  }, [datos.plantillas, meta.categoria, busqueda])
+  }, [datos.plantillas, meta.categoria, busqueda, tipoTramite])
 
   const abrirCrear = () => {
     setEditando(null)
     setFormulario({
       nombre: '',
       factor: '',
-      formato: 'DOCX',
-      version: 'v1.0',
+      version: '2026.1',
       vigente: true,
       categoria: meta.categoria,
       descripcion: '',
-      urlDocumento: '',
+      tipoTramite: 'General',
+      esGuiaDocumentoMaestro: false,
     })
+    setArchivoPlantilla(null)
     setDialogoAbierto(true)
   }
 
@@ -99,33 +114,84 @@ function ContenidoCategoria({
     setFormulario({
       nombre: plantilla.nombre,
       factor: plantilla.factor,
-      formato: plantilla.formato,
       version: plantilla.version,
       vigente: plantilla.vigente,
       categoria: plantilla.categoria,
       descripcion: plantilla.descripcion ?? '',
-      urlDocumento: plantilla.urlDocumento ?? '',
+      tipoTramite: plantilla.tipoTramite ?? 'General',
+      esGuiaDocumentoMaestro: plantilla.esGuiaDocumentoMaestro ?? false,
     })
+    setArchivoPlantilla(null)
     setDialogoAbierto(true)
   }
 
-  const guardar = () => {
-    if (!formulario.nombre) {
-      toast.error('El nombre es obligatorio.')
+  async function manejarArchivoPlantilla(file: File | null) {
+    setArchivoPlantilla(file)
+    if (!file) return
+    const nombreBase = file.name.replace(/\.docx$/i, '').replace(/[_-]+/g, ' ').trim()
+    setFormulario((prev) => ({ ...prev, nombre: nombreBase || prev.nombre }))
+    try {
+      const meta = await extraerMetadatosDocx(file, [], catalogoFactoresIndicadores)
+      if (meta.factor) setFormulario((prev) => ({ ...prev, factor: meta.factor! }))
+      if (/documento\s*maestro/i.test(file.name)) {
+        setFormulario((prev) => ({ ...prev, esGuiaDocumentoMaestro: true }))
+      }
+    } catch {
+      // El usuario puede completar metadatos manualmente
+    }
+  }
+
+  const guardar = async () => {
+    if (!formulario.nombre.trim() || !formulario.factor.trim()) {
+      toast.error('Nombre y factor son obligatorios.')
       return
     }
-    const payload = {
-      ...formulario,
-      urlDocumento: formulario.urlDocumento.trim() || undefined,
+    if (!editando && !archivoPlantilla) {
+      toast.error('Selecciona un archivo .docx para la plantilla.')
+      return
     }
-    if (editando) {
-      actualizarPlantilla(editando.id, payload)
-      toast.success('Plantilla actualizada.')
-    } else {
-      crearPlantilla(payload)
-      toast.success('Plantilla creada.')
+    if (archivoPlantilla && !archivoPlantilla.name.toLowerCase().endsWith('.docx')) {
+      toast.error('Solo se permiten archivos .docx.')
+      return
     }
-    setDialogoAbierto(false)
+
+    setGuardando(true)
+    try {
+      const payload = {
+        ...formulario,
+        nombre: formulario.nombre.trim(),
+        factor: formulario.factor.trim(),
+        formato: 'DOCX' as const,
+        descripcion: formulario.descripcion.trim() || undefined,
+      }
+
+      if (editando) {
+        if (apiDisponible()) {
+          await actualizarPlantillaApi(editando.id, {
+            nombre: payload.nombre,
+            factor: payload.factor,
+            version: payload.version,
+            descripcion: payload.descripcion,
+            vigente: payload.vigente,
+            tipoTramite: payload.tipoTramite,
+            esGuiaDocumentoMaestro: payload.esGuiaDocumentoMaestro,
+          })
+          if (archivoPlantilla) {
+            await subirArchivoPlantillaApi(editando.id, archivoPlantilla)
+          }
+        }
+        actualizarPlantilla(editando.id, payload)
+        toast.success('Plantilla actualizada.')
+      } else {
+        await crearPlantilla(payload, archivoPlantilla ?? undefined)
+        toast.success('Plantilla creada y almacenada en el bucket de plantillas.')
+      }
+      setDialogoAbierto(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo guardar la plantilla.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -151,19 +217,32 @@ function ContenidoCategoria({
         </Button>
       </div>
 
-      <Input
-        placeholder="Buscar en esta categoría…"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        className="max-w-md"
-      />
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Buscar en esta categoría…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="max-w-md"
+        />
+        <select
+          value={tipoTramite}
+          onChange={(e) =>
+            setTipoTramite(e.target.value as 'todos' | 'Renovacion' | 'NuevoPrograma')
+          }
+          className="rounded-lg border border-input px-3 py-2 text-sm"
+        >
+          <option value="todos">Todos los trámites</option>
+          <option value="Renovacion">Renovación</option>
+          <option value="NuevoPrograma">Nuevo programa</option>
+        </select>
+      </div>
 
       <RejillaPlantillas
         plantillas={plantillasFiltradas}
         onEditar={abrirEditar}
-        onEliminar={(id) => {
-          eliminarPlantilla(id)
-          toast.success('Plantilla eliminada.')
+        onEliminar={async (id) => {
+          await eliminarPlantilla(id)
+          toast.success('Plantilla deshabilitada.')
         }}
       />
 
@@ -173,6 +252,18 @@ function ContenidoCategoria({
             <DialogTitle>{editando ? 'Editar plantilla' : 'Nueva plantilla'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="archivo-plt">
+                Archivo Word (.docx){editando ? ' — opcional para reemplazar' : ''}
+              </Label>
+              <input
+                id="archivo-plt"
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="w-full rounded-lg border border-dashed border-input px-3 py-2 text-sm"
+                onChange={(e) => manejarArchivoPlantilla(e.target.files?.[0] ?? null)}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="nombre-plt">Nombre</Label>
               <Input
@@ -191,20 +282,23 @@ function ContenidoCategoria({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Formato</Label>
+                <Label>Trámite</Label>
                 <Select
-                  value={formulario.formato}
+                  value={formulario.tipoTramite}
                   onValueChange={(v) =>
-                    setFormulario({ ...formulario, formato: v as Plantilla['formato'] })
+                    setFormulario({
+                      ...formulario,
+                      tipoTramite: v as TipoTramitePlantilla,
+                    })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DOCX">DOCX</SelectItem>
-                    <SelectItem value="PDF">PDF</SelectItem>
-                    <SelectItem value="XLSX">XLSX</SelectItem>
+                    <SelectItem value="General">General</SelectItem>
+                    <SelectItem value="Renovacion">Renovación</SelectItem>
+                    <SelectItem value="NuevoPrograma">Nuevo programa</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -225,24 +319,32 @@ function ContenidoCategoria({
                 onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="url-plt">URL del documento (opcional)</Label>
-              <Input
-                id="url-plt"
-                placeholder="/SIAC_Documentacion_Proyecto.pdf"
-                value={formulario.urlDocumento}
-                onChange={(e) => setFormulario({ ...formulario, urlDocumento: e.target.value })}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formulario.esGuiaDocumentoMaestro}
+                onChange={(e) =>
+                  setFormulario({
+                    ...formulario,
+                    esGuiaDocumentoMaestro: e.target.checked,
+                  })
+                }
+                className="size-4 rounded border-input accent-primary"
               />
-              <p className="text-xs text-muted-foreground">
-                Ruta pública en la carpeta public. Solo PDF permite vista previa en línea.
-              </p>
-            </div>
+              Es guía de Documento Maestro
+            </label>
+            <p className="text-xs text-muted-foreground">
+              El archivo se almacena en el bucket Supabase «plantillas», no en el repositorio del
+              proyecto.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogoAbierto(false)}>
               Cancelar
             </Button>
-            <Button onClick={guardar}>Guardar</Button>
+            <Button onClick={guardar} disabled={guardando}>
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

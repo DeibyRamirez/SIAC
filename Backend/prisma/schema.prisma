@@ -41,6 +41,24 @@ enum CategoriaPlantilla {
   Autoevaluacion
 }
 
+enum TipoTramitePlantilla {
+  Renovacion
+  NuevoPrograma
+  General
+}
+
+enum CodigoCondicionDocumentoMaestro {
+  Denominacion
+  Justificacion
+  AspectosCurriculares
+  OrganizacionActividades
+  InvestigacionInnovacion
+  RelacionSectorExterno
+  Profesores
+  MediosEducativos
+  Infraestructura
+}
+
 enum OrigenDato {
   API
   CSV
@@ -123,12 +141,18 @@ model Evidencia {
   fechaCarga    DateTime             @default(now())
   observaciones String?
   responsable   String?              @db.VarChar(150)
-  historial     HistorialEvidencia[]
-  versiones     EvidenciaVersion[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  documentoRequeridoId   String?
+  documentoRequerido     DocumentoRequerido? @relation(fields: [documentoRequeridoId], references: [id])
+  porcentajeCompletitud  Float               @default(0)
+  requiereChecklistMaestro Boolean           @default(false)
+  historial                HistorialEvidencia[]
+  versiones                EvidenciaVersion[]
+  evaluacionesCondicion    EvaluacionCondicionEvidencia[]
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 
   @@index([programaId])
+  @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])
   @@index([factor, indicador, periodo])
@@ -162,20 +186,38 @@ model HistorialEvidencia {
 }
 
 model Plantilla {
-  id            String             @id @default(cuid())
-  nombre        String             @db.VarChar(200)
-  factor        String             @db.VarChar(100)
-  formato       FormatoArchivo
-  version       String             @db.VarChar(20)
-  vigente       Boolean            @default(true)
-  categoria     CategoriaPlantilla
-  descripcion   String?
-  nombreArchivo String?            @db.VarChar(255)
-  rutaArchivo   String?            @db.VarChar(500)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id                     String               @id @default(cuid())
+  nombre                 String               @db.VarChar(200)
+  factor                 String               @db.VarChar(100)
+  formato                FormatoArchivo
+  version                String               @db.VarChar(20)
+  vigente                Boolean              @default(true)
+  categoria              CategoriaPlantilla
+  tipoTramite            TipoTramitePlantilla @default(General)
+  esGuiaDocumentoMaestro Boolean              @default(false)
+  descripcion            String?
+  nombreArchivo          String?              @db.VarChar(255)
+  rutaArchivo            String?              @db.VarChar(500)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   @@index([factor, vigente])
+  @@index([categoria, tipoTramite])
+}
+
+model EvaluacionCondicionEvidencia {
+  id              String                        @id @default(cuid())
+  evidenciaId     String
+  evidencia       Evidencia                     @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroRevision  Int
+  codigoCondicion CodigoCondicionDocumentoMaestro
+  cumple          Boolean
+  observacion     String?
+  revisorId       String?
+  createdAt       DateTime                      @default(now())
+
+  @@unique([evidenciaId, numeroRevision, codigoCondicion])
+  @@index([evidenciaId])
 }
 
 model AnexoVigencia {
@@ -240,14 +282,16 @@ model CarpetaNormativa {
 }
 
 model DocumentoRequerido {
-  id          String           @id @default(cuid())
-  carpetaId   String
-  carpeta     CarpetaNormativa @relation(fields: [carpetaId], references: [id])
-  nombre      String           @db.VarChar(200)
-  esPlantilla Boolean          @default(false)
-  formato     FormatoArchivo
-  obligatorio Boolean          @default(true)
-  orden       Int
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                     String           @id @default(cuid())
+  carpetaId              String
+  carpeta                CarpetaNormativa @relation(fields: [carpetaId], references: [id])
+  nombre                 String           @db.VarChar(200)
+  esPlantilla            Boolean          @default(false)
+  formato                FormatoArchivo
+  obligatorio            Boolean          @default(true)
+  requiereChecklistMaestro Boolean        @default(false)
+  orden                  Int
+  evidencias             Evidencia[]
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 }

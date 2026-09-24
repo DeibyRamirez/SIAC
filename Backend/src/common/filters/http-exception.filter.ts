@@ -22,35 +22,11 @@ function mapearErrorInterno(excepcion: unknown): string | null {
 
   if (excepcion instanceof Error) {
     const texto = excepcion.message.toLowerCase();
-    const nombre = excepcion.name.toLowerCase();
-
     if (texto.includes('nosuchbucket') || texto.includes('bucket does not exist')) {
       return 'Bucket de almacenamiento no encontrado en Supabase. Cree los buckets evidencias y documentos.';
     }
-    if (
-      texto.includes('invalidaccesskeyid') ||
-      texto.includes('signaturedoesnotmatch') ||
-      nombre.includes('invalidaccesskeyid') ||
-      nombre.includes('signaturedoesnotmatch')
-    ) {
+    if (texto.includes('invalidaccesskeyid') || texto.includes('signaturedoesnotmatch')) {
       return 'Credenciales S3 de Supabase inválidas. Verifique S3_ACCESS_KEY y S3_SECRET_KEY.';
-    }
-    if (texto.includes('accessdenied') || nombre.includes('accessdenied')) {
-      return 'Acceso denegado al bucket de Supabase. Revise permisos del bucket y las claves S3.';
-    }
-    if (texto.includes('invalidkey') || nombre.includes('invalidkey')) {
-      return 'Nombre de archivo no válido para almacenamiento. Evite caracteres especiales; el sistema normaliza el nombre al subir.';
-    }
-    if (
-      texto.includes('enotfound') ||
-      texto.includes('getaddrinfo') ||
-      nombre.includes('networkingerror') ||
-      nombre.includes('timeout')
-    ) {
-      return 'No se pudo conectar con Supabase Storage. Verifique S3_ENDPOINT y la red.';
-    }
-    if (texto.includes('permanentredirect') || nombre.includes('permanentredirect')) {
-      return 'El endpoint S3 es incorrecto. Use la URL de Storage → S3 Connection en el dashboard de Supabase.';
     }
     if (texto.includes('credentials')) {
       return 'Credenciales de almacenamiento no configuradas correctamente.';

@@ -241,3 +241,22 @@ a {
 [data-slot='table-row']:hover {
   background: rgba(28, 188, 166, 0.08) !important;
 }
+
+/* Vista previa Word (docx-preview) */
+.docx-preview-contenedor .docx-wrapper {
+  background: #fff;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(10, 59, 116, 0.12);
+}
+.docx-preview-contenedor section.docx {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.docx-preview-contenedor table {
+  border-collapse: collapse;
+}
+.docx-preview-contenedor td,
+.docx-preview-contenedor th {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+}
