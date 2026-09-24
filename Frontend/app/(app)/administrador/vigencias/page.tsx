@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
+import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   crearVigenciaConArchivoApi,
@@ -44,6 +46,7 @@ import {
 } from '@/lib/servicios/programas.servicio'
 import type { AnexoVigencia, EstadoVigencia, Programa } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
+import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
 import { formatearFecha, manejarCambioSelect, obtenerNombrePrograma } from '@/lib/utilidades-siac'
 
 const estilosTarjetaResumen: Record<EstadoVigencia, string> = {
@@ -64,6 +67,7 @@ function ContenidoVigencias() {
   const searchParams = useSearchParams()
   const { datos } = usarAlmacen()
   const [anexos, setAnexos] = useState<AnexoVigencia[]>([])
+  const [pagina, setPagina] = useState(1)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -81,6 +85,15 @@ function ContenidoVigencias() {
     () => datos.alertas.filter((alerta) => !alerta.leida).length,
     [datos.alertas],
   )
+
+  const anexosPagina = useMemo(
+    () => paginarArreglo(anexos, pagina, LIMITE_FILAS_TABLA),
+    [anexos, pagina],
+  )
+
+  useEffect(() => {
+    setPagina(1)
+  }, [anexos.length])
 
   const cargarAnexos = useCallback(async () => {
     if (!apiDisponible()) {
@@ -235,7 +248,7 @@ function ContenidoVigencias() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  anexos.map((anexo) => (
+                  anexosPagina.map((anexo) => (
                     <TableRow key={anexo.id} className="align-top">
                       <TableCell className="pl-6 py-4">
                         <CeldaSemaforoVigencia
@@ -271,6 +284,15 @@ function ContenidoVigencias() {
           </div>
         </CardContent>
       </Card>
+
+      {anexos.length > 0 && (
+        <ControlesPaginacion
+          pagina={pagina}
+          limite={LIMITE_FILAS_TABLA}
+          total={anexos.length}
+          onCambiarPagina={setPagina}
+        />
+      )}
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <DialogContent>

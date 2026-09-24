@@ -37,17 +37,21 @@ function ContenidoCategoria({
 }) {
   const { datos } = usarAlmacen()
   const [busqueda, setBusqueda] = useState('')
+  const [tipoTramite, setTipoTramite] = useState<'todos' | 'Renovacion' | 'NuevoPrograma'>(
+    'todos',
+  )
 
   const plantillasFiltradas = useMemo(() => {
     return datos.plantillas.filter((p) => {
       if (p.categoria !== meta.categoria || !p.vigente) return false
+      if (tipoTramite !== 'todos' && p.tipoTramite !== tipoTramite) return false
       const texto = busqueda.toLowerCase()
       return (
         p.nombre.toLowerCase().includes(texto) ||
         p.factor.toLowerCase().includes(texto)
       )
     })
-  }, [datos.plantillas, meta.categoria, busqueda])
+  }, [datos.plantillas, meta.categoria, busqueda, tipoTramite])
 
   return (
     <div className="space-y-6">
@@ -66,12 +70,25 @@ function ContenidoCategoria({
         <p className="max-w-2xl text-sm text-muted-foreground">{meta.descripcion}</p>
       </div>
 
-      <Input
-        placeholder="Buscar en esta categoría…"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        className="max-w-md"
-      />
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Buscar en esta categoría…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="max-w-md"
+        />
+        <select
+          value={tipoTramite}
+          onChange={(e) =>
+            setTipoTramite(e.target.value as 'todos' | 'Renovacion' | 'NuevoPrograma')
+          }
+          className="rounded-lg border border-input px-3 py-2 text-sm"
+        >
+          <option value="todos">Todos los trámites</option>
+          <option value="Renovacion">Renovación</option>
+          <option value="NuevoPrograma">Nuevo programa</option>
+        </select>
+      </div>
 
       <RejillaPlantillas plantillas={plantillasFiltradas} />
 

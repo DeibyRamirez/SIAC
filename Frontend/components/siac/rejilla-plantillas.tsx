@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Eye, FileText, MoreHorizontal } from 'lucide-react'
 
 import { ModalVisualizadorDocumento } from '@/components/siac/modal-visualizador-documento'
@@ -13,7 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { resolverUrlDocumento } from '@/lib/constantes/documentos'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { obtenerUrlDescargaPlantillaApi } from '@/lib/servicios/plantillas.servicio'
 import type { Plantilla } from '@/lib/tipos'
 
 interface RejillaPlantillasProps {
@@ -24,6 +25,17 @@ interface RejillaPlantillasProps {
 
 export function RejillaPlantillas({ plantillas, onEditar, onEliminar }: RejillaPlantillasProps) {
   const [plantillaActiva, setPlantillaActiva] = useState<Plantilla | null>(null)
+  const [urlDescargaActiva, setUrlDescargaActiva] = useState<string | undefined>()
+
+  useEffect(() => {
+    if (!plantillaActiva || !apiDisponible()) {
+      setUrlDescargaActiva(undefined)
+      return
+    }
+    obtenerUrlDescargaPlantillaApi(plantillaActiva.id)
+      .then((respuesta) => setUrlDescargaActiva(respuesta.url))
+      .catch(() => setUrlDescargaActiva(undefined))
+  }, [plantillaActiva])
 
   if (plantillas.length === 0) {
     return (
@@ -43,12 +55,24 @@ export function RejillaPlantillas({ plantillas, onEditar, onEliminar }: RejillaP
                 <div className="flex h-24 flex-1 items-center justify-center rounded-lg bg-muted">
                   <FileText className="size-10 text-muted-foreground/40" />
                 </div>
-                <Badge variant="cyan" className="ml-2 shrink-0">
-                  {plantilla.formato}
-                </Badge>
+                <div className="ml-2 flex shrink-0 flex-col items-end gap-1">
+                  <Badge variant="cyan">{plantilla.formato}</Badge>
+                  {plantilla.esGuiaDocumentoMaestro && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Documento Maestro
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div>
                 <p className="font-semibold text-primary">{plantilla.nombre}</p>
+                {plantilla.tipoTramite && plantilla.tipoTramite !== 'General' && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {plantilla.tipoTramite === 'Renovacion'
+                      ? 'Renovación'
+                      : 'Nuevo programa'}
+                  </p>
+                )}
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {plantilla.descripcion ?? plantilla.factor}
                 </p>
@@ -111,7 +135,8 @@ export function RejillaPlantillas({ plantillas, onEditar, onEliminar }: RejillaP
           onCerrar={() => setPlantillaActiva(null)}
           titulo={plantillaActiva.nombre}
           formato={plantillaActiva.formato}
-          urlDocumento={resolverUrlDocumento(plantillaActiva.urlDocumento)}
+          urlDocumento={urlDescargaActiva}
+          plantillaId={plantillaActiva.id}
         />
       )}
     </>

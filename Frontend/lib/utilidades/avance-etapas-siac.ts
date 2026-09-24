@@ -12,6 +12,7 @@ export interface AvanceDocumentoEtapa {
   nombre: string
   aceptado: boolean
   rechazado: boolean
+  porcentajeCompletitud: number
 }
 
 export interface AvanceEtapaSIAC {
@@ -58,18 +59,27 @@ function calcularProgresoEtapa(
   const docs = documentosDeEtapa(etapa.id, carpetas, documentosRequeridos)
   const documentos: AvanceDocumentoEtapa[] = docs.map((doc) => {
     const evidencia = evidenciaPorDocumento(doc.id, evidencias)
+    const porcentajeCompletitud =
+      evidencia?.estado === 'Validado'
+        ? 100
+        : evidencia?.porcentajeCompletitud ?? 0
     return {
       documentoId: doc.id,
       nombre: doc.nombre,
       aceptado: evidencia?.estado === 'Validado',
       rechazado: evidencia?.estado === 'Rechazado',
+      porcentajeCompletitud,
     }
   })
 
   const totalDocumentos = documentos.length
   const documentosAceptados = documentos.filter((d) => d.aceptado).length
+  const sumaPorcentajes = documentos.reduce(
+    (acc, d) => acc + d.porcentajeCompletitud,
+    0,
+  )
   const progreso =
-    totalDocumentos === 0 ? 0 : Math.round((documentosAceptados / totalDocumentos) * 100)
+    totalDocumentos === 0 ? 0 : Math.round(sumaPorcentajes / totalDocumentos)
 
   return {
     etapa,
@@ -148,8 +158,11 @@ export function calcularAvanceEtapasSIAC(input: {
     null
 
   const totalDocs = etapas.reduce((sum, e) => sum + e.totalDocumentos, 0)
-  const totalAceptados = etapas.reduce((sum, e) => sum + e.documentosAceptados, 0)
-  const avanceGlobal = totalDocs === 0 ? 0 : Math.round((totalAceptados / totalDocs) * 100)
+  const sumaGlobal = etapas.reduce(
+    (sum, e) => sum + e.documentos.reduce((s, d) => s + d.porcentajeCompletitud, 0),
+    0,
+  )
+  const avanceGlobal = totalDocs === 0 ? 0 : Math.round(sumaGlobal / totalDocs)
 
   return { etapas, etapaActual, avanceGlobal }
 }

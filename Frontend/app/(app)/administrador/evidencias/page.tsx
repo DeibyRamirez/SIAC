@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { factoresSemilla, periodosSemilla } from '@/lib/datos-semilla'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
@@ -33,8 +34,6 @@ function reiniciarPaginaAlFiltrar<T>(actualizar: (valor: T) => void, setPagina: 
     setPagina(1)
   }
 }
-
-const LIMITE_POR_PAGINA = 20
 
 const filtrosEstado = [
   { valor: 'todos', etiqueta: 'Todos' },
@@ -89,7 +88,7 @@ function ContenidoEvidencias() {
       if (apiDisponible()) {
         const resp = await listarEvidenciasApi({
           pagina,
-          limite: LIMITE_POR_PAGINA,
+          limite: LIMITE_FILAS_TABLA,
           programaId: programaId === 'todos' ? undefined : programaId,
           factor: factor === 'todos' ? undefined : factor,
           periodo: periodo === 'todos' ? undefined : periodo,
@@ -175,13 +174,7 @@ function ContenidoEvidencias() {
         />
       </BarraHerramientasTabla>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ControlesPaginacion
-          pagina={pagina}
-          limite={LIMITE_POR_PAGINA}
-          total={total}
-          onCambiarPagina={setPagina}
-        />
+      <div className="flex justify-end">
         <Button
           variant="outline"
           size="sm"
@@ -197,10 +190,18 @@ function ContenidoEvidencias() {
       ) : evidenciasFiltradas.length === 0 ? (
         <PanelVacio mensaje="No se encontraron evidencias." />
       ) : (
-        <TablaEvidencias
-          evidencias={evidenciasFiltradas}
-          enlaceDetalle={(id) => `/administrador/evidencias/${id}`}
-        />
+        <>
+          <TablaEvidencias
+            evidencias={evidenciasFiltradas}
+            enlaceDetalle={(id) => `/administrador/evidencias/${id}`}
+          />
+          <ControlesPaginacion
+            pagina={pagina}
+            limite={LIMITE_FILAS_TABLA}
+            total={total}
+            onCambiarPagina={setPagina}
+          />
+        </>
       )}
     </div>
   )

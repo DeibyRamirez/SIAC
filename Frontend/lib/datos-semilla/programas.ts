@@ -19,7 +19,7 @@ export const programasSemilla: Programa[] = [
     codigo: 'ISW-02',
     nivel: 'Pregrado',
     semaforo: 'Amarillo',
-    porcentajeAvance: 74,
+    porcentajeAvance: 89,
     estadoProceso: 'En autoevaluación',
     urlImagen: "/Carreras/ingenieria_software.png",
   },
@@ -135,12 +135,35 @@ export const programasSemilla: Programa[] = [
   },
 ]
 
-export const factoresSemilla = [
-  'Factor 1 · Proyecto educativo',
-  'Factor 4 · Procesos académicos',
-  'Factor 5 · Profesores',
-  'Factor 7 · Egresados',
-  'Factor 10 · Mejoramiento',
+export const catalogoFactoresIndicadores = [
+  {
+    factor: 'Factor 1 · Proyecto educativo',
+    indicadores: [
+      'Indicador 1.1 · Diseño curricular y plan de estudios',
+      'Indicador 1.2 · Modelo pedagógico',
+    ],
+  },
+  {
+    factor: 'Factor 2 · Profesores',
+    indicadores: [
+      'Indicador 2.1 · Perfil y vinculación docente',
+      'Indicador 2.2 · Formación y evaluación docente',
+    ],
+  },
+  {
+    factor: 'Factor 3 · Investigación e innovación',
+    indicadores: ['Indicador 3.1 · Líneas y productos de investigación'],
+  },
+  {
+    factor: 'Factor 4 · Procesos académicos',
+    indicadores: ['Indicador 4.1 · Seguimiento académico'],
+  },
+  {
+    factor: 'Factor 7 · Egresados',
+    indicadores: ['Indicador 7.1 · Seguimiento a egresados'],
+  },
 ]
 
-export const periodosSemilla = ['2024-1', '2024-2', '2025-1', '2025-2', '2026-1']
+export const factoresSemilla = catalogoFactoresIndicadores.map((f) => f.factor)
+
+export const periodosSemilla = ['2024-1', '2024-2', '2025-1', '2025-2', '2026-1', '2026-2']
