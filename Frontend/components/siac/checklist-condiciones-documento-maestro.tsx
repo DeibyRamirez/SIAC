@@ -1,15 +1,19 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CONDICIONES_DOCUMENTO_MAESTRO,
   PESO_POR_CONDICION_DOCUMENTO_MAESTRO,
   type CodigoCondicionDocumentoMaestro,
 } from '@/lib/condiciones-documento-maestro'
+import { cn } from '@/lib/utils'
+
+export type DecisionCondicion = 'correcto' | 'corregir' | null
 
 export interface EstadoCondicionDictamen {
   codigo: CodigoCondicionDocumentoMaestro
-  cumple: boolean
+  decision: DecisionCondicion
   observacion: string
 }
 
@@ -22,9 +26,13 @@ interface ChecklistCondicionesDocumentoMaestroProps {
 export function crearEstadosCondicionIniciales(): EstadoCondicionDictamen[] {
   return CONDICIONES_DOCUMENTO_MAESTRO.map((c) => ({
     codigo: c.codigo,
-    cumple: false,
+    decision: null,
     observacion: '',
   }))
+}
+
+export function condicionCumpleParaApi(estado: EstadoCondicionDictamen): boolean {
+  return estado.decision === 'correcto'
 }
 
 export function ChecklistCondicionesDocumentoMaestro({
@@ -58,24 +66,49 @@ export function ChecklistCondicionesDocumentoMaestro({
               key={def.codigo}
               className="rounded-lg border border-border/80 bg-card p-3"
             >
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={estado.cumple}
+              <p className="text-sm font-medium leading-snug text-primary">
+                {def.etiqueta}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
                   disabled={deshabilitado}
-                  onChange={(e) =>
-                    actualizar(def.codigo, { cumple: e.target.checked })
+                  aria-pressed={estado.decision === 'correcto'}
+                  className={cn(
+                    'min-w-[6.5rem] border-2 font-semibold shadow-none',
+                    estado.decision === 'correcto'
+                      ? 'border-esmeralda bg-esmeralda text-white hover:bg-esmeralda/90 hover:text-white'
+                      : 'border-esmeralda/40 bg-white text-primary hover:border-esmeralda hover:bg-esmeralda/10',
+                  )}
+                  onClick={() =>
+                    actualizar(def.codigo, { decision: 'correcto', observacion: '' })
                   }
-                  className="mt-1 size-4 rounded border-input accent-primary"
-                />
-                <span className="text-sm font-medium leading-snug text-primary">
-                  {def.etiqueta}
-                </span>
-              </label>
-              {!estado.cumple && (
+                >
+                  Correcto
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={deshabilitado}
+                  aria-pressed={estado.decision === 'corregir'}
+                  className={cn(
+                    'min-w-[6.5rem] border-2 font-semibold shadow-none',
+                    estado.decision === 'corregir'
+                      ? 'border-fucsia bg-fucsia text-white hover:bg-fucsia/90 hover:text-white'
+                      : 'border-fucsia/40 bg-white text-primary hover:border-fucsia hover:bg-fucsia/10',
+                  )}
+                  onClick={() => actualizar(def.codigo, { decision: 'corregir' })}
+                >
+                  Corregir
+                </Button>
+              </div>
+              {estado.decision === 'corregir' && (
                 <Textarea
                   className="mt-2 min-h-[72px] text-sm"
-                  placeholder="Observaciones para el cargador (obligatorio si no cumple)."
+                  placeholder="Observaciones para el cargador (obligatorio si debe corregir)."
                   value={estado.observacion}
                   disabled={deshabilitado}
                   onChange={(e) =>

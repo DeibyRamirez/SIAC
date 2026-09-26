@@ -140,3 +140,27 @@ export async function listarPendientesApi() {
   return peticionApi<RespuestaPaginada<Evidencia>>('/aprobacion/pendientes');
 }
 
+export interface FilaRevisionRevisorApi {
+  evidenciaId: string
+  nombre: string
+  estado: EstadoEvidencia
+  version: number | null
+  fechaEnvioRevision: string
+  tipoEnvio: 'inicial' | 'correccion'
+  observacionEnvio?: string | null
+  ultimoDictamenEstado?: EstadoEvidencia | null
+  ultimoDictamenFecha?: string | null
+  programa?: { id: string; nombre: string }
+  autor?: { id: string; nombre: string }
+}
+
+export async function listarMisRevisionesRevisorApi(pagina = 1, limite = 20) {
+  const params = new URLSearchParams({
+    pagina: String(pagina),
+    limite: String(limite),
+  })
+  return peticionApi<RespuestaPaginada<FilaRevisionRevisorApi>>(
+    `/evidencias/mis-revisiones-revisor?${params}`,
+  )
+}
+

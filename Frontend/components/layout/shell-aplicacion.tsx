@@ -46,8 +46,10 @@ export function ShellAplicacion({
       <Sheet open={menuMovilAbierto} onOpenChange={setMenuMovilAbierto}>
         <SheetContent side="left" className="w-64 p-0 sm:max-w-xs">
           <BarraLateral
-            className="flex h-full w-full border-0"
+            className="flex h-dvh max-h-dvh w-full border-0"
             alNavegar={() => setMenuMovilAbierto(false)}
+            plegado={plegado}
+            onAlternarPlegado={alternarSidebar}
           />
         </SheetContent>
       </Sheet>

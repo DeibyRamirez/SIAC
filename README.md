@@ -21,6 +21,13 @@ pnpm prisma:seed
 pnpm start:dev
 ```
 
+## Si la terminal va lenta, ejecute esto antes de `pnpm start:dev`:
+
+```bash
+pnpm build
+node dist/main.js
+```
+
 Swagger: `http://localhost:3001/api/docs`
 
 ### Frontend
@@ -29,6 +36,7 @@ Swagger: `http://localhost:3001/api/docs`
 cd Frontend
 cp .env.local.example .env.local
 pnpm install
+pnpm build
 pnpm dev
 ```
 

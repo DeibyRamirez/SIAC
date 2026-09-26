@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -173,30 +174,26 @@ function ContenidoNuevaEvidencia() {
               guardarDocumento(false)
             }}
           >
-            <label className="block space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <span className="font-medium">Archivo (.docx)</span>
-              <input
-                type="file"
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(evento) =>
-                  manejarArchivoSeleccionado(evento.target.files?.[0] ?? null)
-                }
-                className="w-full rounded-lg border border-dashed border-input px-3 py-3"
-                required
+              <ZonaCargaDocx
+                archivo={archivo}
+                onArchivoSeleccionado={manejarArchivoSeleccionado}
+                deshabilitado={extrayendo}
               />
               <span className="text-xs text-muted-foreground">
-                Solo Word (.docx) · máximo 25 MB
+                Solo Word (.docx) · máximo 20 MB
                 {extrayendo ? ' · Analizando documento…' : ''}
               </span>
-            </label>
+            </div>
 
             <label className="block space-y-2 text-sm">
               <span className="font-medium">Nombre del documento</span>
               <input
                 value={nombre}
-                onChange={(evento) => setNombre(evento.target.value)}
-                className="w-full rounded-lg border border-input px-3 py-2"
-                placeholder="Ej. Documento Maestro Ingeniería de Software 2026"
+                readOnly
+                className="w-full cursor-default rounded-lg border border-input bg-muted px-3 py-2"
+                placeholder="Se completa al seleccionar el .docx"
                 required
               />
             </label>

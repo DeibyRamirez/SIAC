@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import {
   ChecklistCondicionesDocumentoMaestro,
+  condicionCumpleParaApi,
   crearEstadosCondicionIniciales,
   type EstadoCondicionDictamen,
 } from '@/components/siac/checklist-condiciones-documento-maestro'
@@ -31,6 +32,10 @@ import {
   obtenerUrlDescargaApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
+import {
+  limpiarBorradorRevision,
+  usarBorradorRevisionDocx,
+} from '@/lib/hooks/usar-borrador-revision-docx'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
 
 export default function DictamenPage() {
@@ -90,8 +95,29 @@ function ContenidoDictamen() {
     )
   }, [evidencia])
 
+  const versionActual = evidencia?.version ?? 1
+
+  const restaurarBorrador = useCallback(
+    (borrador: {
+      condiciones: EstadoCondicionDictamen[]
+      observacionesGenerales: string
+    }) => {
+      setCondiciones(borrador.condiciones)
+      setObservacionesGenerales(borrador.observacionesGenerales)
+    },
+    [],
+  )
+
+  usarBorradorRevisionDocx(
+    params.id,
+    versionActual,
+    condiciones,
+    observacionesGenerales,
+    restaurarBorrador,
+  )
+
   const porcentajePreview = useMemo(() => {
-    const cumplidas = condiciones.filter((c) => c.cumple).length
+    const cumplidas = condiciones.filter((c) => c.decision === 'correcto').length
     return calcularPorcentajeCondiciones(cumplidas)
   }, [condiciones])
 
@@ -115,16 +141,18 @@ function ContenidoDictamen() {
   }
 
   const puedeDictaminar = evidencia.estado === 'EnRevision'
-  const versionActual = evidencia.version ?? 1
-  const todasCumplen = condiciones.every((c) => c.cumple)
+  const todasCumplen = condiciones.every((c) => c.decision === 'correcto')
 
   function validarCondiciones(): string | null {
     if (condiciones.length !== CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length) {
       return 'Debe evaluar las 9 condiciones.'
     }
     for (const c of condiciones) {
-      if (!c.cumple && !c.observacion.trim()) {
-        return 'Registra observaciones en cada condición que no cumple.'
+      if (c.decision === null) {
+        return 'Marque Correcto o Corregir en cada condición.'
+      }
+      if (c.decision === 'corregir' && !c.observacion.trim()) {
+        return 'Registra observaciones en cada condición marcada como Corregir.'
       }
     }
     return null
@@ -139,7 +167,7 @@ function ContenidoDictamen() {
 
     const payloadCondiciones = condiciones.map((c) => ({
       codigo: c.codigo,
-      cumple: c.cumple,
+      cumple: condicionCumpleParaApi(c),
       observacion: c.observacion.trim() || undefined,
     }))
 
@@ -184,6 +212,7 @@ function ContenidoDictamen() {
         usaChecklist ? payloadCondiciones : undefined,
         usaChecklist ? porcentajePreview : aprobacionTotal ? 100 : undefined,
       )
+      limpiarBorradorRevision(evidencia.id, versionActual)
       router.push('/revisor/bandeja')
     } catch (err) {
       setMensaje(err instanceof Error ? err.message : 'No se pudo registrar el dictamen.')
@@ -306,7 +335,7 @@ function ContenidoDictamen() {
                 onClick={() => {
                   if (usaChecklist) {
                     const err = validarCondiciones()
-                    if (err && condiciones.every((c) => c.cumple)) {
+                    if (err && condiciones.every((c) => c.decision === 'correcto')) {
                       setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
                       return
                     }

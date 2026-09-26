@@ -29,12 +29,42 @@ export function filtrarEvidenciasValidadas<T extends { estado: string }>(items: 
   return items.filter((item) => item.estado === 'Validado')
 }
 
+const localeFecha = 'es-CO'
+
+function parsearFechaEntrada(fechaIso: string): Date {
+  if (fechaIso.includes('T')) {
+    return new Date(fechaIso)
+  }
+  return new Date(`${fechaIso}T00:00:00`)
+}
+
 export function formatearFecha(fechaIso: string): string {
-  const fecha = new Date(`${fechaIso}T00:00:00`)
-  return fecha.toLocaleDateString('es-CO', {
+  const fecha = parsearFechaEntrada(fechaIso)
+  return fecha.toLocaleDateString(localeFecha, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  })
+}
+
+export function formatearSoloHora(fechaIso: string): string {
+  const fecha = parsearFechaEntrada(fechaIso)
+  return fecha.toLocaleTimeString(localeFecha, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+export function formatearFechaHora(fechaIso: string): string {
+  const fecha = parsearFechaEntrada(fechaIso)
+  return fecha.toLocaleString(localeFecha, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   })
 }
 

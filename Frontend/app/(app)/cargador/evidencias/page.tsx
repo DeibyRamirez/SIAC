@@ -14,7 +14,6 @@ import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
@@ -31,9 +30,7 @@ export default function MisEvidenciasPage() {
 
 function ContenidoMisEvidencias() {
   const { sesion } = usarSesion()
-  const { datos, actualizarEvidencia, eliminarEvidencia } = usarAlmacen()
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [nombreEditado, setNombreEditado] = useState('')
+  const { datos, eliminarEvidencia } = usarAlmacen()
   const [idEliminar, setIdEliminar] = useState<string | null>(null)
   const [programaId, setProgramaId] = useState('todos')
   const [pagina, setPagina] = useState(1)
@@ -88,13 +85,6 @@ function ContenidoMisEvidencias() {
     setPagina(1)
   }, [programaId])
 
-  function guardarEdicion(id: string) {
-    actualizarEvidencia(id, { nombre: nombreEditado.trim() })
-    setEditandoId(null)
-    toast.success('Evidencia actualizada.')
-    cargarEvidencias()
-  }
-
   function confirmarEliminacion() {
     if (!idEliminar) return
     const ev = evidencias.find((e) => e.id === idEliminar)
@@ -129,20 +119,6 @@ function ContenidoMisEvidencias() {
       <div className="flex flex-wrap items-center gap-3">
         <FiltroPrograma valor={programaId} onCambiar={setProgramaId} />
       </div>
-
-      {editandoId && (
-        <div className="flex gap-2 rounded-xl border border-primary/15 bg-white p-4 shadow-sm">
-          <Input
-            value={nombreEditado}
-            onChange={(e) => setNombreEditado(e.target.value)}
-            className="max-w-md"
-          />
-          <Button onClick={() => guardarEdicion(editandoId)}>Guardar</Button>
-          <Button variant="outline" onClick={() => setEditandoId(null)}>
-            Cancelar
-          </Button>
-        </div>
-      )}
 
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando evidencias…</p>

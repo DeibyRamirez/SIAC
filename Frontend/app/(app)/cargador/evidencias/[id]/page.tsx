@@ -13,6 +13,7 @@ import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { ResumenObservacionesPorCondicion } from '@/components/siac/resumen-observaciones-por-condicion'
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
+import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
 import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -146,82 +147,50 @@ function ContenidoDetalle() {
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
   const versionActual = evidencia.version ?? 1
 
-  async function guardarMetadatos() {
-    setProcesando(true)
-    try {
-      if (apiDisponible()) {
-        await actualizarEvidenciaApi(params.id, {
-          nombre: nombre.trim(),
-          indicador: indicador.trim(),
-        })
-      }
-      actualizarEvidencia(params.id, { nombre: nombre.trim(), indicador: indicador.trim() })
-      setEvidencia((prev) =>
-        prev ? { ...prev, nombre: nombre.trim(), indicador: indicador.trim() } : prev,
-      )
-      toast.success('Metadatos actualizados.')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudieron guardar los cambios.')
-    } finally {
-      setProcesando(false)
-    }
-  }
-
-  async function subirNuevaVersion() {
-    if (!archivoNuevo) {
-      toast.error('Selecciona un archivo para la nueva versión.')
+  async function enviarARevision() {
+    if (!evidencia) return
+    if (evidencia.estado === 'Rechazado' && !archivoNuevo) {
+      toast.error('Debe cargar el documento .docx corregido antes de enviar a revisión.')
       return
     }
-    setProcesando(true)
-    try {
-      if (apiDisponible()) {
-        const actualizada = await subirVersionArchivoApi(params.id, archivoNuevo)
-        setEvidencia((prev) =>
-          prev
-            ? {
-                ...prev,
-                version: actualizada.version ?? versionActual + 1,
-                nombreArchivo: actualizada.nombreArchivo,
-              }
-            : prev,
-        )
-        await refrescarDocumento(params.id)
-      } else {
-        setEvidencia((prev) =>
-          prev
-            ? {
-                ...prev,
-                version: versionActual + 1,
-                nombreArchivo: archivoNuevo.name,
-              }
-            : prev,
-        )
-      }
-      actualizarEvidencia(params.id, {
-        version: versionActual + 1,
-        nombreArchivo: archivoNuevo.name,
-      })
-      setArchivoNuevo(null)
-      toast.success(`Versión ${versionActual + 1} cargada correctamente.`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo cargar la nueva versión.')
-    } finally {
-      setProcesando(false)
-    }
-  }
 
-  async function reenviarRevision() {
     setProcesando(true)
     try {
       if (apiDisponible()) {
+        if (indicador.trim() !== evidencia.indicador) {
+          await actualizarEvidenciaApi(params.id, { indicador: indicador.trim() })
+        }
+        if (archivoNuevo) {
+          const actualizada = await subirVersionArchivoApi(params.id, archivoNuevo)
+          setEvidencia((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  version: actualizada.version ?? versionActual + 1,
+                  nombreArchivo: actualizada.nombreArchivo,
+                }
+              : prev,
+          )
+          await refrescarDocumento(params.id)
+        }
         const actualizada = await enviarRevisionApi(params.id)
         setEvidencia((prev) => (prev ? { ...prev, estado: actualizada.estado } : prev))
       }
-      actualizarEvidencia(params.id, { estado: 'EnRevision', observaciones: undefined })
+      actualizarEvidencia(params.id, {
+        estado: 'EnRevision',
+        observaciones: undefined,
+        indicador: indicador.trim(),
+        ...(archivoNuevo
+          ? {
+              version: versionActual + 1,
+              nombreArchivo: archivoNuevo.name,
+            }
+          : {}),
+      })
       toast.success('Evidencia enviada a revisión.')
       router.push('/cargador/evidencias')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo reenviar la evidencia.')
+      toast.error(err instanceof Error ? err.message : 'No se pudo enviar la evidencia a revisión.')
     } finally {
       setProcesando(false)
       setConfirmarReenvio(false)
@@ -309,50 +278,32 @@ function ContenidoDetalle() {
               <>
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Nombre del documento</span>
-                  <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+                  <Input value={nombre} readOnly className="bg-muted" />
                 </label>
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Indicador</span>
                   <Input value={indicador} onChange={(e) => setIndicador(e.target.value)} />
                 </label>
 
-                <div className="rounded-lg border border-dashed border-primary/20 bg-accent/30 p-4">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-primary">
-                    Cargar versión {versionActual + 1} corregida
+                    {esRechazada
+                      ? `Documento corregido (versión ${versionActual + 1})`
+                      : 'Actualizar documento (opcional)'}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Sube el documento corregido antes de reenviar a revisión.
-                  </p>
-                  <input
-                    type="file"
-                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={(e) => setArchivoNuevo(e.target.files?.[0] ?? null)}
-                    className="mt-3 w-full text-sm"
+                  <ZonaCargaDocx
+                    archivo={archivoNuevo}
+                    onArchivoSeleccionado={setArchivoNuevo}
+                    deshabilitado={procesando}
                   />
-                  <Button
-                    variant="outline"
-                    className="mt-3 w-full"
-                    onClick={subirNuevaVersion}
-                    disabled={procesando || !archivoNuevo}
-                  >
-                    Subir versión {versionActual + 1}
-                  </Button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={guardarMetadatos}
-                  disabled={procesando}
-                >
-                  Guardar cambios
-                </Button>
                 <Button
                   className="w-full"
                   onClick={() => setConfirmarReenvio(true)}
                   disabled={procesando}
                 >
-                  Reenviar a revisión
+                  Enviar a revisión
                 </Button>
               </>
             )}
@@ -373,12 +324,12 @@ function ContenidoDetalle() {
 
       <DialogoConfirmacion
         abierto={confirmarReenvio}
-        titulo="¿Reenviar a revisión?"
-        descripcion="La evidencia pasará a estado En revisión y el revisor podrá dictaminarla nuevamente."
-        etiquetaConfirmar="Sí, reenviar"
+        titulo="¿Enviar a revisión?"
+        descripcion="La evidencia pasará a estado En revisión. Si seleccionó un archivo, se cargará como nueva versión antes del envío."
+        etiquetaConfirmar="Sí, enviar"
         variant="default"
         cargando={procesando}
-        onConfirmar={reenviarRevision}
+        onConfirmar={enviarARevision}
         onCancelar={() => setConfirmarReenvio(false)}
       />
     </div>

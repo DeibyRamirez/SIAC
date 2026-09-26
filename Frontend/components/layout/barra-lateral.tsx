@@ -54,6 +54,7 @@ function itemsRevisor(): ItemNavegacion[] {
   return [
     { href: '/revisor', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', icono: FileCheck2, mostrarBadge: true },
+    { href: '/revisor/revisiones', etiqueta: 'Mis revisiones', icono: ClipboardCheck },
   ]
 }
 
@@ -144,7 +145,7 @@ export function BarraLateral({
   return (
     <aside
       className={cn(
-        'panel-sidebar flex shrink-0 flex-col border-r border-primary/20 shadow-lg transition-[width] duration-200',
+        'panel-sidebar sticky top-0 flex h-dvh max-h-dvh shrink-0 flex-col border-r border-primary/20 shadow-lg transition-[width] duration-200',
         plegado ? 'w-16' : 'w-64',
         className,
       )}
@@ -161,21 +162,6 @@ export function BarraLateral({
             </div>
           )}
         </div>
-        {onAlternarPlegado && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className={cn(
-              'text-white hover:bg-white/10',
-              plegado ? 'mx-auto' : 'ml-auto flex',
-            )}
-            onClick={onAlternarPlegado}
-            aria-label={plegado ? 'Expandir menú' : 'Contraer menú'}
-          >
-            {plegado ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-          </Button>
-        )}
       </div>
 
       {!plegado && (
@@ -187,7 +173,7 @@ export function BarraLateral({
         </div>
       )}
 
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-3">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-3">
         {!plegado && (
           <p className="etiqueta-seccion px-3 pb-2 text-[10px]">Gestión de calidad</p>
         )}
@@ -235,7 +221,22 @@ export function BarraLateral({
         })}
       </nav>
 
-      <div className="space-y-2 border-t border-primary/10 bg-white px-2 py-4">
+      <div className="mt-auto shrink-0 space-y-2 border-t border-primary/10 bg-white px-2 py-3">
+        {onAlternarPlegado && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(
+              'text-primary hover:bg-secondary',
+              plegado ? 'mx-auto flex' : 'ml-auto flex',
+            )}
+            onClick={onAlternarPlegado}
+            aria-label={plegado ? 'Expandir menú' : 'Contraer menú'}
+          >
+            {plegado ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          </Button>
+        )}
         {!plegado && (
           <>
             <button

@@ -1,3 +1,10 @@
+import {
+  debeMostrarCargaGlobal,
+  notificarFinCarga,
+  notificarInicioCarga,
+  obtenerMensajeCarga,
+} from '@/lib/servicios/control-carga-global';
+
 const URL_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 export class ErrorApi extends Error {
@@ -40,21 +47,33 @@ export async function peticionApi<T>(
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
   }
 
-  const respuesta = await fetch(`${URL_BASE}${ruta}`, {
-    ...opciones,
-    headers,
-  });
-
-  if (!respuesta.ok) {
-    const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
-    throw new ErrorApi(
-      Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
-      respuesta.status,
-    );
+  const metodo = (opciones.method ?? 'GET').toUpperCase();
+  const mostrarCarga = debeMostrarCargaGlobal(metodo, ruta);
+  if (mostrarCarga) {
+    notificarInicioCarga(obtenerMensajeCarga(metodo, ruta));
   }
 
-  if (respuesta.status === 204) return undefined as T;
-  return respuesta.json();
+  try {
+    const respuesta = await fetch(`${URL_BASE}${ruta}`, {
+      ...opciones,
+      headers,
+    });
+
+    if (!respuesta.ok) {
+      const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
+      throw new ErrorApi(
+        Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
+        respuesta.status,
+      );
+    }
+
+    if (respuesta.status === 204) return undefined as T;
+    return respuesta.json();
+  } finally {
+    if (mostrarCarga) {
+      notificarFinCarga();
+    }
+  }
 }
 
 export function apiDisponible(): boolean {

@@ -7,6 +7,7 @@ import { VisorDocxPreview } from '@/components/siac/visor-docx-preview'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { esUrlPdf } from '@/lib/constantes/documentos'
 import {
+  obtenerBlobDocxEvidenciaApi,
   obtenerContenidoEvidenciaApi,
   obtenerContenidoPlantillaApi,
 } from '@/lib/servicios/descarga-binaria'
@@ -61,6 +62,29 @@ export function VisorDocumentoInline({
     throw new Error('Sin identificador de documento.')
   }, [evidenciaId, plantillaId, versionDocumento])
 
+  const descargarDocxBinario = useCallback(async () => {
+    let blob: Blob
+    if (evidenciaId) {
+      blob = await obtenerBlobDocxEvidenciaApi(evidenciaId, versionDocumento)
+    } else if (plantillaId) {
+      const buffer = await obtenerContenidoPlantillaApi(plantillaId)
+      blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+    } else {
+      return
+    }
+    const nombreArchivo = titulo.toLowerCase().endsWith('.docx')
+      ? titulo
+      : `${titulo}.docx`
+    const enlace = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = enlace
+    anchor.download = nombreArchivo
+    anchor.click()
+    URL.revokeObjectURL(enlace)
+  }, [evidenciaId, plantillaId, versionDocumento, titulo])
+
   const shellAltura =
     variant === 'fill'
       ? 'h-full min-h-0 max-h-none'
@@ -76,20 +100,25 @@ export function VisorDocumentoInline({
     >
       <header className="flex shrink-0 items-center justify-between gap-4 bg-zinc-800 px-4 py-2.5 text-white">
         <p className="truncate text-sm font-semibold">{titulo}</p>
-        {urlBase && (
-          <a
-            href={urlEfectiva}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              buttonVariants({ variant: 'ghost', size: 'sm' }),
-              'text-white hover:bg-zinc-700 hover:text-white',
-            )}
+        {(urlBase || usarPreviewDocx) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-zinc-700 hover:text-white"
+            onClick={() => {
+              if (usarPreviewDocx) {
+                void descargarDocxBinario()
+                return
+              }
+              if (urlEfectiva) {
+                window.open(urlEfectiva, '_blank', 'noopener,noreferrer')
+              }
+            }}
           >
             <Download className="size-4" />
             Descargar
-          </a>
+          </Button>
         )}
       </header>
 
@@ -115,16 +144,19 @@ export function VisorDocumentoInline({
                 : 'No hay un archivo asociado a esta evidencia todavía.'}
             </p>
             {urlBase && (
-              <a
-                href={urlEfectiva}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(buttonVariants())}
+              <Button
+                type="button"
+                onClick={() => {
+                  if (usarPreviewDocx) {
+                    void descargarDocxBinario()
+                    return
+                  }
+                  window.open(urlEfectiva, '_blank', 'noopener,noreferrer')
+                }}
               >
                 <Download className="size-4" />
                 Descargar {formato}
-              </a>
+              </Button>
             )}
           </div>
         )}

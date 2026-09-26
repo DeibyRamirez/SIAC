@@ -7,12 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { obtenerBlobDocxEvidenciaApi } from '@/lib/servicios/descarga-binaria'
 import {
   listarVersionesApi,
-  obtenerUrlDescargaApi,
   type EvidenciaVersionApi,
 } from '@/lib/servicios/evidencias.servicio'
-import { formatearFecha } from '@/lib/utilidades-siac'
+import { formatearFechaHora } from '@/lib/utilidades-siac'
 
 interface HistorialVersionesEvidenciaProps {
   evidenciaId: string
@@ -43,8 +43,18 @@ export function HistorialVersionesEvidencia({
   }, [evidenciaId])
 
   async function descargarVersion(numero: number) {
-    const { url } = await obtenerUrlDescargaApi(evidenciaId, numero)
-    window.open(url, '_blank')
+    const version = versiones.find((v) => v.numero === numero)
+    const blob = await obtenerBlobDocxEvidenciaApi(evidenciaId, numero)
+    const nombre =
+      version?.nombreArchivo?.toLowerCase().endsWith('.docx')
+        ? version.nombreArchivo
+        : `${version?.nombreArchivo ?? 'evidencia'}.docx`
+    const enlace = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = enlace
+    anchor.download = nombre
+    anchor.click()
+    URL.revokeObjectURL(enlace)
   }
 
   if (cargando) {
@@ -76,7 +86,7 @@ export function HistorialVersionesEvidencia({
               <p className="text-sm text-muted-foreground">{version.nombreArchivo}</p>
               <p className="text-xs text-muted-foreground">
                 {version.subidoPor?.nombre ?? 'Usuario'} ·{' '}
-                {formatearFecha(version.createdAt.slice(0, 10))}
+                {formatearFechaHora(version.createdAt)}
               </p>
             </div>
             <Button

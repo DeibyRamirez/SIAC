@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-17 |
-| **Versión frontend** | `0.1.0` (`Frontend/frontend/package.json`) |
+| **Última actualización** | 2026-09-24 |
+| **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
 | **Ruta local** | `D:\Proyectos\Simulacion_SIAC` |
@@ -439,6 +439,14 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 ---
 
 ## 10. Registro de cambios
+
+### 2026-09-24 — Correcciones Sprint 1 (DOCX + UI)
+
+- [Backend] Módulo `src/docx/`: firma en `docProps/custom.xml`, protección lectura, zonas editables, comentarios Word, validación mammoth al re-subir; campos `firmaDescarga` y `textoBaseAuditoria` en `EvidenciaVersion`
+- [Backend] `GET /evidencias/mis-revisiones-revisor` — historial envíos a revisión (inicial / corrección)
+- [Frontend] Sidebar sticky, colapsar abajo; loader global con blur; fechas con hora 12h (`formatearFechaHora`)
+- [Frontend] Cargador: nombre readOnly, `ZonaCargaDocx`, botón único «Enviar a revisión»
+- [Frontend] Revisor: checklist Correcto/Corregir, borrador `localStorage`, ruta `/revisor/revisiones`
 
 ### 2026-09-17 (lote 2) — Reparación EvidenciaVersion y versionado
 
