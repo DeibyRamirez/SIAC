@@ -54,6 +54,20 @@ export class DocumentosController {
     });
   }
 
+  @Get('mis-revisiones-revisor')
+  @Roles(RolUsuario.Revisor, RolUsuario.Administrador)
+  misRevisionesRevisor(
+    @Query('pagina') pagina: string,
+    @Query('limite') limite: string,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.listarMisRevisionesRevisor(
+      req.user,
+      pagina ? parseInt(pagina, 10) : 1,
+      limite ? parseInt(limite, 10) : 20,
+    );
+  }
+
   @Get(':id/versiones')
   listarVersiones(
     @Param('id') id: string,
@@ -84,8 +98,10 @@ export class DocumentosController {
       req.user,
       numeroVersion,
     );
+    const mimeDocx =
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     return new StreamableFile(archivo.buffer, {
-      type: archivo.mimeType,
+      type: mimeDocx,
       disposition: `inline; filename="${encodeURIComponent(archivo.nombreArchivo)}"`,
     });
   }

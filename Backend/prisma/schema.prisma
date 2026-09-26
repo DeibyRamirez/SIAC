@@ -166,10 +166,12 @@ model EvidenciaVersion {
   nombreArchivo String    @db.VarChar(255)
   rutaArchivo   String    @db.VarChar(500)
   mimeType      String?   @db.VarChar(100)
-  tamanoBytes   Int?
-  subidoPorId   String
-  subidoPor     Usuario   @relation(fields: [subidoPorId], references: [id])
-  createdAt     DateTime  @default(now())
+  tamanoBytes        Int?
+  firmaDescarga      String?   @db.VarChar(500)
+  textoBaseAuditoria String?   @db.Text
+  subidoPorId        String
+  subidoPor          Usuario   @relation(fields: [subidoPorId], references: [id])
+  createdAt          DateTime  @default(now())
 
   @@unique([evidenciaId, numero])
   @@index([evidenciaId])
@@ -183,6 +185,8 @@ model HistorialEvidencia {
   observacion String?
   actorId     String?
   createdAt   DateTime        @default(now())
+
+  @@index([actorId, createdAt])
 }
 
 model Plantilla {

@@ -34,6 +34,8 @@ import {
 
 } from '../dominio/condiciones-documento-maestro';
 
+import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
+
 
 
 const TIPOS_PERMITIDOS = [
@@ -69,6 +71,8 @@ export class DocumentosService {
     private readonly notificaciones: NotificacionesService,
 
     private readonly avancePrograma: AvanceProgramaService,
+
+    private readonly docx: ServicioManipulacionDocx,
 
   ) {}
 
@@ -337,6 +341,42 @@ export class DocumentosService {
     const evidencia = await this.obtenerPorId(id, usuario);
 
     this.verificarEdicion(evidencia, usuario);
+
+
+
+    const versionActual = evidencia.version ?? 1;
+
+    const versionRegistro = await this.evidenciaRepo.buscarVersion(
+
+      id,
+
+      versionActual,
+
+    );
+
+    if (versionRegistro?.firmaDescarga) {
+
+      const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(id);
+
+      const etiquetasZona = evaluaciones
+
+        .filter((e) => !e.cumple)
+
+        .map((e) => etiquetaCondicion(e.codigoCondicion));
+
+      await this.docx.validarFirmaYDiff(
+
+        archivo.buffer,
+
+        versionRegistro.firmaDescarga,
+
+        versionRegistro.textoBaseAuditoria,
+
+        etiquetasZona,
+
+      );
+
+    }
 
 
 
@@ -804,7 +844,159 @@ export class DocumentosService {
 
 
 
+    if (
+
+      estadoFinal === EstadoEvidencia.Rechazado &&
+
+      usaChecklist &&
+
+      dto.condiciones &&
+
+      evidencia.rutaArchivo
+
+    ) {
+
+      await this.procesarDocxTrasRechazo(
+
+        id,
+
+        evidencia.version ?? 1,
+
+        evidencia.rutaArchivo,
+
+        dto.condiciones,
+
+        revisor.id,
+
+        revisor.rol,
+
+      );
+
+    }
+
+
+
     return this.evidenciaRepo.buscarPorId(id);
+
+  }
+
+
+
+  async listarMisRevisionesRevisor(
+
+    usuario: UsuarioToken,
+
+    pagina = 1,
+
+    limite = 20,
+
+  ) {
+
+    if (
+
+      !this.esSuperAdmin(usuario) &&
+
+      usuario.rol !== RolUsuario.Revisor &&
+
+      usuario.rol !== RolUsuario.Administrador
+
+    ) {
+
+      throw new ForbiddenException('Solo revisores pueden consultar este historial.');
+
+    }
+
+    return this.evidenciaRepo.listarEnviosRevisionParaRevisor(pagina, limite);
+
+  }
+
+
+
+  private async procesarDocxTrasRechazo(
+
+    evidenciaId: string,
+
+    numeroVersion: number,
+
+    rutaArchivo: string,
+
+    condiciones: DictaminarDto['condiciones'],
+
+    revisorId: string,
+
+    _rolRevisor: RolUsuario,
+
+  ) {
+
+    if (!condiciones?.length) return;
+
+
+
+    const bufferOriginal = await this.almacenamiento.obtenerBuffer(
+
+      rutaArchivo,
+
+      'evidencias',
+
+    );
+
+
+
+    const zonas = condiciones
+
+      .filter((c) => !c.cumple)
+
+      .map((c, indice) => ({
+
+        codigoCondicion: c.codigo,
+
+        etiqueta: etiquetaCondicion(c.codigo),
+
+        observacion: c.observacion?.trim() ?? '',
+
+        idPermiso: 100 + indice,
+
+      }));
+
+
+
+    const procesado = await this.docx.procesarDocxPostDictamen(
+
+      bufferOriginal,
+
+      evidenciaId,
+
+      numeroVersion,
+
+      zonas,
+
+    );
+
+
+
+    await this.almacenamiento.subirArchivo(
+
+      procesado.buffer,
+
+      rutaArchivo,
+
+      'evidencias',
+
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+
+    );
+
+
+
+    await this.evidenciaRepo.actualizarVersion(evidenciaId, numeroVersion, {
+
+      firmaDescarga: procesado.firmaDescarga,
+
+      textoBaseAuditoria: procesado.textoBaseAuditoria,
+
+      tamanoBytes: procesado.buffer.length,
+
+    });
 
   }
 
@@ -971,6 +1163,8 @@ export class DocumentosService {
       );
 
     }
+
+    this.docx.validarEsDocxZip(archivo.buffer);
 
     if (archivo.size > TAMANO_MAXIMO) {
 

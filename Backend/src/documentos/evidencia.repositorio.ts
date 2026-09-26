@@ -78,12 +78,24 @@ export class EvidenciaRepositorio {
   ) {
     return this.prisma.$transaction(
       filas.map((fila) =>
-        this.prisma.evaluacionCondicionEvidencia.create({
-          data: {
+        this.prisma.evaluacionCondicionEvidencia.upsert({
+          where: {
+            evidenciaId_numeroRevision_codigoCondicion: {
+              evidenciaId,
+              numeroRevision,
+              codigoCondicion: fila.codigoCondicion,
+            },
+          },
+          create: {
             evidenciaId,
             numeroRevision,
             revisorId,
             codigoCondicion: fila.codigoCondicion,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+          update: {
+            revisorId,
             cumple: fila.cumple,
             observacion: fila.observacion,
           },
@@ -250,11 +262,51 @@ export class EvidenciaRepositorio {
 
     tamanoBytes?: number;
 
+    firmaDescarga?: string;
+
+    textoBaseAuditoria?: string;
+
     subidoPorId: string;
 
   }) {
 
     return this.prisma.evidenciaVersion.create({ data: datos });
+
+  }
+
+
+
+  actualizarVersion(
+
+    evidenciaId: string,
+
+    numero: number,
+
+    datos: {
+
+      firmaDescarga?: string;
+
+      textoBaseAuditoria?: string;
+
+      rutaArchivo?: string;
+
+      nombreArchivo?: string;
+
+      mimeType?: string;
+
+      tamanoBytes?: number;
+
+    },
+
+  ) {
+
+    return this.prisma.evidenciaVersion.update({
+
+      where: { evidenciaId_numero: { evidenciaId, numero } },
+
+      data: datos,
+
+    });
 
   }
 
@@ -295,6 +347,130 @@ export class EvidenciaRepositorio {
       where: { evidenciaId_numero: { evidenciaId, numero } },
 
     });
+
+  }
+
+
+
+  async listarEnviosRevisionParaRevisor(pagina = 1, limite = 20) {
+
+    const eventos = await this.prisma.historialEvidencia.findMany({
+
+      where: { estado: EstadoEvidencia.EnRevision },
+
+      orderBy: { createdAt: 'desc' },
+
+      include: {
+
+        evidencia: {
+
+          include: {
+
+            programa: { select: { id: true, nombre: true } },
+
+            autor: { select: { id: true, nombre: true } },
+
+          },
+
+        },
+
+      },
+
+    });
+
+
+
+    const filas = await Promise.all(
+
+      eventos.map(async (evento) => {
+
+        const rechazoPrevio = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: EstadoEvidencia.Rechazado,
+
+            createdAt: { lt: evento.createdAt },
+
+          },
+
+        });
+
+        const tipoEnvio = rechazoPrevio || (evento.evidencia.version ?? 1) > 1
+
+          ? 'correccion'
+
+          : 'inicial';
+
+        const ultimoDictamen = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: {
+
+              in: [EstadoEvidencia.Validado, EstadoEvidencia.Rechazado],
+
+            },
+
+            createdAt: { lt: evento.createdAt },
+
+          },
+
+          orderBy: { createdAt: 'desc' },
+
+        });
+
+        return {
+
+          evidenciaId: evento.evidenciaId,
+
+          nombre: evento.evidencia.nombre,
+
+          estado: evento.evidencia.estado,
+
+          version: evento.evidencia.version,
+
+          programa: evento.evidencia.programa,
+
+          autor: evento.evidencia.autor,
+
+          fechaEnvioRevision: evento.createdAt,
+
+          tipoEnvio,
+
+          observacionEnvio: evento.observacion,
+
+          ultimoDictamenEstado: ultimoDictamen?.estado ?? null,
+
+          ultimoDictamenFecha: ultimoDictamen?.createdAt ?? null,
+
+        };
+
+      }),
+
+    );
+
+
+
+    const total = filas.length;
+
+    const inicio = (pagina - 1) * limite;
+
+    return {
+
+      datos: filas.slice(inicio, inicio + limite),
+
+      total,
+
+      pagina,
+
+      limite,
+
+    };
 
   }
 
