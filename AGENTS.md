@@ -5,15 +5,14 @@ Instrucciones para agentes de IA que trabajen en este repositorio.
 ## Leer primero
 
 1. `MemoriaGlobal.md` — fuente de verdad transversal (estado, ADRs, convenciones).
-2. `.cursor/memory.jsonl` — memoria MCP compartida en Git (entidades/relaciones para `@modelcontextprotocol/server-memory`).
-3. `docs/etapa-1/README.md` — alcance del Sprint 1 (HU-001, HU-002, HU-011, inicio HU-003).
-4. `Frontend/MEMORIA_PROYECTO.md` — memoria específica del frontend.
-5. Skills del proyecto en `.agents/skills/` y `Skills/`.
+2. `docs/etapa-1/README.md` — alcance del Sprint 1 (HU-001, HU-002, HU-011, inicio HU-003). El estado de los sprints posteriores vive en ClickUp.
+3. `Frontend/MEMORIA_PROYECTO.md` — memoria específica del frontend.
+4. Skills del proyecto en `.agents/skills/`.
 
 ### Memoria MCP en el repo
 
-- `.cursor/mcp.json` incluye el servidor **memory** con `MEMORY_FILE_PATH=.cursor/memory.jsonl` (ruta relativa al proyecto, válida para todo el equipo).
-- Tras cambios de arquitectura o sprint, actualizar `.cursor/memory.jsonl` además de `MemoriaGlobal.md`.
+- `.cursor/mcp.json` incluye el servidor **memory** con `MEMORY_FILE_PATH=.cursor/memory.jsonl` (ruta relativa al proyecto). El servidor MCP crea ese archivo al usarse; no es un archivo que deba existir antes.
+- Tras cambios de arquitectura o sprint, actualizar `MemoriaGlobal.md` y, si el archivo de memoria ya existe, `.cursor/memory.jsonl`.
 
 ## Skills locales del proyecto
 
@@ -23,7 +22,6 @@ Instrucciones para agentes de IA que trabajen en este repositorio.
 | `.agents/skills/siac-documentacion-arquitectura` | docs/etapa-N, decisiones, cierre de sprint |
 | `.agents/skills/siac-nextjs-nestjs-crud` | APIs NestJS, páginas Next, DTOs, JWT/roles |
 | `.agents/skills/siac-powerbi-datos` | HU-009, Excel, dashboards |
-| `Skills/FrontendDesing.md` | Diseño frontend / look & feel |
 
 ## Estructura relevante
 

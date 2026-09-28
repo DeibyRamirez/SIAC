@@ -33,6 +33,13 @@ export interface Usuario {
   rol: RolUsuario
 }
 
+export interface ConteosEstadoPrograma {
+  borrador: number
+  enRevision: number
+  validado: number
+  rechazado: number
+}
+
 export interface Programa {
   id: string
   nombre: string
@@ -42,6 +49,13 @@ export interface Programa {
   porcentajeAvance: number
   estadoProceso: string
   urlImagen?: string
+  facultad?: string | null
+  slug?: string
+  activo?: boolean
+  modalidad?: string | null
+  evidenciasValidadas?: number
+  totalEvidencias?: number
+  conteosEstado?: ConteosEstadoPrograma
 }
 
 export interface Evidencia {

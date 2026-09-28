@@ -20,14 +20,17 @@ import { DocumentosService } from './documentos.service';
 import { CrearEvidenciaDto, ActualizarEvidenciaDto, FiltrosEvidenciaDto } from './dto/evidencia.dto';
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 import { Roles, RolesGuard } from '../common/guards/roles.guard';
+import { AlcancePrograma } from '../common/alcance/alcance-programa.decorator';
+import { GuardAlcancePrograma } from '../common/alcance/guard-alcance-programa';
 
 @Controller('evidencias')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, GuardAlcancePrograma)
 export class DocumentosController {
   constructor(private readonly documentosService: DocumentosService) {}
 
   @Post()
   @Roles(RolUsuario.Cargador)
+  @AlcancePrograma({ campoCuerpo: 'programaId', modo: 'escritura' })
   @UseInterceptors(FileInterceptor('archivo'))
   crear(
     @Body() dto: CrearEvidenciaDto,
@@ -38,6 +41,7 @@ export class DocumentosController {
   }
 
   @Get()
+  @AlcancePrograma({ campoConsulta: 'programaId', modo: 'lectura' })
   listar(
     @Query() query: FiltrosEvidenciaDto,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -54,8 +58,13 @@ export class DocumentosController {
     });
   }
 
+  @Get('conteos')
+  conteos(@Request() req: { user: { id: string; rol: RolUsuario } }) {
+    return this.documentosService.conteosPorEstado(req.user);
+  }
+
   @Get('mis-revisiones-revisor')
-  @Roles(RolUsuario.Revisor, RolUsuario.Administrador)
+  @Roles(RolUsuario.Revisor)
   misRevisionesRevisor(
     @Query('pagina') pagina: string,
     @Query('limite') limite: string,
@@ -69,6 +78,7 @@ export class DocumentosController {
   }
 
   @Get(':id/versiones')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   listarVersiones(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -77,6 +87,7 @@ export class DocumentosController {
   }
 
   @Get(':id/descargar')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   descargar(
     @Param('id') id: string,
     @Query('version') version: string,
@@ -87,6 +98,7 @@ export class DocumentosController {
   }
 
   @Get(':id/contenido')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   async contenido(
     @Param('id') id: string,
     @Query('version') version: string,
@@ -107,6 +119,7 @@ export class DocumentosController {
   }
 
   @Get(':id/historial')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   historial(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -115,6 +128,7 @@ export class DocumentosController {
   }
 
   @Get(':id/evaluaciones-condicion')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   evaluacionesCondicion(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -123,6 +137,7 @@ export class DocumentosController {
   }
 
   @Get(':id')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   obtener(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -132,6 +147,7 @@ export class DocumentosController {
 
   @Patch(':id')
   @Roles(RolUsuario.Cargador)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   actualizar(
     @Param('id') id: string,
     @Body() dto: ActualizarEvidenciaDto,
@@ -142,6 +158,7 @@ export class DocumentosController {
 
   @Patch(':id/archivo')
   @Roles(RolUsuario.Cargador)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   @UseInterceptors(FileInterceptor('archivo'))
   reemplazarArchivo(
     @Param('id') id: string,
@@ -153,6 +170,7 @@ export class DocumentosController {
 
   @Delete(':id')
   @Roles(RolUsuario.Cargador)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   eliminar(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -162,6 +180,7 @@ export class DocumentosController {
 
   @Post(':id/enviar-revision')
   @Roles(RolUsuario.Cargador)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   enviarRevision(
     @Param('id') id: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
@@ -171,6 +190,7 @@ export class DocumentosController {
 
   @Post(':id/dictamen')
   @Roles(RolUsuario.Revisor)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   dictaminar(
     @Param('id') id: string,
     @Body() dto: DictaminarDto,

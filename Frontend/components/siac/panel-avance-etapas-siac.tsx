@@ -22,7 +22,7 @@ function varianteBadge(
   switch (estado) {
     case 'Completada':
       return 'esmeralda'
-    case 'EnCurso':
+    case 'EnProgreso':
       return 'default'
     case 'ConObservaciones':
       return 'destructive'
@@ -35,7 +35,7 @@ function IconoEstado({ estado }: { estado: EstadoEtapaSIAC }) {
   switch (estado) {
     case 'Completada':
       return <CheckCircle2 className="size-4 text-esmeralda" />
-    case 'EnCurso':
+    case 'EnProgreso':
       return <Clock className="size-4 text-cyan-tecnico" />
     case 'ConObservaciones':
       return <AlertTriangle className="size-4 text-coral" />
@@ -48,7 +48,7 @@ function FilaEtapa({ avance }: { avance: AvanceEtapaSIAC }) {
   return (
     <div
       className={`space-y-2 rounded-lg border p-4 ${
-        avance.estado === 'EnCurso' || avance.estado === 'ConObservaciones'
+        avance.estado === 'EnProgreso' || avance.estado === 'ConObservaciones'
           ? 'border-cyan-tecnico/40 bg-cyan-tecnico/5'
           : avance.estado === 'Completada'
             ? 'border-esmeralda/30 bg-esmeralda/5'
@@ -78,7 +78,7 @@ function FilaEtapa({ avance }: { avance: AvanceEtapaSIAC }) {
 
 export function PanelAvanceEtapasSIAC({ resumen }: PanelAvanceEtapasSIACProps) {
   const etapaActualAvance = resumen.etapas.find(
-    (e) => e.estado === 'EnCurso' || e.estado === 'ConObservaciones',
+    (e) => e.estado === 'EnProgreso' || e.estado === 'ConObservaciones',
   )
 
   return (

@@ -63,6 +63,7 @@ function itemsAdministrador(): ItemNavegacion[] {
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
+    { href: '/administrador/usuarios', etiqueta: 'Asignación de programas', icono: Users },
     { href: '/administrador/evidencias', etiqueta: 'Evidencias y documentos', icono: Files },
     { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', icono: Bell },
     { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', icono: FileCheck2 },

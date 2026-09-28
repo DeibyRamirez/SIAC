@@ -2,7 +2,9 @@
 
 > **Sprint PDF:** 3 (08/10 – 18/11/2026)  
 > **Historias:** HU-006, HU-007, HU-009  
-> **Estado:** Completada
+> **Estado:** Por hacer
+
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
 
 ## Objetivo
 
@@ -47,11 +49,11 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 
 ## Criterios de aceptación
 
-- [x] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
-- [x] Cron actualiza semáforo vigencias
-- [x] Alerta in-app en vencimiento próximo
-- [x] Power BI embed o fallback Recharts documentado
-- [x] Tests unitarios auth pasan
+- [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
+- [ ] Cron actualiza semáforo vigencias
+- [ ] Alerta in-app en vencimiento próximo
+- [ ] Power BI embed o fallback Recharts documentado
+- [ ] Tests unitarios auth pasan
 
 ## Flujo BPM
 

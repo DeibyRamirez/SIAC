@@ -14,7 +14,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   catalogoFactoresIndicadores,
   periodosSemilla,
-  programasSemilla,
 } from '@/lib/datos-semilla'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
@@ -37,9 +36,9 @@ function ContenidoNuevaEvidencia() {
   const router = useRouter()
   const { sesion } = usarSesion()
   const { crearEvidencia, actualizarEvidencia } = usarAlmacen()
-  const [programas, setProgramas] = useState<Programa[]>(programasSemilla)
+  const [programas, setProgramas] = useState<Programa[]>([])
   const [nombre, setNombre] = useState('')
-  const [programaId, setProgramaId] = useState(programasSemilla[0]?.id ?? '')
+  const [programaId, setProgramaId] = useState('')
   const [periodo, setPeriodo] = useState(periodoAcademicoActual())
   const [factor, setFactor] = useState(catalogoFactoresIndicadores[0]?.factor ?? '')
   const [indicador, setIndicador] = useState(
@@ -58,16 +57,22 @@ function ContenidoNuevaEvidencia() {
   }, [factor])
 
   useEffect(() => {
-    if (!apiDisponible()) return
+    if (!apiDisponible()) {
+      setError('No hay conexión con la API. No se usan programas de prueba.')
+      return
+    }
     listarProgramasApi()
       .then((lista) => {
-        if (lista.length > 0) {
-          setProgramas(lista)
-          setProgramaId(lista[0].id)
+        setProgramas(lista)
+        setProgramaId(lista[0]?.id ?? '')
+        if (lista.length === 0) {
+          setError('No tiene programas asignados. Solicite la asignación al administrador.')
         }
       })
       .catch(() => {
-        // Mantiene semilla local
+        setProgramas([])
+        setProgramaId('')
+        setError('No se pudieron cargar sus programas asignados.')
       })
   }, [])
 
@@ -103,6 +108,10 @@ function ContenidoNuevaEvidencia() {
 
   function validarFormulario(): boolean {
     setError(null)
+    if (!programaId) {
+      setError('Seleccione un programa asignado.')
+      return false
+    }
     if (!nombre.trim() || !indicador.trim() || !archivo) {
       setError('Completa todos los campos y selecciona un archivo.')
       return false

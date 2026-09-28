@@ -1,16 +1,18 @@
 # Sprint Review — Sprint 3: Calidad e integración
 
 **Periodo:** 08/10 – 18/11/2026  
-**Tag:** `v0.3.0-sprint-3`
+**Estado:** Por hacer (plantilla pendiente)
 
-## Historias completadas
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
+
+## Historias
 
 | HU | Estado |
 |----|--------|
-| HU-006 | ✅ Dictamen Validado/Rechazado |
-| HU-007 | ✅ Cron vigencias + alertas in-app |
-| HU-009 | ✅ Power BI embed token |
+| HU-006 | Por hacer |
+| HU-007 | Por hacer |
+| HU-009 | Por hacer |
 
 ## Casos de prueba CP-01..CP-04
 
-Documentados en [docs/etapa-3/README.md](../etapa-3/README.md)
+Documentados en [docs/etapa-3/README.md](../etapa-3/README.md). Aún no se dan por aceptados.

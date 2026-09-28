@@ -3,10 +3,12 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Param,
   Body,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolUsuario } from '@prisma/client';
@@ -18,6 +20,8 @@ import {
   CrearUsuarioDto,
   ActualizarUsuarioDto,
 } from '../auth/dto/auth.dto';
+import { AsignarProgramasDto } from './dto/asignar-programas.dto';
+import { UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
 
 @Controller('usuarios')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -51,9 +55,25 @@ export class UsuariosController {
     return this.usuariosService.desactivar(id);
   }
 
+  @Get(':id/programas')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  listarProgramas(@Param('id') id: string) {
+    return this.usuariosService.listarProgramas(id);
+  }
+
+  @Put(':id/programas')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  asignarProgramas(@Param('id') id: string, @Body() dto: AsignarProgramasDto) {
+    return this.usuariosService.asignarProgramas(id, dto.programaIds);
+  }
+
   @Patch(':id/rol')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  actualizarRol(@Param('id') id: string, @Body() dto: ActualizarRolDto) {
-    return this.usuarioRepo.actualizarRol(id, dto.rol);
+  actualizarRol(
+    @Param('id') id: string,
+    @Body() dto: ActualizarRolDto,
+    @Request() req: { user: UsuarioAlcance },
+  ) {
+    return this.usuariosService.actualizarRol(req.user, id, dto.rol);
   }
 }

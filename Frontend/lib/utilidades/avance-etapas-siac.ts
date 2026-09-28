@@ -5,7 +5,7 @@ import type {
   Evidencia,
 } from '@/lib/tipos'
 
-export type EstadoEtapaSIAC = 'Completada' | 'EnCurso' | 'Pendiente' | 'ConObservaciones'
+export type EstadoEtapaSIAC = 'Completada' | 'EnProgreso' | 'Pendiente' | 'ConObservaciones'
 
 export interface AvanceDocumentoEtapa {
   documentoId: string
@@ -96,20 +96,20 @@ function etapaEstaCompletada(avance: Omit<AvanceEtapaSIAC, 'estado'>): boolean {
 }
 
 function asignarEstados(etapasBase: Omit<AvanceEtapaSIAC, 'estado'>[]): AvanceEtapaSIAC[] {
-  let indiceEnCurso = -1
+  let indiceEnProgreso = -1
 
   for (let i = 0; i < etapasBase.length; i++) {
     const anterioresCompletas = etapasBase.slice(0, i).every(etapaEstaCompletada)
     const actual = etapasBase[i]
     if (anterioresCompletas && !etapaEstaCompletada(actual)) {
-      indiceEnCurso = i
+      indiceEnProgreso = i
       break
     }
   }
 
-  if (indiceEnCurso === -1 && etapasBase.length > 0) {
+  if (indiceEnProgreso === -1 && etapasBase.length > 0) {
     const todasCompletas = etapasBase.every(etapaEstaCompletada)
-    indiceEnCurso = todasCompletas ? etapasBase.length - 1 : 0
+    indiceEnProgreso = todasCompletas ? etapasBase.length - 1 : 0
   }
 
   return etapasBase.map((base, indice) => {
@@ -120,9 +120,9 @@ function asignarEstados(etapasBase: Omit<AvanceEtapaSIAC, 'estado'>[]): AvanceEt
       estado = 'ConObservaciones'
     } else if (etapaEstaCompletada(base)) {
       estado = 'Completada'
-    } else if (indice === indiceEnCurso) {
-      estado = 'EnCurso'
-    } else if (indice < indiceEnCurso) {
+    } else if (indice === indiceEnProgreso) {
+      estado = 'EnProgreso'
+    } else if (indice < indiceEnProgreso) {
       estado = 'Completada'
     } else {
       estado = 'Pendiente'
@@ -153,7 +153,7 @@ export function calcularAvanceEtapasSIAC(input: {
 
   const etapas = asignarEstados(etapasBase)
   const etapaActual =
-    etapas.find((e) => e.estado === 'EnCurso' || e.estado === 'ConObservaciones')?.etapa ??
+    etapas.find((e) => e.estado === 'EnProgreso' || e.estado === 'ConObservaciones')?.etapa ??
     etapas.at(-1)?.etapa ??
     null
 
@@ -170,7 +170,7 @@ export function calcularAvanceEtapasSIAC(input: {
 export function etiquetaEstadoEtapa(estado: EstadoEtapaSIAC): string {
   const mapa: Record<EstadoEtapaSIAC, string> = {
     Completada: 'Completada',
-    EnCurso: 'En curso',
+    EnProgreso: 'En progreso',
     Pendiente: 'Pendiente',
     ConObservaciones: 'Con observaciones',
   }

@@ -1,4 +1,4 @@
-import { IsIn, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CrearProgramaDto {
   @IsString()
@@ -9,4 +9,9 @@ export class CrearProgramaDto {
   @IsString()
   @IsIn(['Pregrado', 'Posgrado'])
   nivel!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  facultad?: string;
 }

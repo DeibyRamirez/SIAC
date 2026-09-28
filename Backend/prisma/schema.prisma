@@ -95,10 +95,12 @@ model Programa {
   nivel               String          @db.VarChar(50)
   modalidad           String?         @db.VarChar(50)
   duracionSemestres   Int?
+  facultad            String?         @db.VarChar(200)
+  slug                String          @unique @db.VarChar(160)
   activo              Boolean         @default(true)
   semaforo            String          @default("Verde") @db.VarChar(20)
   porcentajeAvance    Float           @default(0)
-  estadoProceso       String          @default("En curso") @db.VarChar(50)
+  estadoProceso       String          @default("En progreso") @db.VarChar(50)
   idExterno           String?         @unique @db.VarChar(100)
   origenDato          OrigenDato      @default(Manual)
   fechaSincronizacion DateTime?
@@ -118,7 +120,7 @@ model UsuarioPrograma {
   programa   Programa @relation(fields: [programaId], references: [id])
   createdAt  DateTime @default(now())
 
-  @@index([usuarioId])
+  @@unique([usuarioId, programaId])
   @@index([programaId])
 }
 
