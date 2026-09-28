@@ -10,7 +10,11 @@ import {
 
 } from '@nestjs/common';
 
-import { RolUsuario, EstadoEvidencia } from '@prisma/client';
+import {
+  CodigoDocumentoGuia,
+  RolUsuario,
+  EstadoEvidencia,
+} from '@prisma/client';
 
 import { EvidenciaRepositorio, FiltrosEvidencia } from './evidencia.repositorio';
 
@@ -33,6 +37,16 @@ import {
   etiquetaCondicion,
 
 } from '../dominio/condiciones-documento-maestro';
+
+import {
+
+  CODIGOS_CONDICION_INSTITUCIONAL,
+
+  calcularPorcentajeCondicionesInstitucionales,
+
+  etiquetaCondicionInstitucional,
+
+} from '../dominio/condiciones-institucionales';
 
 import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
 
@@ -101,9 +115,13 @@ export class DocumentosService {
 
 
 
-    const requiereChecklist =
+    const requiereChecklistLegacy =
       dto.requiereChecklistMaestro === 'true' ||
       dto.requiereChecklistMaestro === '1';
+
+    const codigoGuia =
+      dto.codigoGuia ??
+      (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
 
     const evidencia = await this.evidenciaRepo.crear({
 
@@ -125,7 +143,9 @@ export class DocumentosService {
 
       estado: EstadoEvidencia.Borrador,
 
-      requiereChecklistMaestro: requiereChecklist,
+      requiereChecklistMaestro: codigoGuia === CodigoDocumentoGuia.G1,
+
+      codigoGuia,
 
       ...(dto.documentoRequeridoId
 
@@ -653,11 +673,16 @@ export class DocumentosService {
 
 
 
-    const usaChecklist =
+    const guiaDocumento = this.resolverGuiaEvidencia(evidencia);
 
-      evidencia.requiereChecklistMaestro ||
-
+    const usaChecklistPrograma =
+      guiaDocumento === CodigoDocumentoGuia.G1 ||
       (dto.condiciones && dto.condiciones.length > 0);
+
+    const usaChecklistInstitucional =
+      guiaDocumento === CodigoDocumentoGuia.G3 ||
+      (dto.condicionesInstitucionales &&
+        dto.condicionesInstitucionales.length > 0);
 
 
 
@@ -669,13 +694,13 @@ export class DocumentosService {
 
 
 
-    if (usaChecklist) {
+    if (usaChecklistPrograma) {
 
       if (!dto.condiciones || dto.condiciones.length !== CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length) {
 
         throw new BadRequestException(
 
-          'Debe evaluar las 9 condiciones del Documento Maestro.',
+          'Debe evaluar las 9 condiciones del documento maestro de programa (G1).',
 
         );
 
@@ -773,6 +798,67 @@ export class DocumentosService {
 
           : dto.observaciones;
 
+    } else if (usaChecklistInstitucional) {
+
+      if (
+        !dto.condicionesInstitucionales ||
+        dto.condicionesInstitucionales.length !==
+          CODIGOS_CONDICION_INSTITUCIONAL.length
+      ) {
+        throw new BadRequestException(
+          'Debe evaluar las 6 condiciones institucionales del documento maestro (G3).',
+        );
+      }
+
+      const codigosRecibidos = new Set(
+        dto.condicionesInstitucionales.map((c) => c.codigo),
+      );
+      for (const codigo of CODIGOS_CONDICION_INSTITUCIONAL) {
+        if (!codigosRecibidos.has(codigo)) {
+          throw new BadRequestException(
+            `Falta la condición ${etiquetaCondicionInstitucional(codigo)} en el dictamen.`,
+          );
+        }
+      }
+
+      for (const condicion of dto.condicionesInstitucionales) {
+        if (!condicion.cumple && !condicion.observacion?.trim()) {
+          throw new BadRequestException(
+            `Registra una observación para la condición «${etiquetaCondicionInstitucional(condicion.codigo)}».`,
+          );
+        }
+      }
+
+      const cumplidas = dto.condicionesInstitucionales.filter((c) => c.cumple).length;
+      porcentajeCompletitud =
+        calcularPorcentajeCondicionesInstitucionales(cumplidas);
+      estadoFinal =
+        cumplidas === CODIGOS_CONDICION_INSTITUCIONAL.length
+          ? EstadoEvidencia.Validado
+          : EstadoEvidencia.Rechazado;
+
+      await this.evidenciaRepo.guardarEvaluacionesCondicionInstitucional(
+        id,
+        evidencia.version,
+        revisor.id,
+        dto.condicionesInstitucionales.map((c) => ({
+          codigoCondicion: c.codigo,
+          cumple: c.cumple,
+          observacion: c.observacion,
+        })),
+      );
+
+      const lineasObservacion = dto.condicionesInstitucionales
+        .filter((c) => !c.cumple && c.observacion?.trim())
+        .map(
+          (c) =>
+            `• ${etiquetaCondicionInstitucional(c.codigo)}: ${c.observacion?.trim()}`,
+        );
+      observacionesResumen =
+        lineasObservacion.length > 0
+          ? lineasObservacion.join('\n')
+          : dto.observaciones;
+
     } else {
 
       if (
@@ -853,7 +939,7 @@ export class DocumentosService {
 
       estadoFinal === EstadoEvidencia.Rechazado &&
 
-      usaChecklist &&
+      usaChecklistPrograma &&
 
       dto.condiciones &&
 
@@ -1005,18 +1091,54 @@ export class DocumentosService {
 
 
 
-  async obtenerEvaluacionesCondicion(id: string, usuario: UsuarioToken) {
+  async obtenerEvaluacionesCondicion(
+    id: string,
+    usuario: UsuarioToken,
+    numeroRevision?: number,
+  ) {
 
     await this.obtenerPorId(id, usuario);
 
-    const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(id);
+    const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(
+      id,
+      numeroRevision,
+    );
 
     if (evaluaciones.length === 0) return [];
+
+    if (numeroRevision !== undefined) {
+
+      return evaluaciones.filter((e) => e.numeroRevision === numeroRevision);
+
+    }
 
     const ultimaRevision = evaluaciones[0].numeroRevision;
 
     return evaluaciones.filter((e) => e.numeroRevision === ultimaRevision);
 
+  }
+
+  async obtenerEvaluacionesCondicionInstitucional(
+    id: string,
+    usuario: UsuarioToken,
+    numeroRevision?: number,
+  ) {
+    await this.obtenerPorId(id, usuario);
+
+    const evaluaciones =
+      await this.evidenciaRepo.listarEvaluacionesCondicionInstitucional(
+        id,
+        numeroRevision,
+      );
+
+    if (evaluaciones.length === 0) return [];
+
+    if (numeroRevision !== undefined) {
+      return evaluaciones.filter((e) => e.numeroRevision === numeroRevision);
+    }
+
+    const ultimaRevision = evaluaciones[0].numeroRevision;
+    return evaluaciones.filter((e) => e.numeroRevision === ultimaRevision);
   }
 
 
@@ -1309,6 +1431,15 @@ export class DocumentosService {
 
     }
 
+  }
+
+  private resolverGuiaEvidencia(evidencia: {
+    codigoGuia?: CodigoDocumentoGuia | null;
+    requiereChecklistMaestro: boolean;
+  }): CodigoDocumentoGuia | null {
+    if (evidencia.codigoGuia) return evidencia.codigoGuia;
+    if (evidencia.requiereChecklistMaestro) return CodigoDocumentoGuia.G1;
+    return null;
   }
 
 }

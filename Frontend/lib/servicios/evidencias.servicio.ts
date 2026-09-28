@@ -1,5 +1,6 @@
 import { peticionApi } from './cliente-api';
 import type { CodigoCondicionDocumentoMaestro } from '@/lib/condiciones-documento-maestro';
+import type { CodigoCondicionInstitucional } from '@/lib/condiciones-institucionales';
 import type { Evidencia, EstadoEvidencia } from '@/lib/tipos';
 
 export interface RespuestaPaginada<T> {
@@ -86,12 +87,19 @@ export interface CondicionDictamenPayload {
   observacion?: string
 }
 
+export interface CondicionInstitucionalDictamenPayload {
+  codigo: CodigoCondicionInstitucional
+  cumple: boolean
+  observacion?: string
+}
+
 export async function dictaminarEvidenciaApi(
   id: string,
   payload: {
     estado?: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>
     observaciones?: string
     condiciones?: CondicionDictamenPayload[]
+    condicionesInstitucionales?: CondicionInstitucionalDictamenPayload[]
   },
 ): Promise<Evidencia> {
   return peticionApi<Evidencia>(`/evidencias/${id}/dictamen`, {
@@ -100,7 +108,9 @@ export async function dictaminarEvidenciaApi(
   });
 }
 
-export async function obtenerEvaluacionesCondicionApi(id: string) {
+export async function obtenerEvaluacionesCondicionApi(id: string, numeroRevision?: number) {
+  const query =
+    numeroRevision !== undefined ? `?numeroRevision=${numeroRevision}` : '';
   return peticionApi<
     {
       codigoCondicion: CodigoCondicionDocumentoMaestro
@@ -108,7 +118,23 @@ export async function obtenerEvaluacionesCondicionApi(id: string) {
       observacion?: string | null
       numeroRevision: number
     }[]
-  >(`/evidencias/${id}/evaluaciones-condicion`);
+  >(`/evidencias/${id}/evaluaciones-condicion${query}`);
+}
+
+export async function obtenerEvaluacionesCondicionInstitucionalApi(
+  id: string,
+  numeroRevision?: number,
+) {
+  const query =
+    numeroRevision !== undefined ? `?numeroRevision=${numeroRevision}` : '';
+  return peticionApi<
+    {
+      codigoCondicion: CodigoCondicionInstitucional
+      cumple: boolean
+      observacion?: string | null
+      numeroRevision: number
+    }[]
+  >(`/evidencias/${id}/evaluaciones-condicion-institucional${query}`);
 }
 
 export async function enviarRevisionApi(id: string): Promise<Evidencia> {
@@ -145,9 +171,12 @@ export interface FilaRevisionRevisorApi {
   nombre: string
   estado: EstadoEvidencia
   version: number | null
+  numeroRevision: number
   fechaEnvioRevision: string
   tipoEnvio: 'inicial' | 'correccion'
   observacionEnvio?: string | null
+  observacionesDictamen?: string | null
+  porcentajeCompletitud?: number
   ultimoDictamenEstado?: EstadoEvidencia | null
   ultimoDictamenFecha?: string | null
   programa?: { id: string; nombre: string }

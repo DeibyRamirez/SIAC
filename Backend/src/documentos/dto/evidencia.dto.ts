@@ -4,7 +4,7 @@ import {
   IsString,
   IsEnum,
 } from 'class-validator';
-import { EstadoEvidencia } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 
 export class CrearEvidenciaDto {
   @IsString()
@@ -37,6 +37,10 @@ export class CrearEvidenciaDto {
 
   @IsOptional()
   requiereChecklistMaestro?: string;
+
+  @IsEnum(CodigoDocumentoGuia)
+  @IsOptional()
+  codigoGuia?: CodigoDocumentoGuia;
 }
 
 export class ActualizarEvidenciaDto {

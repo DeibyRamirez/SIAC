@@ -27,14 +27,17 @@ import {
 } from '@/components/ui/select'
 import {
   distribucionEstadosSemilla,
-  periodosSemilla,
   tendenciaMensualSemilla,
 } from '@/lib/datos-semilla'
+import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import type { Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
-import { calcularAvanceEtapasSIAC } from '@/lib/utilidades/avance-etapas-siac'
+import {
+  obtenerProgresoProgramaApi,
+  type ProgresoProcesoSIAC,
+} from '@/lib/servicios/progreso-programa.servicio'
 import { contarEvidenciasPendientes, manejarCambioSelect, obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function ResumenAdministradorPage() {
@@ -48,8 +51,12 @@ export default function ResumenAdministradorPage() {
 function ContenidoResumen() {
   const { sesion } = usarSesion()
   const { datos } = usarAlmacen()
-  const [periodo, setPeriodo] = useState(periodosSemilla[0] ?? '2024-1')
+  const [periodo, setPeriodo] = useState(periodoAcademicoActual())
+  const periodosDisponibles = periodosConActual()
   const [programas, setProgramas] = useState<Programa[]>([])
+  const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
+  const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
+  const [cargandoProgreso, setCargandoProgreso] = useState(false)
 
   useEffect(() => {
     async function cargar() {
@@ -57,6 +64,9 @@ function ContenidoResumen() {
       try {
         const lista = await listarProgramasApi()
         setProgramas(lista)
+        if (lista.length > 0 && !programaProcesoId) {
+          setProgramaProcesoId(lista[0].id)
+        }
       } catch {
         setProgramas([])
       }
@@ -88,16 +98,24 @@ function ContenidoResumen() {
       ? Math.round(programas.reduce((acc, p) => acc + p.porcentajeAvance, 0) / programas.length)
       : 0
 
-  const avanceEtapas = useMemo(
-    () =>
-      calcularAvanceEtapasSIAC({
-        etapas: datos.etapas,
-        carpetas: datos.carpetas,
-        documentosRequeridos: datos.documentosRequeridos,
-        evidencias: datos.evidencias,
-      }),
-    [datos.etapas, datos.carpetas, datos.documentosRequeridos, datos.evidencias],
-  )
+  useEffect(() => {
+    async function cargarProgreso() {
+      if (!programaProcesoId || !apiDisponible()) {
+        setProgresoProceso(null)
+        return
+      }
+      setCargandoProgreso(true)
+      try {
+        const progreso = await obtenerProgresoProgramaApi(programaProcesoId)
+        setProgresoProceso(progreso)
+      } catch {
+        setProgresoProceso(null)
+      } finally {
+        setCargandoProgreso(false)
+      }
+    }
+    cargarProgreso()
+  }, [programaProcesoId])
 
   const distribucion = useMemo(
     () => [
@@ -131,7 +149,7 @@ function ContenidoResumen() {
             <SelectValue placeholder="Periodo" />
           </SelectTrigger>
           <SelectContent>
-            {periodosSemilla.map((p) => (
+            {periodosDisponibles.map((p) => (
               <SelectItem key={p} value={p}>
                 Periodo {p}
               </SelectItem>
@@ -141,7 +159,7 @@ function ContenidoResumen() {
       </div>
 
       <TarjetaHeroAcreditacion
-        avance={avancePromedio || avanceEtapas.avanceGlobal}
+        avance={progresoProceso?.avanceGlobal ?? avancePromedio}
         evidenciasValidadas={validadas}
         evidenciasEnProceso={enProceso}
       />
@@ -185,7 +203,13 @@ function ContenidoResumen() {
         />
       </div>
 
-      <PanelAvanceEtapasSIAC resumen={avanceEtapas} />
+      <PanelAvanceEtapasSIAC
+        programas={programas}
+        programaId={programaProcesoId}
+        onCambiarPrograma={setProgramaProcesoId}
+        progreso={progresoProceso}
+        cargando={cargandoProgreso}
+      />
 
       <EstructuraNormativaPanel />
     </div>

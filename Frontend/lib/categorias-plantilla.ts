@@ -1,50 +1,45 @@
-import type { CategoriaPlantilla } from '@/lib/tipos'
+import type { TipoTramitePlantilla } from '@/lib/tipos'
 
-export type SlugCategoriaPlantilla = 'institucional' | 'programa' | 'autoevaluacion'
+export type SlugAccesoPlantilla = 'renovacion' | 'nuevos'
 
-export interface MetaCategoriaPlantilla {
-  slug: SlugCategoriaPlantilla
-  categoria: CategoriaPlantilla
+export interface MetaAccesoPlantilla {
+  slug: SlugAccesoPlantilla
   titulo: string
   descripcion: string
   imagenUrl: string
+  tiposTramite: TipoTramitePlantilla[]
 }
 
-export const categoriasPlantilla: MetaCategoriaPlantilla[] = [
+/** Dos accesos principales: Renovación y Nuevos (Decreto 1330 / G1–G4). */
+export const accesosPlantilla: MetaAccesoPlantilla[] = [
   {
-    slug: 'institucional',
-    categoria: 'Institucional',
-    titulo: 'Condiciones institucionales',
-    descripcion: 'Selección, estructura, SIAC, egresados y condiciones transversales.',
-    imagenUrl: '/Categorias/CI.png',
-  },
-  {
-    slug: 'programa',
-    categoria: 'Programa',
-    titulo: 'Condiciones de programa',
-    descripcion: 'Denominación, currículo, profesores, recursos y resultados.',
-    imagenUrl: '/Categorias/CP.png',
-  },
-  {
-    slug: 'autoevaluacion',
-    categoria: 'Autoevaluacion',
-    titulo: 'Autoevaluación y renovación',
-    descripcion: 'Informes, instrumentos, matrices de evidencias y planes de mejoramiento.',
+    slug: 'renovacion',
+    titulo: 'Renovación',
+    descripcion:
+      'Documentos guía para renovación de registro calificado (G1 + G2) y condiciones institucionales (G3 + G4).',
     imagenUrl: '/Categorias/Auto_Renov.png',
+    tiposTramite: ['Renovacion', 'General'],
+  },
+  {
+    slug: 'nuevos',
+    titulo: 'Nuevos',
+    descripcion:
+      'Documentos guía para registro calificado nuevo (G1) y condiciones institucionales nuevas (G3).',
+    imagenUrl: '/Categorias/CP.png',
+    tiposTramite: ['NuevoPrograma', 'General'],
   },
 ]
 
-export function slugDesdeCategoria(categoria: CategoriaPlantilla): SlugCategoriaPlantilla {
-  const mapa: Record<CategoriaPlantilla, SlugCategoriaPlantilla> = {
-    Institucional: 'institucional',
-    Programa: 'programa',
-    Autoevaluacion: 'autoevaluacion',
-  }
-  return mapa[categoria]
+/** @deprecated Usar accesosPlantilla */
+export const categoriasPlantilla = accesosPlantilla
+
+export function accesoDesdeSlug(slug: string): MetaAccesoPlantilla | undefined {
+  return accesosPlantilla.find((item) => item.slug === slug)
 }
 
-export function categoriaDesdeSlug(slug: string): MetaCategoriaPlantilla | undefined {
-  return categoriasPlantilla.find((item) => item.slug === slug)
+/** @deprecated Usar accesoDesdeSlug */
+export function categoriaDesdeSlug(slug: string): MetaAccesoPlantilla | undefined {
+  return accesoDesdeSlug(slug)
 }
 
 export function rutaPlantillasPorRol(rol: 'Administrador' | 'Cargador'): string {

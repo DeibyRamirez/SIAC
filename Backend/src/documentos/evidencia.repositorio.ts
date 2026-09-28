@@ -62,6 +62,9 @@ export class EvidenciaRepositorio {
         evaluacionesCondicion: {
           orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
         },
+        evaluacionesCondicionInstitucional: {
+          orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+        },
       },
 
     });
@@ -108,6 +111,57 @@ export class EvidenciaRepositorio {
 
   listarEvaluacionesCondicion(evidenciaId: string, numeroRevision?: number) {
     return this.prisma.evaluacionCondicionEvidencia.findMany({
+      where: {
+        evidenciaId,
+        ...(numeroRevision !== undefined ? { numeroRevision } : {}),
+      },
+      orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+    });
+  }
+
+  guardarEvaluacionesCondicionInstitucional(
+    evidenciaId: string,
+    numeroRevision: number,
+    revisorId: string,
+    filas: {
+      codigoCondicion: import('@prisma/client').CodigoCondicionInstitucional;
+      cumple: boolean;
+      observacion?: string;
+    }[],
+  ) {
+    return this.prisma.$transaction(
+      filas.map((fila) =>
+        this.prisma.evaluacionCondicionInstitucionalEvidencia.upsert({
+          where: {
+            evidenciaId_numeroRevision_codigoCondicion: {
+              evidenciaId,
+              numeroRevision,
+              codigoCondicion: fila.codigoCondicion,
+            },
+          },
+          create: {
+            evidenciaId,
+            numeroRevision,
+            revisorId,
+            codigoCondicion: fila.codigoCondicion,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+          update: {
+            revisorId,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+        }),
+      ),
+    );
+  }
+
+  listarEvaluacionesCondicionInstitucional(
+    evidenciaId: string,
+    numeroRevision?: number,
+  ) {
+    return this.prisma.evaluacionCondicionInstitucionalEvidencia.findMany({
       where: {
         evidenciaId,
         ...(numeroRevision !== undefined ? { numeroRevision } : {}),
@@ -482,15 +536,99 @@ export class EvidenciaRepositorio {
 
         });
 
+        const siguienteEnvio = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: EstadoEvidencia.EnRevision,
+
+            createdAt: { gt: evento.createdAt },
+
+          },
+
+          orderBy: { createdAt: 'asc' },
+
+        });
+
+        const dictamenCiclo = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: {
+
+              in: [EstadoEvidencia.Validado, EstadoEvidencia.Rechazado],
+
+            },
+
+            createdAt: siguienteEnvio
+
+              ? { gt: evento.createdAt, lt: siguienteEnvio.createdAt }
+
+              : { gt: evento.createdAt },
+
+          },
+
+          orderBy: { createdAt: 'asc' },
+
+        });
+
+        const versionEnEnvio = await this.prisma.evidenciaVersion.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            createdAt: { lte: evento.createdAt },
+
+          },
+
+          orderBy: { numero: 'desc' },
+
+          select: { numero: true },
+
+        });
+
+        const numeroRevision = versionEnEnvio?.numero ?? evento.evidencia.version ?? 1;
+
+        let porcentajeCompletitud = evento.evidencia.porcentajeCompletitud ?? 0;
+
+        if (dictamenCiclo?.estado === EstadoEvidencia.Validado) {
+
+          porcentajeCompletitud = 100;
+
+        } else if (dictamenCiclo?.estado === EstadoEvidencia.Rechazado) {
+
+          const evaluaciones = await this.prisma.evaluacionCondicionEvidencia.findMany({
+
+            where: { evidenciaId: evento.evidenciaId, numeroRevision },
+
+          });
+
+          if (evaluaciones.length > 0) {
+
+            const cumplidas = evaluaciones.filter((e) => e.cumple).length;
+
+            porcentajeCompletitud = Math.round((cumplidas / evaluaciones.length) * 100);
+
+          }
+
+        }
+
         return {
 
           evidenciaId: evento.evidenciaId,
 
           nombre: evento.evidencia.nombre,
 
-          estado: evento.evidencia.estado,
+          estado: dictamenCiclo?.estado ?? evento.evidencia.estado,
 
-          version: evento.evidencia.version,
+          version: numeroRevision,
+
+          numeroRevision,
 
           programa: evento.evidencia.programa,
 
@@ -501,6 +639,10 @@ export class EvidenciaRepositorio {
           tipoEnvio,
 
           observacionEnvio: evento.observacion,
+
+          observacionesDictamen: dictamenCiclo?.observacion ?? null,
+
+          porcentajeCompletitud,
 
           ultimoDictamenEstado: ultimoDictamen?.estado ?? null,
 

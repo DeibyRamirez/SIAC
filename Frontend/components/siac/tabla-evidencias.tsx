@@ -15,7 +15,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Evidencia } from '@/lib/tipos'
-import { esNovedadCargador, formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  esNovedadCargador,
+  formatearFecha,
+  formatearFechaHora,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 interface TablaEvidenciasProps {
@@ -26,6 +31,7 @@ interface TablaEvidenciasProps {
   onAprobar?: (id: string) => void
   onRechazar?: (id: string) => void
   mostrarNovedades?: boolean
+  mostrarHora?: boolean
 }
 
 export function TablaEvidencias({
@@ -36,6 +42,7 @@ export function TablaEvidencias({
   onAprobar,
   onRechazar,
   mostrarNovedades,
+  mostrarHora,
 }: TablaEvidenciasProps) {
   const router = useRouter()
 
@@ -109,7 +116,9 @@ export function TablaEvidencias({
                 </div>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {formatearFecha(evidencia.fechaCarga)}
+                {mostrarHora
+                  ? formatearFechaHora(evidencia.fechaCarga)
+                  : formatearFecha(evidencia.fechaCarga)}
               </TableCell>
               {tieneAcciones && (
                 <TableCell className="text-right">

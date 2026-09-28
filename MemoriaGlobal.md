@@ -465,6 +465,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-09-28 — Sprint 2 Entregas 1 y 2 (UI revisor + trámites G1–G4)
+
+- [Frontend] Revisor: botón Aprobar deshabilitado si hay observaciones; Mis revisiones en tabla con Sheet de historial RO; bandeja con fecha+hora; sidebar sin bloque de usuario.
+- [Frontend] Semestre actual por defecto (`periodoAcademicoActual()` → 2026-2); panel SIAC por carrera con avance ponderado vía `GET /programas/:id/progreso`.
+- [Frontend] Biblioteca plantillas: dos accesos (Renovación / Nuevos). HU-008: página evidencias con Server Component y filtros en URL.
+- [Backend] `urlImagen` en `Programa`; enums G1–G4, `TipoTramiteSIAC`, catálogo trámites; `AvanceProcesoSIACService` con peso igual por documento guía; semáforo/estadoProceso derivados en listado programas (RN-003 + rechazos).
+- [Backend] `GET /evidencias/:id/evaluaciones-condicion?numeroRevision=N`; mis revisiones enriquecidas con puntaje y observaciones por ciclo.
+
 ### 2026-09-28 — Alcance por programa (inicio Sprint 2)
 
 - [Docs] T-DOC.1: Sprints 2–4 dejan de figurar como completados; el estado oficial es ClickUp. Repo oficial `DeibyRamirez/SIAC`. Se retira `Skills/FrontendDesing.md`.

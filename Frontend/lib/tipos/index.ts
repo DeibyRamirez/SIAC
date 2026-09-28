@@ -25,6 +25,8 @@ export type CategoriaPlantilla = 'Institucional' | 'Programa' | 'Autoevaluacion'
 
 export type TipoTramitePlantilla = 'Renovacion' | 'NuevoPrograma' | 'General'
 
+export type CodigoDocumentoGuia = 'G1' | 'G2' | 'G3' | 'G4'
+
 export interface Usuario {
   id: string
   nombre: string
@@ -49,6 +51,7 @@ export interface Programa {
   porcentajeAvance: number
   estadoProceso: string
   urlImagen?: string
+  tipoTramiteActivo?: string
   facultad?: string | null
   slug?: string
   activo?: boolean
@@ -75,6 +78,7 @@ export interface Evidencia {
   version?: number
   porcentajeCompletitud?: number
   requiereChecklistMaestro?: boolean
+  codigoGuia?: CodigoDocumentoGuia
 }
 
 export interface Plantilla {

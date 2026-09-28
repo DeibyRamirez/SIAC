@@ -15,6 +15,11 @@ import { ResumenObservacionesPorCondicion } from '@/components/siac/resumen-obse
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
 import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
+import {
+  etiquetaCondicionInstitucional,
+  type EvaluacionCondicionInstitucionalEvidencia,
+} from '@/lib/condiciones-institucionales'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -28,6 +33,7 @@ import {
   actualizarEvidenciaApi,
   subirVersionArchivoApi,
   obtenerEvaluacionesCondicionApi,
+  obtenerEvaluacionesCondicionInstitucionalApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
@@ -56,6 +62,9 @@ function ContenidoDetalle() {
   const [evaluacionesCondicion, setEvaluacionesCondicion] = useState<
     EvaluacionCondicionEvidencia[]
   >([])
+  const [evaluacionesInstitucionales, setEvaluacionesInstitucionales] = useState<
+    EvaluacionCondicionInstitucionalEvidencia[]
+  >([])
 
   async function refrescarDocumento(id: string) {
     if (!apiDisponible()) return
@@ -68,11 +77,15 @@ function ContenidoDetalle() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, historial, evaluaciones] = await Promise.all([
+          const [ev, descarga, historial, evaluaciones, evaluacionesCi] =
+            await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerHistorialApi(params.id).catch(() => []),
             obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
+            obtenerEvaluacionesCondicionInstitucionalApi(params.id).catch(
+              () => [],
+            ),
           ])
           const mapeada: Evidencia = {
             ...ev,
@@ -94,6 +107,13 @@ function ContenidoDetalle() {
           }
           setEvaluacionesCondicion(
             evaluaciones.map((e) => ({
+              codigoCondicion: e.codigoCondicion,
+              cumple: e.cumple,
+              observacion: e.observacion,
+            })),
+          )
+          setEvaluacionesInstitucionales(
+            evaluacionesCi.map((e) => ({
               codigoCondicion: e.codigoCondicion,
               cumple: e.cumple,
               observacion: e.observacion,
@@ -214,10 +234,31 @@ function ContenidoDetalle() {
         <ResumenObservacionesPorCondicion
           evaluaciones={evaluacionesCondicion}
           porcentajeCompletitud={evidencia.porcentajeCompletitud}
+          titulo="Evaluación G1 — condiciones de programa"
         />
       )}
 
-      {esRechazada && observacionesTexto && evaluacionesCondicion.length === 0 && (
+      {esRechazada && evaluacionesInstitucionales.length > 0 && (
+        <ResumenObservacionesPorCondicion
+          evaluaciones={evaluacionesInstitucionales.map((e) => ({
+            codigoCondicion: e.codigoCondicion as EvaluacionCondicionEvidencia['codigoCondicion'],
+            cumple: e.cumple,
+            observacion: e.observacion,
+          }))}
+          porcentajeCompletitud={evidencia.porcentajeCompletitud}
+          titulo="Evaluación G3 — condiciones institucionales"
+          resolverEtiqueta={(codigo) =>
+            etiquetaCondicionInstitucional(
+              codigo as EvaluacionCondicionInstitucionalEvidencia['codigoCondicion'],
+            )
+          }
+        />
+      )}
+
+      {esRechazada &&
+        observacionesTexto &&
+        evaluacionesCondicion.length === 0 &&
+        evaluacionesInstitucionales.length === 0 && (
         <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant="destructive">Con observaciones</Badge>

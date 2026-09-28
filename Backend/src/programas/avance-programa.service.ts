@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
 import { EstadoEvidencia } from '@prisma/client';
+import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 
 export interface EvidenciaParaAvance {
   documentoRequeridoId: string | null;
@@ -40,33 +41,20 @@ export function calcularPorcentajeEnMemoria(
 
 @Injectable()
 export class AvanceProgramaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly avanceProceso: AvanceProcesoSIACService,
+  ) {}
 
-  /** Promedio de completitud por documento obligatorio (Decreto 1330). Persiste el valor. */
+  /** Avance ponderado por trámite SIAC (Decreto 1330). Persiste el valor. */
   async recalcularPorcentajeAvance(programaId: string): Promise<number> {
-    const documentosObligatorios = await this.prisma.documentoRequerido.findMany({
-      where: { obligatorio: true },
-      select: { id: true },
-    });
-    const evidencias = await this.prisma.evidencia.findMany({
-      where: { programaId },
-      select: {
-        documentoRequeridoId: true,
-        porcentajeCompletitud: true,
-        estado: true,
-        updatedAt: true,
-      },
-    });
-    const porcentaje = calcularPorcentajeEnMemoria(
-      evidencias,
-      documentosObligatorios.map((documento) => documento.id),
-    );
+    const progreso = await this.avanceProceso.calcularProgresoPrograma(programaId);
 
     await this.prisma.programa.update({
       where: { id: programaId },
-      data: { porcentajeAvance: porcentaje },
+      data: { porcentajeAvance: progreso.avanceGlobal },
     });
 
-    return porcentaje;
+    return progreso.avanceGlobal;
   }
 }

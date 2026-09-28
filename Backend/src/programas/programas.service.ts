@@ -3,7 +3,7 @@ import { EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from 
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
-import { calcularPorcentajeEnMemoria } from './avance-programa.service';
+import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { ServicioAlcancePrograma, UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
 import { generarSlug } from '../common/alcance/generar-slug';
 
@@ -90,6 +90,7 @@ export class ProgramasService {
   constructor(
     private readonly programaRepo: ProgramaRepositorio,
     private readonly alcance: ServicioAlcancePrograma,
+    private readonly avanceProceso: AvanceProcesoSIACService,
   ) {}
 
   async crear(dto: CrearProgramaDto) {
@@ -176,16 +177,14 @@ export class ProgramasService {
     if (programas.length === 0) return [];
 
     const ids = programas.map((programa) => programa.id);
-    const [anexos, grupos, documentos, evidencias] = await Promise.all([
+    const [anexos, grupos, progresos] = await Promise.all([
       this.programaRepo.listarAnexosDeProgramas(ids),
       this.programaRepo.agruparEvidenciasPorEstado(ids),
-      this.programaRepo.listarIdsDocumentosObligatorios(),
-      this.programaRepo.listarEvidenciasParaAvance(ids),
+      Promise.all(programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id))),
     ]);
 
-    const idsObligatorios = documentos.map((documento) => documento.id);
     const anexosPorPrograma = agrupar(anexos, (anexo) => anexo.programaId);
-    const evidenciasPorPrograma = agrupar(evidencias, (evidencia) => evidencia.programaId);
+    const progresoPorPrograma = new Map(progresos.map((p) => [p.programaId, p]));
     const conteosPorPrograma = new Map<string, ConteosEstadoPrograma>();
 
     for (const grupo of grupos) {
@@ -196,11 +195,25 @@ export class ProgramasService {
 
     return programas.map((programa) => {
       const conteos = conteosPorPrograma.get(programa.id) ?? conteosVacios();
-      const evidenciasPrograma = evidenciasPorPrograma.get(programa.id) ?? [];
+      const progreso = progresoPorPrograma.get(programa.id);
+      const tieneRechazos = progreso?.documentos.some((doc) => doc.rechazado) ?? false;
+      const anexosPrograma = anexosPorPrograma.get(programa.id) ?? [];
+      let semaforo = calcularSemaforo(anexosPrograma);
+      if (tieneRechazos) semaforo = 'Rojo';
+
+      const avanceGlobal = progreso?.avanceGlobal ?? programa.porcentajeAvance;
+      const estadoProceso =
+        avanceGlobal >= 100 && !tieneRechazos
+          ? 'Completado'
+          : tieneRechazos
+            ? 'Con observaciones'
+            : 'En progreso';
+
       return {
         ...programa,
-        semaforo: calcularSemaforo(anexosPorPrograma.get(programa.id) ?? []),
-        porcentajeAvance: calcularPorcentajeEnMemoria(evidenciasPrograma, idsObligatorios),
+        semaforo,
+        porcentajeAvance: avanceGlobal,
+        estadoProceso,
         evidenciasValidadas: conteos.validado,
         totalEvidencias: conteos.borrador + conteos.enRevision + conteos.validado + conteos.rechazado,
         conteosEstado: conteos,

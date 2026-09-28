@@ -131,9 +131,26 @@ export class DocumentosController {
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   evaluacionesCondicion(
     @Param('id') id: string,
+    @Query('numeroRevision') numeroRevision: string,
     @Request() req: { user: { id: string; rol: RolUsuario } },
   ) {
-    return this.documentosService.obtenerEvaluacionesCondicion(id, req.user);
+    const revision = numeroRevision ? parseInt(numeroRevision, 10) : undefined;
+    return this.documentosService.obtenerEvaluacionesCondicion(id, req.user, revision);
+  }
+
+  @Get(':id/evaluaciones-condicion-institucional')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
+  evaluacionesCondicionInstitucional(
+    @Param('id') id: string,
+    @Query('numeroRevision') numeroRevision: string,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    const revision = numeroRevision ? parseInt(numeroRevision, 10) : undefined;
+    return this.documentosService.obtenerEvaluacionesCondicionInstitucional(
+      id,
+      req.user,
+      revision,
+    );
   }
 
   @Get(':id')

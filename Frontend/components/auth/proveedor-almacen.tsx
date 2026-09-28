@@ -51,7 +51,7 @@ interface ContextoAlmacen {
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-    opciones?: { requiereChecklistMaestro?: boolean },
+    opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
   ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void
@@ -190,7 +190,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     async (
       evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
       archivo?: File,
-      opciones?: { requiereChecklistMaestro?: boolean },
+      opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
     ) => {
       if (apiDisponible() && archivo) {
         const formData = new FormData()
@@ -200,7 +200,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         formData.append('factor', evidencia.factor)
         formData.append('indicador', evidencia.indicador)
         formData.append('archivo', archivo)
-        if (opciones?.requiereChecklistMaestro) {
+        if (opciones?.codigoGuia) {
+          formData.append('codigoGuia', opciones.codigoGuia)
+        } else if (opciones?.requiereChecklistMaestro) {
           formData.append('requiereChecklistMaestro', 'true')
         }
 
@@ -222,6 +224,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
           observaciones: creada.observaciones,
           responsable: creada.responsable,
           requiereChecklistMaestro: creada.requiereChecklistMaestro,
+          codigoGuia: creada.codigoGuia,
           porcentajeCompletitud: creada.porcentajeCompletitud,
         }
         persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
@@ -233,7 +236,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         id: generarId('ev'),
         estado: 'Borrador',
         fechaCarga: new Date().toISOString().slice(0, 10),
-        requiereChecklistMaestro: opciones?.requiereChecklistMaestro,
+        requiereChecklistMaestro:
+          opciones?.codigoGuia === 'G1' || opciones?.requiereChecklistMaestro,
+        codigoGuia: opciones?.codigoGuia as Evidencia['codigoGuia'],
       }
       persistir((prev) => ({ ...prev, evidencias: [nueva, ...prev.evidencias] }))
       return nueva

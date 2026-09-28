@@ -47,6 +47,25 @@ enum TipoTramitePlantilla {
   General
 }
 
+enum CodigoDocumentoGuia {
+  G1
+  G2
+  G3
+  G4
+}
+
+enum TipoTramiteSIAC {
+  RegistroCalificadoNuevo
+  RenovacionRegistroCalificado
+  CondicionesInstitucionalesNuevas
+  RenovacionCondicionesInstitucionales
+}
+
+enum AlcanceTramiteSIAC {
+  Programa
+  Institucion
+}
+
 enum CodigoCondicionDocumentoMaestro {
   Denominacion
   Justificacion
@@ -57,6 +76,15 @@ enum CodigoCondicionDocumentoMaestro {
   Profesores
   MediosEducativos
   Infraestructura
+}
+
+enum CodigoCondicionInstitucional {
+  SeleccionEvaluacionEstudiantesProfesores
+  EstructuraAdministrativaAcademica
+  CulturaAutoevaluacion
+  ProgramaEgresados
+  ModeloBienestar
+  RecursosSuficientes
 }
 
 enum OrigenDato {
@@ -97,6 +125,8 @@ model Programa {
   duracionSemestres   Int?
   facultad            String?         @db.VarChar(200)
   slug                String          @unique @db.VarChar(160)
+  urlImagen           String?         @db.VarChar(500)
+  tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
   activo              Boolean         @default(true)
   semaforo            String          @default("Verde") @db.VarChar(20)
   porcentajeAvance    Float           @default(0)
@@ -147,9 +177,11 @@ model Evidencia {
   documentoRequerido     DocumentoRequerido? @relation(fields: [documentoRequeridoId], references: [id])
   porcentajeCompletitud  Float               @default(0)
   requiereChecklistMaestro Boolean           @default(false)
+  codigoGuia             CodigoDocumentoGuia?
   historial                HistorialEvidencia[]
   versiones                EvidenciaVersion[]
   evaluacionesCondicion    EvaluacionCondicionEvidencia[]
+  evaluacionesCondicionInstitucional EvaluacionCondicionInstitucionalEvidencia[]
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
 
@@ -200,6 +232,7 @@ model Plantilla {
   vigente                Boolean              @default(true)
   categoria              CategoriaPlantilla
   tipoTramite            TipoTramitePlantilla @default(General)
+  codigoGuia             CodigoDocumentoGuia?
   esGuiaDocumentoMaestro Boolean              @default(false)
   descripcion            String?
   nombreArchivo          String?              @db.VarChar(255)
@@ -221,6 +254,21 @@ model EvaluacionCondicionEvidencia {
   observacion     String?
   revisorId       String?
   createdAt       DateTime                      @default(now())
+
+  @@unique([evidenciaId, numeroRevision, codigoCondicion])
+  @@index([evidenciaId])
+}
+
+model EvaluacionCondicionInstitucionalEvidencia {
+  id              String                      @id @default(cuid())
+  evidenciaId     String
+  evidencia       Evidencia                   @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroRevision  Int
+  codigoCondicion CodigoCondicionInstitucional
+  cumple          Boolean
+  observacion     String?
+  revisorId       String?
+  createdAt       DateTime                    @default(now())
 
   @@unique([evidenciaId, numeroRevision, codigoCondicion])
   @@index([evidenciaId])
@@ -261,6 +309,28 @@ model AlertaInApp {
   @@index([usuarioId, leida])
 }
 
+model TramiteSIAC {
+  id         String              @id @default(cuid())
+  tipo       TipoTramiteSIAC     @unique
+  alcance    AlcanceTramiteSIAC
+  nombre     String              @db.VarChar(200)
+  activo     Boolean             @default(true)
+  documentos TramiteDocumentoGuia[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+}
+
+model TramiteDocumentoGuia {
+  id         String              @id @default(cuid())
+  tramiteId  String
+  tramite    TramiteSIAC         @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  codigoGuia CodigoDocumentoGuia
+  orden      Int                 @default(0)
+
+  @@unique([tramiteId, codigoGuia])
+  @@index([tramiteId])
+}
+
 model EtapaAcreditacion {
   id          String             @id @default(cuid())
   nombre      String             @db.VarChar(200)
@@ -296,6 +366,7 @@ model DocumentoRequerido {
   formato                FormatoArchivo
   obligatorio            Boolean          @default(true)
   requiereChecklistMaestro Boolean        @default(false)
+  codigoGuia             CodigoDocumentoGuia?
   orden                  Int
   evidencias             Evidencia[]
   createdAt              DateTime         @default(now())

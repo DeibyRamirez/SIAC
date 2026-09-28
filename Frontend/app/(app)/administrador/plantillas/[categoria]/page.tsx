@@ -73,9 +73,9 @@ function ContenidoCategoria({
     factor: '',
     version: '2026.1',
     vigente: true,
-    categoria: meta.categoria,
+    categoria: 'Programa' as Plantilla['categoria'],
     descripcion: '',
-    tipoTramite: 'General' as TipoTramitePlantilla,
+    tipoTramite: (meta.slug === 'nuevos' ? 'NuevoPrograma' : 'Renovacion') as TipoTramitePlantilla,
     esGuiaDocumentoMaestro: false,
   })
   const [archivoPlantilla, setArchivoPlantilla] = useState<File | null>(null)
@@ -83,7 +83,7 @@ function ContenidoCategoria({
 
   const plantillasFiltradas = useMemo(() => {
     return datos.plantillas.filter((p) => {
-      if (p.categoria !== meta.categoria) return false
+      if (!meta.tiposTramite.includes(p.tipoTramite ?? 'General')) return false
       if (tipoTramite !== 'todos' && p.tipoTramite !== tipoTramite) return false
       const texto = busqueda.toLowerCase()
       return (
@@ -91,7 +91,7 @@ function ContenidoCategoria({
         p.factor.toLowerCase().includes(texto)
       )
     })
-  }, [datos.plantillas, meta.categoria, busqueda, tipoTramite])
+  }, [datos.plantillas, meta.tiposTramite, busqueda, tipoTramite])
 
   const abrirCrear = () => {
     setEditando(null)
@@ -100,9 +100,9 @@ function ContenidoCategoria({
       factor: '',
       version: '2026.1',
       vigente: true,
-      categoria: meta.categoria,
+      categoria: 'Programa',
       descripcion: '',
-      tipoTramite: 'General',
+      tipoTramite: meta.slug === 'nuevos' ? 'NuevoPrograma' : 'Renovacion',
       esGuiaDocumentoMaestro: false,
     })
     setArchivoPlantilla(null)

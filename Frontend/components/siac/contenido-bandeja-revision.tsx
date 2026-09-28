@@ -25,8 +25,8 @@ function normalizarFechaCarga(e: Evidencia): Evidencia {
     ...e,
     fechaCarga:
       typeof e.fechaCarga === 'string'
-        ? e.fechaCarga.slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
+        ? e.fechaCarga
+        : new Date().toISOString(),
   }
 }
 
@@ -114,7 +114,11 @@ export function ContenidoBandejaRevision({
         <PanelVacio mensaje="No hay evidencias en revisión en este momento." />
       ) : (
         <>
-          <TablaEvidencias evidencias={evidencias} enlaceDetalle={enlaceDetalle} />
+          <TablaEvidencias
+            evidencias={evidencias}
+            enlaceDetalle={enlaceDetalle}
+            mostrarHora
+          />
           <ControlesPaginacion
             pagina={pagina}
             limite={LIMITE_FILAS_TABLA}

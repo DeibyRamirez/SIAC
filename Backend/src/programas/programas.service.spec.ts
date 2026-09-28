@@ -1,6 +1,8 @@
 import { EstadoEvidencia, EstadoVigencia, RolUsuario } from '@prisma/client';
 import { ProgramasService, ProgramaRepositorio, calcularSemaforo } from './programas.service';
+import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { ServicioAlcancePrograma } from '../common/alcance/servicio-alcance-programa';
+import { TipoTramiteSIAC } from '@prisma/client';
 
 describe('calcularSemaforo', () => {
   it('prioriza el anexo de infraestructura vencido', () => {
@@ -23,9 +25,13 @@ describe('ProgramasService', () => {
     listarEstadosEvidencia: jest.fn(),
   };
   const alcance = { idsProgramasAsignados: jest.fn() };
+  const avanceProceso = {
+    calcularProgresoPrograma: jest.fn(),
+  };
   const servicio = new ProgramasService(
     programaRepo as unknown as ProgramaRepositorio,
     alcance as unknown as ServicioAlcancePrograma,
+    avanceProceso as unknown as AvanceProcesoSIACService,
   );
 
   const programa = {
@@ -42,6 +48,33 @@ describe('ProgramasService', () => {
     programaRepo.listar.mockResolvedValue([programa]);
     programaRepo.buscarPorId.mockResolvedValue(programa);
     programaRepo.listarAnexosDeProgramas.mockResolvedValue([]);
+    avanceProceso.calcularProgresoPrograma.mockResolvedValue({
+      programaId: 'p1',
+      tipoTramite: TipoTramiteSIAC.RenovacionRegistroCalificado,
+      avanceGlobal: 70,
+      documentosAceptados: 1,
+      documentosTotal: 2,
+      documentos: [
+        {
+          codigoGuia: 'G1',
+          nombre: 'Documento maestro de programa',
+          peso: 50,
+          porcentajeInterno: 40,
+          aportacion: 20,
+          aceptado: false,
+          rechazado: false,
+        },
+        {
+          codigoGuia: 'G2',
+          nombre: 'Respaldo de mejoramiento de programa',
+          peso: 50,
+          porcentajeInterno: 100,
+          aportacion: 50,
+          aceptado: true,
+          rechazado: false,
+        },
+      ],
+    });
     programaRepo.listarIdsDocumentosObligatorios.mockResolvedValue([]);
     programaRepo.listarEvidenciasParaAvance.mockResolvedValue([
       {
