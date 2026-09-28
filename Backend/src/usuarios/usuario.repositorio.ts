@@ -38,6 +38,47 @@ export class UsuarioRepositorio {
     return this.prisma.usuario.update({ where: { id }, data: { rol } });
   }
 
+  listarProgramas(usuarioId: string) {
+    return this.prisma.usuarioPrograma.findMany({
+      where: { usuarioId },
+      include: {
+        programa: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            slug: true,
+            facultad: true,
+            nivel: true,
+            activo: true,
+          },
+        },
+      },
+      orderBy: { programa: { nombre: 'asc' } },
+    });
+  }
+
+  async reemplazarProgramas(usuarioId: string, programaIds: string[]) {
+    const unicos = [...new Set(programaIds)];
+    await this.prisma.$transaction([
+      this.prisma.usuarioPrograma.deleteMany({
+        where: { usuarioId, programaId: { notIn: unicos } },
+      }),
+      ...unicos.map((programaId) =>
+        this.prisma.usuarioPrograma.upsert({
+          where: { usuarioId_programaId: { usuarioId, programaId } },
+          update: {},
+          create: { usuarioId, programaId },
+        }),
+      ),
+    ]);
+    return this.listarProgramas(usuarioId);
+  }
+
+  contarProgramas(ids: string[]) {
+    return this.prisma.programa.count({ where: { id: { in: ids } } });
+  }
+
   actualizar(id: string, datos: Prisma.UsuarioUpdateInput): Promise<Usuario> {
     return this.prisma.usuario.update({ where: { id }, data: datos });
   }

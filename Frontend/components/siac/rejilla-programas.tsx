@@ -53,7 +53,11 @@ export function RejillaProgramas({
                 <p className="font-semibold text-primary">{programa.nombre}</p>
                 <p className="text-xs text-muted-foreground">
                   {programa.codigo} · {programa.nivel}
+                  {programa.facultad ? ` · ${programa.facultad}` : ''}
                 </p>
+                {programa.activo === false ? (
+                  <p className="text-xs font-medium text-destructive">Inactivo</p>
+                ) : null}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger

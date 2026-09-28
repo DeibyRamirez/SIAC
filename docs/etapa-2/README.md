@@ -2,7 +2,9 @@
 
 > **Sprint PDF:** 2 (24/09 – 07/10/2026)  
 > **Historias:** HU-003 cierre, HU-004, HU-005, HU-008, HU-010  
-> **Estado:** Completada
+> **Estado:** En curso
+
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados. HU-008 y HU-010 siguen por hacer. HU-003, HU-004 y HU-005 no se reabren: sus subtareas nuevas son ajustes del Sprint 2.
 
 ## Objetivo
 

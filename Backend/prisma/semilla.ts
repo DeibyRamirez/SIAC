@@ -12,6 +12,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { generarSlug } from '../src/common/alcance/generar-slug';
 
 const prisma = new PrismaClient();
 
@@ -131,6 +132,14 @@ async function sembrarPlantillasFormatosGuia() {
   }
 }
 
+async function asegurarVinculo(usuarioId: string, programaId: string) {
+  await prisma.usuarioPrograma.upsert({
+    where: { usuarioId_programaId: { usuarioId, programaId } },
+    update: {},
+    create: { usuarioId, programaId },
+  });
+}
+
 async function main() {
   console.log('Sembrando base de datos SIAC...');
 
@@ -211,34 +220,37 @@ async function main() {
   });
 
   const programas = [
-    { codigo: 'ING-SIS', nombre: 'Ingeniería de Sistemas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'DER', nombre: 'Derecho', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'ADM-EMP', nombre: 'Administración de Empresas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'PSI', nombre: 'Psicología', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'ENF', nombre: 'Enfermería', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'CON', nombre: 'Contaduría Pública', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'COM-SOC', nombre: 'Comunicación Social', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'EDU-INF', nombre: 'Licenciatura en Educación Infantil', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'ESP-CIB', nombre: 'Especialización en Ciberseguridad', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 2 },
-    { codigo: 'ESP-INN', nombre: 'Especialización en Innovación', nivel: 'Posgrado', modalidad: 'Presencial', duracionSemestres: 2 },
-    { codigo: 'MAE-GES', nombre: 'Maestría en Gestión de Proyectos', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 4 },
+    { codigo: 'ING-SIS', nombre: 'Ingeniería de Sistemas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'DER', nombre: 'Derecho', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Derecho' },
+    { codigo: 'ADM-EMP', nombre: 'Administración de Empresas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Administrativas' },
+    { codigo: 'PSI', nombre: 'Psicología', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ciencias Sociales' },
+    { codigo: 'ENF', nombre: 'Enfermería', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ciencias de la Salud' },
+    { codigo: 'CON', nombre: 'Contaduría Pública', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Administrativas' },
+    { codigo: 'COM-SOC', nombre: 'Comunicación Social', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Sociales' },
+    { codigo: 'EDU-INF', nombre: 'Licenciatura en Educación Infantil', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Educación' },
+    { codigo: 'ESP-CIB', nombre: 'Especialización en Ciberseguridad', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 2, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'ESP-INN', nombre: 'Especialización en Innovación', nivel: 'Posgrado', modalidad: 'Presencial', duracionSemestres: 2, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'MAE-GES', nombre: 'Maestría en Gestión de Proyectos', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 4, facultad: 'Facultad de Ciencias Administrativas' },
     {
       codigo: 'ING-SWC',
       nombre: 'Ingeniería de Software y Computación',
       nivel: 'Pregrado',
       modalidad: 'Presencial',
       duracionSemestres: 10,
+      facultad: 'Facultad de Ingeniería',
     },
-    { codigo: 'TEC-SOF', nombre: 'Tecnología en Desarrollo de Software', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 6 },
+    { codigo: 'TEC-SOF', nombre: 'Tecnología en Desarrollo de Software', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 6, facultad: 'Facultad de Ingeniería' },
   ];
 
   const programasCreados = [];
   for (const p of programas) {
+    const slug = generarSlug(p.nombre);
     const prog = await prisma.programa.upsert({
       where: { codigo: p.codigo },
-      update: {},
+      update: { slug, facultad: p.facultad },
       create: {
         ...p,
+        slug,
         semaforo: 'Verde',
         porcentajeAvance: 45,
         estadoProceso: 'En curso',
@@ -248,15 +260,9 @@ async function main() {
     programasCreados.push(prog);
   }
 
-  await prisma.usuarioPrograma.upsert({
-    where: { id: 'up-seed-001' },
-    update: {},
-    create: {
-      id: 'up-seed-001',
-      usuarioId: cargador.id,
-      programaId: programasCreados[0].id,
-    },
-  });
+  await asegurarVinculo(cargador.id, programasCreados[0].id);
+  await asegurarVinculo(revisor.id, programasCreados[0].id);
+  await asegurarVinculo(revisor.id, programasCreados[1].id);
 
   await sembrarPlantillasFormatosGuia();
 

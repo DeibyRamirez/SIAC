@@ -4,14 +4,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-24 |
+| **Última actualización** | 2026-09-28 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
 | **Ruta local** | `D:\Proyectos\Simulacion_SIAC` |
 | **Institución** | Corporación Universitaria Autónoma del Cauca (CUAC) — Planeación / SIAC |
 | **Marco normativo** | Decreto 1330 de 2021 (6 CI + 9 CP) |
-| **Fase actual** | Fundación técnica con Supabase (Etapa 1 completada) |
+| **Fase actual** | Sprint 2 en curso (ClickUp es la fuente de verdad; este repo no declara sprints completados) |
 | **Convención API** | F-03 en español — prefijo `/api/v1/` |
 
 ---
@@ -35,19 +35,18 @@ Cargador descarga plantilla → sube evidencia (Borrador)
 ## 2. Estructura del repositorio
 
 ```text
-Simulacion_SIAC/
+SIAC/                             ← repo oficial DeibyRamirez/SIAC
 ├── MemoriaGlobal.md              ← Este archivo (fuente transversal)
 ├── Backend/                      ← NestJS 10 + Prisma + Supabase
-│   ├── src/modules/              ← auth, documentos, integracion, ingesta…
+│   ├── src/                      ← auth, documentos, programas, usuarios…
 │   └── prisma/schema.prisma      ← Modelo F-03
-├── Frontend/
-│   ├── MEMORIA_PROYECTO.md       ← Memoria detallada frontend
-│   └── frontend/                 ← Next.js 16 App Router
+├── Frontend/                     ← Next.js 16 App Router (app/, components/, lib/)
+│   └── MEMORIA_PROYECTO.md       ← Memoria detallada frontend
 ├── Documentos/                   ← F-00..F-03, APIs, normativa
 ├── docs/
 │   ├── etapa-0/                  ← Inception
-│   ├── etapa-1/                  ← Fundación Supabase
-│   └── etapa-2..4/               ← Sprints siguientes
+│   ├── etapa-1/                  ← Fundación Supabase (Sprint 1)
+│   └── etapa-2..4/               ← Sprints siguientes (estado oficial en ClickUp)
 └── .agents/skills/               ← Skills IA del proyecto
 ```
 
@@ -134,9 +133,9 @@ Next.js 16, React 19, Tailwind 4, shadcn, Recharts, TanStack Table.
 
 ### Integración API
 
-- Cliente: `Frontend/frontend/lib/servicios/cliente-api.ts`
+- Cliente: `Frontend/lib/servicios/cliente-api.ts`
 - Base: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
-- Fallback mock via `ProveedorAlmacen` si API no responde
+- El flujo por programa (listado, alta de evidencias, bandeja del revisor) ya no cae a datos de prueba si la API falla. Paneles y búsqueda aún pueden usar semillas (T-010 / HU-008).
 
 ### Brechas frontend pendientes
 
@@ -204,7 +203,7 @@ PUERTO=3001
 CORS_ORIGEN="http://localhost:3000"
 ```
 
-**Frontend (`Frontend/frontend/.env.local`):**
+**Frontend (`Frontend/.env.local`):**
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
@@ -376,7 +375,26 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ---
 
-## 8. Estado actual (2026-09-17)
+## 8. Estado actual (2026-09-28)
+
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado con brechas de alcance por programa cerradas al inicio del Sprint 2; Sprint 2 **en curso**; Sprints 3 y 4 **por hacer**.
+
+- [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
+- [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
+- [x] `GuardAlcancePrograma` relee la asignación en cada petición (el JWT no lleva programas)
+- [x] Cargador carga solo en programas asignados; Revisor ve y dictamina solo los suyos
+- [x] Administrador no dictamina y no puede asignar el rol SuperAdmin
+- [x] Visibilidad de listados, detalle y búsqueda según RN-001 ajustada
+- [x] `GET /programas` deja de escribir semáforo y porcentaje; conteos por estado en `GET /programas/:id`
+- [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
+- [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
+- [ ] Columnas `semaforo` y `porcentajeAvance` siguen en BD hasta T-010.1 (se calculan al leer y se dejan de escribir en el GET)
+- [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
+- [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
+- [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
+- [ ] Semilla remota completa tras baseline (`pnpm prisma:seed`)
+
+### Estado anterior (2026-09-17)
 
 - [x] Schema Prisma alineado F-03 con `ParAcademico`, `SuperAdmin`, `OrigenDato`, campos TI
 - [x] Migración aplicada en Supabase (BD vacía → 12 tablas)
@@ -420,11 +438,18 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 | [ ] | Crear buckets Storage Supabase | Supabase |
 | [ ] | Configurar `.env` y ejecutar semilla | Backend |
 
-### P1 — Sprint 2
+### P1 — Sprint 2 (en curso; no reabrir HU-003/004/005)
 
 | ✓ | Tarea | Ámbito |
 |---|-------|--------|
-| [ ] | Frontend 100% API real | Frontend |
+| [x] | T-DOC.1 — docs sin sprints 2–4 «Completada»; repo `DeibyRamirez/SIAC` | Docs |
+| [x] | T-011.1 — facultad, slug, vínculo único | Backend |
+| [x] | T-011.2 — alcance por programa, API y pantalla de asignación | Backend + Frontend |
+| [x] | T-011.3 — editar/desactivar programa; conteos; GET sin escritura | Backend + Frontend |
+| [x] | T-002.1 — inicio y bandeja del revisor por programas asignados | Frontend |
+| [ ] | HU-003/004/005 ajustes nuevos (fuera de este bloque) | Backend + Frontend |
+| [ ] | HU-008 búsqueda y HU-010 panel (fuera de este bloque) | Frontend |
+| [ ] | Frontend 100% API real (paneles y búsqueda aún con semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
 
@@ -439,6 +464,14 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 ---
 
 ## 10. Registro de cambios
+
+### 2026-09-28 — Alcance por programa (inicio Sprint 2)
+
+- [Docs] T-DOC.1: Sprints 2–4 dejan de figurar como completados; el estado oficial es ClickUp. Repo oficial `DeibyRamirez/SIAC`. Se retira `Skills/FrontendDesing.md`.
+- [Backend] Migración `20260928020000_programa_slug_facultad_vinculo_unico`: `facultad`, `slug` único y unicidad de `UsuarioPrograma` (dedup previo). No elimina `semaforo` ni `porcentajeAvance`.
+- [Backend] `GuardAlcancePrograma` + `ServicioAlcancePrograma`: relectura de la BD en cada petición. RN-001 ajustada en evidencias, búsqueda y pendientes.
+- [Backend] `GET/PUT /usuarios/:id/programas`; el Administrador no asigna SuperAdmin. `PATCH /programas/:id` y `/estado`. `GET /programas` sin escritura ni N+1.
+- [Frontend] Asignación de programas en `/administrador/usuarios`. Alta del cargador, inicio y bandeja del revisor sin respaldo a datos de prueba.
 
 ### 2026-09-24 — Correcciones Sprint 1 (DOCX + UI)
 

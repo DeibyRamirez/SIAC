@@ -36,6 +36,11 @@ import {
 
 import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
 
+import {
+  rolPuedeDictaminar,
+  ServicioAlcancePrograma,
+} from '../common/alcance/servicio-alcance-programa';
+
 
 
 const TIPOS_PERMITIDOS = [
@@ -74,6 +79,8 @@ export class DocumentosService {
 
     private readonly docx: ServicioManipulacionDocx,
 
+    private readonly alcance: ServicioAlcancePrograma,
+
   ) {}
 
 
@@ -89,6 +96,8 @@ export class DocumentosService {
   ) {
 
     this.validarArchivo(archivo);
+
+    await this.exigirProgramaAsignado(usuario, dto.programaId);
 
 
 
@@ -236,45 +245,13 @@ export class DocumentosService {
 
   async listar(usuario: UsuarioToken, filtros: FiltrosEvidencia) {
 
-    const filtrosAplicados = { ...filtros };
+    const filtrosAplicados: FiltrosEvidencia = {
 
+      ...filtros,
 
+      alcance: await this.alcance.filtroVisibilidad(usuario),
 
-    if (this.esSuperAdmin(usuario)) {
-
-      const [datos, total] = await this.evidenciaRepo.listar(filtrosAplicados);
-
-      return {
-
-        datos,
-
-        total,
-
-        pagina: filtros.pagina ?? 1,
-
-        limite: filtros.limite ?? 20,
-
-      };
-
-    }
-
-
-
-    if (usuario.rol === RolUsuario.Cargador) {
-
-      filtrosAplicados.autorId = usuario.id;
-
-    }
-
-
-
-    if (usuario.rol === RolUsuario.ParAcademico) {
-
-      filtrosAplicados.soloValidados = true;
-
-    }
-
-
+    };
 
     const [datos, total] = await this.evidenciaRepo.listar(filtrosAplicados);
 
@@ -294,6 +271,34 @@ export class DocumentosService {
 
 
 
+  async conteosPorEstado(usuario: UsuarioToken) {
+
+    const grupos = await this.evidenciaRepo.contarPorEstado(
+
+      await this.alcance.filtroVisibilidad(usuario),
+
+    );
+
+    const conteos = { borrador: 0, enRevision: 0, validado: 0, rechazado: 0 };
+
+    for (const grupo of grupos) {
+
+      if (grupo.estado === EstadoEvidencia.Borrador) conteos.borrador = grupo._count._all;
+
+      if (grupo.estado === EstadoEvidencia.EnRevision) conteos.enRevision = grupo._count._all;
+
+      if (grupo.estado === EstadoEvidencia.Validado) conteos.validado = grupo._count._all;
+
+      if (grupo.estado === EstadoEvidencia.Rechazado) conteos.rechazado = grupo._count._all;
+
+    }
+
+    return conteos;
+
+  }
+
+
+
   async obtenerPorId(id: string, usuario: UsuarioToken) {
 
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
@@ -302,7 +307,7 @@ export class DocumentosService {
 
 
 
-    this.verificarAccesoLectura(evidencia, usuario);
+    await this.verificarAccesoLectura(evidencia, usuario);
 
     return evidencia;
 
@@ -618,17 +623,13 @@ export class DocumentosService {
 
   async dictaminar(id: string, dto: DictaminarDto, revisor: UsuarioToken) {
 
-    if (
+    if (!rolPuedeDictaminar(revisor.rol)) {
 
-      !this.esSuperAdmin(revisor) &&
+      throw new ForbiddenException(
 
-      revisor.rol !== RolUsuario.Revisor &&
+        'Solo el revisor asignado al programa puede dictaminar evidencias.',
 
-      revisor.rol !== RolUsuario.Administrador
-
-    ) {
-
-      throw new ForbiddenException('Solo revisores pueden dictaminar evidencias.');
+      );
 
     }
 
@@ -637,6 +638,10 @@ export class DocumentosService {
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
     if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+
+
+
+    await this.exigirProgramaAsignado(revisor, evidencia.programaId);
 
 
 
@@ -892,21 +897,19 @@ export class DocumentosService {
 
   ) {
 
-    if (
+    if (!rolPuedeDictaminar(usuario.rol)) {
 
-      !this.esSuperAdmin(usuario) &&
-
-      usuario.rol !== RolUsuario.Revisor &&
-
-      usuario.rol !== RolUsuario.Administrador
-
-    ) {
-
-      throw new ForbiddenException('Solo revisores pueden consultar este historial.');
+      throw new ForbiddenException('Solo el revisor puede consultar sus revisiones.');
 
     }
 
-    return this.evidenciaRepo.listarEnviosRevisionParaRevisor(pagina, limite);
+    const programaIds = this.esSuperAdmin(usuario)
+
+      ? undefined
+
+      : await this.alcance.idsProgramasAsignados(usuario.id);
+
+    return this.evidenciaRepo.listarEnviosRevisionParaRevisor(pagina, limite, programaIds);
 
   }
 
@@ -1176,9 +1179,9 @@ export class DocumentosService {
 
 
 
-  private verificarAccesoLectura(
+  private async verificarAccesoLectura(
 
-    evidencia: { estado: EstadoEvidencia; autorId: string },
+    evidencia: { id: string; estado: EstadoEvidencia; autorId: string; programaId: string },
 
     usuario: UsuarioToken,
 
@@ -1188,21 +1191,81 @@ export class DocumentosService {
 
 
 
-    if (
+    if (usuario.rol === RolUsuario.ParAcademico) {
 
-      usuario.rol === RolUsuario.ParAcademico &&
+      if (evidencia.estado !== EstadoEvidencia.Validado) {
 
-      evidencia.estado !== EstadoEvidencia.Validado
+        throw new ForbiddenException('El par académico solo consulta evidencias validadas.');
 
-    ) {
+      }
 
-      throw new ForbiddenException('No tiene permiso para ver borradores.');
+      return;
 
     }
 
-    if (usuario.rol === RolUsuario.Cargador && evidencia.autorId !== usuario.id) {
 
-      throw new ForbiddenException('No tiene acceso a esta evidencia.');
+
+    if (usuario.rol === RolUsuario.Cargador) {
+
+      if (evidencia.autorId !== usuario.id) {
+
+        throw new ForbiddenException('No tiene acceso a esta evidencia.');
+
+      }
+
+      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+
+      return;
+
+    }
+
+
+
+    if (usuario.rol === RolUsuario.Revisor) {
+
+      if (evidencia.estado === EstadoEvidencia.Borrador) {
+
+        throw new ForbiddenException('El revisor no consulta borradores.');
+
+      }
+
+      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+
+      return;
+
+    }
+
+
+
+    if (usuario.rol === RolUsuario.Administrador && evidencia.estado === EstadoEvidencia.Borrador) {
+
+      const yaRevisado = await this.evidenciaRepo.tieneHistorialDistintoDeBorrador(evidencia.id);
+
+      if (!yaRevisado) {
+
+        throw new ForbiddenException(
+
+          'El administrador no consulta borradores que nunca se enviaron a revisión.',
+
+        );
+
+      }
+
+    }
+
+  }
+
+
+
+  private async exigirProgramaAsignado(usuario: UsuarioToken, programaId: string) {
+
+    if (this.esSuperAdmin(usuario)) return;
+
+    const asignado = await this.alcance.estaAsignado(usuario.id, programaId);
+
+    if (!asignado) {
+
+      throw new ForbiddenException('No tiene este programa asignado.');
 
     }
 

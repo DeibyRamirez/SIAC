@@ -154,6 +154,17 @@ export interface FilaRevisionRevisorApi {
   autor?: { id: string; nombre: string }
 }
 
+export interface ConteosEvidenciaApi {
+  borrador: number
+  enRevision: number
+  validado: number
+  rechazado: number
+}
+
+export async function obtenerConteosEvidenciasApi() {
+  return peticionApi<ConteosEvidenciaApi>('/evidencias/conteos')
+}
+
 export async function listarMisRevisionesRevisorApi(pagina = 1, limite = 20) {
   const params = new URLSearchParams({
     pagina: String(pagina),

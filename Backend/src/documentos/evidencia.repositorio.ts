@@ -24,6 +24,8 @@ export interface FiltrosEvidencia {
 
   soloValidados?: boolean;
 
+  alcance?: Prisma.EvidenciaWhereInput;
+
   pagina?: number;
 
   limite?: number;
@@ -164,13 +166,19 @@ export class EvidenciaRepositorio {
 
     const skip = (pagina - 1) * limite;
 
+    const whereFinal: Prisma.EvidenciaWhereInput = filtros.alcance
+
+      ? { AND: [filtros.alcance, where] }
+
+      : where;
+
 
 
     return this.prisma.$transaction([
 
       this.prisma.evidencia.findMany({
 
-        where,
+        where: whereFinal,
 
         include: {
 
@@ -188,7 +196,7 @@ export class EvidenciaRepositorio {
 
       }),
 
-      this.prisma.evidencia.count({ where }),
+      this.prisma.evidencia.count({ where: whereFinal }),
 
     ]);
 
@@ -352,11 +360,61 @@ export class EvidenciaRepositorio {
 
 
 
-  async listarEnviosRevisionParaRevisor(pagina = 1, limite = 20) {
+  contarPorEstado(where: Prisma.EvidenciaWhereInput) {
+
+    return this.prisma.evidencia.groupBy({
+
+      by: ['estado'],
+
+      where,
+
+      _count: { _all: true },
+
+    });
+
+  }
+
+
+
+  tieneHistorialDistintoDeBorrador(evidenciaId: string) {
+
+    return this.prisma.historialEvidencia.findFirst({
+
+      where: {
+
+        evidenciaId,
+
+        estado: { not: EstadoEvidencia.Borrador },
+
+      },
+
+      select: { id: true },
+
+    });
+
+  }
+
+
+
+  async listarEnviosRevisionParaRevisor(
+
+    pagina = 1,
+
+    limite = 20,
+
+    programaIds?: string[],
+
+  ) {
 
     const eventos = await this.prisma.historialEvidencia.findMany({
 
-      where: { estado: EstadoEvidencia.EnRevision },
+      where: {
+
+        estado: EstadoEvidencia.EnRevision,
+
+        ...(programaIds ? { evidencia: { programaId: { in: programaIds } } } : {}),
+
+      },
 
       orderBy: { createdAt: 'desc' },
 

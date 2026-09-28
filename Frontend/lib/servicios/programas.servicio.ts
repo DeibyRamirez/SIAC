@@ -8,11 +8,34 @@ export async function listarProgramasApi(): Promise<Programa[]> {
 export async function crearProgramaApi(datos: {
   nombre: string
   nivel: NivelPrograma
+  facultad?: string
 }): Promise<Programa> {
   return peticionApi<Programa>('/programas', {
     method: 'POST',
     body: JSON.stringify(datos),
   });
+}
+
+export async function actualizarProgramaApi(
+  id: string,
+  datos: {
+    nombre?: string
+    nivel?: NivelPrograma
+    facultad?: string
+    modalidad?: string
+  },
+): Promise<Programa> {
+  return peticionApi<Programa>(`/programas/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function actualizarEstadoProgramaApi(id: string, activo: boolean): Promise<Programa> {
+  return peticionApi<Programa>(`/programas/${id}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ activo }),
+  })
 }
 
 export async function obtenerProgramaApi(id: string) {

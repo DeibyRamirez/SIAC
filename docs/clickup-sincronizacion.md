@@ -1,6 +1,10 @@
 # Sincronización ClickUp — SIAC
 
 > Guía para alinear el repositorio Git con la gestión Scrum en ClickUp.
+>
+> **El estado oficial vive en ClickUp; este repositorio no declara sprints completados.**
+
+El ID de lista `901716974523` («Hito 4 · Desarrollo · 3 sprints (F-04)») **no existe** en el workspace de ClickUp accesible al revisar esta guía (28/09/2026). Ese conector solo ve el espacio Capsoul, que no es SIAC. No se sustituye el ID por uno de otro proyecto. Hay que contrastarlo con la jerarquía real del workspace CUAC cuando el equipo tenga acceso.
 
 ## Workspace ClickUp (CUAC)
 
@@ -61,14 +65,12 @@ Crear los 4 Epics de sprint en esa lista usando las plantillas de abajo.
 
 ```text
 main          ← solo código estable
-  └ develop   ← integración de incrementos
-      ├ feature/HU-001-login-jwt
-      ├ feature/HU-003-carga-evidencias
-      └ feature/HU-011-roles-permisos
+  └ develop_v2 ← integración actual (Sprint 2)
+      └ feature/HU-XXX
 ```
 
-- Una rama por historia de usuario hacia `develop`.
-- PR de `develop` → `main` revisado por el otro integrante.
+- Una rama por historia de usuario hacia `develop_v2`.
+- PR hacia `develop_v2` revisado por el otro integrante. El merge histórico `develop` → `main` sigue siendo el cierre de entrega.
 - Commits con **Conventional Commits** referenciando la HU.
 
 ## Convención de enlaces en ClickUp
@@ -77,8 +79,8 @@ En la descripción de cada tarea, incluir:
 
 ```markdown
 ## Repositorio
-- Repo: https://github.com/DeibyRamirez/SIAC_Backend
-- Rama: develop (Sprint 1) / feature/HU-XXX
+- Repo: https://github.com/DeibyRamirez/SIAC
+- Rama: develop_v2 / feature/HU-XXX
 - Commit: [hash corto]
 - Tag: v0.N.0-sprint-N
 
@@ -90,7 +92,7 @@ En la descripción de cada tarea, incluir:
 ## Flujo de cierre de sprint
 
 1. Completar todas las tareas HU del epic en ClickUp
-2. Merge rama `develop` → `main` (vía PR aprobado)
+2. Merge de la rama de integración (`develop_v2`) hacia `main` (vía PR aprobado)
 3. Crear tag `v0.N.0-sprint-N`
 4. Publicar [sprint review](sprint-reviews/) en repo
 5. Mover epic a **Done** en ClickUp
@@ -110,6 +112,6 @@ git tag -l
 
 | Rama | Estado |
 |------|--------|
-| `main` | Estable — requiere PR desde `develop` |
-| `develop` | Integración Sprint 1 (HU-001, HU-002, HU-003, HU-011) |
-| `feature/HU-*` | Historias en curso hacia `develop` |
+| `main` | Estable |
+| `develop_v2` | Integración actual. Sprint 2 en curso |
+| `feature/HU-*` | Historias en curso hacia `develop_v2` |
