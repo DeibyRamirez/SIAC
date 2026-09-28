@@ -104,17 +104,10 @@ export class GuardAlcancePrograma implements CanActivate {
   private resolverProgramaId(
     solicitud: SolicitudAlcance,
     opciones: OpcionesAlcancePrograma,
-  ): Promise<string | null> {
+  ): string | null {
     if (opciones.parametroPrograma) {
       const valor = solicitud.params[opciones.parametroPrograma];
       if (valor) return valor;
-    }
-
-    if (opciones.parametroEvidencia) {
-      const evidenciaId = solicitud.params[opciones.parametroEvidencia];
-      if (evidenciaId) {
-        return this.alcance.programaDeEvidencia(evidenciaId);
-      }
     }
 
     const desdeCuerpo = leerTexto(solicitud.body, opciones.campoCuerpo ?? 'programaId');
