@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.module';
 
@@ -55,8 +55,6 @@ export interface FiltrosEvidencia {
 
 
 
-@Injectable()
-
 export interface ComentarioVersionPersistido {
 
   hunkId?: string;
@@ -71,7 +69,9 @@ export interface ComentarioVersionPersistido {
 
 }
 
+@Injectable()
 export class EvidenciaRepositorio {
+  private readonly logger = new Logger(EvidenciaRepositorio.name);
 
   constructor(private readonly prisma: PrismaService) {}
 

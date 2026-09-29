@@ -8,6 +8,163 @@ import { CODIGOS_CONDICION_INSTITUCIONAL } from '../dominio/condiciones-instituc
 import JSZip from 'jszip';
 import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
 
+
+async function crearDocxBuffer(texto: string): Promise<Buffer> {
+  const zip = new JSZip();
+  zip.file(
+    '[Content_Types].xml',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>`,
+  );
+  zip.file(
+    'docProps/core.xml',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Prueba</dc:title></cp:coreProperties>`,
+  );
+  zip.file(
+    'word/document.xml',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p><w:sectPr/></w:body></w:document>`,
+  );
+  return Buffer.from(
+    await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }),
+  );
+}
+
+interface ComentarioFake {
+  hunkId?: string;
+  anchor?: string;
+  quote?: string;
+  texto: string;
+}
+
+interface EvaluacionFake {
+  evidenciaId: string;
+  numeroRevision: number;
+  revisorId: string;
+  codigoCondicion: string;
+  cumple: boolean;
+  observacion?: string;
+}
+
+function crearRepositorioFake() {
+  const evaluaciones: EvaluacionFake[] = [];
+  let evidencia = {
+    id: 'ev-1',
+    nombre: 'Documento Maestro',
+    programaId: 'prog-1',
+    autorId: 'autor-1',
+    estado: EstadoEvidencia.EnRevision as EstadoEvidencia,
+    version: 2,
+    requiereChecklistMaestro: true,
+    rutaArchivo: null as string | null,
+    porcentajeCompletitud: 0,
+  };
+
+  const repositorio = {
+    get evidencia() {
+      return evidencia;
+    },
+    set evidencia(valor: typeof evidencia) {
+      evidencia = valor;
+    },
+    evaluaciones,
+    buscarPorId: jest.fn(async () => ({ ...evidencia })),
+    actualizar: jest.fn(async (_id: string, datos: Record<string, unknown>) => {
+      evidencia = { ...evidencia, ...datos } as typeof evidencia;
+      return { ...evidencia };
+    }),
+    registrarHistorial: jest.fn(async () => ({})),
+    guardarEvaluacionesCondicion: jest.fn(
+      async (
+        evidenciaId: string,
+        numeroRevision: number,
+        revisorId: string,
+        filas: { codigoCondicion: string; cumple: boolean; observacion?: string }[],
+      ) => {
+        for (const fila of filas) {
+          const existente = evaluaciones.find(
+            (e: EvaluacionFake) =>
+              e.evidenciaId === evidenciaId &&
+              e.numeroRevision === numeroRevision &&
+              e.codigoCondicion === fila.codigoCondicion,
+          );
+          if (existente) {
+            Object.assign(existente, {
+              cumple: fila.cumple,
+              observacion: fila.observacion,
+              revisorId,
+            });
+          } else {
+            evaluaciones.push({
+              evidenciaId,
+              numeroRevision,
+              revisorId,
+              codigoCondicion: fila.codigoCondicion,
+              cumple: fila.cumple,
+              observacion: fila.observacion,
+            });
+          }
+        }
+      },
+    ),
+    listarEvaluacionesCondicion: jest.fn(async (evidenciaId: string) =>
+      evaluaciones
+        .filter((e: EvaluacionFake) => e.evidenciaId === evidenciaId)
+        .sort(
+          (a: EvaluacionFake, b: EvaluacionFake) =>
+            b.numeroRevision - a.numeroRevision ||
+            a.codigoCondicion.localeCompare(b.codigoCondicion),
+        ),
+    ),
+    buscarVersion: jest.fn(async (_id: string, numero: number) => ({
+      numero,
+      rutaArchivo: 'evidencias/ev-1/v1/doc.docx',
+      nombreArchivo: 'doc.docx',
+      firmaDescarga: null as string | null,
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })),
+    listarComentariosVersion: jest.fn(
+      async (_evidenciaId: string, _numeroVersion: number) =>
+        [] as ComentarioFake[],
+    ),
+    listarComentariosHastaVersion: jest.fn(
+      async (_evidenciaId: string, _numeroVersion: number) =>
+        [] as ComentarioFake[],
+    ),
+    guardarComentariosVersion: jest.fn(async () => undefined),
+    buscarUsuarioNombre: jest.fn(async () => ({ nombre: 'Revisor Prueba' })),
+    actualizarVersion: jest.fn(async () => ({})),
+  };
+
+  return repositorio;
+}
+
+function crearServicio(repositorio: ReturnType<typeof crearRepositorioFake>) {
+  return new DocumentosService(
+    repositorio as never,
+    {} as never,
+    { crear: jest.fn() } as never,
+    { recalcularPorcentajeAvance: jest.fn() } as never,
+    {
+      validarFirmaSubida: jest.fn(),
+      procesarDocxPostDictamen: jest.fn(),
+    } as never,
+    {
+      filtroVisibilidad: jest.fn(),
+      estaAsignado: jest.fn().mockResolvedValue(true),
+      idsProgramasAsignados: jest.fn(),
+    } as never,
+  );
+}
+
+const revisor = { id: 'revisor-1', rol: RolUsuario.Revisor };
+
 describe('DocumentosService permisos de revisión', () => {
   const evidenciaRepo = {
     buscarPorId: jest.fn(),
@@ -398,7 +555,7 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
     repositorio.listarComentariosHastaVersion.mockImplementation(
-      async (_id, numero) =>
+      async (_id: string, numero: number) =>
         numero >= 2
           ? [
               { quote: 'requisitos de calidad', texto: 'Observación de la v1' },

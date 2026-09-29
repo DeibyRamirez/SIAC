@@ -1,13 +1,9 @@
 import {
-
   Injectable,
-
   NotFoundException,
-
   ForbiddenException,
-
   BadRequestException,
-
+  Logger,
 } from '@nestjs/common';
 
 import {
@@ -92,6 +88,7 @@ interface UsuarioToken {
 @Injectable()
 
 export class DocumentosService {
+  private readonly logger = new Logger(DocumentosService.name);
 
   constructor(
 
@@ -423,27 +420,10 @@ export class DocumentosService {
     );
 
     if (versionRegistro?.firmaDescarga) {
-
-      const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(id);
-
-      const etiquetasZona = evaluaciones
-
-        .filter((e) => !e.cumple)
-
-        .map((e) => etiquetaCondicion(e.codigoCondicion));
-
-      await this.docx.validarFirmaYDiff(
-
+      await this.docx.validarFirmaSubida(
         archivo.buffer,
-
         versionRegistro.firmaDescarga,
-
-        versionRegistro.textoBaseAuditoria,
-
-        etiquetasZona,
-
       );
-
     }
 
 
