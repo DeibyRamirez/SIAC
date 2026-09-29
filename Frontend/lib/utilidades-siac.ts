@@ -32,6 +32,25 @@ export function obtenerNombrePrograma(id: string): string {
   return obtenerProgramaPorId(id)?.nombre ?? 'Institucional'
 }
 
+/**
+ * HU-010: nombre del propietario de una evidencia. Los documentos G3/G4 pertenecen a la
+ * institución (CUAC) y no a una carrera.
+ */
+export function obtenerNombrePropietario(evidencia: {
+  programaId?: string | null
+  institucionId?: string | null
+  programa?: { nombre: string } | null
+  institucion?: { nombre: string; sigla: string } | null
+}): string {
+  if (evidencia.institucionId || evidencia.institucion) {
+    return evidencia.institucion
+      ? `Institución · ${evidencia.institucion.sigla}`
+      : 'Institución'
+  }
+  if (evidencia.programa?.nombre) return evidencia.programa.nombre
+  return evidencia.programaId ? obtenerNombrePrograma(evidencia.programaId) : 'Sin programa'
+}
+
 export function obtenerInicialesPrograma(nombre: string): string {
   return nombre
     .split(' ')

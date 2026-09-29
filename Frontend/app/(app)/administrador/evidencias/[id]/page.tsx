@@ -16,7 +16,7 @@ import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerEvidenciaApi, obtenerUrlDescargaApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { formatearFecha, obtenerNombrePropietario } from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaAdminPage() {
   return (
@@ -120,8 +120,8 @@ function ContenidoDetalleAdmin() {
         <Card>
           <CardContent className="space-y-4 pt-6 text-sm">
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Programa</p>
-              <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+              <p className="text-xs uppercase text-muted-foreground">{evidencia.institucionId ? 'Institución' : 'Programa'}</p>
+              <p>{obtenerNombrePropietario(evidencia)}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Periodo</p>

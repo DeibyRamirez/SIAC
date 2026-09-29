@@ -16,9 +16,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { catalogoFactoresIndicadores } from '@/lib/datos-semilla'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
+import { obtenerInstitucionPrincipalApi } from '@/lib/servicios/instituciones.servicio'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { enviarRevisionApi } from '@/lib/servicios/evidencias.servicio'
-import type { CodigoDocumentoGuia, Programa } from '@/lib/tipos'
+import type { CodigoDocumentoGuia, Institucion, Programa } from '@/lib/tipos'
 import { extraerMetadatosDocx } from '@/lib/utilidades/extraer-metadatos-docx'
 import {
   ETIQUETAS_GUIA,
@@ -81,6 +82,7 @@ function ContenidoNuevaEvidencia() {
   const { sesion } = usarSesion()
   const { crearEvidencia, actualizarEvidencia } = usarAlmacen()
   const [programas, setProgramas] = useState<Programa[]>([])
+  const [institucion, setInstitucion] = useState<Institucion | null>(null)
   const [modalidad, setModalidad] = useState<ModalidadTramiteUI | null>(null)
   const [alcance, setAlcance] = useState<AlcanceTramiteUI | null>(null)
   const [codigoGuia, setCodigoGuia] = useState<CodigoDocumentoGuia | null>(null)
@@ -108,6 +110,7 @@ function ContenidoNuevaEvidencia() {
   }, [modalidad, alcance])
 
   const configuracionCompleta = Boolean(modalidad && alcance && codigoGuia)
+  const esInstitucional = alcance === 'Institucion'
 
   useEffect(() => {
     if (!apiDisponible()) {
@@ -127,6 +130,10 @@ function ContenidoNuevaEvidencia() {
         setProgramaId('')
         setError('No se pudieron cargar sus programas asignados.')
       })
+    // HU-010: los documentos G3/G4 pertenecen a la institución (CUAC), no a un programa.
+    obtenerInstitucionPrincipalApi()
+      .then(setInstitucion)
+      .catch(() => setInstitucion(null))
   }, [])
 
   useEffect(() => {
@@ -195,7 +202,11 @@ function ContenidoNuevaEvidencia() {
       setError('Complete los pasos 1 a 3 para definir el documento a cargar.')
       return false
     }
-    if (!programaId) {
+    if (esInstitucional && !institucion) {
+      setError('No se pudo identificar la institución. Recargue la página o contacte al administrador.')
+      return false
+    }
+    if (!esInstitucional && !programaId) {
       setError('Seleccione un programa asignado.')
       return false
     }
@@ -228,7 +239,8 @@ function ContenidoNuevaEvidencia() {
       const creada = await crearEvidencia(
         {
           nombre: nombre.trim(),
-          programaId,
+          programaId: esInstitucional ? null : programaId,
+          institucionId: esInstitucional ? (institucion?.id ?? null) : null,
           periodo,
           factor,
           indicador: indicador.trim(),
@@ -336,30 +348,35 @@ function ContenidoNuevaEvidencia() {
                   />
                 </label>
 
-                <label className="block space-y-2 text-sm">
-                  <span className="font-medium">
-                    {alcance === 'Institucion'
-                      ? 'Programa de referencia (asignado)'
-                      : 'Programa'}
-                  </span>
-                  <select
-                    value={programaId}
-                    onChange={(evento) => setProgramaId(evento.target.value)}
-                    className="w-full rounded-lg border border-input px-3 py-2"
-                  >
-                    {programas.map((programa) => (
-                      <option key={programa.id} value={programa.id}>
-                        {programa.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {alcance === 'Institucion' && (
-                    <span className="text-xs text-muted-foreground">
-                      Los documentos institucionales (G3/G4) se asocian a un programa de su
-                      alcance para trazabilidad en SIAC.
+                {esInstitucional ? (
+                  <div className="space-y-2 text-sm">
+                    <span className="font-medium">Institución</span>
+                    <div className="rounded-lg border border-input bg-muted px-3 py-2">
+                      {institucion
+                        ? `${institucion.nombre} (${institucion.sigla})`
+                        : 'Cargando institución…'}
+                    </div>
+                    <span className="block text-xs text-muted-foreground">
+                      Los documentos institucionales (G3/G4) pertenecen a la institución y no
+                      se atribuyen a ninguna carrera.
                     </span>
-                  )}
-                </label>
+                  </div>
+                ) : (
+                  <label className="block space-y-2 text-sm">
+                    <span className="font-medium">Programa</span>
+                    <select
+                      value={programaId}
+                      onChange={(evento) => setProgramaId(evento.target.value)}
+                      className="w-full rounded-lg border border-input px-3 py-2"
+                    >
+                      {programas.map((programa) => (
+                        <option key={programa.id} value={programa.id}>
+                          {programa.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Periodo</span>

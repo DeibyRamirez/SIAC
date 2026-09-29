@@ -20,7 +20,7 @@ import {
   formatearFecha,
   formatearFechaHora,
   formatearPuntaje,
-  obtenerNombrePrograma,
+  obtenerNombrePropietario,
 } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -59,7 +59,7 @@ export function TablaEvidencias({
         <TableHeader>
           <TableRow className="border-primary/10 hover:bg-transparent">
             <TableHead>Documento</TableHead>
-            <TableHead>Programa</TableHead>
+            <TableHead>Programa / institución</TableHead>
             <TableHead>Factor</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Puntaje</TableHead>
@@ -100,7 +100,7 @@ export function TablaEvidencias({
                 </div>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {obtenerNombrePrograma(evidencia.programaId)}
+                {obtenerNombrePropietario(evidencia)}
               </TableCell>
               <TableCell className="text-sm">{evidencia.factor}</TableCell>
               <TableCell>

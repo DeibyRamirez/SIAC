@@ -39,7 +39,7 @@ import type { Evidencia } from '@/lib/tipos'
 import {
   admiteCorreccion,
   formatearFecha,
-  obtenerNombrePrograma,
+  obtenerNombrePropietario,
 } from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaCargadorPage() {
@@ -296,8 +296,8 @@ function ContenidoDetalle() {
             />
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+                <p className="text-xs uppercase text-muted-foreground">{evidencia.institucionId ? 'Institución' : 'Programa'}</p>
+                <p>{obtenerNombrePropietario(evidencia)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>

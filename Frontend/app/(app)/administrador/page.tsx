@@ -15,6 +15,7 @@ import { EstructuraNormativaPanel } from '@/components/siac/estructura-normativa
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
 import { PanelAvanceEtapasSIAC } from '@/components/siac/panel-avance-etapas-siac'
+import { PanelAvanceInstitucional } from '@/components/siac/panel-avance-institucional'
 import { TarjetaHeroAcreditacion } from '@/components/siac/tarjeta-hero-acreditacion'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
@@ -32,8 +33,12 @@ import {
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
-import type { Programa } from '@/lib/tipos'
+import type { Institucion, Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import {
+  obtenerInstitucionPrincipalApi,
+  obtenerProgresoInstitucionApi,
+} from '@/lib/servicios/instituciones.servicio'
 import {
   obtenerProgresoProgramaApi,
   type ProgresoProcesoSIAC,
@@ -57,6 +62,11 @@ function ContenidoResumen() {
   const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
+  const [institucion, setInstitucion] = useState<Institucion | null>(null)
+  const [progresoInstitucional, setProgresoInstitucional] = useState<ProgresoProcesoSIAC | null>(
+    null,
+  )
+  const [cargandoInstitucional, setCargandoInstitucional] = useState(false)
 
   useEffect(() => {
     async function cargar() {
@@ -72,6 +82,24 @@ function ContenidoResumen() {
       }
     }
     cargar()
+  }, [])
+
+  // HU-010: el trámite institucional (G3/G4) se consulta aparte, sin elegir programa.
+  useEffect(() => {
+    async function cargarInstitucional() {
+      if (!apiDisponible()) return
+      setCargandoInstitucional(true)
+      try {
+        const principal = await obtenerInstitucionPrincipalApi()
+        setInstitucion(principal)
+        setProgresoInstitucional(await obtenerProgresoInstitucionApi(principal.id))
+      } catch {
+        setProgresoInstitucional(null)
+      } finally {
+        setCargandoInstitucional(false)
+      }
+    }
+    cargarInstitucional()
   }, [])
 
   const evidenciasPeriodo = useMemo(
@@ -210,6 +238,12 @@ function ContenidoResumen() {
         onCambiarPrograma={setProgramaProcesoId}
         progreso={progresoProceso}
         cargando={cargandoProgreso}
+      />
+
+      <PanelAvanceInstitucional
+        institucion={institucion}
+        progreso={progresoInstitucional}
+        cargando={cargandoInstitucional}
       />
 
       <EstructuraNormativaPanel />

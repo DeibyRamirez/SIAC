@@ -60,6 +60,10 @@ import {
   ServicioAlcancePrograma,
 } from '../common/alcance/servicio-alcance-programa';
 
+import { esGuiaInstitucional } from '../dominio/alcance-guia';
+
+import { InstitucionesService } from '../instituciones/instituciones.service';
+
 
 
 const TIPOS_PERMITIDOS = [
@@ -107,6 +111,8 @@ export class DocumentosService {
 
     private readonly alcance: ServicioAlcancePrograma,
 
+    private readonly instituciones: InstitucionesService,
+
   ) {}
 
 
@@ -123,8 +129,6 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-    await this.exigirProgramaAsignado(usuario, dto.programaId);
-
 
 
     const requiereChecklistLegacy =
@@ -135,11 +139,13 @@ export class DocumentosService {
       dto.codigoGuia ??
       (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
 
+    const propietario = await this.resolverPropietario(dto, codigoGuia, usuario);
+
     const evidencia = await this.evidenciaRepo.crear({
 
       nombre: dto.nombre,
 
-      programa: { connect: { id: dto.programaId } },
+      ...propietario,
 
       periodo: dto.periodo,
 
@@ -683,7 +689,11 @@ export class DocumentosService {
 
 
 
-    await this.exigirProgramaAsignado(revisor, evidencia.programaId);
+    // HU-010: los documentos institucionales (G3/G4) no tienen programa; los dictamina
+    // cualquier Revisor (o el SuperAdmin). Los de programa siguen exigiendo la asignación.
+    if (evidencia.programaId) {
+      await this.exigirProgramaAsignado(revisor, evidencia.programaId);
+    }
 
 
 
@@ -846,7 +856,10 @@ export class DocumentosService {
       revisor.id,
     );
 
-    await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
+    // El avance institucional se calcula al leer (GET /instituciones/:id/progreso).
+    if (evidencia.programaId) {
+      await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
+    }
 
     const { tipo, mensaje } = this.construirNotificacionDictamen(
       evidencia.nombre,
@@ -1243,7 +1256,13 @@ export class DocumentosService {
 
   private async verificarAccesoLectura(
 
-    evidencia: { id: string; estado: EstadoEvidencia; autorId: string; programaId: string },
+    evidencia: {
+      id: string;
+      estado: EstadoEvidencia;
+      autorId: string;
+      programaId: string | null;
+      institucionId?: string | null;
+    },
 
     usuario: UsuarioToken,
 
@@ -1275,7 +1294,10 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      // Documento institucional: basta con ser el autor (no depende de un programa).
+      if (evidencia.programaId) {
+        await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      }
 
       return;
 
@@ -1291,7 +1313,10 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      // Documento institucional: visible para cualquier Revisor (HU-010).
+      if (evidencia.programaId) {
+        await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      }
 
       return;
 
@@ -1377,6 +1402,59 @@ export class DocumentosService {
 
     }
 
+  }
+
+  /**
+   * HU-010: define el propietario de la evidencia según la guía.
+   * - G3/G4 → institución (la indicada o la CUAC). No se aceptan con programa.
+   * - G1/G2 o sin guía → programa asignado al Cargador. No se aceptan con institución.
+   * El Cargador que carga documentos institucionales debe tener al menos un programa
+   * asignado (misma condición que exigía el modelo del programa de referencia).
+   */
+  private async resolverPropietario(
+    dto: CrearEvidenciaDto,
+    codigoGuia: CodigoDocumentoGuia | undefined,
+    usuario: UsuarioToken,
+  ): Promise<
+    | { programa: { connect: { id: string } } }
+    | { institucion: { connect: { id: string } } }
+  > {
+    if (esGuiaInstitucional(codigoGuia)) {
+      if (dto.programaId) {
+        throw new BadRequestException(
+          'Los documentos institucionales (G3 y G4) se asocian a la institución, no a un programa.',
+        );
+      }
+
+      const institucion = dto.institucionId
+        ? await this.instituciones.obtenerPorId(dto.institucionId)
+        : await this.instituciones.obtenerPrincipal();
+
+      if (!this.esSuperAdmin(usuario)) {
+        const asignados = await this.alcance.idsProgramasAsignados(usuario.id);
+        if (asignados.length === 0) {
+          throw new ForbiddenException(
+            'Necesita al menos un programa asignado para cargar documentos institucionales.',
+          );
+        }
+      }
+
+      return { institucion: { connect: { id: institucion.id } } };
+    }
+
+    if (dto.institucionId) {
+      throw new BadRequestException(
+        'Solo los documentos G3 y G4 se asocian a la institución.',
+      );
+    }
+
+    if (!dto.programaId) {
+      throw new BadRequestException('Seleccione el programa del documento.');
+    }
+
+    await this.exigirProgramaAsignado(usuario, dto.programaId);
+
+    return { programa: { connect: { id: dto.programaId } } };
   }
 
   private resolverGuiaEvidencia(evidencia: {

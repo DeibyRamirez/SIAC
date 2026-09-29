@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { factoresSemilla, programasSemilla } from '@/lib/datos-semilla'
 import { periodosConActual } from '@/lib/utilidades/periodo-academico'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { formatearFecha, obtenerNombrePropietario } from '@/lib/utilidades-siac'
 
 interface ParametrosBusqueda {
   q?: string
@@ -44,7 +44,7 @@ export function ContenidoBusqueda({
           evidencia.nombre,
           evidencia.indicador,
           evidencia.factor,
-          obtenerNombrePrograma(evidencia.programaId),
+          obtenerNombrePropietario(evidencia),
         ]
           .join(' ')
           .toLowerCase()
@@ -148,7 +148,7 @@ export function ContenidoBusqueda({
               <thead>
                 <tr className="border-b border-primary/10 bg-primary/5 text-xs font-bold tracking-wide text-primary uppercase">
                   <th className="py-3 pr-4">Documento</th>
-                  <th className="py-3 pr-4">Programa</th>
+                  <th className="py-3 pr-4">Programa / institución</th>
                   <th className="py-3 pr-4">Factor</th>
                   <th className="py-3 pr-4">Periodo</th>
                   <th className="py-3">Estado</th>
@@ -163,7 +163,7 @@ export function ContenidoBusqueda({
                         {formatearFecha(evidencia.fechaCarga)}
                       </p>
                     </td>
-                    <td className="py-3 pr-4">{obtenerNombrePrograma(evidencia.programaId)}</td>
+                    <td className="py-3 pr-4">{obtenerNombrePropietario(evidencia)}</td>
                     <td className="py-3 pr-4">{evidencia.factor}</td>
                     <td className="py-3 pr-4">{evidencia.periodo}</td>
                     <td className="py-3">

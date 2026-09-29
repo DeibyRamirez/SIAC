@@ -9,6 +9,7 @@ import {
   TipoTramitePlantilla,
   CodigoCondicionDocumentoMaestro,
   CodigoDocumentoGuia,
+  TipoTramiteSIAC,
 } from '@prisma/client';
 import { CATALOGO_TRAMITES_SIAC } from '../src/programas/catalogo-tramites-siac';
 import * as bcrypt from 'bcryptjs';
@@ -164,6 +165,21 @@ async function sembrarPlantillasFormatosGuia() {
   }
 }
 
+/** HU-010: registro único de la CUAC (mismo id y datos que la migración 20260929040000). */
+async function sembrarInstitucion() {
+  return prisma.institucion.upsert({
+    where: { sigla: 'CUAC' },
+    update: {},
+    create: {
+      id: 'institucion-cuac',
+      nombre: 'Corporación Universitaria Autónoma del Cauca',
+      sigla: 'CUAC',
+      urlImagen: '/logo-uniautonoma.png',
+      tipoTramiteActivo: TipoTramiteSIAC.RenovacionCondicionesInstitucionales,
+    },
+  });
+}
+
 async function asegurarVinculo(usuarioId: string, programaId: string) {
   await prisma.usuarioPrograma.upsert({
     where: { usuarioId_programaId: { usuarioId, programaId } },
@@ -300,6 +316,7 @@ async function main() {
 
   await sembrarTramitesSIAC();
   await sembrarPlantillasFormatosGuia();
+  const institucion = await sembrarInstitucion();
 
   await prisma.evidencia.upsert({
     where: { id: 'ev-seed-001' },
@@ -591,11 +608,60 @@ async function main() {
     });
   }
 
+  // HU-010: documento maestro institucional (G3) de la CUAC en revisión. No pertenece a
+  // ningún programa: lo ve el Revisor aunque no tenga Ingeniería de Sistemas asignada.
+  const evInstitucionalId = 'ev-seed-maestro-institucional';
+  const rutaInstitucional = `evidencias/2026/${evInstitucionalId}/v1/Documento_Maestro_Institucional_CUAC.docx`;
+  await prisma.evidencia.upsert({
+    where: { id: evInstitucionalId },
+    update: {},
+    create: {
+      id: evInstitucionalId,
+      nombre: 'Documento maestro institucional CUAC 2026',
+      institucionId: institucion.id,
+      periodo: '2026-1',
+      factor: 'CI · Autoevaluación institucional',
+      indicador: 'Condiciones institucionales (Decreto 1330)',
+      estado: EstadoEvidencia.EnRevision,
+      autorId: cargador.id,
+      nombreArchivo: 'Documento_Maestro_Institucional_CUAC.docx',
+      responsable: cargador.nombre,
+      codigoGuia: CodigoDocumentoGuia.G3,
+      rutaArchivo: rutaInstitucional,
+      mimeType: MIME_DOCX,
+      version: 1,
+    },
+  });
+  await prisma.evidenciaVersion.upsert({
+    where: { evidenciaId_numero: { evidenciaId: evInstitucionalId, numero: 1 } },
+    update: {},
+    create: {
+      evidenciaId: evInstitucionalId,
+      numero: 1,
+      nombreArchivo: 'Documento_Maestro_Institucional_CUAC.docx',
+      rutaArchivo: rutaInstitucional,
+      mimeType: MIME_DOCX,
+      subidoPorId: cargador.id,
+    },
+  });
+  await prisma.historialEvidencia.upsert({
+    where: { id: `hist-${evInstitucionalId}-revision` },
+    update: {},
+    create: {
+      id: `hist-${evInstitucionalId}-revision`,
+      evidenciaId: evInstitucionalId,
+      estado: EstadoEvidencia.EnRevision,
+      observacion: 'Enviada a revisión (semilla)',
+      actorId: cargador.id,
+    },
+  });
+
   console.log('Semilla completada:', {
     usuarios: 5,
     programas: programasCreados.length,
-    evidencias: 2 + evidenciasEnRevision.length,
-    enRevision: evidenciasEnRevision.length,
+    instituciones: 1,
+    evidencias: 2 + evidenciasEnRevision.length + (programaIngSw ? 1 : 0) + 1,
+    enRevision: evidenciasEnRevision.length + 1,
   });
 }
 

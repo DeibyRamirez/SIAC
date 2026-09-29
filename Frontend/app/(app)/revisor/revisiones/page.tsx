@@ -136,7 +136,9 @@ function ContenidoMisRevisiones() {
                     className="border-primary/5"
                   >
                     <TableCell className="text-sm">
-                      {fila.programa?.nombre ?? 'Institución'}
+                      {fila.institucion
+                        ? `Institución · ${fila.institucion.sigla}`
+                        : (fila.programa?.nombre ?? '—')}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">

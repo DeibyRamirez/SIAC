@@ -11,9 +11,15 @@ export class CrearEvidenciaDto {
   @IsNotEmpty()
   nombre!: string;
 
+  /** Obligatorio para G1/G2 (y documentos sin guía). No se envía en G3/G4. */
   @IsString()
-  @IsNotEmpty()
-  programaId!: string;
+  @IsOptional()
+  programaId?: string;
+
+  /** HU-010: G3/G4 se asocian a la institución. Si se omite, se usa la CUAC. */
+  @IsString()
+  @IsOptional()
+  institucionId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -78,6 +84,10 @@ export class FiltrosEvidenciaDto {
   @IsString()
   @IsOptional()
   programaId?: string;
+
+  @IsString()
+  @IsOptional()
+  institucionId?: string;
 
   @IsString()
   @IsOptional()

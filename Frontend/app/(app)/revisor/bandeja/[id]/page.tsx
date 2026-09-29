@@ -57,7 +57,7 @@ import {
   etiquetaEstadoEvidencia,
   formatearFecha,
   formatearPuntaje,
-  obtenerNombrePrograma,
+  obtenerNombrePropietario,
 } from '@/lib/utilidades-siac'
 
 export default function DictamenPage() {
@@ -355,8 +355,8 @@ function ContenidoDictamen() {
             />
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+                <p className="text-xs uppercase text-muted-foreground">{evidencia.institucionId ? 'Institución' : 'Programa'}</p>
+                <p>{obtenerNombrePropietario(evidencia)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>

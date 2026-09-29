@@ -73,10 +73,31 @@ export interface Programa {
   conteosEstado?: ConteosEstadoPrograma
 }
 
+/** HU-010: institución dueña de los trámites de condiciones institucionales (G3/G4). */
+export interface Institucion {
+  id: string
+  nombre: string
+  sigla: string
+  urlImagen?: string | null
+  tipoTramiteActivo?: string
+}
+
+/** Resumen del propietario que devuelve la API junto a cada evidencia. */
+export interface ReferenciaInstitucion {
+  id: string
+  nombre: string
+  sigla: string
+}
+
 export interface Evidencia {
   id: string
   nombre: string
-  programaId: string
+  /** Documentos de programa (G1/G2). Null en documentos institucionales. */
+  programaId?: string | null
+  /** Documentos institucionales (G3/G4). Exactamente uno de programaId/institucionId. */
+  institucionId?: string | null
+  programa?: { id: string; nombre: string; codigo?: string } | null
+  institucion?: ReferenciaInstitucion | null
   periodo: string
   factor: string
   indicador: string
