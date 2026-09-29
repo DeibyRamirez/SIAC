@@ -312,6 +312,14 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-09-28 — HU-010 institución en la UI (G3/G4)
+
+- `lib/tipos`: `Institucion`; `Evidencia.programaId` opcional y `institucionId` (exactamente uno de los dos).
+- `lib/servicios/instituciones.servicio.ts`: institución principal y avance institucional.
+- Carga de evidencias: con alcance "Institución" no se pide programa; se muestra la CUAC y se envía `institucionId`.
+- `components/siac/panel-avance-institucional.tsx` en el resumen del Administrador; `DetalleProgresoTramite` compartido con el panel por programa.
+- `obtenerNombrePropietario` en tablas, búsqueda, detalles y "Mis revisiones" ("Institución · CUAC").
+
 ### 2026-09-28 — Alcance por programa en la UI
 
 - [Frontend] Pantalla `/administrador/usuarios`: rol (sin SuperAdmin) y programas asignados.

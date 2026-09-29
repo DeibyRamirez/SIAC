@@ -146,6 +146,22 @@ model Programa {
   usuarioProgramas UsuarioPrograma[]
 }
 
+/// HU-010: institución de educación superior dueña de los trámites de condiciones
+/// institucionales (G3 documento maestro institucional y G4 respaldo institucional).
+/// Hoy hay un único registro (CUAC). Los documentos G3/G4 se asocian aquí y no a un programa.
+/// T-003.3 podrá colgar el catálogo de condiciones por alcance: G1 → Programa, G3 → Institucion.
+model Institucion {
+  id                String          @id @default(cuid())
+  nombre            String          @db.VarChar(200)
+  sigla             String          @unique @db.VarChar(20)
+  urlImagen         String?         @db.VarChar(500)
+  /// Solo trámites de alcance Institucion (restricción CHECK en la migración).
+  tipoTramiteActivo TipoTramiteSIAC @default(RenovacionCondicionesInstitucionales)
+  evidencias        Evidencia[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
 model UsuarioPrograma {
   id         String   @id @default(cuid())
   usuarioId  String
@@ -158,11 +174,15 @@ model UsuarioPrograma {
   @@index([programaId])
 }
 
+/// Propietario: exactamente uno de programaId (G1/G2) o institucionId (G3/G4).
+/// Las restricciones CHECK viven en la migración 20260929040000_entidad_institucion.
 model Evidencia {
   id            String               @id @default(cuid())
   nombre        String               @db.VarChar(300)
-  programaId    String
-  programa      Programa             @relation(fields: [programaId], references: [id])
+  programaId    String?
+  programa      Programa?            @relation(fields: [programaId], references: [id], onDelete: Restrict)
+  institucionId String?
+  institucion   Institucion?         @relation(fields: [institucionId], references: [id], onDelete: Restrict)
   periodo       String               @db.VarChar(100)
   factor        String               @db.VarChar(100)
   indicador     String               @db.VarChar(200)
@@ -195,6 +215,7 @@ model Evidencia {
   updatedAt                DateTime             @updatedAt
 
   @@index([programaId])
+  @@index([institucionId])
   @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])

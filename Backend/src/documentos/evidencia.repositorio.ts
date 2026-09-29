@@ -30,6 +30,8 @@ export interface FiltrosEvidencia {
 
   programaId?: string;
 
+  institucionId?: string;
+
   periodo?: string;
 
   factor?: string;
@@ -78,6 +80,7 @@ export class EvidenciaRepositorio {
 
       include: {
         programa: true,
+        institucion: { select: { id: true, nombre: true, sigla: true } },
         autor: { select: { id: true, nombre: true, correo: true } },
         evaluacionesCondicion: {
           orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
@@ -200,6 +203,8 @@ export class EvidenciaRepositorio {
 
     if (filtros.programaId) where.programaId = filtros.programaId;
 
+    if (filtros.institucionId) where.institucionId = filtros.institucionId;
+
     if (filtros.periodo) where.periodo = filtros.periodo;
 
     if (filtros.factor) where.factor = filtros.factor;
@@ -257,6 +262,8 @@ export class EvidenciaRepositorio {
         include: {
 
           programa: { select: { id: true, nombre: true, codigo: true } },
+
+          institucion: { select: { id: true, nombre: true, sigla: true } },
 
           autor: { select: { id: true, nombre: true, correo: true } },
 
@@ -486,7 +493,17 @@ export class EvidenciaRepositorio {
 
         estado: EstadoEvidencia.EnRevision,
 
-        ...(programaIds ? { evidencia: { programaId: { in: programaIds } } } : {}),
+        // Revisor: programas asignados + documentos institucionales (G3/G4, HU-010).
+        ...(programaIds
+          ? {
+              evidencia: {
+                OR: [
+                  { programaId: { in: programaIds } },
+                  { institucionId: { not: null } },
+                ],
+              },
+            }
+          : {}),
 
       },
 
@@ -499,6 +516,8 @@ export class EvidenciaRepositorio {
           include: {
 
             programa: { select: { id: true, nombre: true } },
+
+            institucion: { select: { id: true, nombre: true, sigla: true } },
 
             autor: { select: { id: true, nombre: true } },
 
@@ -633,6 +652,8 @@ export class EvidenciaRepositorio {
           numeroRevision,
 
           programa: evento.evidencia.programa,
+
+          institucion: evento.evidencia.institucion,
 
           autor: evento.evidencia.autor,
 

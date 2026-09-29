@@ -74,6 +74,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Documentos | `/evidencias` | CRUD, enviar-revisión, dictamen, historial |
 | Plantillas | `/plantillas` | Biblioteca versionada |
 | Programas | `/programas` | Panel semáforo |
+| Instituciones | `/instituciones` | HU-010: institución (CUAC), dueña de G3/G4; `GET principal`, `GET :id/progreso`, `PATCH :id` |
 | Búsqueda | `/busqueda` | Filtros URL + full-text |
 | Aprobacion | `/aprobacion` | Alias deprecado |
 | Vigencias | `/vigencias` | Anexos + cron |
@@ -88,6 +89,8 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 ### Modelo de datos (Prisma)
 
 12 entidades según F-03 §2.2: `Usuario`, `Programa`, `UsuarioPrograma`, `Evidencia`, `HistorialEvidencia`, `Plantilla`, `AnexoVigencia`, `AlertaInApp`, `EtapaAcreditacion`, `CarpetaNormativa`, `DocumentoRequerido`.
+
+**HU-010:** `Institucion` (registro único CUAC, `tipoTramiteActivo` solo institucional). `Evidencia` tiene exactamente un propietario: `programaId` (G1/G2) o `institucionId` (G3/G4), con restricciones CHECK en la migración `20260929040000_entidad_institucion`.
 
 **Enums clave:** `RolUsuario` (incl. `ParAcademico`, `SuperAdmin`), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
 
@@ -388,6 +391,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] `GET /programas` deja de escribir semáforo y porcentaje; conteos por estado en `GET /programas/:id`
 - [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
+- [x] HU-010: entidad `Institucion` (CUAC); G3/G4 ya no dependen de un programa de referencia (Revisor los ve y dictamina sin asignación; el Cargador solo ve los suyos)
 - [ ] Columnas `semaforo` y `porcentajeAvance` siguen en BD hasta T-010.1 (se calculan al leer y se dejan de escribir en el GET)
 - [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
 - [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
@@ -464,6 +468,15 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-09-28 — HU-010 entidad Institución para G3 y G4
+
+- [Backend] Modelo `Institucion` (nombre, sigla única, `urlImagen`, `tipoTramiteActivo`). Migración `20260929040000_entidad_institucion`: crea la tabla, siembra la CUAC (`institucion-cuac`), vuelve opcional `Evidencia.programaId`, agrega `institucionId` y mueve las evidencias G3/G4 del programa de referencia a la institución. Los programas con trámite institucional pasan al trámite de programa equivalente.
+- [Backend] CHECK: exactamente un propietario por evidencia; G1/G2 → programa y G3/G4 → institución; `Programa` e `Institucion` solo con trámites de su alcance.
+- [Backend] Módulo `instituciones` (`GET /instituciones`, `GET /instituciones/principal`, `GET /instituciones/:id`, `GET /instituciones/:id/progreso`, `PATCH /instituciones/:id`). `POST /evidencias` acepta `institucionId` (por defecto la CUAC) para G3/G4 y responde 400 si llega con `programaId`.
+- [Backend] Permisos: el Revisor ve y dictamina G3/G4 sin asignación de programa; el Cargador solo ve los institucionales que él cargó (necesita al menos un programa asignado para cargarlos); Administrador y SuperAdmin sin cambios. El avance institucional se calcula al leer y ya no altera el avance de ninguna carrera.
+- [Backend] `dominio/alcance-guia.ts`: alcance por guía (G1/G2 programa, G3/G4 institución), base para que T-003.3 cuelgue condiciones de G1 al programa y de G3 a la institución.
+- [Frontend] Carga G3/G4 sin selector de programa (muestra la institución); panel "Condiciones institucionales" en el resumen del Administrador; tablas y detalles muestran "Institución · CUAC".
 
 ### 2026-09-28 — HU-003 regla n/9, CI en develop_v2 y relleno de migraciones
 

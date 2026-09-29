@@ -8,6 +8,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { PlantillasModule } from './plantillas/plantillas.module';
 import { ProgramasModule } from './programas/programas.module';
+import { InstitucionesModule } from './instituciones/instituciones.module';
 import { BusquedaModule } from './busqueda/busqueda.module';
 import { AprobacionModule } from './aprobacion/aprobacion.module';
 import { VigenciasModule } from './vigencias/vigencias.module';
@@ -31,6 +32,7 @@ import { MetricasModule } from './metricas/metricas.module';
     DocumentosModule,
     PlantillasModule,
     ProgramasModule,
+    InstitucionesModule,
     BusquedaModule,
     AprobacionModule,
     VigenciasModule,

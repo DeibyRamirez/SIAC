@@ -126,6 +126,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             id: e.id,
             nombre: e.nombre,
             programaId: e.programaId,
+            institucionId: e.institucionId,
+            programa: e.programa,
+            institucion: e.institucion,
             periodo: e.periodo,
             factor: e.factor,
             indicador: e.indicador,
@@ -196,7 +199,12 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       if (apiDisponible() && archivo) {
         const formData = new FormData()
         formData.append('nombre', evidencia.nombre)
-        formData.append('programaId', evidencia.programaId)
+        // HU-010: G3/G4 van a la institución; G1/G2 a un programa (exactamente uno).
+        if (evidencia.institucionId) {
+          formData.append('institucionId', evidencia.institucionId)
+        } else if (evidencia.programaId) {
+          formData.append('programaId', evidencia.programaId)
+        }
         formData.append('periodo', evidencia.periodo)
         formData.append('factor', evidencia.factor)
         formData.append('indicador', evidencia.indicador)
@@ -212,6 +220,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
           id: creada.id,
           nombre: creada.nombre,
           programaId: creada.programaId,
+          institucionId: creada.institucionId,
+          programa: creada.programa,
+          institucion: creada.institucion,
           periodo: creada.periodo,
           factor: creada.factor,
           indicador: creada.indicador,

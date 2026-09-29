@@ -12,6 +12,7 @@ export interface RespuestaPaginada<T> {
 
 export interface FiltrosEvidenciaApi {
   programaId?: string;
+  institucionId?: string;
   periodo?: string;
   factor?: string;
   indicador?: string;
@@ -187,7 +188,9 @@ export interface FilaRevisionRevisorApi {
   totalCondiciones?: number | null
   ultimoDictamenEstado?: EstadoEvidencia | null
   ultimoDictamenFecha?: string | null
-  programa?: { id: string; nombre: string }
+  programa?: { id: string; nombre: string } | null
+  /** HU-010: documentos G3/G4 de la institución. */
+  institucion?: { id: string; nombre: string; sigla: string } | null
   autor?: { id: string; nombre: string }
 }
 

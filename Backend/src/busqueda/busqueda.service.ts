@@ -75,6 +75,7 @@ export class BusquedaService {
         where: whereFinal,
         include: {
           programa: { select: { id: true, nombre: true, codigo: true } },
+          institucion: { select: { id: true, nombre: true, sigla: true } },
           autor: { select: { id: true, nombre: true } },
         },
         orderBy: { fechaCarga: 'desc' },
@@ -114,7 +115,14 @@ export class BusquedaService {
             },
           ],
         },
-        select: { id: true, nombre: true, nombreArchivo: true, estado: true, programaId: true },
+        select: {
+          id: true,
+          nombre: true,
+          nombreArchivo: true,
+          estado: true,
+          programaId: true,
+          institucionId: true,
+        },
         take: limite,
         orderBy: { fechaCarga: 'desc' },
       }),

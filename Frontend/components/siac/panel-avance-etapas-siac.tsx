@@ -79,10 +79,6 @@ export function PanelAvanceEtapasSIAC({
   progreso,
   cargando,
 }: PanelAvanceEtapasSIACProps) {
-  const tramiteNombre = progreso
-    ? CATALOGO_TRAMITES_SIAC.find((t) => t.tipo === progreso.tipoTramite)?.nombre
-    : null
-
   return (
     <Card className="tarjeta-institucional">
       <CardHeader className="pb-3">
@@ -126,70 +122,91 @@ export function PanelAvanceEtapasSIAC({
         )}
 
         {programaId && progreso && !cargando && (
-          <>
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <p className="text-sm font-medium text-primary">
-                Trámite: <span className="font-bold">{tramiteNombre}</span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {progreso.documentosAceptados} de {progreso.documentosTotal} documentos
-                aceptados ({progreso.avanceGlobal}% de avance global).
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Cada documento guía aporta un peso igual al 100% del trámite. El porcentaje
-                interno refleja la revisión del revisor (condiciones del documento maestro).
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {progreso.documentos.map((doc) => {
-                const estado = estadoDocumento(doc)
-                return (
-                  <div
-                    key={doc.codigoGuia}
-                    className={`space-y-2 rounded-lg border p-4 ${
-                      estado === 'EnProgreso' || estado === 'ConObservaciones'
-                        ? 'border-cyan-tecnico/40 bg-cyan-tecnico/5'
-                        : estado === 'Completada'
-                          ? 'border-esmeralda/30 bg-esmeralda/5'
-                          : 'border-border bg-muted/20 opacity-75'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <IconoEstado estado={estado} />
-                        <p className="truncate text-sm font-semibold text-primary">
-                          {doc.codigoGuia}: {doc.nombre}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {doc.puntaje !== null &&
-                          doc.puntaje !== undefined &&
-                          doc.totalCondiciones && (
-                            <Badge variant="secondary">
-                              {doc.puntaje}/{doc.totalCondiciones}
-                            </Badge>
-                          )}
-                        <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
-                      </div>
-                    </div>
-                    <Progress value={doc.aportacion}>
-                      <ProgressLabel className="text-xs text-muted-foreground">
-                        Aportación al proceso ({doc.peso}% peso · {doc.porcentajeInterno}%
-                        interno)
-                      </ProgressLabel>
-                      <ProgressValue />
-                    </Progress>
-                    <p className="text-xs text-muted-foreground">
-                      Aporta {doc.aportacion}% al avance global del programa
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </>
+          <DetalleProgresoTramite progreso={progreso} ambito="programa" />
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * Resumen del trámite y avance por guía. Lo comparten el panel por programa (G1/G2) y el
+ * panel institucional (G3/G4, HU-010).
+ */
+export function DetalleProgresoTramite({
+  progreso,
+  ambito,
+}: {
+  progreso: ProgresoProcesoSIAC
+  ambito: 'programa' | 'institucion'
+}) {
+  const tramiteNombre = CATALOGO_TRAMITES_SIAC.find(
+    (t) => t.tipo === progreso.tipoTramite,
+  )?.nombre
+
+  return (
+    <>
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <p className="text-sm font-medium text-primary">
+          Trámite: <span className="font-bold">{tramiteNombre}</span>
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {progreso.documentosAceptados} de {progreso.documentosTotal} documentos
+          aceptados ({progreso.avanceGlobal}% de avance global).
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Cada documento guía aporta un peso igual al 100% del trámite. El porcentaje
+          interno refleja la revisión del revisor (condiciones del documento maestro).
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {progreso.documentos.map((doc) => {
+          const estado = estadoDocumento(doc)
+          return (
+            <div
+              key={doc.codigoGuia}
+              className={`space-y-2 rounded-lg border p-4 ${
+                estado === 'EnProgreso' || estado === 'ConObservaciones'
+                  ? 'border-cyan-tecnico/40 bg-cyan-tecnico/5'
+                  : estado === 'Completada'
+                    ? 'border-esmeralda/30 bg-esmeralda/5'
+                    : 'border-border bg-muted/20 opacity-75'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <IconoEstado estado={estado} />
+                  <p className="truncate text-sm font-semibold text-primary">
+                    {doc.codigoGuia}: {doc.nombre}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {doc.puntaje !== null &&
+                    doc.puntaje !== undefined &&
+                    doc.totalCondiciones && (
+                      <Badge variant="secondary">
+                        {doc.puntaje}/{doc.totalCondiciones}
+                      </Badge>
+                    )}
+                  <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
+                </div>
+              </div>
+              <Progress value={doc.aportacion}>
+                <ProgressLabel className="text-xs text-muted-foreground">
+                  Aportación al proceso ({doc.peso}% peso · {doc.porcentajeInterno}%
+                  interno)
+                </ProgressLabel>
+                <ProgressValue />
+              </Progress>
+              <p className="text-xs text-muted-foreground">
+                Aporta {doc.aportacion}% al avance global{' '}
+                {ambito === 'programa' ? 'del programa' : 'de la institución'}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }

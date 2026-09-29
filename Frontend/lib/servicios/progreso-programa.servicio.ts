@@ -21,7 +21,10 @@ export interface DocumentoProgresoSIAC {
 }
 
 export interface ProgresoProcesoSIAC {
-  programaId: string
+  /** Trámite de programa (G1/G2). */
+  programaId?: string
+  /** Trámite institucional (G3/G4, HU-010). */
+  institucionId?: string
   tipoTramite: TipoTramiteSIAC
   avanceGlobal: number
   documentosAceptados: number

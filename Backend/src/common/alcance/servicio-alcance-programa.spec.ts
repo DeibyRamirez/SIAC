@@ -25,21 +25,21 @@ describe('construirFiltroVisibilidad', () => {
     });
   });
 
-  it('el cargador solo ve lo suyo dentro de sus programas', () => {
+  it('el cargador solo ve lo suyo: de sus programas o institucional (HU-010)', () => {
     expect(
       construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, ['prog-1']),
     ).toEqual({
       autorId: 'car',
-      programaId: { in: ['prog-1'] },
+      OR: [{ programaId: { in: ['prog-1'] } }, { institucionId: { not: null } }],
     });
   });
 
-  it('el revisor solo ve documentos no borrador de sus programas', () => {
+  it('el revisor ve documentos no borrador de sus programas y los institucionales', () => {
     expect(
       construirFiltroVisibilidad({ id: 'rev', rol: RolUsuario.Revisor }, ['prog-2']),
     ).toEqual({
-      programaId: { in: ['prog-2'] },
       estado: { not: EstadoEvidencia.Borrador },
+      OR: [{ programaId: { in: ['prog-2'] } }, { institucionId: { not: null } }],
     });
   });
 });

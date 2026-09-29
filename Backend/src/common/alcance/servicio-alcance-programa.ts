@@ -80,17 +80,24 @@ export function construirFiltroVisibilidad(
     };
   }
 
+  // HU-010: los documentos institucionales (G3/G4) no pertenecen a ningún programa.
+  // El Cargador solo ve los que él mismo cargó; el Revisor ve todos los que no son borrador.
+  const propietarioVisible: Prisma.EvidenciaWhereInput[] = [
+    { programaId: { in: programasAsignados } },
+    { institucionId: { not: null } },
+  ];
+
   if (usuario.rol === RolUsuario.Cargador) {
     return {
       autorId: usuario.id,
-      programaId: { in: programasAsignados },
+      OR: propietarioVisible,
     };
   }
 
   if (usuario.rol === RolUsuario.Revisor) {
     return {
-      programaId: { in: programasAsignados },
       estado: { not: EstadoEvidencia.Borrador },
+      OR: propietarioVisible,
     };
   }
 

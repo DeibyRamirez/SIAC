@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia, Prisma, TipoTramiteSIAC } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 
@@ -23,13 +23,33 @@ export interface DocumentoProgresoSIAC {
 }
 
 export interface ProgresoProcesoSIAC {
-  programaId: string;
+  /** Presente cuando el trámite es de un programa (G1/G2). */
+  programaId?: string;
+  /** Presente cuando el trámite es de la institución (G3/G4). */
+  institucionId?: string;
   tipoTramite: TipoTramiteSIAC;
   avanceGlobal: number;
   documentosAceptados: number;
   documentosTotal: number;
   documentos: DocumentoProgresoSIAC[];
 }
+
+interface EvidenciaParaProgreso {
+  documentoRequeridoId: string | null;
+  codigoGuia: CodigoDocumentoGuia | null;
+  estado: EstadoEvidencia;
+  puntajeActual: number | null;
+  totalCondicionesActual: number | null;
+}
+
+const SELECCION_EVIDENCIA_PROGRESO = {
+  documentoRequeridoId: true,
+  codigoGuia: true,
+  estado: true,
+  puntajeActual: true,
+  totalCondicionesActual: true,
+  updatedAt: true,
+} satisfies Prisma.EvidenciaSelect;
 
 @Injectable()
 export class AvanceProcesoSIACService {
@@ -39,7 +59,38 @@ export class AvanceProcesoSIACService {
     const programa = await this.prisma.programa.findUnique({ where: { id: programaId } });
     if (!programa) throw new NotFoundException('Programa no encontrado.');
 
-    const tramite = tramitePorTipo(programa.tipoTramiteActivo);
+    const evidencias = await this.prisma.evidencia.findMany({
+      where: { programaId },
+      select: SELECCION_EVIDENCIA_PROGRESO,
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const progreso = await this.construirProgreso(programa.tipoTramiteActivo, evidencias);
+    return { programaId, ...progreso };
+  }
+
+  /** HU-010: avance del trámite institucional (G3/G4), sin atribuirlo a ninguna carrera. */
+  async calcularProgresoInstitucion(institucionId: string): Promise<ProgresoProcesoSIAC> {
+    const institucion = await this.prisma.institucion.findUnique({
+      where: { id: institucionId },
+    });
+    if (!institucion) throw new NotFoundException('Institución no encontrada.');
+
+    const evidencias = await this.prisma.evidencia.findMany({
+      where: { institucionId },
+      select: SELECCION_EVIDENCIA_PROGRESO,
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const progreso = await this.construirProgreso(institucion.tipoTramiteActivo, evidencias);
+    return { institucionId, ...progreso };
+  }
+
+  private async construirProgreso(
+    tipoTramite: TipoTramiteSIAC,
+    evidencias: EvidenciaParaProgreso[],
+  ): Promise<Omit<ProgresoProcesoSIAC, 'programaId' | 'institucionId'>> {
+    const tramite = tramitePorTipo(tipoTramite);
     const pesoDocumento = tramite.documentosGuia.length > 0
       ? 100 / tramite.documentosGuia.length
       : 0;
@@ -49,20 +100,7 @@ export class AvanceProcesoSIACService {
         codigoGuia: { in: tramite.documentosGuia },
         obligatorio: true,
       },
-    });
-
-    const evidencias = await this.prisma.evidencia.findMany({
-      where: { programaId },
-      select: {
-        documentoRequeridoId: true,
-        codigoGuia: true,
-        estado: true,
-        puntajeActual: true,
-        totalCondicionesActual: true,
-        updatedAt: true,
-        documentoRequerido: { select: { codigoGuia: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
+      select: { id: true, codigoGuia: true },
     });
 
     const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((codigoGuia) => {
@@ -98,8 +136,7 @@ export class AvanceProcesoSIACService {
     const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
 
     return {
-      programaId,
-      tipoTramite: programa.tipoTramiteActivo,
+      tipoTramite,
       avanceGlobal,
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
