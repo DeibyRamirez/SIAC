@@ -1,9 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+
+import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.module';
 
 import { Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
 
+
+
+export interface ComentarioVersionPersistido {
+
+  hunkId?: string;
+
+  anchor?: string;
+
+  quote?: string;
+
+  texto: string;
+
+  autor?: string;
+
+}
 
 
 export interface FiltrosEvidencia {
@@ -35,6 +52,8 @@ export interface FiltrosEvidencia {
 @Injectable()
 
 export class EvidenciaRepositorio {
+
+  private readonly logger = new Logger(EvidenciaRepositorio.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -345,6 +364,212 @@ export class EvidenciaRepositorio {
     return this.prisma.evidenciaVersion.findUnique({
 
       where: { evidenciaId_numero: { evidenciaId, numero } },
+
+    });
+
+  }
+
+
+
+  buscarPrograma(id: string) {
+
+    return this.prisma.programa.findUnique({
+
+      where: { id },
+
+      select: { id: true },
+
+    });
+
+  }
+
+
+
+  buscarDocumentoRequerido(id: string) {
+
+    return this.prisma.documentoRequerido.findUnique({
+
+      where: { id },
+
+      select: { id: true },
+
+    });
+
+  }
+
+
+
+  async guardarComentariosVersion(
+
+    evidenciaId: string,
+
+    numeroVersion: number,
+
+    revisorId: string | null,
+
+    comentarios: ComentarioVersionPersistido[],
+
+  ): Promise<void> {
+
+    await this.prisma.$transaction(async (tx) => {
+
+      await tx.$executeRawUnsafe(
+
+        `DELETE FROM "EvidenciaComentario" WHERE "evidenciaId" = $1 AND "numeroVersion" = $2`,
+
+        evidenciaId,
+
+        numeroVersion,
+
+      );
+
+      for (const comentario of comentarios) {
+
+        await tx.$executeRawUnsafe(
+
+          `INSERT INTO "EvidenciaComentario" ("id","evidenciaId","numeroVersion","revisorId","autor","hunkId","anchor","quote","texto")
+
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+
+          randomUUID(),
+
+          evidenciaId,
+
+          numeroVersion,
+
+          revisorId,
+
+          comentario.autor ?? null,
+
+          comentario.hunkId ?? null,
+
+          comentario.anchor ?? null,
+
+          comentario.quote ?? null,
+
+          comentario.texto,
+
+        );
+
+      }
+
+    });
+
+  }
+
+
+
+  async listarComentariosVersion(
+
+    evidenciaId: string,
+
+    numeroVersion: number,
+
+  ): Promise<ComentarioVersionPersistido[]> {
+
+    return this.listarComentariosRango(evidenciaId, numeroVersion, numeroVersion);
+
+  }
+
+
+
+  /** Comentarios de TODAS las versiones <= numeroVersion (acumulativos). */
+
+  async listarComentariosHastaVersion(
+
+    evidenciaId: string,
+
+    numeroVersion: number,
+
+  ): Promise<ComentarioVersionPersistido[]> {
+
+    return this.listarComentariosRango(evidenciaId, 1, numeroVersion);
+
+  }
+
+
+
+  private async listarComentariosRango(
+
+    evidenciaId: string,
+
+    desde: number,
+
+    hasta: number,
+
+  ): Promise<ComentarioVersionPersistido[]> {
+
+    try {
+
+      const filas = await this.prisma.$queryRawUnsafe<
+
+        {
+
+          hunkId: string | null;
+
+          anchor: string | null;
+
+          quote: string | null;
+
+          texto: string;
+
+          autor: string | null;
+
+        }[]
+
+      >(
+
+        `SELECT "hunkId","anchor","quote","texto","autor" FROM "EvidenciaComentario"
+
+         WHERE "evidenciaId" = $1 AND "numeroVersion" >= $2 AND "numeroVersion" <= $3
+
+         ORDER BY "numeroVersion" ASC, "createdAt" ASC`,
+
+        evidenciaId,
+
+        desde,
+
+        hasta,
+
+      );
+
+      return filas.map((fila) => ({
+
+        hunkId: fila.hunkId ?? undefined,
+
+        anchor: fila.anchor ?? undefined,
+
+        quote: fila.quote ?? undefined,
+
+        texto: fila.texto,
+
+        autor: fila.autor ?? undefined,
+
+      }));
+
+    } catch (err) {
+
+      this.logger.warn(
+
+        `No se pudieron leer comentarios de ${evidenciaId} v${desde}..v${hasta} (¿falta tabla/columna? Ejecute pnpm prisma:repair-schema): ${err instanceof Error ? err.message : err}`,
+
+      );
+
+      return [];
+
+    }
+
+  }
+
+
+
+  buscarUsuarioNombre(id: string) {
+
+    return this.prisma.usuario.findUnique({
+
+      where: { id },
+
+      select: { nombre: true },
 
     });
 

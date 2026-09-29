@@ -8,6 +8,8 @@ import {
 
   BadRequestException,
 
+  Logger,
+
 } from '@nestjs/common';
 
 import { RolUsuario, EstadoEvidencia } from '@prisma/client';
@@ -62,6 +64,8 @@ interface UsuarioToken {
 
 export class DocumentosService {
 
+  private readonly logger = new Logger(DocumentosService.name);
+
   constructor(
 
     private readonly evidenciaRepo: EvidenciaRepositorio,
@@ -89,6 +93,38 @@ export class DocumentosService {
   ) {
 
     this.validarArchivo(archivo);
+
+
+
+    const programa = await this.evidenciaRepo.buscarPrograma(dto.programaId);
+
+    if (!programa) {
+
+      throw new BadRequestException(
+
+        'El programa seleccionado no existe. Actualice la lista de programas y vuelva a intentarlo.',
+
+      );
+
+    }
+
+
+
+    if (dto.documentoRequeridoId) {
+
+      const documento = await this.evidenciaRepo.buscarDocumentoRequerido(
+
+        dto.documentoRequeridoId,
+
+      );
+
+      if (!documento) {
+
+        throw new BadRequestException('El documento requerido no existe.');
+
+      }
+
+    }
 
 
 
@@ -238,6 +274,8 @@ export class DocumentosService {
 
     const filtrosAplicados = { ...filtros };
 
+    filtrosAplicados.estado = this.normalizarEstadoFiltro(filtros.estado);
+
 
 
     if (this.esSuperAdmin(usuario)) {
@@ -356,23 +394,11 @@ export class DocumentosService {
 
     if (versionRegistro?.firmaDescarga) {
 
-      const evaluaciones = await this.evidenciaRepo.listarEvaluacionesCondicion(id);
-
-      const etiquetasZona = evaluaciones
-
-        .filter((e) => !e.cumple)
-
-        .map((e) => etiquetaCondicion(e.codigoCondicion));
-
-      await this.docx.validarFirmaYDiff(
+      await this.docx.validarFirmaSubida(
 
         archivo.buffer,
 
         versionRegistro.firmaDescarga,
-
-        versionRegistro.textoBaseAuditoria,
-
-        etiquetasZona,
 
       );
 
@@ -798,6 +824,76 @@ export class DocumentosService {
 
 
 
+    observacionesResumen = this.combinarComentariosInline(
+
+      observacionesResumen,
+
+      dto.comentariosInline,
+
+    );
+
+
+
+    if (estadoFinal === EstadoEvidencia.Rechazado && dto.comentariosInline?.length) {
+
+      const usuarioRevisor = await this.evidenciaRepo
+
+        .buscarUsuarioNombre(revisor.id)
+
+        .catch(() => null);
+
+      const autor = usuarioRevisor?.nombre?.trim() || 'Revisor SIAC';
+
+      const comentariosPersistir = dto.comentariosInline
+
+        .filter((c) => c.texto?.trim())
+
+        .map((c) => ({
+
+          hunkId: c.hunkId?.trim() || undefined,
+
+          anchor: c.anchor?.trim() || undefined,
+
+          quote: c.quote?.trim() || c.cita?.trim() || undefined,
+
+          texto: c.texto.trim(),
+
+          autor,
+
+        }));
+
+      if (comentariosPersistir.length > 0) {
+
+        try {
+
+          await this.evidenciaRepo.guardarComentariosVersion(
+
+            id,
+
+            evidencia.version ?? 1,
+
+            revisor.id,
+
+            comentariosPersistir,
+
+          );
+
+        } catch (err) {
+
+          this.logger.error(
+
+            `No se pudieron persistir ${comentariosPersistir.length} comentarios de evidencia ${id} v${evidencia.version ?? 1}. Ejecute pnpm prisma:repair-schema. Detalle: ${err instanceof Error ? err.message : err}`,
+
+          );
+
+        }
+
+      }
+
+    }
+
+
+
     const actualizada = await this.evidenciaRepo.actualizar(id, {
 
       estado: estadoFinal,
@@ -1038,6 +1134,98 @@ export class DocumentosService {
 
 
 
+  async compararVersiones(
+
+    id: string,
+
+    versionA: number,
+
+    versionB: number,
+
+    usuario: UsuarioToken,
+
+  ) {
+
+    await this.obtenerPorId(id, usuario);
+
+
+
+    if (
+
+      !Number.isInteger(versionA) ||
+
+      !Number.isInteger(versionB) ||
+
+      versionA < 1 ||
+
+      versionB < 1
+
+    ) {
+
+      throw new BadRequestException(
+
+        'Las versiones a comparar deben ser números enteros positivos.',
+
+      );
+
+    }
+
+    if (versionA === versionB) {
+
+      throw new BadRequestException(
+
+        'Seleccione dos versiones diferentes para comparar.',
+
+      );
+
+    }
+
+
+
+    const [registroA, registroB] = await Promise.all([
+
+      this.evidenciaRepo.buscarVersion(id, versionA),
+
+      this.evidenciaRepo.buscarVersion(id, versionB),
+
+    ]);
+
+    if (!registroA) throw new NotFoundException(`Versión ${versionA} no encontrada.`);
+
+    if (!registroB) throw new NotFoundException(`Versión ${versionB} no encontrada.`);
+
+
+
+    const [bufferA, bufferB] = await Promise.all([
+
+      this.almacenamiento.obtenerBuffer(registroA.rutaArchivo, 'evidencias'),
+
+      this.almacenamiento.obtenerBuffer(registroB.rutaArchivo, 'evidencias'),
+
+    ]);
+
+
+
+    const diff = await this.docx.compararVersiones(bufferA, bufferB);
+
+    return {
+
+      ...diff,
+
+      versionA,
+
+      versionB,
+
+      nombreArchivoA: registroA.nombreArchivo,
+
+      nombreArchivoB: registroB.nombreArchivo,
+
+    };
+
+  }
+
+
+
   async obtenerUrlDescarga(id: string, usuario: UsuarioToken, version?: number) {
 
     const evidencia = await this.obtenerPorId(id, usuario);
@@ -1090,6 +1278,8 @@ export class DocumentosService {
 
     let nombreArchivo = evidencia.nombreArchivo;
 
+    let numeroVersion = evidencia.version ?? 1;
+
     let mimeType =
 
       evidencia.mimeType ??
@@ -1112,6 +1302,8 @@ export class DocumentosService {
 
       nombreArchivo = versionRegistro.nombreArchivo;
 
+      numeroVersion = versionRegistro.numero;
+
       mimeType =
 
         versionRegistro.mimeType ??
@@ -1130,13 +1322,153 @@ export class DocumentosService {
 
 
 
-    const buffer = await this.almacenamiento.obtenerBuffer(rutaArchivo, 'evidencias');
+    let buffer = await this.almacenamiento.obtenerBuffer(rutaArchivo, 'evidencias');
+
+
+
+    const comentarios = await this.evidenciaRepo.listarComentariosHastaVersion(
+
+      id,
+
+      numeroVersion,
+
+    );
+
+    if (comentarios.length > 0) {
+
+      try {
+
+        const resultado = await this.docx.inyectarComentariosWord(
+
+          buffer,
+
+          comentarios.map((c) => ({
+
+            quote: c.quote ?? '',
+
+            body: c.texto,
+
+            autor: c.autor,
+
+          })),
+
+        );
+
+        buffer = resultado.buffer;
+
+        if (resultado.inyectados === 0) {
+
+          this.logger.error(
+
+            `Comentarios de evidencia ${id} v<=${numeroVersion}: 0 de ${comentarios.length} anclados (${resultado.omitidos} omitidos).`,
+
+          );
+
+          throw new BadRequestException(
+
+            'No se pudieron anclar los comentarios del revisor en el documento. Intente de nuevo o contacte al administrador.',
+
+          );
+
+        }
+
+        if (resultado.omitidos > 0) {
+
+          this.logger.warn(
+
+            `Comentarios de evidencia ${id} v<=${numeroVersion}: ${resultado.omitidos} omitidos por cita sin coincidencia.`,
+
+          );
+
+        }
+
+      } catch (err) {
+
+        if (err instanceof BadRequestException) throw err;
+
+        this.logger.error(
+
+          `No se pudieron inyectar comentarios en evidencia ${id} v<=${numeroVersion}: ${err instanceof Error ? err.message : err}`,
+
+        );
+
+        throw new BadRequestException(
+
+          'No se pudo preparar el documento con los comentarios del revisor. Intente de nuevo o contacte al administrador.',
+
+        );
+
+      }
+
+    }
+
+
+
+    const firmaDescarga = this.docx.generarValorFirma(id, numeroVersion);
+
+    try {
+
+      buffer = await this.docx.firmarDescarga(buffer, firmaDescarga);
+
+      await this.evidenciaRepo.actualizarVersion(id, numeroVersion, {
+
+        firmaDescarga,
+
+      });
+
+    } catch (err) {
+
+      this.logger.warn(
+
+        `No se pudo firmar la descarga de evidencia ${id} v${numeroVersion}: ${err instanceof Error ? err.message : err}`,
+
+      );
+
+    }
+
+
 
     return { buffer, nombreArchivo, mimeType };
 
   }
 
 
+
+  async listarComentarios(id: string, usuario: UsuarioToken, version?: number) {
+
+    const evidencia = await this.obtenerPorId(id, usuario);
+
+    const numeroVersion = version ?? evidencia.version ?? 1;
+
+    return this.evidenciaRepo.listarComentariosVersion(id, numeroVersion);
+
+  }
+
+
+
+  private normalizarEstadoFiltro(
+    estado: FiltrosEvidencia['estado'] | string | undefined,
+  ): EstadoEvidencia | undefined {
+    if (!estado) return undefined;
+    const mapa: Record<string, EstadoEvidencia> = {
+      Borrador: EstadoEvidencia.Borrador,
+      EnRevision: EstadoEvidencia.EnRevision,
+      Validado: EstadoEvidencia.Validado,
+      Rechazado: EstadoEvidencia.Rechazado,
+      Cumple: EstadoEvidencia.Validado,
+      Aprobado: EstadoEvidencia.Validado,
+      Validada: EstadoEvidencia.Validado,
+      ConObservaciones: EstadoEvidencia.Rechazado,
+      NoCumple: EstadoEvidencia.Rechazado,
+      EnCorreccion: EstadoEvidencia.Rechazado,
+      Correccion: EstadoEvidencia.Rechazado,
+      Rechazada: EstadoEvidencia.Rechazado,
+      Pendiente: EstadoEvidencia.EnRevision,
+      EnProceso: EstadoEvidencia.EnRevision,
+      'EnRevisión': EstadoEvidencia.EnRevision,
+    };
+    return mapa[estado];
+  }
 
   private validarArchivo(archivo: Express.Multer.File) {
 
@@ -1156,11 +1488,27 @@ export class DocumentosService {
 
     if (!TIPOS_PERMITIDOS.includes(archivo.mimetype)) {
 
-      throw new BadRequestException(
+      const mime = (archivo.mimetype ?? '').toLowerCase();
 
-        'Formato no válido. Suba un archivo .docx de Microsoft Word.',
+      const mimeAceptado =
 
-      );
+        mime === '' ||
+
+        mime === 'application/octet-stream' ||
+
+        mime === 'application/zip' ||
+
+        mime === 'application/x-zip-compressed';
+
+      if (!mimeAceptado) {
+
+        throw new BadRequestException(
+
+          'Formato no válido. Suba un archivo .docx de Microsoft Word.',
+
+        );
+
+      }
 
     }
 
@@ -1245,6 +1593,38 @@ export class DocumentosService {
       throw new ForbiddenException('No tiene permiso para editar evidencias.');
 
     }
+
+  }
+
+
+
+  private combinarComentariosInline(
+
+    observaciones: string | null | undefined,
+
+    comentarios?: DictaminarDto['comentariosInline'],
+
+  ): string | undefined {
+
+    const validos = (comentarios ?? []).filter((c) => c.texto?.trim());
+
+    if (validos.length === 0) return observaciones ?? undefined;
+
+    const bloque = [
+
+      'Comentarios sobre el documento:',
+
+      ...validos.map((comentario) => {
+
+        const cita = comentario.quote?.trim() || comentario.cita?.trim();
+
+        return `• ${cita ? `«${cita}» — ` : ''}${comentario.texto.trim()}`;
+
+      }),
+
+    ].join('\n');
+
+    return observaciones?.trim() ? `${observaciones}\n\n${bloque}` : bloque;
 
   }
 

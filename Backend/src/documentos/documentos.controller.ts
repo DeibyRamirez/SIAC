@@ -76,6 +76,21 @@ export class DocumentosController {
     return this.documentosService.listarVersiones(id, req.user);
   }
 
+  @Get(':id/versiones/:a/diff/:b')
+  compararVersiones(
+    @Param('id') id: string,
+    @Param('a') a: string,
+    @Param('b') b: string,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.compararVersiones(
+      id,
+      parseInt(a, 10),
+      parseInt(b, 10),
+      req.user,
+    );
+  }
+
   @Get(':id/descargar')
   descargar(
     @Param('id') id: string,
@@ -112,6 +127,16 @@ export class DocumentosController {
     @Request() req: { user: { id: string; rol: RolUsuario } },
   ) {
     return this.documentosService.obtenerHistorial(id, req.user);
+  }
+
+  @Get(':id/comentarios')
+  comentarios(
+    @Param('id') id: string,
+    @Query('version') version: string,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    const numeroVersion = version ? parseInt(version, 10) : undefined;
+    return this.documentosService.listarComentarios(id, req.user, numeroVersion);
   }
 
   @Get(':id/evaluaciones-condicion')

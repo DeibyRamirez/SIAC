@@ -24,6 +24,31 @@ export class CondicionDictamenDto {
   observacion?: string;
 }
 
+export class ComentarioInlineDto {
+  @IsString()
+  @IsOptional()
+  hunkId?: string;
+
+  @IsString()
+  @IsOptional()
+  anchor?: string;
+
+  @IsString()
+  @IsOptional()
+  quote?: string;
+
+  @IsString()
+  @IsOptional()
+  cita?: string;
+
+  @IsString()
+  texto!: string;
+
+  @IsString()
+  @IsOptional()
+  createdAt?: string;
+}
+
 export class DictaminarDto {
   @IsEnum(EstadoEvidencia)
   @IsOptional()
@@ -38,4 +63,10 @@ export class DictaminarDto {
   @Type(() => CondicionDictamenDto)
   @IsOptional()
   condiciones?: CondicionDictamenDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ComentarioInlineDto)
+  @IsOptional()
+  comentariosInline?: ComentarioInlineDto[];
 }
