@@ -942,21 +942,119 @@ export class ServicioManipulacionDocx {
         }
       }
     }
-    return null;
+    return this.marcarCitaEntreParrafos(xml, quote, id);
   }
 
   /** Variantes estables para citas largas: completa y recortes por palabra. */
   private variantesCita(quote: string): string[] {
     const variantes = [quote];
-    for (const limite of [90, 60, 40, 24]) {
+    for (const limite of [90, 60, 40, 24, 12]) {
       if (quote.length <= limite) continue;
       const recorte = quote.slice(0, limite);
       const ultimaPalabra = recorte.lastIndexOf(' ');
-      if (ultimaPalabra > 12) {
+      if (ultimaPalabra > 2) {
         variantes.push(recorte.slice(0, ultimaPalabra).trim());
       }
     }
-    return [...new Set(variantes.filter((v) => v.length >= 8))];
+    return [...new Set(variantes.filter((v) => v.length >= 2))];
+  }
+
+  /**
+   * Ancla comentarios cuya cita cruza párrafos (selecciones del preview que
+   * concatenan bloques sin separador) insertando commentRangeStart/End en los
+   * runs de inicio y fin. Word admite rangos de comentario multi-párrafo.
+   */
+  private marcarCitaEntreParrafos(
+    xml: string,
+    quote: string,
+    id: number,
+  ): string | null {
+    const cita = this.normalizarTexto(quote);
+    if (cita.length < 2) return null;
+
+    const patronParrafo = /<w:p\b[^>]*>[\s\S]*?<\/w:p>|<w:p\b[^>]*\/>/g;
+    const parrafos: {
+      inicio: number;
+      runs: { inicio: number; fin: number; texto: string }[];
+    }[] = [];
+    let coincidencia: RegExpExecArray | null;
+    while ((coincidencia = patronParrafo.exec(xml)) !== null) {
+      const parrafoXml = coincidencia[0];
+      const runs: { inicio: number; fin: number; texto: string }[] = [];
+      const patronRun = /<w:r\b[^>]*>[\s\S]*?<\/w:r>|<w:r\b[^>]*\/>/g;
+      let coincidenciaRun: RegExpExecArray | null;
+      while ((coincidenciaRun = patronRun.exec(parrafoXml)) !== null) {
+        runs.push({
+          inicio: coincidenciaRun.index,
+          fin: coincidenciaRun.index + coincidenciaRun[0].length,
+          texto: this.textoCrudoDeRun(coincidenciaRun[0]),
+        });
+      }
+      if (runs.length > 0) {
+        parrafos.push({ inicio: coincidencia.index, runs });
+      }
+    }
+    if (parrafos.length < 2) return null;
+
+    const textos = parrafos.map((p) => p.runs.map((r) => r.texto).join(''));
+
+    for (const separador of ['', ' ']) {
+      const crudo = textos.join(separador);
+      const mapa = this.mapaNormalizado(crudo);
+      const indice = mapa.normalizado.indexOf(cita);
+      if (indice < 0) continue;
+
+      const crudoInicio = mapa.aCrudo[indice];
+      const crudoFin =
+        mapa.aCrudo[Math.min(indice + cita.length - 1, mapa.aCrudo.length - 1)] +
+        1;
+
+      const ubicar = (
+        crudoGlobal: number,
+      ): { parrafo: number; run: number } | null => {
+        let acumulado = 0;
+        for (let i = 0; i < textos.length; i += 1) {
+          const inicio = acumulado;
+          const fin = acumulado + textos[i].length;
+          if (crudoGlobal >= inicio && crudoGlobal < fin) {
+            const local = crudoGlobal - inicio;
+            const runs = parrafos[i].runs;
+            let acc = 0;
+            for (let j = 0; j < runs.length; j += 1) {
+              if (local >= acc && local < acc + runs[j].texto.length) {
+                return { parrafo: i, run: j };
+              }
+              acc += runs[j].texto.length;
+            }
+            return { parrafo: i, run: runs.length - 1 };
+          }
+          acumulado = fin + separador.length;
+        }
+        return null;
+      };
+
+      const inicio = ubicar(crudoInicio);
+      const fin = ubicar(crudoFin - 1);
+      if (!inicio || !fin) continue;
+
+      const posicionInicio =
+        parrafos[inicio.parrafo].inicio +
+        parrafos[inicio.parrafo].runs[inicio.run].inicio;
+      const posicionFin =
+        parrafos[fin.parrafo].inicio + parrafos[fin.parrafo].runs[fin.run].fin;
+
+      const apertura = `<w:commentRangeStart w:id="${id}"/>`;
+      const cierre = `<w:commentRangeEnd w:id="${id}"/><w:r><w:commentReference w:id="${id}"/></w:r>`;
+      let resultado =
+        xml.slice(0, posicionFin) + cierre + xml.slice(posicionFin);
+      resultado =
+        resultado.slice(0, posicionInicio) +
+        apertura +
+        resultado.slice(posicionInicio);
+      return resultado;
+    }
+
+    return null;
   }
 
   private marcarCitaEnParrafo(
@@ -1117,7 +1215,7 @@ export class ServicioManipulacionDocx {
       entrada.autor?.trim() || 'Revisor SIAC',
     );
     const iniciales = this.inicialesAutor(autor);
-    const fecha = new Date().toISOString();
+    const fecha = this.fechaBogota(entrada.fecha);
     const lineas = this.limpiarTextoXml(entrada.body).split(/\r?\n/);
     const parrafos = (lineas.length > 0 ? lineas : [''])
       .map(
@@ -1126,6 +1224,28 @@ export class ServicioManipulacionDocx {
       )
       .join('');
     return `<w:comment w:id="${id}" w:author="${this.escapeXml(autor)}" w:initials="${this.escapeXml(iniciales)}" w:date="${fecha}">${parrafos}</w:comment>`;
+  }
+
+  /**
+   * w:date en hora local America/Bogota (-05:00, sin DST) para que Word
+   * muestre la misma hora que la UI. Si la fecha es inválida usa "ahora".
+   */
+  private fechaBogota(fecha?: string | Date): string {
+    const base = fecha ? new Date(fecha) : new Date();
+    const valida = Number.isNaN(base.getTime()) ? new Date() : base;
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(valida);
+    const obtener = (tipo: string) =>
+      partes.find((parte) => parte.type === tipo)?.value ?? '00';
+    return `${obtener('year')}-${obtener('month')}-${obtener('day')}T${obtener('hour')}:${obtener('minute')}:${obtener('second')}-05:00`;
   }
 
   private inicialesAutor(autor: string): string {

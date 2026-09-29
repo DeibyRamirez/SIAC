@@ -68,6 +68,8 @@ export interface ComentarioWordEntrada {
   quote: string;
   body: string;
   autor?: string;
+  /** Fecha del comentario (dictamen); se escribe en w:date con offset Bogotá. */
+  fecha?: string | Date;
 }
 
 export interface ResultadoInyeccionComentarios {

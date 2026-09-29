@@ -502,4 +502,48 @@ describe('ServicioManipulacionDocx', () => {
     expect((doc2.match(/<w:commentRangeStart/g) ?? []).length).toBe(1);
     expect((doc2.match(/<w:commentReference/g) ?? []).length).toBe(1);
   });
+
+  it('ancla N comentarios (cita corta y multi-párrafo) con w:date en hora Bogotá', async () => {
+    const base = await crearDocxConContenido([
+      'El estudiante David presenta el informe final.',
+      'ANTECEDENTES NACIONALES',
+      'ANTECEDENTE 1 (NACIONAL)',
+    ]);
+
+    const resultado = await servicio.inyectarComentariosWord(base, [
+      {
+        quote: 'David',
+        body: 'Nombre completo',
+        autor: 'Laura Ramírez',
+        fecha: new Date('2026-09-29T23:10:11.149Z'),
+      },
+      {
+        quote: 'ANTECEDENTES NACIONALESANTECEDENTE 1 (NACIONAL)',
+        body: 'Duplicidad, dejar uno',
+        autor: 'Laura Ramírez',
+      },
+      {
+        quote: 'presenta el informe',
+        body: 'Aclarar redacción',
+        autor: 'Laura Ramírez',
+      },
+    ]);
+
+    expect(resultado.inyectados).toBe(3);
+    expect(resultado.omitidos).toBe(0);
+
+    const zip = await JSZip.loadAsync(resultado.buffer);
+    const comments = await zip.file('word/comments.xml')!.async('string');
+    expect((comments.match(/<w:comment /g) ?? []).length).toBe(3);
+    expect(comments).toContain('Nombre completo');
+    expect(comments).toContain('Duplicidad, dejar uno');
+    expect(comments).toContain('Aclarar redacción');
+    // 23:10 UTC del 29-sep = 18:10 en America/Bogota (-05:00).
+    expect(comments).toContain('w:date="2026-09-29T18:10:11-05:00"');
+
+    const doc = await zip.file('word/document.xml')!.async('string');
+    expect((doc.match(/<w:commentRangeStart/g) ?? []).length).toBe(3);
+    expect((doc.match(/<w:commentRangeEnd/g) ?? []).length).toBe(3);
+    expect((doc.match(/<w:commentReference/g) ?? []).length).toBe(3);
+  });
 });

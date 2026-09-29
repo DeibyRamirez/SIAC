@@ -174,9 +174,21 @@ export function BarraLateral({
         {items.map(({ href, etiqueta, icono: Icono, mostrarBadge, mostrarBadgeNovedades }) => {
           const contadorBadge = mostrarBadgeNovedades ? novedadesCargador : pendientes
           const mostrarContador = mostrarBadge || mostrarBadgeNovedades
+          // Activo único: gana la ruta más específica (p. ej. /cargador/evidencias/nueva
+          // no debe activar también /cargador/evidencias). El ítem raíz solo activa exacto.
+          const raizRol = prefijoRol(sesion.rol)
+          const coincide = (ruta: string) =>
+            pathname === ruta || pathname.startsWith(`${ruta}/`)
           const activo =
             pathname === href ||
-            (href !== prefijoRol(sesion.rol) && pathname.startsWith(`${href}/`))
+            (href !== raizRol &&
+              coincide(href) &&
+              !items.some(
+                (otro) =>
+                  otro.href !== href &&
+                  otro.href.length > href.length &&
+                  coincide(otro.href),
+              ))
           return (
             <Link
               key={href}
