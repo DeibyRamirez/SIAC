@@ -5,7 +5,17 @@ export type RolUsuario =
   | 'Administrador'
   | 'SuperAdmin'
 
-export type EstadoEvidencia = 'Borrador' | 'EnRevision' | 'Validado' | 'Rechazado'
+/**
+ * HU-003 (regla n/9): el checklist deja ConObservaciones (n < total) o Cumple (n = total).
+ * Validado y Rechazado solo salen de la decisión explícita del Revisor (HU-006).
+ */
+export type EstadoEvidencia =
+  | 'Borrador'
+  | 'EnRevision'
+  | 'ConObservaciones'
+  | 'Cumple'
+  | 'Validado'
+  | 'Rechazado'
 
 export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 
@@ -38,6 +48,8 @@ export interface Usuario {
 export interface ConteosEstadoPrograma {
   borrador: number
   enRevision: number
+  conObservaciones: number
+  cumple: number
   validado: number
   rechazado: number
 }
@@ -76,7 +88,9 @@ export interface Evidencia {
   responsable?: string
   documentoRequeridoId?: string
   version?: number
-  porcentajeCompletitud?: number
+  /** Puntaje entero n de la última verificación (G1 n/9, G3 n/6). */
+  puntajeActual?: number | null
+  totalCondicionesActual?: number | null
   requiereChecklistMaestro?: boolean
   codigoGuia?: CodigoDocumentoGuia
 }

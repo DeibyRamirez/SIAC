@@ -6,10 +6,17 @@ import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { ServicioAlcancePrograma, UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
 import { generarSlug } from '../common/alcance/generar-slug';
+import {
+  ColorSemaforo,
+  colorMasCritico,
+  colorPorPuntaje,
+} from '../dominio/puntaje-condiciones';
 
 export interface ConteosEstadoPrograma {
   borrador: number;
   enRevision: number;
+  conObservaciones: number;
+  cumple: number;
   validado: number;
   rechazado: number;
 }
@@ -47,7 +54,8 @@ export class ProgramaRepositorio {
       select: {
         programaId: true,
         documentoRequeridoId: true,
-        porcentajeCompletitud: true,
+        puntajeActual: true,
+        totalCondicionesActual: true,
         estado: true,
         updatedAt: true,
       },
@@ -169,7 +177,9 @@ export class ProgramasService {
 
   /**
    * Calcula semáforo y avance al leer. No escribe en la base (P18, sin N+1).
-   * El color conserva la heurística vigente; el rediseño es de T-010.2.
+   * Semáforo (D2): RN-003 y la heurística de anexos vigente, combinados con el color del
+   * puntaje n/9 de cada documento verificado (verde 9, amarillo 5-8, rojo 0-4). Un documento
+   * con observaciones toma el color de su puntaje; no fuerza rojo. El rediseño completo es de T-010.2.
    */
   private async enriquecer<T extends { id: string; semaforo: string; porcentajeAvance: number }>(
     programas: T[],
@@ -196,16 +206,18 @@ export class ProgramasService {
     return programas.map((programa) => {
       const conteos = conteosPorPrograma.get(programa.id) ?? conteosVacios();
       const progreso = progresoPorPrograma.get(programa.id);
-      const tieneRechazos = progreso?.documentos.some((doc) => doc.rechazado) ?? false;
+      const documentos = progreso?.documentos ?? [];
+      const tieneObservaciones = documentos.some(
+        (doc) => doc.conObservaciones || doc.rechazado,
+      );
       const anexosPrograma = anexosPorPrograma.get(programa.id) ?? [];
-      let semaforo = calcularSemaforo(anexosPrograma);
-      if (tieneRechazos) semaforo = 'Rojo';
+      const semaforo = calcularSemaforoPrograma(anexosPrograma, documentos);
 
       const avanceGlobal = progreso?.avanceGlobal ?? programa.porcentajeAvance;
       const estadoProceso =
-        avanceGlobal >= 100 && !tieneRechazos
+        avanceGlobal >= 100 && !tieneObservaciones
           ? 'Completado'
-          : tieneRechazos
+          : tieneObservaciones
             ? 'Con observaciones'
             : 'En progreso';
 
@@ -215,7 +227,13 @@ export class ProgramasService {
         porcentajeAvance: avanceGlobal,
         estadoProceso,
         evidenciasValidadas: conteos.validado,
-        totalEvidencias: conteos.borrador + conteos.enRevision + conteos.validado + conteos.rechazado,
+        totalEvidencias:
+          conteos.borrador +
+          conteos.enRevision +
+          conteos.conObservaciones +
+          conteos.cumple +
+          conteos.validado +
+          conteos.rechazado,
         conteosEstado: conteos,
       };
     });
@@ -256,7 +274,14 @@ export class ProgramasService {
 }
 
 function conteosVacios(): ConteosEstadoPrograma {
-  return { borrador: 0, enRevision: 0, validado: 0, rechazado: 0 };
+  return {
+    borrador: 0,
+    enRevision: 0,
+    conObservaciones: 0,
+    cumple: 0,
+    validado: 0,
+    rechazado: 0,
+  };
 }
 
 function sumarConteo(conteos: ConteosEstadoPrograma, estado: EstadoEvidencia, cantidad: number) {
@@ -264,6 +289,8 @@ function sumarConteo(conteos: ConteosEstadoPrograma, estado: EstadoEvidencia, ca
   if (estado === EstadoEvidencia.EnRevision) conteos.enRevision += cantidad;
   if (estado === EstadoEvidencia.Validado) conteos.validado += cantidad;
   if (estado === EstadoEvidencia.Rechazado) conteos.rechazado += cantidad;
+  if (estado === EstadoEvidencia.ConObservaciones) conteos.conObservaciones += cantidad;
+  if (estado === EstadoEvidencia.Cumple) conteos.cumple += cantidad;
 }
 
 function agrupar<T>(filas: T[], clave: (fila: T) => string): Map<string, T[]> {
@@ -278,7 +305,7 @@ function agrupar<T>(filas: T[], clave: (fila: T) => string): Map<string, T[]> {
 }
 
 /** RN-003 vigente: anexo de infraestructura vencido → rojo. El resto sigue la heurística actual. */
-export function calcularSemaforo(anexos: { estado: EstadoVigencia; tipo: string }[]): string {
+export function calcularSemaforo(anexos: { estado: EstadoVigencia; tipo: string }[]): ColorSemaforo {
   const infraVencido = anexos.some(
     (anexo) =>
       anexo.estado === EstadoVigencia.Vencido &&
@@ -289,4 +316,25 @@ export function calcularSemaforo(anexos: { estado: EstadoVigencia; tipo: string 
   if (anexos.some((anexo) => anexo.estado === EstadoVigencia.Proximo)) return 'Amarillo';
   if (anexos.some((anexo) => anexo.estado === EstadoVigencia.Vencido)) return 'Rojo';
   return 'Verde';
+}
+
+/**
+ * Semáforo del programa: RN-003 (infraestructura vencida => rojo) prevalece; si no, gana el
+ * color más crítico entre los anexos y el puntaje n/total de cada documento ya verificado.
+ */
+export function calcularSemaforoPrograma(
+  anexos: { estado: EstadoVigencia; tipo: string }[],
+  documentos: { puntaje: number | null; totalCondiciones: number | null }[],
+): ColorSemaforo {
+  const colorAnexos = calcularSemaforo(anexos);
+  if (colorAnexos === 'Rojo') return 'Rojo';
+
+  const coloresPuntaje = documentos
+    .filter(
+      (doc): doc is { puntaje: number; totalCondiciones: number } =>
+        doc.puntaje !== null && !!doc.totalCondiciones,
+    )
+    .map((doc) => colorPorPuntaje(doc.puntaje, doc.totalCondiciones));
+
+  return colorMasCritico([colorAnexos, ...coloresPuntaje]);
 }

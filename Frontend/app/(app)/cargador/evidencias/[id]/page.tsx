@@ -36,7 +36,11 @@ import {
   obtenerEvaluacionesCondicionInstitucionalApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  admiteCorreccion,
+  formatearFecha,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaCargadorPage() {
   return (
@@ -100,7 +104,10 @@ function ContenidoDetalle() {
           if (descarga?.url) setUrlDocumento(descarga.url)
 
           const ultimoRechazo = historial
-            .filter((h) => h.estado === 'Rechazado' && h.observacion)
+            .filter(
+              (h) =>
+                (h.estado === 'ConObservaciones' || h.estado === 'Rechazado') && h.observacion,
+            )
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
           if (ultimoRechazo?.observacion) {
             setObservacionHistorial(ultimoRechazo.observacion)
@@ -160,8 +167,10 @@ function ContenidoDetalle() {
     )
   }
 
-  const esRechazada = evidencia.estado === 'Rechazado'
-  const puedeReenviar = evidencia.estado === 'Rechazado' || evidencia.estado === 'Borrador'
+  // Con observaciones (checklist n < total) o Rechazado (decisión explícita): requiere corrección.
+  const esRechazada =
+    evidencia.estado === 'ConObservaciones' || evidencia.estado === 'Rechazado'
+  const puedeReenviar = admiteCorreccion(evidencia.estado)
   const extension = evidencia.nombreArchivo.split('.').pop()?.toLowerCase()
   const formato = extension === 'docx' ? 'DOCX' : extension === 'xlsx' ? 'XLSX' : 'PDF'
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
@@ -169,7 +178,7 @@ function ContenidoDetalle() {
 
   async function enviarARevision() {
     if (!evidencia) return
-    if (evidencia.estado === 'Rechazado' && !archivoNuevo) {
+    if (esRechazada && !archivoNuevo) {
       toast.error('Debe cargar el documento .docx corregido antes de enviar a revisión.')
       return
     }
@@ -233,7 +242,8 @@ function ContenidoDetalle() {
       {esRechazada && evaluacionesCondicion.length > 0 && (
         <ResumenObservacionesPorCondicion
           evaluaciones={evaluacionesCondicion}
-          porcentajeCompletitud={evidencia.porcentajeCompletitud}
+          puntaje={evidencia.puntajeActual}
+          totalCondiciones={evidencia.totalCondicionesActual}
           titulo="Evaluación G1 — condiciones de programa"
         />
       )}
@@ -245,7 +255,8 @@ function ContenidoDetalle() {
             cumple: e.cumple,
             observacion: e.observacion,
           }))}
-          porcentajeCompletitud={evidencia.porcentajeCompletitud}
+          puntaje={evidencia.puntajeActual}
+          totalCondiciones={evidencia.totalCondicionesActual}
           titulo="Evaluación G3 — condiciones institucionales"
           resolverEtiqueta={(codigo) =>
             etiquetaCondicionInstitucional(

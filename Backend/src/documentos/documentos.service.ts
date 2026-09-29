@@ -32,7 +32,7 @@ import {
 
   CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
 
-  calcularPorcentajeCondiciones,
+  TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
 
   etiquetaCondicion,
 
@@ -42,11 +42,16 @@ import {
 
   CODIGOS_CONDICION_INSTITUCIONAL,
 
-  calcularPorcentajeCondicionesInstitucionales,
+  TOTAL_CONDICIONES_INSTITUCIONALES,
 
   etiquetaCondicionInstitucional,
 
 } from '../dominio/condiciones-institucionales';
+
+import {
+  formatearPuntaje,
+  resolverChecklist,
+} from '../dominio/puntaje-condiciones';
 
 import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
 
@@ -64,6 +69,13 @@ const TIPOS_PERMITIDOS = [
 ];
 
 const TAMANO_MAXIMO = 20 * 1024 * 1024;
+
+/** Estados desde los que el Cargador corrige: sube una versión nueva y la reenvía a revisión. */
+const ESTADOS_QUE_ADMITEN_CORRECCION: EstadoEvidencia[] = [
+  EstadoEvidencia.Borrador,
+  EstadoEvidencia.ConObservaciones,
+  EstadoEvidencia.Rechazado,
+];
 
 
 
@@ -299,7 +311,14 @@ export class DocumentosService {
 
     );
 
-    const conteos = { borrador: 0, enRevision: 0, validado: 0, rechazado: 0 };
+    const conteos = {
+      borrador: 0,
+      enRevision: 0,
+      conObservaciones: 0,
+      cumple: 0,
+      validado: 0,
+      rechazado: 0,
+    };
 
     for (const grupo of grupos) {
 
@@ -310,6 +329,11 @@ export class DocumentosService {
       if (grupo.estado === EstadoEvidencia.Validado) conteos.validado = grupo._count._all;
 
       if (grupo.estado === EstadoEvidencia.Rechazado) conteos.rechazado = grupo._count._all;
+
+      if (grupo.estado === EstadoEvidencia.ConObservaciones) {
+        conteos.conObservaciones = grupo._count._all;
+      }
+      if (grupo.estado === EstadoEvidencia.Cumple) conteos.cumple = grupo._count._all;
 
     }
 
@@ -405,17 +429,11 @@ export class DocumentosService {
 
 
 
-    if (
-
-      evidencia.estado !== EstadoEvidencia.Borrador &&
-
-      evidencia.estado !== EstadoEvidencia.Rechazado
-
-    ) {
+    if (!ESTADOS_QUE_ADMITEN_CORRECCION.includes(evidencia.estado)) {
 
       throw new BadRequestException(
 
-        'Solo se puede cargar una nueva versión en borrador o rechazado.',
+        'Solo se puede cargar una nueva versión en borrador, con observaciones o rechazado.',
 
       );
 
@@ -587,9 +605,13 @@ export class DocumentosService {
 
 
 
-    if (evidencia.estado !== EstadoEvidencia.Borrador && evidencia.estado !== EstadoEvidencia.Rechazado) {
+    if (!ESTADOS_QUE_ADMITEN_CORRECCION.includes(evidencia.estado)) {
 
-      throw new BadRequestException('Solo borradores o rechazados pueden enviarse a revisión.');
+      throw new BadRequestException(
+
+        'Solo borradores, documentos con observaciones o rechazados pueden enviarse a revisión.',
+
+      );
 
     }
 
@@ -687,119 +709,57 @@ export class DocumentosService {
 
 
     let estadoFinal = dto.estado;
-
-    let porcentajeCompletitud = evidencia.porcentajeCompletitud;
-
+    let puntajeActual: number | null = null;
+    let totalCondicionesActual: number | null = null;
     let observacionesResumen = dto.observaciones;
 
-
-
     if (usaChecklistPrograma) {
-
       if (!dto.condiciones || dto.condiciones.length !== CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length) {
-
         throw new BadRequestException(
-
           'Debe evaluar las 9 condiciones del documento maestro de programa (G1).',
-
         );
-
       }
-
-
 
       const codigosRecibidos = new Set(dto.condiciones.map((c) => c.codigo));
-
       for (const codigo of CODIGOS_CONDICION_DOCUMENTO_MAESTRO) {
-
         if (!codigosRecibidos.has(codigo)) {
-
           throw new BadRequestException(
-
             `Falta la condición ${etiquetaCondicion(codigo)} en el dictamen.`,
-
           );
-
         }
-
       }
-
-
 
       for (const condicion of dto.condiciones) {
-
         if (!condicion.cumple && !condicion.observacion?.trim()) {
-
           throw new BadRequestException(
-
             `Registra una observación para la condición «${etiquetaCondicion(condicion.codigo)}».`,
-
           );
-
         }
-
       }
 
-
-
-      const cumplidas = dto.condiciones.filter((c) => c.cumple).length;
-
-      porcentajeCompletitud = calcularPorcentajeCondiciones(cumplidas);
-
-      estadoFinal =
-
-        cumplidas === CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length
-
-          ? EstadoEvidencia.Validado
-
-          : EstadoEvidencia.Rechazado;
-
-
+      // D1: el checklist produce Cumple (9/9) o Con observaciones (n<9); nunca Rechazado.
+      const resultado = resolverChecklist(dto.condiciones, TOTAL_CONDICIONES_DOCUMENTO_MAESTRO);
+      puntajeActual = resultado.puntaje;
+      totalCondicionesActual = resultado.totalCondiciones;
+      estadoFinal = resultado.estado;
 
       await this.evidenciaRepo.guardarEvaluacionesCondicion(
-
         id,
-
         evidencia.version,
-
         revisor.id,
-
         dto.condiciones.map((c) => ({
-
           codigoCondicion: c.codigo,
-
           cumple: c.cumple,
-
           observacion: c.observacion,
-
         })),
-
       );
 
-
-
       const lineasObservacion = dto.condiciones
-
         .filter((c) => !c.cumple && c.observacion?.trim())
-
-        .map(
-
-          (c) =>
-
-            `• ${etiquetaCondicion(c.codigo)}: ${c.observacion?.trim()}`,
-
-        );
-
+        .map((c) => `• ${etiquetaCondicion(c.codigo)}: ${c.observacion?.trim()}`);
       observacionesResumen =
-
-        lineasObservacion.length > 0
-
-          ? lineasObservacion.join('\n')
-
-          : dto.observaciones;
-
+        lineasObservacion.length > 0 ? lineasObservacion.join('\n') : dto.observaciones;
     } else if (usaChecklistInstitucional) {
-
       if (
         !dto.condicionesInstitucionales ||
         dto.condicionesInstitucionales.length !==
@@ -829,13 +789,14 @@ export class DocumentosService {
         }
       }
 
-      const cumplidas = dto.condicionesInstitucionales.filter((c) => c.cumple).length;
-      porcentajeCompletitud =
-        calcularPorcentajeCondicionesInstitucionales(cumplidas);
-      estadoFinal =
-        cumplidas === CODIGOS_CONDICION_INSTITUCIONAL.length
-          ? EstadoEvidencia.Validado
-          : EstadoEvidencia.Rechazado;
+      // D1 aplicado a G3: Cumple (6/6) o Con observaciones (n<6).
+      const resultado = resolverChecklist(
+        dto.condicionesInstitucionales,
+        TOTAL_CONDICIONES_INSTITUCIONALES,
+      );
+      puntajeActual = resultado.puntaje;
+      totalCondicionesActual = resultado.totalCondiciones;
+      estadoFinal = resultado.estado;
 
       await this.evidenciaRepo.guardarEvaluacionesCondicionInstitucional(
         id,
@@ -855,120 +816,99 @@ export class DocumentosService {
             `• ${etiquetaCondicionInstitucional(c.codigo)}: ${c.observacion?.trim()}`,
         );
       observacionesResumen =
-        lineasObservacion.length > 0
-          ? lineasObservacion.join('\n')
-          : dto.observaciones;
-
+        lineasObservacion.length > 0 ? lineasObservacion.join('\n') : dto.observaciones;
     } else {
-
+      // Documentos sin checklist (G2, G4 u otros): decisión explícita del Revisor.
       if (
-
         estadoFinal !== EstadoEvidencia.Validado &&
-
         estadoFinal !== EstadoEvidencia.Rechazado
-
       ) {
-
         throw new BadRequestException('El dictamen debe ser Validado o Rechazado.');
-
       }
-
-      porcentajeCompletitud =
-
-        estadoFinal === EstadoEvidencia.Validado ? 100 : porcentajeCompletitud;
-
     }
-
-
 
     if (!estadoFinal) {
-
       throw new BadRequestException('El dictamen debe incluir un estado válido.');
-
     }
 
-
-
-    const actualizada = await this.evidenciaRepo.actualizar(id, {
-
+    await this.evidenciaRepo.actualizar(id, {
       estado: estadoFinal,
-
       observaciones: observacionesResumen,
-
-      porcentajeCompletitud,
-
+      ...(puntajeActual !== null && totalCondicionesActual !== null
+        ? { puntajeActual, totalCondicionesActual }
+        : {}),
     });
 
-
-
     await this.evidenciaRepo.registrarHistorial(
-
       id,
-
       estadoFinal,
-
       observacionesResumen,
-
       revisor.id,
-
     );
-
-
 
     await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
 
-
-
-    const tipo = estadoFinal === EstadoEvidencia.Validado ? 'aprobacion' : 'rechazo';
-
-    const mensaje =
-
-      estadoFinal === EstadoEvidencia.Validado
-
-        ? `Tu evidencia "${evidencia.nombre}" fue aprobada (${porcentajeCompletitud}%).`
-
-        : `Tu evidencia "${evidencia.nombre}" requiere corrección (${porcentajeCompletitud}%): ${observacionesResumen ?? 'Revisa las condiciones marcadas.'}`;
-
-
+    const { tipo, mensaje } = this.construirNotificacionDictamen(
+      evidencia.nombre,
+      estadoFinal,
+      observacionesResumen,
+      puntajeActual,
+      totalCondicionesActual,
+    );
 
     await this.notificaciones.crear(evidencia.autorId, mensaje, tipo);
 
-
-
     if (
-
-      estadoFinal === EstadoEvidencia.Rechazado &&
-
+      estadoFinal === EstadoEvidencia.ConObservaciones &&
       usaChecklistPrograma &&
-
       dto.condiciones &&
-
       evidencia.rutaArchivo
-
     ) {
-
-      await this.procesarDocxTrasRechazo(
-
+      await this.procesarDocxConObservaciones(
         id,
-
         evidencia.version ?? 1,
-
         evidencia.rutaArchivo,
-
         dto.condiciones,
-
         revisor.id,
-
         revisor.rol,
-
       );
-
     }
 
-
-
     return this.evidenciaRepo.buscarPorId(id);
+  }
 
+  private construirNotificacionDictamen(
+    nombre: string,
+    estado: EstadoEvidencia,
+    observaciones: string | undefined,
+    puntaje: number | null,
+    totalCondiciones: number | null,
+  ): { tipo: string; mensaje: string } {
+    const textoPuntaje =
+      puntaje !== null && totalCondiciones !== null
+        ? ` (${formatearPuntaje(puntaje, totalCondiciones)})`
+        : '';
+    const detalle = observaciones ?? 'Revisa las condiciones marcadas.';
+
+    switch (estado) {
+      case EstadoEvidencia.Cumple:
+        return {
+          tipo: 'aprobacion',
+          mensaje: `Tu evidencia "${nombre}" cumple todas las condiciones${textoPuntaje}.`,
+        };
+      case EstadoEvidencia.ConObservaciones:
+        return {
+          tipo: 'observaciones',
+          mensaje: `Tu evidencia "${nombre}" quedó con observaciones${textoPuntaje}: ${detalle}`,
+        };
+      case EstadoEvidencia.Validado:
+        return { tipo: 'aprobacion', mensaje: `Tu evidencia "${nombre}" fue aprobada.` };
+      default:
+        return {
+          tipo: 'rechazo',
+          mensaje: `Tu evidencia "${nombre}" fue rechazada: ${detalle}`,
+        };
+    }
   }
 
 
@@ -1001,7 +941,7 @@ export class DocumentosService {
 
 
 
-  private async procesarDocxTrasRechazo(
+  private async procesarDocxConObservaciones(
 
     evidenciaId: string,
 
@@ -1411,6 +1351,12 @@ export class DocumentosService {
 
       throw new ForbiddenException('No se puede modificar una evidencia validada.');
 
+    }
+
+    if (evidencia.estado === EstadoEvidencia.Cumple) {
+      throw new ForbiddenException(
+        'No se puede modificar una evidencia que cumple todas las condiciones.',
+      );
     }
 
     if (usuario.rol === RolUsuario.Cargador && evidencia.autorId !== usuario.id) {

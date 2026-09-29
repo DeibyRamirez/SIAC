@@ -80,7 +80,8 @@ function ContenidoResumen() {
   )
 
   const validadas = useMemo(
-    () => evidenciasPeriodo.filter((e) => e.estado === 'Validado').length,
+    () =>
+      evidenciasPeriodo.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
     [evidenciasPeriodo],
   )
   const enProceso = useMemo(

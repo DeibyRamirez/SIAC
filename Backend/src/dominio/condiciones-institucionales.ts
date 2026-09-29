@@ -2,9 +2,6 @@ import { CodigoCondicionInstitucional } from '@prisma/client';
 
 export const TOTAL_CONDICIONES_INSTITUCIONALES = 6;
 
-export const PESO_POR_CONDICION_INSTITUCIONAL =
-  100 / TOTAL_CONDICIONES_INSTITUCIONALES;
-
 export interface DefinicionCondicionInstitucional {
   codigo: CodigoCondicionInstitucional;
   etiqueta: string;
@@ -47,16 +44,6 @@ export const CONDICIONES_INSTITUCIONALES: DefinicionCondicionInstitucional[] = [
 
 export const CODIGOS_CONDICION_INSTITUCIONAL =
   CONDICIONES_INSTITUCIONALES.map((c) => c.codigo);
-
-export function calcularPorcentajeCondicionesInstitucionales(
-  cumplidas: number,
-): number {
-  if (cumplidas <= 0) return 0;
-  if (cumplidas >= TOTAL_CONDICIONES_INSTITUCIONALES) return 100;
-  return Math.round(
-    (cumplidas / TOTAL_CONDICIONES_INSTITUCIONALES) * 100,
-  );
-}
 
 export function etiquetaCondicionInstitucional(
   codigo: CodigoCondicionInstitucional,

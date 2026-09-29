@@ -37,9 +37,11 @@ function reiniciarPaginaAlFiltrar<T>(actualizar: (valor: T) => void, setPagina: 
 const filtrosEstado = [
   { valor: 'todos', etiqueta: 'Todos' },
   { valor: 'Borrador', etiqueta: 'Borrador' },
-  { valor: 'EnRevision', etiqueta: 'En revisión' },
-  { valor: 'Validado', etiqueta: 'Aprobados' },
-  { valor: 'Rechazado', etiqueta: 'Corrección' },
+  { valor: 'EnRevision', etiqueta: 'Pendiente de verificación' },
+  { valor: 'ConObservaciones', etiqueta: 'Con observaciones' },
+  { valor: 'Cumple', etiqueta: 'Cumple' },
+  { valor: 'Validado', etiqueta: 'Validados' },
+  { valor: 'Rechazado', etiqueta: 'Rechazados' },
 ]
 
 export interface FiltrosInicialesEvidencias {

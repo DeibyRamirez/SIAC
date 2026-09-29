@@ -26,7 +26,7 @@ interface PanelAvanceEtapasSIACProps {
 
 function estadoDocumento(doc: ProgresoProcesoSIAC['documentos'][0]) {
   if (doc.aceptado) return 'Completada'
-  if (doc.rechazado) return 'ConObservaciones'
+  if (doc.conObservaciones || doc.rechazado) return 'ConObservaciones'
   if (doc.porcentajeInterno > 0) return 'EnProgreso'
   return 'Pendiente'
 }
@@ -98,7 +98,9 @@ export function PanelAvanceEtapasSIAC({
           </p>
           <Select
             value={programaId ?? ''}
-            onValueChange={onCambiarPrograma}
+            onValueChange={(valor) => {
+              if (valor) onCambiarPrograma(valor)
+            }}
           >
             <SelectTrigger className="w-full sm:w-[280px]">
               <SelectValue placeholder="Seleccione un programa" />
@@ -160,7 +162,16 @@ export function PanelAvanceEtapasSIAC({
                           {doc.codigoGuia}: {doc.nombre}
                         </p>
                       </div>
-                      <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
+                      <div className="flex items-center gap-2">
+                        {doc.puntaje !== null &&
+                          doc.puntaje !== undefined &&
+                          doc.totalCondiciones && (
+                            <Badge variant="secondary">
+                              {doc.puntaje}/{doc.totalCondiciones}
+                            </Badge>
+                          )}
+                        <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
+                      </div>
                     </div>
                     <Progress value={doc.aportacion}>
                       <ProgressLabel className="text-xs text-muted-foreground">

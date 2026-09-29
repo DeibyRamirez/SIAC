@@ -78,17 +78,20 @@ function ContenidoDetallePrograma() {
   const conteos = useMemo(() => {
     if (programa?.conteosEstado) {
       return {
-        validadas: programa.conteosEstado.validado,
+        validadas: programa.conteosEstado.validado + (programa.conteosEstado.cumple ?? 0),
         enRevision: programa.conteosEstado.enRevision,
-        rechazadas: programa.conteosEstado.rechazado,
+        rechazadas:
+          programa.conteosEstado.rechazado + (programa.conteosEstado.conObservaciones ?? 0),
         anexosProximos: (programa.anexos ?? []).filter((a) => a.estado === 'Proximo').length,
       }
     }
     const evidencias = programa?.evidencias ?? []
     return {
-      validadas: evidencias.filter((e) => e.estado === 'Validado').length,
+      validadas: evidencias.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
       enRevision: evidencias.filter((e) => e.estado === 'EnRevision').length,
-      rechazadas: evidencias.filter((e) => e.estado === 'Rechazado').length,
+      rechazadas: evidencias.filter(
+        (e) => e.estado === 'Rechazado' || e.estado === 'ConObservaciones',
+      ).length,
       anexosProximos: (programa?.anexos ?? []).filter((a) => a.estado === 'Proximo').length,
     }
   }, [programa])
@@ -136,9 +139,9 @@ function ContenidoDetallePrograma() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <TarjetaKpi titulo="Evidencias validadas" valor={String(conteos.validadas)} />
-        <TarjetaKpi titulo="En revisión" valor={String(conteos.enRevision)} />
-        <TarjetaKpi titulo="En corrección" valor={String(conteos.rechazadas)} />
+        <TarjetaKpi titulo="Cumplen o validadas" valor={String(conteos.validadas)} />
+        <TarjetaKpi titulo="Pendientes de verificación" valor={String(conteos.enRevision)} />
+        <TarjetaKpi titulo="Con observaciones" valor={String(conteos.rechazadas)} />
         <TarjetaKpi titulo="Docs por vencer" valor={String(conteos.anexosProximos)} />
       </div>
 

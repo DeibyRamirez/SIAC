@@ -16,11 +16,15 @@ enum RolUsuario {
   SuperAdmin
 }
 
+/// HU-003 (D1): tras el checklist, n < total => ConObservaciones y n = total => Cumple.
+/// Validado y Rechazado quedan para la decisión explícita del Revisor (HU-006).
 enum EstadoEvidencia {
   Borrador
   EnRevision
   Validado
   Rechazado
+  ConObservaciones
+  Cumple
 }
 
 enum EstadoVigencia {
@@ -175,9 +179,14 @@ model Evidencia {
   responsable   String?              @db.VarChar(150)
   documentoRequeridoId   String?
   documentoRequerido     DocumentoRequerido? @relation(fields: [documentoRequeridoId], references: [id])
+  /// Heredado del modelo anterior (porcentaje). Ya no se escribe para documentos con checklist; se retira en T-003.3.
   porcentajeCompletitud  Float               @default(0)
   requiereChecklistMaestro Boolean           @default(false)
   codigoGuia             CodigoDocumentoGuia?
+  /// Puntaje entero n de la última verificación (condiciones que cumplen).
+  puntajeActual          Int?
+  /// Total de condiciones evaluadas en la última verificación (9 en G1, 6 en G3).
+  totalCondicionesActual Int?
   historial                HistorialEvidencia[]
   versiones                EvidenciaVersion[]
   evaluacionesCondicion    EvaluacionCondicionEvidencia[]
@@ -189,6 +198,7 @@ model Evidencia {
   @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])
+  @@index([puntajeActual])
   @@index([factor, indicador, periodo])
 }
 

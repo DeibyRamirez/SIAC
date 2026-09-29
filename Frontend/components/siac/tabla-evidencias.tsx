@@ -19,6 +19,7 @@ import {
   esNovedadCargador,
   formatearFecha,
   formatearFechaHora,
+  formatearPuntaje,
   obtenerNombrePrograma,
 } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
@@ -61,6 +62,7 @@ export function TablaEvidencias({
             <TableHead>Programa</TableHead>
             <TableHead>Factor</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Puntaje</TableHead>
             <TableHead>Fecha</TableHead>
             {tieneAcciones && <TableHead className="text-right">Acciones</TableHead>}
           </TableRow>
@@ -73,6 +75,7 @@ export function TablaEvidencias({
                 'border-primary/5',
                 enlaceDetalle && 'cursor-pointer',
                 evidencia.estado === 'Rechazado' && 'bg-fucsia/5',
+                evidencia.estado === 'ConObservaciones' && 'bg-coral/5',
               )}
               onClick={() => {
                 if (enlaceDetalle) {
@@ -114,6 +117,9 @@ export function TablaEvidencias({
                     </Badge>
                   )}
                 </div>
+              </TableCell>
+              <TableCell className="text-sm font-medium">
+                {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) ?? '—'}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {mostrarHora

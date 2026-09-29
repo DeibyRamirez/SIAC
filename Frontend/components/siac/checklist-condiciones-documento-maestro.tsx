@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CONDICIONES_DOCUMENTO_MAESTRO,
-  PESO_POR_CONDICION_DOCUMENTO_MAESTRO,
   type CodigoCondicionDocumentoMaestro,
 } from '@/lib/condiciones-documento-maestro'
 import { cn } from '@/lib/utils'
@@ -54,8 +53,9 @@ export function ChecklistCondicionesDocumentoMaestro({
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Cada condición aporta ~{PESO_POR_CONDICION_DOCUMENTO_MAESTRO.toFixed(2)}%
-        al avance del documento (9 condiciones = 100%).
+        Calificación binaria: cada condición cumple o no cumple. El puntaje es el
+        número de condiciones que cumplen (n/9); 9/9 deja el documento en «Cumple» y
+        menos de 9 en «Con observaciones».
       </p>
       <ul className="max-h-[min(520px,60vh)] space-y-3 overflow-y-auto pr-1">
         {CONDICIONES_DOCUMENTO_MAESTRO.map((def) => {

@@ -26,7 +26,9 @@ function ContenidoInicioCargador() {
   )
   const borradores = misEvidencias.filter((e) => e.estado === 'Borrador').length
   const enRevision = misEvidencias.filter((e) => e.estado === 'EnRevision').length
-  const validadas = misEvidencias.filter((e) => e.estado === 'Validado').length
+  const validadas = misEvidencias.filter(
+    (e) => e.estado === 'Validado' || e.estado === 'Cumple',
+  ).length
 
   return (
     <div className="space-y-6">
@@ -39,7 +41,7 @@ function ContenidoInicioCargador() {
       <div className="grid gap-4 md:grid-cols-3">
         <TarjetaKpi titulo="Mis documentos" valor={misEvidencias.length} icono={Files} acento="cyan" />
         <TarjetaKpi titulo="En borrador" valor={borradores} icono={ClipboardCheck} acento="ocre" />
-        <TarjetaKpi titulo="Aprobados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
+        <TarjetaKpi titulo="Cumplen o validados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -4,6 +4,26 @@ import { PrismaService } from '../prisma/prisma.module';
 
 import { Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
 
+import { TOTAL_CONDICIONES_DOCUMENTO_MAESTRO } from '../dominio/condiciones-documento-maestro';
+
+import { TOTAL_CONDICIONES_INSTITUCIONALES } from '../dominio/condiciones-institucionales';
+
+
+
+/** Estados que cierran un ciclo de revisión (checklist n/9 o decisión explícita). */
+const ESTADOS_DE_DICTAMEN: EstadoEvidencia[] = [
+  EstadoEvidencia.Cumple,
+  EstadoEvidencia.ConObservaciones,
+  EstadoEvidencia.Validado,
+  EstadoEvidencia.Rechazado,
+];
+
+/** Estados tras los que el Cargador reenvía una corrección. */
+const ESTADOS_QUE_PIDEN_CORRECCION: EstadoEvidencia[] = [
+  EstadoEvidencia.ConObservaciones,
+  EstadoEvidencia.Rechazado,
+];
+
 
 
 export interface FiltrosEvidencia {
@@ -502,7 +522,7 @@ export class EvidenciaRepositorio {
 
             evidenciaId: evento.evidenciaId,
 
-            estado: EstadoEvidencia.Rechazado,
+            estado: { in: ESTADOS_QUE_PIDEN_CORRECCION },
 
             createdAt: { lt: evento.createdAt },
 
@@ -522,11 +542,7 @@ export class EvidenciaRepositorio {
 
             evidenciaId: evento.evidenciaId,
 
-            estado: {
-
-              in: [EstadoEvidencia.Validado, EstadoEvidencia.Rechazado],
-
-            },
+            estado: { in: ESTADOS_DE_DICTAMEN },
 
             createdAt: { lt: evento.createdAt },
 
@@ -558,11 +574,7 @@ export class EvidenciaRepositorio {
 
             evidenciaId: evento.evidenciaId,
 
-            estado: {
-
-              in: [EstadoEvidencia.Validado, EstadoEvidencia.Rechazado],
-
-            },
+            estado: { in: ESTADOS_DE_DICTAMEN },
 
             createdAt: siguienteEnvio
 
@@ -594,29 +606,19 @@ export class EvidenciaRepositorio {
 
         const numeroRevision = versionEnEnvio?.numero ?? evento.evidencia.version ?? 1;
 
-        let porcentajeCompletitud = evento.evidencia.porcentajeCompletitud ?? 0;
+        const { puntaje, totalCondiciones } = await this.puntajeDeRevision(
 
-        if (dictamenCiclo?.estado === EstadoEvidencia.Validado) {
+          evento.evidenciaId,
 
-          porcentajeCompletitud = 100;
+          numeroRevision,
 
-        } else if (dictamenCiclo?.estado === EstadoEvidencia.Rechazado) {
+          dictamenCiclo?.estado ?? null,
 
-          const evaluaciones = await this.prisma.evaluacionCondicionEvidencia.findMany({
+          evento.evidencia,
 
-            where: { evidenciaId: evento.evidenciaId, numeroRevision },
+        );
 
-          });
 
-          if (evaluaciones.length > 0) {
-
-            const cumplidas = evaluaciones.filter((e) => e.cumple).length;
-
-            porcentajeCompletitud = Math.round((cumplidas / evaluaciones.length) * 100);
-
-          }
-
-        }
 
         return {
 
@@ -642,7 +644,9 @@ export class EvidenciaRepositorio {
 
           observacionesDictamen: dictamenCiclo?.observacion ?? null,
 
-          porcentajeCompletitud,
+          puntaje,
+
+          totalCondiciones,
 
           ultimoDictamenEstado: ultimoDictamen?.estado ?? null,
 
@@ -674,6 +678,47 @@ export class EvidenciaRepositorio {
 
   }
 
+
+  /**
+   * Puntaje n/total de un ciclo de revisión, leído de las evaluaciones binarias guardadas
+   * (G1: 9 condiciones; G3: 6). Si el ciclo aún no tiene dictamen devuelve null.
+   */
+  private async puntajeDeRevision(
+    evidenciaId: string,
+    numeroRevision: number,
+    estadoDictamen: EstadoEvidencia | null,
+    evidencia: { puntajeActual: number | null; totalCondicionesActual: number | null },
+  ): Promise<{ puntaje: number | null; totalCondiciones: number | null }> {
+    if (!estadoDictamen) return { puntaje: null, totalCondiciones: null };
+
+    const [programa, institucional] = await Promise.all([
+      this.prisma.evaluacionCondicionEvidencia.findMany({
+        where: { evidenciaId, numeroRevision },
+        select: { cumple: true },
+      }),
+      this.prisma.evaluacionCondicionInstitucionalEvidencia.findMany({
+        where: { evidenciaId, numeroRevision },
+        select: { cumple: true },
+      }),
+    ]);
+
+    if (programa.length > 0) {
+      return {
+        puntaje: programa.filter((e) => e.cumple).length,
+        totalCondiciones: TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
+      };
+    }
+    if (institucional.length > 0) {
+      return {
+        puntaje: institucional.filter((e) => e.cumple).length,
+        totalCondiciones: TOTAL_CONDICIONES_INSTITUCIONALES,
+      };
+    }
+    return {
+      puntaje: evidencia.puntajeActual,
+      totalCondiciones: evidencia.totalCondicionesActual,
+    };
+  }
 }
 
 

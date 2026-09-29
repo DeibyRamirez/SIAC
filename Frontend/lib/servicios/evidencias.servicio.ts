@@ -93,6 +93,12 @@ export interface CondicionInstitucionalDictamenPayload {
   observacion?: string
 }
 
+/** Puntaje entero de la verificación por checklist (G1 n/9, G3 n/6). */
+export interface PuntajeVerificacion {
+  puntajeActual: number
+  totalCondicionesActual: number
+}
+
 export async function dictaminarEvidenciaApi(
   id: string,
   payload: {
@@ -176,7 +182,9 @@ export interface FilaRevisionRevisorApi {
   tipoEnvio: 'inicial' | 'correccion'
   observacionEnvio?: string | null
   observacionesDictamen?: string | null
-  porcentajeCompletitud?: number
+  /** Puntaje n del ciclo (null si aún no se verifica). */
+  puntaje?: number | null
+  totalCondiciones?: number | null
   ultimoDictamenEstado?: EstadoEvidencia | null
   ultimoDictamenFecha?: string | null
   programa?: { id: string; nombre: string }
@@ -186,6 +194,8 @@ export interface FilaRevisionRevisorApi {
 export interface ConteosEvidenciaApi {
   borrador: number
   enRevision: number
+  conObservaciones: number
+  cumple: number
   validado: number
   rechazado: number
 }

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 const estilosEvidencia: Record<EstadoEvidencia, string> = {
   Borrador: 'bg-secondary text-primary border border-primary/20',
   EnRevision: 'bg-ocre/15 text-ocre border border-ocre/30',
+  ConObservaciones: 'bg-coral/15 text-coral border border-coral/30',
+  Cumple: 'bg-esmeralda/15 text-esmeralda border border-esmeralda/30',
   Validado: 'bg-esmeralda/15 text-esmeralda border border-esmeralda/30',
   Rechazado: 'bg-fucsia/15 text-fucsia border border-fucsia/30',
 }
