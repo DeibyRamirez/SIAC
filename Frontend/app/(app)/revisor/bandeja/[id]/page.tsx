@@ -270,10 +270,6 @@ function ContenidoDictamen() {
     }
   }, [mostrarCambios, diffVersiones, versionActual, params.id])
 
-  const porcentajePreview = useMemo(() => {
-    const cumplidas = condiciones.filter((c) => c.decision === 'correcto').length
-    return calcularPorcentajeCondiciones(cumplidas)
-  }, [condiciones])
 
   // Regla n/9 (HU-003): puntaje entero = condiciones que cumplen (G3 usa n/6).
   const puntajePreview = useMemo(() => {
@@ -542,15 +538,12 @@ function ContenidoDictamen() {
                 </Badge>
               )}
               <InsigniaEstado estado={evidencia.estado} />
-              {evidencia.porcentajeCompletitud !== undefined &&
-                evidencia.porcentajeCompletitud > 0 && (
-                  <Badge variant="outline">
-                    Avance documento: {evidencia.porcentajeCompletitud}%
-                  </Badge>
-                )}
+
               {!usaChecklist && comentariosInline.length > 0 && (
                 <Badge variant="outline">
                   {comentariosInline.length} comentario(s) inline
+                </Badge>
+              )}
               {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) && (
                 <Badge variant="outline">
                   Última verificación:{' '}
@@ -695,6 +688,7 @@ function ContenidoDictamen() {
                 />
               </>
             ) : (
+              <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-primary">
@@ -812,6 +806,7 @@ function ContenidoDictamen() {
                     : 'Para aprobar, el campo de observaciones debe estar vacío.'}
                 </p>
               </label>
+              </>
             )}
 
             {mensaje && (
