@@ -465,6 +465,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-09-28 — HU-003 regla n/9, CI en develop_v2 y relleno de migraciones
+
+- [CI] `ci.yml` corre también en `develop_v2` (push y PR), con servicio `postgres:16`: `prisma migrate deploy`, `migrate status`, semilla, jest y build del backend; tsc y build del frontend.
+- [Backend] Migración `20260929010000_relleno_guias_tramites_imagenes`: rellena `codigoGuia` (evidencias, documentos requeridos y plantillas), el catálogo `TramiteSIAC`/`TramiteDocumentoGuia` y `Programa.urlImagen`.
+- [Backend] D1/D5: estados `ConObservaciones` (n < total) y `Cumple` (n = total); `Evidencia.puntajeActual` y `totalCondicionesActual` (entero n/9; G3 n/6). El checklist ya no produce `Rechazado`/`Validado` ni porcentaje; esos estados quedan para la decisión explícita del Revisor (HU-006) en documentos sin checklist. Migraciones `20260929020000` (enum y columnas) y `20260929030000` (mapeo de datos existentes; el historial no se toca).
+- [Backend] D2: semáforo por puntaje (verde 9, amarillo 5-8, rojo 0-4; n/6 escalado) combinado con RN-003; un documento con observaciones ya no fuerza rojo. `porcentajeCompletitud` queda como columna heredada sin uso (se retira con T-003.3).
+- [Frontend] Etiquetas "Pendiente de verificación", "Con observaciones", "Cumple"; la UI muestra n/9 en lugar de %.
+
 ### 2026-09-28 — Sprint 2 Entregas 1 y 2 (UI revisor + trámites G1–G4)
 
 - [Frontend] Revisor: botón Aprobar deshabilitado si hay observaciones; Mis revisiones en tabla con Sheet de historial RO; bandeja con fecha+hora; sidebar sin bloque de usuario.

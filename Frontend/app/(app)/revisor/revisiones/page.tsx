@@ -34,7 +34,7 @@ import {
 } from '@/lib/servicios/evidencias.servicio'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
-import { formatearFechaHora } from '@/lib/utilidades-siac'
+import { formatearFechaHora, formatearPuntaje } from '@/lib/utilidades-siac'
 
 export default function MisRevisionesRevisorPage() {
   return (
@@ -154,7 +154,7 @@ function ContenidoMisRevisiones() {
                       {formatearFechaHora(fila.fechaEnvioRevision)}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
-                      {fila.porcentajeCompletitud ?? 0}%
+                      {formatearPuntaje(fila.puntaje, fila.totalCondiciones) ?? '—'}
                     </TableCell>
                     <TableCell>
                       <InsigniaEstado estado={fila.estado} />
@@ -211,7 +211,8 @@ function ContenidoMisRevisiones() {
                 ) : evaluaciones.length > 0 ? (
                   <ResumenObservacionesPorCondicion
                     evaluaciones={evaluaciones}
-                    porcentajeCompletitud={filaSeleccionada.porcentajeCompletitud}
+                    puntaje={filaSeleccionada.puntaje}
+                    totalCondiciones={filaSeleccionada.totalCondiciones}
                   />
                 ) : filaSeleccionada.observacionesDictamen ? (
                   <label className="block space-y-2 text-sm">

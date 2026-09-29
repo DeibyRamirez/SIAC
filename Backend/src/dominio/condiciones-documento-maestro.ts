@@ -2,9 +2,6 @@ import { CodigoCondicionDocumentoMaestro } from '@prisma/client';
 
 export const TOTAL_CONDICIONES_DOCUMENTO_MAESTRO = 9;
 
-export const PESO_POR_CONDICION_DOCUMENTO_MAESTRO =
-  100 / TOTAL_CONDICIONES_DOCUMENTO_MAESTRO;
-
 export interface DefinicionCondicionDocumentoMaestro {
   codigo: CodigoCondicionDocumentoMaestro;
   etiqueta: string;
@@ -54,14 +51,6 @@ export const CONDICIONES_DOCUMENTO_MAESTRO: DefinicionCondicionDocumentoMaestro[
 
 export const CODIGOS_CONDICION_DOCUMENTO_MAESTRO =
   CONDICIONES_DOCUMENTO_MAESTRO.map((c) => c.codigo);
-
-export function calcularPorcentajeCondiciones(cumplidas: number): number {
-  if (cumplidas <= 0) return 0;
-  if (cumplidas >= TOTAL_CONDICIONES_DOCUMENTO_MAESTRO) return 100;
-  return Math.round(
-    (cumplidas / TOTAL_CONDICIONES_DOCUMENTO_MAESTRO) * 100,
-  );
-}
 
 export function etiquetaCondicion(
   codigo: CodigoCondicionDocumentoMaestro,

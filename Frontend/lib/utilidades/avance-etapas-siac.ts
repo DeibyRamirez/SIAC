@@ -11,7 +11,9 @@ export interface AvanceDocumentoEtapa {
   documentoId: string
   nombre: string
   aceptado: boolean
+  /** Con observaciones (checklist n < total) o rechazado por decisión explícita. */
   rechazado: boolean
+  /** Avance derivado del puntaje n/total (no se persiste). */
   porcentajeCompletitud: number
 }
 
@@ -50,6 +52,25 @@ function evidenciaPorDocumento(
   return evidencias.find((e) => e.documentoRequeridoId === documentoId)
 }
 
+/**
+ * Avance (0-100) de un documento según la regla n/9: Cumple o Validado => 100;
+ * con puntaje de una verificación => proporción n/total; sin verificación o rechazado => 0.
+ */
+export function porcentajeAvanceEvidencia(
+  evidencia: Pick<Evidencia, 'estado' | 'puntajeActual' | 'totalCondicionesActual'>,
+): number {
+  if (evidencia.estado === 'Cumple' || evidencia.estado === 'Validado') return 100
+  if (evidencia.estado === 'Rechazado') return 0
+  if (
+    evidencia.puntajeActual !== null &&
+    evidencia.puntajeActual !== undefined &&
+    evidencia.totalCondicionesActual
+  ) {
+    return Math.round((evidencia.puntajeActual / evidencia.totalCondicionesActual) * 100)
+  }
+  return 0
+}
+
 function calcularProgresoEtapa(
   etapa: EtapaAcreditacion,
   carpetas: CarpetaNormativa[],
@@ -59,15 +80,13 @@ function calcularProgresoEtapa(
   const docs = documentosDeEtapa(etapa.id, carpetas, documentosRequeridos)
   const documentos: AvanceDocumentoEtapa[] = docs.map((doc) => {
     const evidencia = evidenciaPorDocumento(doc.id, evidencias)
-    const porcentajeCompletitud =
-      evidencia?.estado === 'Validado'
-        ? 100
-        : evidencia?.porcentajeCompletitud ?? 0
+    const porcentajeCompletitud = evidencia ? porcentajeAvanceEvidencia(evidencia) : 0
     return {
       documentoId: doc.id,
       nombre: doc.nombre,
-      aceptado: evidencia?.estado === 'Validado',
-      rechazado: evidencia?.estado === 'Rechazado',
+      aceptado: evidencia?.estado === 'Validado' || evidencia?.estado === 'Cumple',
+      rechazado:
+        evidencia?.estado === 'Rechazado' || evidencia?.estado === 'ConObservaciones',
       porcentajeCompletitud,
     }
   })

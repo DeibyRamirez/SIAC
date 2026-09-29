@@ -3,9 +3,25 @@ import { programasSemilla } from '@/lib/datos-semilla'
 
 const etiquetasEstado: Record<EstadoEvidencia, string> = {
   Borrador: 'Borrador',
-  EnRevision: 'En revisión',
-  Validado: 'Aprobado',
-  Rechazado: 'Corrección',
+  EnRevision: 'Pendiente de verificación',
+  ConObservaciones: 'Con observaciones',
+  Cumple: 'Cumple',
+  Validado: 'Validado',
+  Rechazado: 'Rechazado',
+}
+
+/** Texto "n/total" del puntaje del checklist; null si el documento no tiene verificación. */
+export function formatearPuntaje(
+  puntaje: number | null | undefined,
+  totalCondiciones: number | null | undefined,
+): string | null {
+  if (puntaje === null || puntaje === undefined || !totalCondiciones) return null
+  return `${puntaje}/${totalCondiciones}`
+}
+
+/** Estados desde los que el Cargador corrige y reenvía a revisión. */
+export function admiteCorreccion(estado: EstadoEvidencia): boolean {
+  return estado === 'Borrador' || estado === 'ConObservaciones' || estado === 'Rechazado'
 }
 
 export function obtenerProgramaPorId(id: string): Programa | undefined {
@@ -98,7 +114,7 @@ export function esNovedadCargador(evidencia: {
   estado: EstadoEvidencia
   observaciones?: string
 }): boolean {
-  return evidencia.estado === 'Rechazado'
+  return evidencia.estado === 'ConObservaciones' || evidencia.estado === 'Rechazado'
 }
 
 export function inferirFormatoArchivo(nombreArchivo: string): 'PDF' | 'XLSX' | 'OTRO' {

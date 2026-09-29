@@ -26,7 +26,7 @@ export default function InicioRevisorPage() {
 function ContenidoInicioRevisor() {
   const { sesion } = usarSesion()
   const [programas, setProgramas] = useState<Programa[]>([])
-  const [conteos, setConteos] = useState({ enRevision: 0, validado: 0, rechazado: 0 })
+  const [conteos, setConteos] = useState({ enRevision: 0, cumple: 0, conObservaciones: 0 })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -39,8 +39,9 @@ function ContenidoInicioRevisor() {
         setProgramas(lista)
         setConteos({
           enRevision: resumen.enRevision,
-          validado: resumen.validado,
-          rechazado: resumen.rechazado,
+          // Cumple (checklist completo) y Validado (decisión explícita) cuentan como aprobados.
+          cumple: (resumen.cumple ?? 0) + resumen.validado,
+          conObservaciones: (resumen.conObservaciones ?? 0) + resumen.rechazado,
         })
       })
       .catch(() => {
@@ -61,8 +62,8 @@ function ContenidoInicioRevisor() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <TarjetaKpi titulo="Pendientes" valor={conteos.enRevision} icono={FileCheck2} acento="coral" />
-        <TarjetaKpi titulo="Aprobadas" valor={conteos.validado} acento="esmeralda" />
-        <TarjetaKpi titulo="Correcciones" valor={conteos.rechazado} acento="purpura" />
+        <TarjetaKpi titulo="Cumplen" valor={conteos.cumple} acento="esmeralda" />
+        <TarjetaKpi titulo="Con observaciones" valor={conteos.conObservaciones} acento="purpura" />
       </div>
 
       <TarjetaAcceso

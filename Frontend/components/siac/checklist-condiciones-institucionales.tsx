@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CONDICIONES_INSTITUCIONALES,
-  PESO_POR_CONDICION_INSTITUCIONAL,
   type CodigoCondicionInstitucional,
 } from '@/lib/condiciones-institucionales'
 import { cn } from '@/lib/utils'
@@ -56,9 +55,10 @@ export function ChecklistCondicionesInstitucionales({
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Cada condición aporta ~{PESO_POR_CONDICION_INSTITUCIONAL.toFixed(2)}% al
-        avance del documento (6 condiciones = 100%). Incluye informe de
-        autoevaluación y plan de desarrollo (art. 2.5.3.2.3.1.8).
+        Calificación binaria: cada condición cumple o no cumple. El puntaje es el
+        número de condiciones que cumplen (n/6); 6/6 deja el documento en «Cumple» y
+        menos de 6 en «Con observaciones». Incluye informe de autoevaluación y plan de
+        desarrollo (art. 2.5.3.2.3.1.8).
       </p>
       <ul className="max-h-[min(520px,60vh)] space-y-3 overflow-y-auto pr-1">
         {CONDICIONES_INSTITUCIONALES.map((def) => {

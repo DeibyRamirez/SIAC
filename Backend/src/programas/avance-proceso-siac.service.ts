@@ -9,7 +9,16 @@ export interface DocumentoProgresoSIAC {
   peso: number;
   porcentajeInterno: number;
   aportacion: number;
+  /** Estado de la evidencia más reciente de la guía (null si no hay carga). */
+  estado: EstadoEvidencia | null;
+  /** Puntaje entero n de la última verificación con checklist (G1 n/9, G3 n/6). */
+  puntaje: number | null;
+  totalCondiciones: number | null;
+  /** Cumple (checklist completo) o Validado (decisión explícita). */
   aceptado: boolean;
+  /** Checklist con condiciones pendientes (n < total). */
+  conObservaciones: boolean;
+  /** Solo por decisión explícita del Revisor (HU-006). */
   rechazado: boolean;
 }
 
@@ -48,7 +57,8 @@ export class AvanceProcesoSIACService {
         documentoRequeridoId: true,
         codigoGuia: true,
         estado: true,
-        porcentajeCompletitud: true,
+        puntajeActual: true,
+        totalCondicionesActual: true,
         updatedAt: true,
         documentoRequerido: { select: { codigoGuia: true } },
       },
@@ -63,11 +73,7 @@ export class AvanceProcesoSIACService {
           docsGuia.some((doc) => doc.id === ev.documentoRequeridoId),
       );
 
-      const porcentajeInterno = !evidencia
-        ? 0
-        : evidencia.estado === EstadoEvidencia.Validado
-          ? 100
-          : evidencia.porcentajeCompletitud;
+      const porcentajeInterno = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
 
       const aportacion = Math.round((pesoDocumento * porcentajeInterno) / 100);
 
@@ -77,7 +83,13 @@ export class AvanceProcesoSIACService {
         peso: Math.round(pesoDocumento),
         porcentajeInterno: Math.round(porcentajeInterno),
         aportacion,
-        aceptado: evidencia?.estado === EstadoEvidencia.Validado,
+        estado: evidencia?.estado ?? null,
+        puntaje: evidencia?.puntajeActual ?? null,
+        totalCondiciones: evidencia?.totalCondicionesActual ?? null,
+        aceptado:
+          evidencia?.estado === EstadoEvidencia.Cumple ||
+          evidencia?.estado === EstadoEvidencia.Validado,
+        conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
         rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
       };
     });
@@ -94,4 +106,27 @@ export class AvanceProcesoSIACService {
       documentos,
     };
   }
+}
+
+/**
+ * Aporte interno de una guía (0-100) según la regla n/9:
+ * - Cumple o Validado => 100.
+ * - Rechazado (decisión explícita) => 0.
+ * - Con puntaje de una verificación previa (Con observaciones, o corrección reenviada) =>
+ *   proporción del puntaje (5/9 => 56).
+ * - Sin verificación => 0 (sin documentos revisados no se reporta avance).
+ */
+export function porcentajeInternoEvidencia(evidencia: {
+  estado: EstadoEvidencia;
+  puntajeActual: number | null;
+  totalCondicionesActual: number | null;
+}): number {
+  if (evidencia.estado === EstadoEvidencia.Cumple || evidencia.estado === EstadoEvidencia.Validado) {
+    return 100;
+  }
+  if (evidencia.estado === EstadoEvidencia.Rechazado) return 0;
+  if (evidencia.puntajeActual !== null && evidencia.totalCondicionesActual) {
+    return (evidencia.puntajeActual / evidencia.totalCondicionesActual) * 100;
+  }
+  return 0;
 }

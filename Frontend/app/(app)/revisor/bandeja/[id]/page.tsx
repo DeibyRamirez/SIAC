@@ -29,11 +29,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
-  calcularPorcentajeCondiciones,
+  TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
 } from '@/lib/condiciones-documento-maestro'
 import {
   CODIGOS_CONDICION_INSTITUCIONAL,
-  calcularPorcentajeCondicionesInstitucionales,
+  TOTAL_CONDICIONES_INSTITUCIONALES,
 } from '@/lib/condiciones-institucionales'
 import {
   DESCRIPCIONES_GUIA,
@@ -53,7 +53,12 @@ import {
   limpiarBorradorRevision,
   usarBorradorRevisionDocx,
 } from '@/lib/hooks/usar-borrador-revision-docx'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  etiquetaEstadoEvidencia,
+  formatearFecha,
+  formatearPuntaje,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 
 export default function DictamenPage() {
   return (
@@ -148,16 +153,20 @@ function ContenidoDictamen() {
     restaurarBorrador,
   )
 
-  const porcentajePreview = useMemo(() => {
+  // Regla n/9 (HU-003): puntaje entero = condiciones que cumplen (G3 usa n/6).
+  const puntajePreview = useMemo(() => {
     if (usaChecklistInstitucional) {
-      const cumplidas = condicionesInstitucionales.filter(
-        (c) => c.decision === 'correcto',
-      ).length
-      return calcularPorcentajeCondicionesInstitucionales(cumplidas)
+      return {
+        puntaje: condicionesInstitucionales.filter((c) => c.decision === 'correcto').length,
+        total: TOTAL_CONDICIONES_INSTITUCIONALES,
+      }
     }
-    const cumplidas = condiciones.filter((c) => c.decision === 'correcto').length
-    return calcularPorcentajeCondiciones(cumplidas)
+    return {
+      puntaje: condiciones.filter((c) => c.decision === 'correcto').length,
+      total: TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
+    }
   }, [condiciones, condicionesInstitucionales, usaChecklistInstitucional])
+  const textoPuntajePreview = `${puntajePreview.puntaje}/${puntajePreview.total}`
 
   if (cargando) {
     return <p className="text-sm text-muted-foreground">Cargando evidencia…</p>
@@ -214,7 +223,7 @@ function ContenidoDictamen() {
   async function enviarDictamen(aprobacionTotal: boolean) {
     if (!evidencia) return
     if (!puedeDictaminar) {
-      setMensaje('Solo se puede dictaminar evidencias en estado En revisión.')
+      setMensaje('Solo se puede dictaminar evidencias pendientes de verificación.')
       return
     }
 
@@ -247,7 +256,16 @@ function ContenidoDictamen() {
       }
     }
 
-    const estado = aprobacionTotal ? 'Validado' : 'Rechazado'
+    // Con checklist el resultado sale del puntaje: Cumple (n = total) o Con observaciones.
+    // Sin checklist (G2/G4) es la decisión explícita del Revisor: Validado o Rechazado.
+    const estado = usaChecklist
+      ? todasCumplen
+        ? 'Cumple'
+        : 'ConObservaciones'
+      : aprobacionTotal
+        ? 'Validado'
+        : 'Rechazado'
+    const estadoDecision = aprobacionTotal ? 'Validado' : 'Rechazado'
     const observaciones = usaChecklist
       ? (usaChecklistInstitucional
           ? payloadCondicionesInstitucionales
@@ -270,7 +288,7 @@ function ContenidoDictamen() {
           condicionesInstitucionales: usaChecklistInstitucional
             ? payloadCondicionesInstitucionales
             : undefined,
-          estado: usaChecklist ? undefined : estado,
+          estado: usaChecklist ? undefined : estadoDecision,
           observaciones: usaChecklist ? undefined : observaciones,
         })
       }
@@ -279,7 +297,12 @@ function ContenidoDictamen() {
         estado,
         observaciones,
         usaChecklist ? payloadCondiciones : undefined,
-        usaChecklist ? porcentajePreview : aprobacionTotal ? 100 : undefined,
+        usaChecklist
+          ? {
+              puntajeActual: puntajePreview.puntaje,
+              totalCondicionesActual: puntajePreview.total,
+            }
+          : undefined,
       )
       limpiarBorradorRevision(evidencia.id, versionActual)
       router.push('/revisor/bandeja')
@@ -315,12 +338,12 @@ function ContenidoDictamen() {
                 </Badge>
               )}
               <InsigniaEstado estado={evidencia.estado} />
-              {evidencia.porcentajeCompletitud !== undefined &&
-                evidencia.porcentajeCompletitud > 0 && (
-                  <Badge variant="outline">
-                    Avance documento: {evidencia.porcentajeCompletitud}%
-                  </Badge>
-                )}
+              {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) && (
+                <Badge variant="outline">
+                  Última verificación:{' '}
+                  {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual)}
+                </Badge>
+              )}
             </div>
             <VisorDocumentoInline
               titulo={evidencia.nombreArchivo}
@@ -363,7 +386,8 @@ function ContenidoDictamen() {
           <CardContent className="space-y-4 pt-6">
             {!puedeDictaminar && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Esta evidencia no está en revisión. Estado actual: {evidencia.estado}.
+                Esta evidencia no está pendiente de verificación. Estado actual:{' '}
+                {etiquetaEstadoEvidencia(evidencia.estado)}.
               </p>
             )}
 
@@ -374,7 +398,7 @@ function ContenidoDictamen() {
                     Checklist G1 — 9 condiciones de programa
                   </p>
                   <span className="text-sm font-medium text-esmeralda">
-                    {porcentajePreview}%
+                    {textoPuntajePreview}
                   </span>
                 </div>
                 <ChecklistCondicionesDocumentoMaestro
@@ -390,7 +414,7 @@ function ContenidoDictamen() {
                     Checklist G3 — 6 condiciones institucionales
                   </p>
                   <span className="text-sm font-medium text-esmeralda">
-                    {porcentajePreview}%
+                    {textoPuntajePreview}
                   </span>
                 </div>
                 <ChecklistCondicionesInstitucionales
@@ -432,7 +456,7 @@ function ContenidoDictamen() {
                   observacionesBloqueanAprobar
                 }
               >
-                Aprobar documento
+                {usaChecklist ? `Registrar «Cumple» (${textoPuntajePreview})` : 'Aprobar documento'}
               </Button>
               <Button
                 variant="destructive"
@@ -455,7 +479,7 @@ function ContenidoDictamen() {
                 }}
                 disabled={!puedeDictaminar || procesando}
               >
-                Enviar a corrección
+                {usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'}
               </Button>
               <Link href="/revisor/bandeja">
                 <Button variant="outline" className="w-full">
@@ -469,23 +493,27 @@ function ContenidoDictamen() {
 
       <DialogoConfirmacion
         abierto={confirmarAprobar}
-        titulo="¿Aprobar documento?"
+        titulo={usaChecklist ? '¿Registrar el documento como «Cumple»?' : '¿Aprobar documento?'}
         descripcion={
           usaChecklistInstitucional
-            ? 'Las 6 condiciones institucionales deben estar cumplidas. El cargador será notificado.'
+            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el cargador será notificado.'
             : usaChecklistPrograma
-              ? 'Las 9 condiciones de programa deben estar cumplidas. El cargador será notificado.'
+              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el cargador será notificado.'
               : 'El cargador será notificado de la aprobación.'
         }
-        etiquetaConfirmar="Sí, aprobar"
+        etiquetaConfirmar={usaChecklist ? 'Sí, registrar' : 'Sí, aprobar'}
         cargando={procesando}
         onConfirmar={() => enviarDictamen(true)}
         onCancelar={() => setConfirmarAprobar(false)}
       />
       <DialogoConfirmacion
         abierto={confirmarCorreccion}
-        titulo="¿Enviar a corrección?"
-        descripcion={`El cargador verá el avance parcial (${porcentajePreview}%) y las observaciones por condición.`}
+        titulo={usaChecklist ? '¿Registrar «Con observaciones»?' : '¿Enviar a corrección?'}
+        descripcion={
+          usaChecklist
+            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
+            : 'El documento quedará «Rechazado» y el cargador verá tus observaciones.'
+        }
         etiquetaConfirmar="Sí, enviar"
         variant="destructive"
         cargando={procesando}

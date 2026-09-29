@@ -9,18 +9,25 @@ import {
 
 interface ResumenObservacionesPorCondicionProps {
   evaluaciones: EvaluacionCondicionEvidencia[]
-  porcentajeCompletitud?: number
+  /** Puntaje entero n (condiciones que cumplen). */
+  puntaje?: number | null
+  /** Total de condiciones (9 en G1, 6 en G3). Por defecto, las evaluaciones recibidas. */
+  totalCondiciones?: number | null
   titulo?: string
   resolverEtiqueta?: (codigo: EvaluacionCondicionEvidencia['codigoCondicion']) => string
 }
 
 export function ResumenObservacionesPorCondicion({
   evaluaciones,
-  porcentajeCompletitud,
+  puntaje,
+  totalCondiciones,
   titulo = 'Evaluación por condiciones del documento',
   resolverEtiqueta = etiquetaCondicion,
 }: ResumenObservacionesPorCondicionProps) {
   if (evaluaciones.length === 0) return null
+
+  const puntajeMostrado = puntaje ?? evaluaciones.filter((ev) => ev.cumple).length
+  const totalMostrado = totalCondiciones ?? evaluaciones.length
 
   return (
     <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
@@ -28,11 +35,9 @@ export function ResumenObservacionesPorCondicion({
         <p className="text-sm font-semibold text-primary">
           {titulo}
         </p>
-        {porcentajeCompletitud !== undefined && (
-          <span className="text-sm font-medium text-esmeralda">
-            Avance del documento: {porcentajeCompletitud}%
-          </span>
-        )}
+        <span className="text-sm font-medium text-esmeralda">
+          Puntaje: {puntajeMostrado}/{totalMostrado}
+        </span>
       </div>
       <ul className="space-y-2">
         {evaluaciones.map((ev) => (

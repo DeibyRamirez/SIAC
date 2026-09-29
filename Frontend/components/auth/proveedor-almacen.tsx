@@ -25,6 +25,7 @@ import {
   crearEvidenciaApi,
   dictaminarEvidenciaApi,
   type CondicionDictamenPayload,
+  type PuntajeVerificacion,
 } from '@/lib/servicios/evidencias.servicio'
 import {
   crearPlantillaApi,
@@ -57,10 +58,10 @@ interface ContextoAlmacen {
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
-    estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+    estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
     observaciones?: string,
     condiciones?: CondicionDictamenPayload[],
-    porcentajeCompletitud?: number,
+    puntaje?: PuntajeVerificacion,
   ) => void
   crearPlantilla: (
     plantilla: Omit<Plantilla, 'id'>,
@@ -225,7 +226,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
           responsable: creada.responsable,
           requiereChecklistMaestro: creada.requiereChecklistMaestro,
           codigoGuia: creada.codigoGuia,
-          porcentajeCompletitud: creada.porcentajeCompletitud,
+          puntajeActual: creada.puntajeActual,
+          totalCondicionesActual: creada.totalCondicionesActual,
         }
         persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
         return mapeada
@@ -269,15 +271,18 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const dictaminarEvidencia = useCallback(
     async (
       id: string,
-      estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+      estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
       observaciones?: string,
       condiciones?: CondicionDictamenPayload[],
-      porcentajeCompletitud?: number,
+      puntaje?: PuntajeVerificacion,
     ) => {
       if (apiDisponible()) {
         try {
           await dictaminarEvidenciaApi(id, {
-            estado: condiciones?.length ? undefined : estado,
+            estado:
+              condiciones?.length || (estado !== 'Validado' && estado !== 'Rechazado')
+                ? undefined
+                : estado,
             observaciones,
             condiciones,
           })
@@ -293,8 +298,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
                 ...e,
                 estado,
                 observaciones: observaciones ?? e.observaciones,
-                porcentajeCompletitud:
-                  porcentajeCompletitud ?? e.porcentajeCompletitud,
+                puntajeActual: puntaje?.puntajeActual ?? e.puntajeActual,
+                totalCondicionesActual:
+                  puntaje?.totalCondicionesActual ?? e.totalCondicionesActual,
               }
             : e,
         ),

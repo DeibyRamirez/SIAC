@@ -484,7 +484,11 @@ async function main() {
 
   const docMaestro = await prisma.documentoRequerido.upsert({
     where: { id: 'doc-seed-maestro' },
-    update: { requiereChecklistMaestro: true, formato: FormatoArchivo.DOCX },
+    update: {
+      requiereChecklistMaestro: true,
+      formato: FormatoArchivo.DOCX,
+      codigoGuia: CodigoDocumentoGuia.G1,
+    },
     create: {
       id: 'doc-seed-maestro',
       carpetaId: carpetaCp.id,
@@ -493,6 +497,7 @@ async function main() {
       formato: FormatoArchivo.DOCX,
       obligatorio: true,
       requiereChecklistMaestro: true,
+      codigoGuia: CodigoDocumentoGuia.G1,
       orden: 1,
     },
   });
@@ -503,10 +508,13 @@ async function main() {
     const evMaestroId = 'ev-seed-maestro-ing-sw';
     await prisma.evidencia.upsert({
       where: { id: evMaestroId },
+      // Regla n/9 (HU-003): 8 de 9 condiciones cumplen => Con observaciones, puntaje 8/9.
       update: {
-        porcentajeCompletitud: 89,
-        estado: EstadoEvidencia.Rechazado,
+        estado: EstadoEvidencia.ConObservaciones,
         requiereChecklistMaestro: true,
+        codigoGuia: CodigoDocumentoGuia.G1,
+        puntajeActual: 8,
+        totalCondicionesActual: 9,
       },
       create: {
         id: evMaestroId,
@@ -516,12 +524,14 @@ async function main() {
         periodo: '2026-1',
         factor: 'Factor 1 · Proyecto educativo',
         indicador: 'Indicador 1.1 · Diseño curricular y plan de estudios',
-        estado: EstadoEvidencia.Rechazado,
+        estado: EstadoEvidencia.ConObservaciones,
         autorId: cargador.id,
         nombreArchivo: 'Documento_Maestro_IngSoftware.docx',
         responsable: cargador.nombre,
         requiereChecklistMaestro: true,
-        porcentajeCompletitud: 89,
+        codigoGuia: CodigoDocumentoGuia.G1,
+        puntajeActual: 8,
+        totalCondicionesActual: 9,
         observaciones:
           '• Aspectos curriculares: Falta profundizar el enfoque en competencias transversales.',
         rutaArchivo: `evidencias/2026/${evMaestroId}/v1/Documento_Maestro_IngSoftware.docx`,
@@ -577,7 +587,7 @@ async function main() {
 
     await prisma.programa.update({
       where: { id: programaIngSw.id },
-      data: { porcentajeAvance: 89, estadoProceso: 'En revisión documental' },
+      data: { porcentajeAvance: 44, estadoProceso: 'Con observaciones' },
     });
   }
 
