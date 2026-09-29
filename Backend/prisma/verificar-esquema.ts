@@ -12,7 +12,14 @@ const COLUMNAS_EVIDENCIA = ['version', 'rutaArchivo'];
 
 const COLUMNAS_ANEXO = ['carpeta', 'nombreArchivo', 'rutaArchivo', 'aniosVigencia', 'fechaCarga'];
 
-const ESTADOS_CANONICOS = new Set(['Borrador', 'EnRevision', 'Validado', 'Rechazado']);
+const ESTADOS_CANONICOS = new Set([
+  'Borrador',
+  'EnRevision',
+  'Validado',
+  'Rechazado',
+  'ConObservaciones',
+  'Cumple',
+]);
 
 async function estadosLegacy(): Promise<{ tabla: string; estado: string; total: number }[]> {
   const filas: { tabla: string; estado: string; total: number }[] = [];

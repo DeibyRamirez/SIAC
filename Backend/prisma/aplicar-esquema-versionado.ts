@@ -62,20 +62,25 @@ const SENTENCIAS: string[] = [
   END $$`,
 ];
 
-const ESTADOS_CANONICOS = ['Borrador', 'EnRevision', 'Validado', 'Rechazado'];
+const ESTADOS_CANONICOS = [
+  'Borrador',
+  'EnRevision',
+  'Validado',
+  'Rechazado',
+  'ConObservaciones',
+  'Cumple',
+];
 
 /**
- * Mapa documentado de estados legacy → canónicos (EstadoEvidencia).
- * QA: bases migradas de versiones previas conservan 'ConObservaciones'/'Cumple'.
+ * Mapa documentado de ALIASES legacy → estados canónicos actuales.
+ * OJO: 'ConObservaciones' y 'Cumple' YA son canónicos (HU-003 D1); no se remapean.
  */
 const MAPA_ESTADOS_LEGACY: Record<string, string> = {
-  Cumple: 'Validado',
   Aprobado: 'Validado',
   Validada: 'Validado',
-  ConObservaciones: 'Rechazado',
-  NoCumple: 'Rechazado',
-  EnCorreccion: 'Rechazado',
-  Correccion: 'Rechazado',
+  NoCumple: 'ConObservaciones',
+  EnCorreccion: 'ConObservaciones',
+  Correccion: 'ConObservaciones',
   Rechazada: 'Rechazado',
   Pendiente: 'EnRevision',
   EnProceso: 'EnRevision',

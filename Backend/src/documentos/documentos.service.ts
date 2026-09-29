@@ -51,6 +51,8 @@ import {
 
 import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.service';
 
+import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
+
 import {
   rolPuedeDictaminar,
   ServicioAlcancePrograma,
@@ -458,11 +460,18 @@ export class DocumentosService {
 
     const nuevaVersion = (evidencia.version ?? 1) + 1;
 
+    // El nombre del archivo no se renombra al subir correcciones: se conserva el
+    // nombre original de la versión (evita stems distintos o "(2).docx" del SO).
+    const nombreArchivoOriginal =
+      versionRegistro?.nombreArchivo?.trim() ||
+      evidencia.nombreArchivo?.trim() ||
+      decodificarNombreArchivoMultipart(archivo.originalname);
+
     const clave = this.almacenamiento.generarClaveEvidencia(
 
       id,
 
-      archivo.originalname,
+      nombreArchivoOriginal,
 
       nuevaVersion,
 
@@ -492,7 +501,7 @@ export class DocumentosService {
 
         numero: nuevaVersion,
 
-        nombreArchivo: archivo.originalname,
+        nombreArchivo: nombreArchivoOriginal,
 
         rutaArchivo: clave,
 
@@ -508,7 +517,7 @@ export class DocumentosService {
 
       await this.evidenciaRepo.actualizar(id, {
 
-        nombreArchivo: archivo.originalname,
+        nombreArchivo: nombreArchivoOriginal,
 
         rutaArchivo: clave,
 
@@ -1190,6 +1199,8 @@ export class DocumentosService {
 
     let nombreArchivo = evidencia.nombreArchivo;
 
+    let numeroVersion = evidencia.version ?? 1;
+
     let mimeType =
 
       evidencia.mimeType ??
@@ -1212,6 +1223,8 @@ export class DocumentosService {
 
       nombreArchivo = versionRegistro.nombreArchivo;
 
+      numeroVersion = versionRegistro.numero;
+
       mimeType =
 
         versionRegistro.mimeType ??
@@ -1230,7 +1243,84 @@ export class DocumentosService {
 
 
 
-    const buffer = await this.almacenamiento.obtenerBuffer(rutaArchivo, 'evidencias');
+    let buffer = await this.almacenamiento.obtenerBuffer(rutaArchivo, 'evidencias');
+
+
+
+    // Comentarios del revisor acumulados (v1..vN) anclados en Word.
+    const comentarios = await this.evidenciaRepo.listarComentariosHastaVersion(
+      id,
+      numeroVersion,
+    );
+
+    if (comentarios.length > 0) {
+      try {
+        const resultado = await this.docx.inyectarComentariosWord(
+          buffer,
+          comentarios.map((c) => ({
+            quote: c.quote ?? '',
+            body: c.texto,
+            autor: c.autor,
+            fecha: c.createdAt,
+          })),
+        );
+        buffer = resultado.buffer;
+        if (resultado.inyectados === 0) {
+          const soloDeEstaVersion = comentarios.every(
+            (c) => (c.numeroVersion ?? numeroVersion) === numeroVersion,
+          );
+          this.logger.error(
+            `Comentarios de evidencia ${id} v<=${numeroVersion}: 0 de ${comentarios.length} anclados (${resultado.omitidos} omitidos).`,
+          );
+          if (soloDeEstaVersion) {
+            throw new BadRequestException(
+              'No se pudieron anclar los comentarios del revisor en el documento. Intente de nuevo o contacte al administrador.',
+            );
+          }
+          this.logger.warn(
+            `Se sirve v${numeroVersion} sin comentarios de versiones previas (texto ya corregido).`,
+          );
+        }
+        if (resultado.omitidos > 0) {
+          this.logger.warn(
+            `Comentarios de evidencia ${id} v<=${numeroVersion}: ${resultado.omitidos} omitidos por cita sin coincidencia.`,
+          );
+        }
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        this.logger.error(
+          `No se pudieron inyectar comentarios en evidencia ${id} v<=${numeroVersion}: ${err instanceof Error ? err.message : err}`,
+        );
+        throw new BadRequestException(
+          'No se pudo preparar el documento con los comentarios del revisor. Intente de nuevo o contacte al administrador.',
+        );
+      }
+    }
+
+    // Firma única por descarga: liga el archivo servido a esta evidencia/versión.
+    const firmaDescarga = this.docx.generarValorFirma(id, numeroVersion);
+
+    try {
+
+      buffer = await this.docx.firmarDescarga(buffer, firmaDescarga);
+
+      await this.evidenciaRepo.actualizarVersion(id, numeroVersion, {
+
+        firmaDescarga,
+
+      });
+
+    } catch (err) {
+
+      this.logger.warn(
+
+        `No se pudo firmar la descarga de evidencia ${id} v${numeroVersion}: ${err instanceof Error ? err.message : err}`,
+
+      );
+
+    }
+
+
 
     return { buffer, nombreArchivo, mimeType };
 
@@ -1256,11 +1346,27 @@ export class DocumentosService {
 
     if (!TIPOS_PERMITIDOS.includes(archivo.mimetype)) {
 
-      throw new BadRequestException(
+      const mime = (archivo.mimetype ?? '').toLowerCase();
 
-        'Formato no válido. Suba un archivo .docx de Microsoft Word.',
+      const mimeAceptado =
 
-      );
+        mime === '' ||
+
+        mime === 'application/octet-stream' ||
+
+        mime === 'application/zip' ||
+
+        mime === 'application/x-zip-compressed';
+
+      if (!mimeAceptado) {
+
+        throw new BadRequestException(
+
+          'Formato no válido. Suba un archivo .docx de Microsoft Word.',
+
+        );
+
+      }
 
     }
 
@@ -1433,13 +1539,14 @@ export class DocumentosService {
       EnRevision: EstadoEvidencia.EnRevision,
       Validado: EstadoEvidencia.Validado,
       Rechazado: EstadoEvidencia.Rechazado,
-      Cumple: EstadoEvidencia.Validado,
+      ConObservaciones: EstadoEvidencia.ConObservaciones,
+      Cumple: EstadoEvidencia.Cumple,
+      // Aliases legacy → estados canónicos actuales (HU-003 D1).
       Aprobado: EstadoEvidencia.Validado,
       Validada: EstadoEvidencia.Validado,
-      ConObservaciones: EstadoEvidencia.Rechazado,
-      NoCumple: EstadoEvidencia.Rechazado,
-      EnCorreccion: EstadoEvidencia.Rechazado,
-      Correccion: EstadoEvidencia.Rechazado,
+      NoCumple: EstadoEvidencia.ConObservaciones,
+      EnCorreccion: EstadoEvidencia.ConObservaciones,
+      Correccion: EstadoEvidencia.ConObservaciones,
       Rechazada: EstadoEvidencia.Rechazado,
       Pendiente: EstadoEvidencia.EnRevision,
       EnProceso: EstadoEvidencia.EnRevision,

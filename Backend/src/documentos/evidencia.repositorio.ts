@@ -67,6 +67,10 @@ export interface ComentarioVersionPersistido {
 
   autor?: string;
 
+  numeroVersion?: number;
+
+  createdAt?: Date;
+
 }
 
 @Injectable()
@@ -525,6 +529,9 @@ export class EvidenciaRepositorio {
 
   ): Promise<void> {
 
+    const recortar = (valor: string | undefined, max: number): string | null =>
+      valor ? valor.slice(0, max) : null;
+
     await this.prisma.$transaction(async (tx) => {
 
       await tx.$executeRawUnsafe(
@@ -553,11 +560,11 @@ export class EvidenciaRepositorio {
 
           revisorId,
 
-          comentario.autor ?? null,
+          recortar(comentario.autor, 255),
 
-          comentario.hunkId ?? null,
+          recortar(comentario.hunkId, 100),
 
-          comentario.anchor ?? null,
+          recortar(comentario.anchor, 100),
 
           comentario.quote ?? null,
 
@@ -629,11 +636,15 @@ export class EvidenciaRepositorio {
 
           autor: string | null;
 
+          numeroVersion: number;
+
+          createdAt: Date;
+
         }[]
 
       >(
 
-        `SELECT "hunkId","anchor","quote","texto","autor" FROM "EvidenciaComentario"
+        `SELECT "hunkId","anchor","quote","texto","autor","numeroVersion","createdAt" FROM "EvidenciaComentario"
 
          WHERE "evidenciaId" = $1 AND "numeroVersion" >= $2 AND "numeroVersion" <= $3
 
@@ -658,6 +669,10 @@ export class EvidenciaRepositorio {
         texto: fila.texto,
 
         autor: fila.autor ?? undefined,
+
+        numeroVersion: fila.numeroVersion,
+
+        createdAt: fila.createdAt,
 
       }));
 

@@ -62,6 +62,7 @@ function crearRepositorioFake() {
     version: 2,
     requiereChecklistMaestro: true,
     rutaArchivo: null as string | null,
+    nombreArchivo: 'doc.docx',
     porcentajeCompletitud: 0,
   };
 
@@ -140,6 +141,8 @@ function crearRepositorioFake() {
     guardarComentariosVersion: jest.fn(async () => undefined),
     buscarUsuarioNombre: jest.fn(async () => ({ nombre: 'Revisor Prueba' })),
     actualizarVersion: jest.fn(async () => ({})),
+    registrarVersion: jest.fn(async () => ({})),
+    eliminarVersion: jest.fn(async () => ({})),
   };
 
   return repositorio;
@@ -482,7 +485,7 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       { crear: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
-    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn(), idsProgramasAsignados: jest.fn() } as never);
+    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn().mockResolvedValue(true), idsProgramasAsignados: jest.fn() } as never);
 
     const { buffer } = await servicio.obtenerContenidoArchivo('ev-1', revisor, 1);
 
@@ -574,7 +577,7 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       { crear: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
-    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn(), idsProgramasAsignados: jest.fn() } as never);
+    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn().mockResolvedValue(true), idsProgramasAsignados: jest.fn() } as never);
 
     const { buffer } = await servicio.obtenerContenidoArchivo('ev-1', revisor, 2);
     expect(repositorio.listarComentariosHastaVersion).toHaveBeenCalledWith('ev-1', 2);
@@ -588,5 +591,112 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     const documentXml = await zip.file('word/document.xml')!.async('string');
     expect((documentXml.match(/<w:commentRangeStart/g) ?? []).length).toBe(2);
     expect((documentXml.match(/<w:commentReference/g) ?? []).length).toBe(2);
+  });
+
+  it('persiste los 3 comentarios inline del dictamen en v1', async () => {
+    const repositorio = crearRepositorioFake();
+    repositorio.evidencia = {
+      ...repositorio.evidencia,
+      estado: EstadoEvidencia.EnRevision,
+      version: 1,
+      requiereChecklistMaestro: false,
+    };
+    const servicio = crearServicio(repositorio);
+
+    await servicio.dictaminar(
+      'ev-1',
+      {
+        estado: EstadoEvidencia.Rechazado,
+        comentariosInline: [
+          { anchor: '0:5', quote: 'David', texto: 'Nombre completo' },
+          { anchor: '10:30', quote: 'requisitos de calidad', texto: 'Aclarar' },
+          { quote: 'informe final', texto: 'Revisar' },
+        ],
+      },
+      revisor,
+    );
+
+    expect(repositorio.guardarComentariosVersion).toHaveBeenCalledTimes(1);
+    const llamada = repositorio.guardarComentariosVersion.mock.calls[0] as unknown as [
+      string,
+      number,
+      string,
+      { texto: string; autor?: string }[],
+    ];
+    expect(llamada[0]).toBe('ev-1');
+    expect(llamada[1]).toBe(1);
+    expect(llamada[3]).toHaveLength(3);
+    expect(llamada[3].map((c) => c.texto)).toEqual([
+      'Nombre completo',
+      'Aclarar',
+      'Revisar',
+    ]);
+    expect(llamada[3].every((c) => c.autor === 'Revisor Prueba')).toBe(true);
+  });
+
+  it('reemplazarArchivo conserva el nombre original del .docx y no adopta "(2).docx"', async () => {
+    const repositorio = crearRepositorioFake();
+    repositorio.evidencia = {
+      ...repositorio.evidencia,
+      estado: EstadoEvidencia.Rechazado,
+      version: 1,
+      requiereChecklistMaestro: false,
+      autorId: 'autor-1',
+      nombreArchivo: 'guia.docx',
+      rutaArchivo: 'evidencias/2026/ev-1/v1/guia.docx',
+    };
+    repositorio.buscarVersion.mockResolvedValue({
+      numero: 1,
+      rutaArchivo: 'evidencias/2026/ev-1/v1/guia.docx',
+      nombreArchivo: 'guia.docx',
+      firmaDescarga: 'firma-v1',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const generarClaveEvidencia = jest.fn(
+      (_id: string, nombre: string, version: number) =>
+        `evidencias/2026/ev-1/v${version}/${nombre}`,
+    );
+    const servicio = new DocumentosService(
+      repositorio as never,
+      {
+        obtenerBuffer: jest.fn(),
+        subirArchivo: jest.fn(),
+        generarClaveEvidencia,
+      } as never,
+      { crear: jest.fn() } as never,
+      { recalcularPorcentajeAvance: jest.fn() } as never,
+      {
+        validarFirmaSubida: jest.fn(),
+        validarEsDocxZip: jest.fn(),
+        procesarDocxPostDictamen: jest.fn(),
+      } as never,
+      {
+        filtroVisibilidad: jest.fn(),
+        estaAsignado: jest.fn().mockResolvedValue(true),
+        idsProgramasAsignados: jest.fn(),
+      } as never,
+    );
+
+    await servicio.reemplazarArchivo(
+      'ev-1',
+      {
+        originalname: 'guia (2).docx',
+        mimetype:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        buffer: await crearDocxBuffer('contenido corregido'),
+        size: 120,
+      } as never,
+      { id: 'autor-1', rol: RolUsuario.Cargador },
+    );
+
+    expect(generarClaveEvidencia).toHaveBeenCalledWith('ev-1', 'guia.docx', 2);
+    expect(repositorio.registrarVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ numero: 2, nombreArchivo: 'guia.docx' }),
+    );
+    expect(repositorio.actualizar).toHaveBeenCalledWith(
+      'ev-1',
+      expect.objectContaining({ nombreArchivo: 'guia.docx' }),
+    );
   });
 });
