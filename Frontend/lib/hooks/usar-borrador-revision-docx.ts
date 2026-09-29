@@ -8,9 +8,22 @@ import {
   type EstadoCondicionDictamen,
 } from '@/components/siac/checklist-condiciones-documento-maestro'
 
+export interface ComentarioInlineRevision {
+  id: string
+  /** Ancla a un hunk del diff (modo "Ver cambios"). */
+  hunkId?: string
+  /** Ancla de selección de texto en el preview ("inicio:fin" de offsets). */
+  anchor?: string
+  quote?: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface BorradorRevision {
   condiciones: EstadoCondicionDictamen[]
   observacionesGenerales: string
+  comentariosInline: ComentarioInlineRevision[]
 }
 
 function normalizarCondicionBorrador(
@@ -32,6 +45,40 @@ function normalizarCondicionBorrador(
     codigo: codigo as EstadoCondicionDictamen['codigo'],
     decision,
     observacion: typeof cruda.observacion === 'string' ? cruda.observacion : '',
+    referenciaPrevia:
+      typeof cruda.referenciaPrevia === 'string' ? cruda.referenciaPrevia : undefined,
+  }
+}
+
+function normalizarComentario(crudo: unknown): ComentarioInlineRevision | null {
+  if (!crudo || typeof crudo !== 'object') return null
+  const datos = crudo as Record<string, unknown>
+  if (typeof datos.body !== 'string') return null
+  const hunkId = typeof datos.hunkId === 'string' ? datos.hunkId : undefined
+  const anchor = typeof datos.anchor === 'string' ? datos.anchor : undefined
+  const quote =
+    typeof datos.quote === 'string'
+      ? datos.quote
+      : typeof datos.cita === 'string'
+        ? datos.cita
+        : undefined
+  return {
+    id:
+      typeof datos.id === 'string'
+        ? datos.id
+        : `${hunkId ?? anchor ?? 'comentario'}-${Date.now()}`,
+    hunkId,
+    anchor,
+    quote,
+    body: datos.body,
+    createdAt:
+      typeof datos.createdAt === 'string'
+        ? datos.createdAt
+        : new Date().toISOString(),
+    updatedAt:
+      typeof datos.updatedAt === 'string'
+        ? datos.updatedAt
+        : new Date().toISOString(),
   }
 }
 
@@ -48,26 +95,43 @@ function normalizarBorradorRevision(crudo: unknown): BorradorRevision | null {
       .map((item) => [item.codigo, item]),
   )
 
+  const comentariosReducer = (
+    acumulado: ComentarioInlineRevision[],
+    item: unknown,
+  ): ComentarioInlineRevision[] => {
+    const comentario = normalizarComentario(item)
+    if (comentario) acumulado.push(comentario)
+    return acumulado
+  }
+
   return {
     observacionesGenerales:
       typeof datos.observacionesGenerales === 'string'
         ? datos.observacionesGenerales
         : '',
     condiciones: base.map((item) => porCodigo.get(item.codigo) ?? item),
+    comentariosInline: Array.isArray(datos.comentariosInline)
+      ? datos.comentariosInline.reduce(comentariosReducer, [])
+      : [],
   }
 }
 
-function claveBorrador(evidenciaId: string, version: number): string {
-  return `siac:borrador-revision:${evidenciaId}:${version}`
+function claveBorrador(
+  evidenciaId: string,
+  version: number,
+  usuarioId: string | null,
+): string {
+  return `siac:borrador-revision:${usuarioId ?? 'anon'}:${evidenciaId}:${version}`
 }
 
 export function leerBorradorRevision(
   evidenciaId: string,
   version: number,
+  usuarioId: string | null = null,
 ): BorradorRevision | null {
   if (typeof window === 'undefined') return null
   try {
-    const crudo = localStorage.getItem(claveBorrador(evidenciaId, version))
+    const crudo = localStorage.getItem(claveBorrador(evidenciaId, version, usuarioId))
     if (!crudo) return null
     return normalizarBorradorRevision(JSON.parse(crudo))
   } catch {
@@ -75,41 +139,54 @@ export function leerBorradorRevision(
   }
 }
 
-export function limpiarBorradorRevision(evidenciaId: string, version: number): void {
+export function limpiarBorradorRevision(
+  evidenciaId: string,
+  version: number,
+  usuarioId: string | null = null,
+): void {
   if (typeof window === 'undefined') return
-  localStorage.removeItem(claveBorrador(evidenciaId, version))
+  localStorage.removeItem(claveBorrador(evidenciaId, version, usuarioId))
 }
 
 export function usarBorradorRevisionDocx(
   evidenciaId: string,
   version: number,
+  usuarioId: string | null,
   condiciones: EstadoCondicionDictamen[],
   observacionesGenerales: string,
+  comentariosInline: ComentarioInlineRevision[],
   onRestaurar: (borrador: BorradorRevision) => void,
 ): void {
   const hidratoRef = useRef(false)
 
   useEffect(() => {
     if (hidratoRef.current) return
-    const guardado = leerBorradorRevision(evidenciaId, version)
+    const guardado = leerBorradorRevision(evidenciaId, version, usuarioId)
     if (guardado) {
       onRestaurar(guardado)
     }
     hidratoRef.current = true
-  }, [evidenciaId, version, onRestaurar])
+  }, [evidenciaId, version, usuarioId, onRestaurar])
 
   useEffect(() => {
     if (!hidratoRef.current) return
     const temporizador = window.setTimeout(() => {
       try {
         localStorage.setItem(
-          claveBorrador(evidenciaId, version),
-          JSON.stringify({ condiciones, observacionesGenerales }),
+          claveBorrador(evidenciaId, version, usuarioId),
+          JSON.stringify({ condiciones, observacionesGenerales, comentariosInline }),
         )
       } catch {
         // Almacenamiento no disponible
       }
     }, 320)
     return () => window.clearTimeout(temporizador)
-  }, [evidenciaId, version, condiciones, observacionesGenerales])
+  }, [
+    evidenciaId,
+    version,
+    usuarioId,
+    condiciones,
+    observacionesGenerales,
+    comentariosInline,
+  ])
 }

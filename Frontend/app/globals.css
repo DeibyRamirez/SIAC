@@ -260,3 +260,38 @@ a {
   border: 1px solid var(--border);
   padding: 0.25rem 0.5rem;
 }
+
+.docx-preview-contenedor {
+  user-select: text;
+}
+
+/* Resaltado persistente de citas comentadas (CSS Custom Highlight API) */
+::highlight(siac-citas) {
+  background-color: rgba(250, 204, 21, 0.45);
+  text-decoration: underline;
+  text-decoration-color: rgba(202, 138, 4, 0.9);
+}
+
+::highlight(siac-comentario) {
+  background-color: rgba(251, 191, 36, 0.85);
+}
+
+mark[data-siac-cita] {
+  background-color: rgba(250, 204, 21, 0.45);
+}
+
+/* Marcas inline de "Ver cambios" sobre el render del .docx (conserva formato) */
+.docx-preview-contenedor ins[data-siac-cambio] {
+  background-color: rgba(16, 185, 129, 0.22);
+  color: #065f46;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+.docx-preview-contenedor del[data-siac-cambio] {
+  background-color: rgba(239, 68, 68, 0.16);
+  color: #b91c1c;
+  text-decoration: line-through;
+}
+
+

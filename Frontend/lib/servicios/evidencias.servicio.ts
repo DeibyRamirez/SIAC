@@ -28,6 +28,7 @@ export interface EvidenciaVersionApi {
   rutaArchivo: string;
   mimeType?: string;
   tamanoBytes?: number;
+  firmaDescarga?: string | null;
   subidoPorId: string;
   createdAt: string;
   subidoPor?: { id: string; nombre: string };
@@ -86,18 +87,93 @@ export interface CondicionDictamenPayload {
   observacion?: string
 }
 
+export interface ComentarioInlinePayload {
+  hunkId?: string
+  anchor?: string
+  quote?: string
+  texto: string
+  createdAt?: string
+}
+
 export async function dictaminarEvidenciaApi(
   id: string,
   payload: {
     estado?: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>
     observaciones?: string
     condiciones?: CondicionDictamenPayload[]
+    comentariosInline?: ComentarioInlinePayload[]
   },
 ): Promise<Evidencia> {
   return peticionApi<Evidencia>(`/evidencias/${id}/dictamen`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export interface LineaDiffApi {
+  tipo: 'contexto' | 'agregado' | 'eliminado'
+  texto: string
+  numeroAntes: number | null
+  numeroDespues: number | null
+}
+
+export interface HunkDiffApi {
+  id: string
+  encabezado: string
+  indiceInicio: number
+  lineas: LineaDiffApi[]
+  agregadas: number
+  eliminadas: number
+}
+
+export interface MediaDiffApi {
+  part: string
+  estado: 'agregado' | 'eliminado' | 'modificado' | 'sinCambios'
+  hashAntes?: string
+  hashDespues?: string
+  tamanoAntes?: number
+  tamanoDespues?: number
+}
+
+export interface DiffVersionesApi {
+  versionA: number
+  versionB: number
+  nombreArchivoA: string
+  nombreArchivoB: string
+  agregadas: number
+  eliminadas: number
+  sinCambios: boolean
+  /** Documento completo con marcas: contexto + eliminado + agregado. */
+  lineas: LineaDiffApi[]
+  hunks: HunkDiffApi[]
+  media: MediaDiffApi[]
+}
+
+export async function obtenerDiffVersionesApi(
+  id: string,
+  versionA: number,
+  versionB: number,
+): Promise<DiffVersionesApi> {
+  return peticionApi<DiffVersionesApi>(
+    `/evidencias/${id}/versiones/${versionA}/diff/${versionB}`,
+  )
+}
+
+export interface ComentarioEvidenciaApi {
+  hunkId?: string
+  anchor?: string
+  quote?: string
+  texto: string
+}
+
+export async function obtenerComentariosEvidenciaApi(
+  id: string,
+  version?: number,
+): Promise<ComentarioEvidenciaApi[]> {
+  const query = version !== undefined ? `?version=${version}` : ''
+  return peticionApi<ComentarioEvidenciaApi[]>(
+    `/evidencias/${id}/comentarios${query}`,
+  )
 }
 
 export async function obtenerEvaluacionesCondicionApi(id: string) {
