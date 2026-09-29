@@ -14,6 +14,12 @@ import {
   crearEstadosCondicionIniciales,
   type EstadoCondicionDictamen,
 } from '@/components/siac/checklist-condiciones-documento-maestro'
+import {
+  ChecklistCondicionesInstitucionales,
+  condicionInstitucionalCumpleParaApi,
+  crearEstadosCondicionInstitucionalIniciales,
+  type EstadoCondicionInstitucionalDictamen,
+} from '@/components/siac/checklist-condiciones-institucionales'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -25,8 +31,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
-  calcularPorcentajeCondiciones,
+  TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
 } from '@/lib/condiciones-documento-maestro'
+import {
+  CODIGOS_CONDICION_INSTITUCIONAL,
+  TOTAL_CONDICIONES_INSTITUCIONALES,
+} from '@/lib/condiciones-institucionales'
+import {
+  DESCRIPCIONES_GUIA,
+  ETIQUETAS_GUIA,
+  guiaUsaChecklistInstitucional,
+  guiaUsaChecklistPrograma,
+} from '@/lib/utilidades/catalogo-tramites-siac'
+import type { CodigoDocumentoGuia } from '@/lib/tipos'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   dictaminarEvidenciaApi,
@@ -44,7 +61,12 @@ import {
   type ComentarioInlineRevision,
 } from '@/lib/hooks/usar-borrador-revision-docx'
 import type { SeleccionDocx } from '@/lib/utilidades/seleccion-docx'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  etiquetaEstadoEvidencia,
+  formatearFecha,
+  formatearPuntaje,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 export default function DictamenPage() {
@@ -111,6 +133,9 @@ function ContenidoDictamen() {
   const [condiciones, setCondiciones] = useState<EstadoCondicionDictamen[]>(
     crearEstadosCondicionIniciales(),
   )
+  const [condicionesInstitucionales, setCondicionesInstitucionales] = useState<
+    EstadoCondicionInstitucionalDictamen[]
+  >(crearEstadosCondicionInstitucionalIniciales())
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [confirmarAprobar, setConfirmarAprobar] = useState(false)
@@ -165,13 +190,25 @@ function ContenidoDictamen() {
     cargar()
   }, [params.id])
 
-  const usaChecklist = useMemo(() => {
-    if (!evidencia) return false
-    return (
+  const guiaDocumento = useMemo((): CodigoDocumentoGuia | null => {
+    if (!evidencia) return null
+    if (evidencia.codigoGuia) return evidencia.codigoGuia
+    if (
       evidencia.requiereChecklistMaestro ||
       /documento\s*maestro/i.test(evidencia.nombre)
-    )
+    ) {
+      return 'G1'
+    }
+    return null
   }, [evidencia])
+
+  const usaChecklistPrograma = guiaDocumento
+    ? guiaUsaChecklistPrograma(guiaDocumento)
+    : false
+  const usaChecklistInstitucional = guiaDocumento
+    ? guiaUsaChecklistInstitucional(guiaDocumento)
+    : false
+  const usaChecklist = usaChecklistPrograma || usaChecklistInstitucional
 
   const versionActual = evidencia?.version ?? 1
 
@@ -238,6 +275,21 @@ function ContenidoDictamen() {
     return calcularPorcentajeCondiciones(cumplidas)
   }, [condiciones])
 
+  // Regla n/9 (HU-003): puntaje entero = condiciones que cumplen (G3 usa n/6).
+  const puntajePreview = useMemo(() => {
+    if (usaChecklistInstitucional) {
+      return {
+        puntaje: condicionesInstitucionales.filter((c) => c.decision === 'correcto').length,
+        total: TOTAL_CONDICIONES_INSTITUCIONALES,
+      }
+    }
+    return {
+      puntaje: condiciones.filter((c) => c.decision === 'correcto').length,
+      total: TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
+    }
+  }, [condiciones, condicionesInstitucionales, usaChecklistInstitucional])
+  const textoPuntajePreview = `${puntajePreview.puntaje}/${puntajePreview.total}`
+
   if (cargando) {
     return <p className="text-sm text-muted-foreground">Cargando evidencia…</p>
   }
@@ -258,13 +310,28 @@ function ContenidoDictamen() {
   }
 
   const puedeDictaminar = evidencia.estado === 'EnRevision'
-  const todasCumplen = condiciones.every((c) => c.decision === 'correcto')
+  const todasCumplen = usaChecklistInstitucional
+    ? condicionesInstitucionales.every((c) => c.decision === 'correcto')
+    : condiciones.every((c) => c.decision === 'correcto')
+  const observacionesBloqueanAprobar = usaChecklist
+    ? usaChecklistInstitucional
+      ? condicionesInstitucionales.some((c) => c.observacion.trim().length > 0)
+      : condiciones.some((c) => c.observacion.trim().length > 0)
+    : observacionesGenerales.trim().length > 0
 
   function validarCondiciones(): string | null {
-    if (condiciones.length !== CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length) {
-      return 'Debe evaluar las 9 condiciones.'
+    const lista = usaChecklistInstitucional
+      ? condicionesInstitucionales
+      : condiciones
+    const totalEsperado = usaChecklistInstitucional
+      ? CODIGOS_CONDICION_INSTITUCIONAL.length
+      : CODIGOS_CONDICION_DOCUMENTO_MAESTRO.length
+    if (lista.length !== totalEsperado) {
+      return usaChecklistInstitucional
+        ? 'Debe evaluar las 6 condiciones institucionales.'
+        : 'Debe evaluar las 9 condiciones de programa.'
     }
-    for (const c of condiciones) {
+    for (const c of lista) {
       if (c.decision === null) {
         return 'Marque Correcto o Corregir en cada condición.'
       }
@@ -335,7 +402,7 @@ function ContenidoDictamen() {
   async function enviarDictamen(aprobacionTotal: boolean) {
     if (!evidencia) return
     if (!puedeDictaminar) {
-      setMensaje('Solo se puede dictaminar evidencias en estado En revisión.')
+      setMensaje('Solo se puede dictaminar evidencias pendientes de verificación.')
       return
     }
 
@@ -344,6 +411,13 @@ function ContenidoDictamen() {
       cumple: condicionCumpleParaApi(c),
       observacion: c.observacion.trim() || undefined,
     }))
+    const payloadCondicionesInstitucionales = condicionesInstitucionales.map(
+      (c) => ({
+        codigo: c.codigo,
+        cumple: condicionInstitucionalCumpleParaApi(c),
+        observacion: c.observacion.trim() || undefined,
+      }),
+    )
 
     if (usaChecklist) {
       const errorValidacion = validarCondiciones()
@@ -352,14 +426,29 @@ function ContenidoDictamen() {
         return
       }
       if (aprobacionTotal && !todasCumplen) {
-        setMensaje('Para aprobar deben cumplirse las 9 condiciones.')
+        setMensaje(
+          usaChecklistInstitucional
+            ? 'Para aprobar deben cumplirse las 6 condiciones institucionales.'
+            : 'Para aprobar deben cumplirse las 9 condiciones de programa.',
+        )
         return
       }
     }
 
-    const estado = aprobacionTotal ? 'Validado' : 'Rechazado'
+    // Con checklist el resultado sale del puntaje: Cumple (n = total) o Con observaciones.
+    // Sin checklist (G2/G4) es la decisión explícita del Revisor: Validado o Rechazado.
+    const estado = usaChecklist
+      ? todasCumplen
+        ? 'Cumple'
+        : 'ConObservaciones'
+      : aprobacionTotal
+        ? 'Validado'
+        : 'Rechazado'
+    const estadoDecision = aprobacionTotal ? 'Validado' : 'Rechazado'
     const observaciones = usaChecklist
-      ? payloadCondiciones
+      ? (usaChecklistInstitucional
+          ? payloadCondicionesInstitucionales
+          : payloadCondiciones)
           .filter((c) => !c.cumple && c.observacion)
           .map((c) => c.observacion)
           .join('\n')
@@ -395,9 +484,14 @@ function ContenidoDictamen() {
     try {
       if (apiDisponible()) {
         await dictaminarEvidenciaApi(evidencia.id, {
-          condiciones: usaChecklist ? payloadCondiciones : undefined,
-          estado: usaChecklist ? undefined : estado,
-          observaciones: usaChecklist ? observaciones : undefined,
+          condiciones: usaChecklistPrograma ? payloadCondiciones : undefined,
+          condicionesInstitucionales: usaChecklistInstitucional
+            ? payloadCondicionesInstitucionales
+            : undefined,
+          estado: usaChecklist ? undefined : estadoDecision,
+          observaciones: usaChecklist
+            ? undefined
+            : observacionesGenerales.trim() || observacionesLocal || undefined,
           comentariosInline:
             comentariosPayload.length > 0 ? comentariosPayload : undefined,
         })
@@ -407,7 +501,12 @@ function ContenidoDictamen() {
         estado,
         observacionesLocal,
         usaChecklist ? payloadCondiciones : undefined,
-        usaChecklist ? porcentajePreview : aprobacionTotal ? 100 : undefined,
+        usaChecklist
+          ? {
+              puntajeActual: puntajePreview.puntaje,
+              totalCondicionesActual: puntajePreview.total,
+            }
+          : undefined,
       )
       limpiarBorradorRevision(evidencia.id, versionActual, sesion?.usuarioId ?? null)
       router.push('/revisor/bandeja')
@@ -425,7 +524,11 @@ function ContenidoDictamen() {
       <EncabezadoPagina
         etiqueta="Flujo de aprobación"
         titulo={evidencia.nombre}
-        descripcion="Visualiza el documento y evalúa las condiciones del Documento Maestro cuando aplique."
+        descripcion={
+          guiaDocumento
+            ? `${guiaDocumento}: ${DESCRIPCIONES_GUIA[guiaDocumento]}`
+            : 'Visualiza el documento y registra el dictamen.'
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -433,6 +536,11 @@ function ContenidoDictamen() {
           <CardContent className="space-y-4 pt-6 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">Versión {versionActual}</Badge>
+              {guiaDocumento && (
+                <Badge variant="outline">
+                  {guiaDocumento}: {ETIQUETAS_GUIA[guiaDocumento]}
+                </Badge>
+              )}
               <InsigniaEstado estado={evidencia.estado} />
               {evidencia.porcentajeCompletitud !== undefined &&
                 evidencia.porcentajeCompletitud > 0 && (
@@ -443,6 +551,10 @@ function ContenidoDictamen() {
               {!usaChecklist && comentariosInline.length > 0 && (
                 <Badge variant="outline">
                   {comentariosInline.length} comentario(s) inline
+              {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) && (
+                <Badge variant="outline">
+                  Última verificación:{' '}
+                  {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual)}
                 </Badge>
               )}
             </div>
@@ -545,23 +657,40 @@ function ContenidoDictamen() {
           <CardContent className="space-y-4 pt-6">
             {!puedeDictaminar && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Esta evidencia no está en revisión. Estado actual: {evidencia.estado}.
+                Esta evidencia no está pendiente de verificación. Estado actual:{' '}
+                {etiquetaEstadoEvidencia(evidencia.estado)}.
               </p>
             )}
 
-            {usaChecklist ? (
+            {usaChecklistPrograma ? (
               <>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-primary">
-                    Checklist — 9 condiciones
+                    Checklist G1 — 9 condiciones de programa
                   </p>
                   <span className="text-sm font-medium text-esmeralda">
-                    {porcentajePreview}%
+                    {textoPuntajePreview}
                   </span>
                 </div>
                 <ChecklistCondicionesDocumentoMaestro
                   estados={condiciones}
                   onChange={setCondiciones}
+                  deshabilitado={!puedeDictaminar}
+                />
+              </>
+            ) : usaChecklistInstitucional ? (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-primary">
+                    Checklist G3 — 6 condiciones institucionales
+                  </p>
+                  <span className="text-sm font-medium text-esmeralda">
+                    {textoPuntajePreview}
+                  </span>
+                </div>
+                <ChecklistCondicionesInstitucionales
+                  estados={condicionesInstitucionales}
+                  onChange={setCondicionesInstitucionales}
                   deshabilitado={!puedeDictaminar}
                 />
               </>
@@ -668,6 +797,21 @@ function ContenidoDictamen() {
                   Al enviar a corrección, estos comentarios se envían al cargador.
                 </p>
               </div>
+
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Observaciones</span>
+                <Textarea
+                  value={observacionesGenerales}
+                  onChange={(e) => setObservacionesGenerales(e.target.value)}
+                  placeholder="Observaciones si envías a corrección."
+                  disabled={!puedeDictaminar}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {guiaDocumento === 'G2' || guiaDocumento === 'G4'
+                    ? 'Documento de respaldo de mejoramiento: aprueba si cumple el artículo correspondiente o envía observaciones de corrección.'
+                    : 'Para aprobar, el campo de observaciones debe estar vacío.'}
+                </p>
+              </label>
             )}
 
             {mensaje && (
@@ -679,16 +823,24 @@ function ContenidoDictamen() {
             <div className="flex flex-col gap-3">
               <Button
                 onClick={() => setConfirmarAprobar(true)}
-                disabled={!puedeDictaminar || procesando || (usaChecklist && !todasCumplen)}
+                disabled={
+                  !puedeDictaminar ||
+                  procesando ||
+                  (usaChecklist && !todasCumplen) ||
+                  observacionesBloqueanAprobar
+                }
               >
-                Aprobar documento
+                {usaChecklist ? `Registrar «Cumple» (${textoPuntajePreview})` : 'Aprobar documento'}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => {
                   if (usaChecklist) {
                     const err = validarCondiciones()
-                    if (err && condiciones.every((c) => c.decision === 'correcto')) {
+                    const listaActual = usaChecklistInstitucional
+                      ? condicionesInstitucionales
+                      : condiciones
+                    if (err && listaActual.every((c) => c.decision === 'correcto')) {
                       setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
                       return
                     }
@@ -706,7 +858,7 @@ function ContenidoDictamen() {
                     comentariosInline.filter((c) => c.body.trim()).length === 0)
                 }
               >
-                Enviar a corrección
+                {usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'}
               </Button>
               <Link href="/revisor/bandeja">
                 <Button variant="outline" className="w-full">
@@ -720,20 +872,28 @@ function ContenidoDictamen() {
 
       <DialogoConfirmacion
         abierto={confirmarAprobar}
-        titulo="¿Aprobar documento?"
-        descripcion="Las 9 condiciones deben estar cumplidas. El cargador será notificado."
-        etiquetaConfirmar="Sí, aprobar"
+        titulo={usaChecklist ? '¿Registrar el documento como «Cumple»?' : '¿Aprobar documento?'}
+        descripcion={
+          usaChecklistInstitucional
+            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el cargador será notificado.'
+            : usaChecklistPrograma
+              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el cargador será notificado.'
+              : 'El cargador será notificado de la aprobación.'
+        }
+        etiquetaConfirmar={usaChecklist ? 'Sí, registrar' : 'Sí, aprobar'}
         cargando={procesando}
         onConfirmar={() => enviarDictamen(true)}
         onCancelar={() => setConfirmarAprobar(false)}
       />
       <DialogoConfirmacion
         abierto={confirmarCorreccion}
-        titulo="¿Enviar a corrección?"
+        titulo={usaChecklist ? '¿Registrar «Con observaciones»?' : '¿Enviar a corrección?'}
         descripcion={
           usaChecklist
-            ? `El cargador verá el avance parcial (${porcentajePreview}%) y las observaciones por condición.`
-            : `Se enviarán ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) sobre el documento al cargador.`
+            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
+            : comentariosInline.filter((c) => c.body.trim()).length > 0
+              ? `El documento quedará «Rechazado» y el cargador verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) sobre el documento.`
+              : 'El documento quedará «Rechazado» y el cargador verá tus observaciones.'
         }
         etiquetaConfirmar="Sí, enviar"
         variant="destructive"

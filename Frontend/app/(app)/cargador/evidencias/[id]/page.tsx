@@ -15,6 +15,11 @@ import { ResumenObservacionesPorCondicion } from '@/components/siac/resumen-obse
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
 import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
+import {
+  etiquetaCondicionInstitucional,
+  type EvaluacionCondicionInstitucionalEvidencia,
+} from '@/lib/condiciones-institucionales'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -31,10 +36,15 @@ import {
   subirVersionArchivoApi,
   obtenerEvaluacionesCondicionApi,
   type ComentarioEvidenciaApi,
+  obtenerEvaluacionesCondicionInstitucionalApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
 import { inspeccionarFirmaDocx } from '@/lib/utilidades/leer-firma-docx'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  admiteCorreccion,
+  formatearFecha,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 export default function DetalleEvidenciaCargadorPage() {
@@ -75,6 +85,9 @@ function ContenidoDetalle() {
     nonce: number
   } | null>(null)
   const [comentarioActivoId, setComentarioActivoId] = useState<string | null>(null)
+  const [evaluacionesInstitucionales, setEvaluacionesInstitucionales] = useState<
+    EvaluacionCondicionInstitucionalEvidencia[]
+  >([])
 
   async function refrescarDocumento(id: string) {
     if (!apiDisponible()) return
@@ -87,12 +100,16 @@ function ContenidoDetalle() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, historial, evaluaciones, versiones] = await Promise.all([
+          const [ev, descarga, historial, evaluaciones, versiones, evaluacionesCi] =
+            await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerHistorialApi(params.id).catch(() => []),
             obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
             listarVersionesApi(params.id).catch(() => []),
+            obtenerEvaluacionesCondicionInstitucionalApi(params.id).catch(
+              () => [],
+            ),
           ])
           const mapeada: Evidencia = {
             ...ev,
@@ -113,7 +130,10 @@ function ContenidoDetalle() {
           setFirmaEsperada(firmaActiva ?? null)
 
           const ultimoRechazo = historial
-            .filter((h) => h.estado === 'Rechazado' && h.observacion)
+            .filter(
+              (h) =>
+                (h.estado === 'ConObservaciones' || h.estado === 'Rechazado') && h.observacion,
+            )
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
           if (ultimoRechazo?.observacion) {
             setObservacionHistorial(ultimoRechazo.observacion)
@@ -131,6 +151,13 @@ function ContenidoDetalle() {
             mapeada.version ?? 1,
           ).catch(() => [])
           setComentariosRevisor(comentarios)
+          setEvaluacionesInstitucionales(
+            evaluacionesCi.map((e) => ({
+              codigoCondicion: e.codigoCondicion,
+              cumple: e.cumple,
+              observacion: e.observacion,
+            })),
+          )
         } else {
           const local = datos.evidencias.find((e) => e.id === params.id) ?? null
           setEvidencia(local)
@@ -172,8 +199,10 @@ function ContenidoDetalle() {
     )
   }
 
-  const esRechazada = evidencia.estado === 'Rechazado'
-  const puedeReenviar = evidencia.estado === 'Rechazado' || evidencia.estado === 'Borrador'
+  // Con observaciones (checklist n < total) o Rechazado (decisión explícita): requiere corrección.
+  const esRechazada =
+    evidencia.estado === 'ConObservaciones' || evidencia.estado === 'Rechazado'
+  const puedeReenviar = admiteCorreccion(evidencia.estado)
   const extension = evidencia.nombreArchivo.split('.').pop()?.toLowerCase()
   const formato = extension === 'docx' ? 'DOCX' : extension === 'xlsx' ? 'XLSX' : 'PDF'
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
@@ -250,7 +279,7 @@ function ContenidoDetalle() {
 
   async function enviarARevision() {
     if (!evidencia) return
-    if (evidencia.estado === 'Rechazado' && !archivoNuevo) {
+    if (esRechazada && !archivoNuevo) {
       toast.error('Debe cargar el documento .docx corregido antes de enviar a revisión.')
       return
     }
@@ -320,7 +349,9 @@ function ContenidoDetalle() {
       {esRechazada && evaluacionesCondicion.length > 0 && (
         <ResumenObservacionesPorCondicion
           evaluaciones={evaluacionesCondicion}
-          porcentajeCompletitud={evidencia.porcentajeCompletitud}
+          puntaje={evidencia.puntajeActual}
+          totalCondiciones={evidencia.totalCondicionesActual}
+          titulo="Evaluación G1 — condiciones de programa"
         />
       )}
 
@@ -375,6 +406,42 @@ function ContenidoDetalle() {
               )
             })}
           </ul>
+        </div>
+      )}
+
+      {esRechazada && evaluacionesInstitucionales.length > 0 && (
+        <ResumenObservacionesPorCondicion
+          evaluaciones={evaluacionesInstitucionales.map((e) => ({
+            codigoCondicion: e.codigoCondicion as EvaluacionCondicionEvidencia['codigoCondicion'],
+            cumple: e.cumple,
+            observacion: e.observacion,
+          }))}
+          puntaje={evidencia.puntajeActual}
+          totalCondiciones={evidencia.totalCondicionesActual}
+          titulo="Evaluación G3 — condiciones institucionales"
+          resolverEtiqueta={(codigo) =>
+            etiquetaCondicionInstitucional(
+              codigo as EvaluacionCondicionInstitucionalEvidencia['codigoCondicion'],
+            )
+          }
+        />
+      )}
+
+      {esRechazada &&
+        observacionesTexto &&
+        evaluacionesCondicion.length === 0 &&
+        evaluacionesInstitucionales.length === 0 &&
+        comentariosRevisor.length === 0 && (
+        <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge variant="destructive">Con observaciones</Badge>
+            <Badge variant="secondary">Versión {versionActual}</Badge>
+            <InsigniaEstado estado={evidencia.estado} />
+          </div>
+          <p className="text-sm font-medium text-primary">Observaciones del revisor</p>
+          <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+            {observacionesTexto}
+          </p>
         </div>
       )}
 

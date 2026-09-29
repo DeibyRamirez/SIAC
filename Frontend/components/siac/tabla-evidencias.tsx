@@ -15,7 +15,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Evidencia } from '@/lib/tipos'
-import { esNovedadCargador, formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  esNovedadCargador,
+  formatearFecha,
+  formatearFechaHora,
+  formatearPuntaje,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 interface TablaEvidenciasProps {
@@ -26,6 +32,7 @@ interface TablaEvidenciasProps {
   onAprobar?: (id: string) => void
   onRechazar?: (id: string) => void
   mostrarNovedades?: boolean
+  mostrarHora?: boolean
 }
 
 export function TablaEvidencias({
@@ -36,6 +43,7 @@ export function TablaEvidencias({
   onAprobar,
   onRechazar,
   mostrarNovedades,
+  mostrarHora,
 }: TablaEvidenciasProps) {
   const router = useRouter()
 
@@ -54,6 +62,7 @@ export function TablaEvidencias({
             <TableHead>Programa</TableHead>
             <TableHead>Factor</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Puntaje</TableHead>
             <TableHead>Fecha</TableHead>
             {tieneAcciones && <TableHead className="text-right">Acciones</TableHead>}
           </TableRow>
@@ -66,6 +75,7 @@ export function TablaEvidencias({
                 'border-primary/5',
                 enlaceDetalle && 'cursor-pointer',
                 evidencia.estado === 'Rechazado' && 'bg-fucsia/5',
+                evidencia.estado === 'ConObservaciones' && 'bg-coral/5',
               )}
               onClick={() => {
                 if (enlaceDetalle) {
@@ -108,8 +118,13 @@ export function TablaEvidencias({
                   )}
                 </div>
               </TableCell>
+              <TableCell className="text-sm font-medium">
+                {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) ?? '—'}
+              </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {formatearFecha(evidencia.fechaCarga)}
+                {mostrarHora
+                  ? formatearFechaHora(evidencia.fechaCarga)
+                  : formatearFecha(evidencia.fechaCarga)}
               </TableCell>
               {tieneAcciones && (
                 <TableCell className="text-right">

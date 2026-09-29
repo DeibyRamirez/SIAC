@@ -2,6 +2,7 @@ import { Injectable, BadGatewayException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.module';
 import { OrigenDato, RolUsuario } from '@prisma/client';
+import { generarSlug } from '../common/alcance/generar-slug';
 
 interface ProgramaExterno {
   idExterno: string;
@@ -128,6 +129,7 @@ export class IntegracionService {
         create: {
           codigo: item.codigo,
           nombre: item.nombre,
+          slug: generarSlug(`${item.nombre}-${item.codigo}`),
           nivel: item.nivel,
           modalidad: item.modalidad,
           codigoSnies: item.codigoSnies,

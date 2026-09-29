@@ -63,6 +63,7 @@ function itemsAdministrador(): ItemNavegacion[] {
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
+    { href: '/administrador/usuarios', etiqueta: 'Asignación de programas', icono: Users },
     { href: '/administrador/evidencias', etiqueta: 'Evidencias y documentos', icono: Files },
     { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', icono: Bell },
     { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', icono: FileCheck2 },
@@ -123,7 +124,7 @@ export function BarraLateral({
   onAlternarPlegado?: () => void
 }) {
   const pathname = usePathname()
-  const { sesion, cerrarSesion, etiquetaRolActual } = usarSesion()
+  const { sesion, cerrarSesion } = usarSesion()
   const { datos } = usarAlmacen()
 
   if (!sesion) {
@@ -135,13 +136,6 @@ export function BarraLateral({
   const novedadesCargador = sesion
     ? contarNovedadesCargador(datos.evidencias, sesion.usuarioId)
     : 0
-  const iniciales = sesion.nombre
-    .split(' ')
-    .map((parte) => parte[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
   return (
     <aside
       className={cn(
@@ -255,23 +249,6 @@ export function BarraLateral({
             </button>
           </>
         )}
-        <div
-          className={cn(
-            'flex items-center rounded-xl bg-accent/60 py-2',
-            plegado ? 'justify-center px-1' : 'gap-3 px-2',
-          )}
-          title={plegado ? `${sesion.nombre} · ${etiquetaRolActual}` : undefined}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            {iniciales}
-          </span>
-          {!plegado && (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-primary">{sesion.nombre}</p>
-              <p className="truncate text-xs text-esmeralda">{etiquetaRolActual}</p>
-            </div>
-          )}
-        </div>
         <Button
           variant="outline"
           size={plegado ? 'icon-sm' : 'default'}

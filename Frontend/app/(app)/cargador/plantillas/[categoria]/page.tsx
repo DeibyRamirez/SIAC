@@ -43,7 +43,7 @@ function ContenidoCategoria({
 
   const plantillasFiltradas = useMemo(() => {
     return datos.plantillas.filter((p) => {
-      if (p.categoria !== meta.categoria || !p.vigente) return false
+      if (!meta.tiposTramite.includes(p.tipoTramite ?? 'General') || !p.vigente) return false
       if (tipoTramite !== 'todos' && p.tipoTramite !== tipoTramite) return false
       const texto = busqueda.toLowerCase()
       return (
@@ -51,7 +51,7 @@ function ContenidoCategoria({
         p.factor.toLowerCase().includes(texto)
       )
     })
-  }, [datos.plantillas, meta.categoria, busqueda, tipoTramite])
+  }, [datos.plantillas, meta.tiposTramite, busqueda, tipoTramite])
 
   return (
     <div className="space-y-6">

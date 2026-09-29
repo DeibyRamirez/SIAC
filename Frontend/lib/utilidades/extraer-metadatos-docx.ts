@@ -1,6 +1,7 @@
 import mammoth from 'mammoth'
 
 import type { Programa } from '@/lib/tipos'
+import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
 
 export interface MetadatosExtraidosDocx {
   nombreSugerido?: string
@@ -8,13 +9,6 @@ export interface MetadatosExtraidosDocx {
   periodo?: string
   factor?: string
   indicador?: string
-}
-
-function periodoAcademicoActual(): string {
-  const ahora = new Date()
-  const anio = ahora.getFullYear()
-  const semestre = ahora.getMonth() < 6 ? 1 : 2
-  return `${anio}-${semestre}`
 }
 
 function nombreDesdeArchivo(nombreArchivo: string): string {

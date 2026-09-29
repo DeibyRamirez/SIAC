@@ -8,7 +8,8 @@ import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { factoresSemilla, periodosSemilla, programasSemilla } from '@/lib/datos-semilla'
+import { factoresSemilla, programasSemilla } from '@/lib/datos-semilla'
+import { periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
 
 interface ParametrosBusqueda {
@@ -124,7 +125,7 @@ export function ContenidoBusqueda({
                 className="w-full rounded-lg border border-input px-3 py-2"
               >
                 <option value="">Todos</option>
-                {periodosSemilla.map((valor) => (
+                {periodosConActual().map((valor) => (
                   <option key={valor} value={valor}>
                     {valor}
                   </option>

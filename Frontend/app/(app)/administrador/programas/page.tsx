@@ -26,8 +26,8 @@ import {
 } from '@/components/ui/select'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import { programasSemilla } from '@/lib/datos-semilla'
 import { crearProgramaApi, listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import type { NivelPrograma, Programa } from '@/lib/tipos'
 import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
@@ -42,23 +42,32 @@ export default function ProgramasAdministradorPage() {
 }
 
 function ContenidoProgramas() {
+  const { sesion } = usarSesion()
+  const puedeAdministrar = sesion?.rol === 'Administrador' || sesion?.rol === 'SuperAdmin'
   const [busqueda, setBusqueda] = useState('')
   const [nivel, setNivel] = useState('todos')
   const [pagina, setPagina] = useState(1)
-  const [programas, setProgramas] = useState<Programa[]>(programasSemilla)
+  const [programas, setProgramas] = useState<Programa[]>([])
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombreNuevo, setNombreNuevo] = useState('')
+  const [facultadNueva, setFacultadNueva] = useState('')
   const [nivelNuevo, setNivelNuevo] = useState<NivelPrograma>('Pregrado')
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     async function cargar() {
-      if (!apiDisponible()) return
+      if (!apiDisponible()) {
+        setErrorCarga('No hay conexión con la API. No se muestran datos de prueba.')
+        return
+      }
       try {
         const lista = await listarProgramasApi()
-        if (lista.length > 0) setProgramas(lista)
-      } catch {
-        // Mantiene semilla como fallback
+        setProgramas(lista)
+        setErrorCarga(null)
+      } catch (err) {
+        setProgramas([])
+        setErrorCarga(err instanceof Error ? err.message : 'No se pudieron cargar los programas.')
       }
     }
     cargar()
@@ -90,9 +99,12 @@ function ContenidoProgramas() {
         titulo="Programas académicos"
         descripcion={`Monitorea el avance de ${programas.length} programas en proceso de acreditación (pregrado y posgrado).`}
         accion={
-          <Button onClick={() => setDialogoAbierto(true)}>Nuevo programa</Button>
+          puedeAdministrar ? (
+            <Button onClick={() => setDialogoAbierto(true)}>Nuevo programa</Button>
+          ) : undefined
         }
       />
+      {errorCarga ? <p className="text-sm text-destructive">{errorCarga}</p> : null}
 
       <BarraHerramientasTabla
         placeholder="Buscar programa…"
@@ -149,6 +161,15 @@ function ContenidoProgramas() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="facultad-programa">Facultad</Label>
+              <Input
+                id="facultad-programa"
+                value={facultadNueva}
+                onChange={(e) => setFacultadNueva(e.target.value)}
+                placeholder="Ej. Facultad de Derecho"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="nivel-programa">Nivel</Label>
               <select
                 id="nivel-programa"
@@ -170,34 +191,17 @@ function ContenidoProgramas() {
               onClick={async () => {
                 setGuardando(true)
                 try {
-                  if (apiDisponible()) {
-                    const creado = await crearProgramaApi({
-                      nombre: nombreNuevo.trim(),
-                      nivel: nivelNuevo,
-                    })
-                    setProgramas((prev) =>
-                      [...prev, creado].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-                    )
-                  } else {
-                    const codigo = nombreNuevo
-                      .slice(0, 8)
-                      .toUpperCase()
-                      .replace(/\s/g, '-')
-                    setProgramas((prev) => [
-                      ...prev,
-                      {
-                        id: `prog-${Date.now()}`,
-                        nombre: nombreNuevo.trim(),
-                        codigo,
-                        nivel: nivelNuevo,
-                        semaforo: 'Verde',
-                        porcentajeAvance: 0,
-                        estadoProceso: 'En curso',
-                      },
-                    ])
-                  }
+                  const creado = await crearProgramaApi({
+                    nombre: nombreNuevo.trim(),
+                    nivel: nivelNuevo,
+                    facultad: facultadNueva.trim() || undefined,
+                  })
+                  setProgramas((prev) =>
+                    [...prev, creado].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+                  )
                   toast.success('Programa creado. Ya puede asignarse al cargar evidencias.')
                   setNombreNuevo('')
+                  setFacultadNueva('')
                   setDialogoAbierto(false)
                 } catch (err) {
                   toast.error(

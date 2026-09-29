@@ -48,8 +48,15 @@ App: `http://localhost:3000`
 - `develop` — integración de incrementos
 - `feature/HU-XXX-descripcion` — una rama por historia; PR hacia `develop`
 
-## Sprint 1 (Fundación técnica)
+## Sprints
 
-Historias: HU-001, HU-002, HU-003 (inicio), HU-011.
+El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
 
-Documentación: [`docs/etapa-1/README.md`](docs/etapa-1/README.md)
+| Sprint | Estado | Historias |
+|--------|--------|-----------|
+| 1 | Completada, con el alcance por programa cerrado al iniciar el Sprint 2 | HU-001, HU-002, HU-011, inicio HU-003 |
+| 2 | En progreso | HU-003, HU-004, HU-005, HU-008, HU-010 |
+| 3 | Por hacer | HU-006, HU-007, HU-009 |
+| 4 | Por hacer | Aceptación HU-001..HU-011 |
+
+Documentación del Sprint 1: [`docs/etapa-1/README.md`](docs/etapa-1/README.md). Repositorio: `https://github.com/DeibyRamirez/SIAC`.

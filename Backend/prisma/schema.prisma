@@ -16,11 +16,15 @@ enum RolUsuario {
   SuperAdmin
 }
 
+/// HU-003 (D1): tras el checklist, n < total => ConObservaciones y n = total => Cumple.
+/// Validado y Rechazado quedan para la decisión explícita del Revisor (HU-006).
 enum EstadoEvidencia {
   Borrador
   EnRevision
   Validado
   Rechazado
+  ConObservaciones
+  Cumple
 }
 
 enum EstadoVigencia {
@@ -47,6 +51,25 @@ enum TipoTramitePlantilla {
   General
 }
 
+enum CodigoDocumentoGuia {
+  G1
+  G2
+  G3
+  G4
+}
+
+enum TipoTramiteSIAC {
+  RegistroCalificadoNuevo
+  RenovacionRegistroCalificado
+  CondicionesInstitucionalesNuevas
+  RenovacionCondicionesInstitucionales
+}
+
+enum AlcanceTramiteSIAC {
+  Programa
+  Institucion
+}
+
 enum CodigoCondicionDocumentoMaestro {
   Denominacion
   Justificacion
@@ -57,6 +80,15 @@ enum CodigoCondicionDocumentoMaestro {
   Profesores
   MediosEducativos
   Infraestructura
+}
+
+enum CodigoCondicionInstitucional {
+  SeleccionEvaluacionEstudiantesProfesores
+  EstructuraAdministrativaAcademica
+  CulturaAutoevaluacion
+  ProgramaEgresados
+  ModeloBienestar
+  RecursosSuficientes
 }
 
 enum OrigenDato {
@@ -95,10 +127,14 @@ model Programa {
   nivel               String          @db.VarChar(50)
   modalidad           String?         @db.VarChar(50)
   duracionSemestres   Int?
+  facultad            String?         @db.VarChar(200)
+  slug                String          @unique @db.VarChar(160)
+  urlImagen           String?         @db.VarChar(500)
+  tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
   activo              Boolean         @default(true)
   semaforo            String          @default("Verde") @db.VarChar(20)
   porcentajeAvance    Float           @default(0)
-  estadoProceso       String          @default("En curso") @db.VarChar(50)
+  estadoProceso       String          @default("En progreso") @db.VarChar(50)
   idExterno           String?         @unique @db.VarChar(100)
   origenDato          OrigenDato      @default(Manual)
   fechaSincronizacion DateTime?
@@ -118,7 +154,7 @@ model UsuarioPrograma {
   programa   Programa @relation(fields: [programaId], references: [id])
   createdAt  DateTime @default(now())
 
-  @@index([usuarioId])
+  @@unique([usuarioId, programaId])
   @@index([programaId])
 }
 
@@ -143,12 +179,19 @@ model Evidencia {
   responsable   String?              @db.VarChar(150)
   documentoRequeridoId   String?
   documentoRequerido     DocumentoRequerido? @relation(fields: [documentoRequeridoId], references: [id])
+  /// Heredado del modelo anterior (porcentaje). Ya no se escribe para documentos con checklist; se retira en T-003.3.
   porcentajeCompletitud  Float               @default(0)
   requiereChecklistMaestro Boolean           @default(false)
+  codigoGuia             CodigoDocumentoGuia?
+  /// Puntaje entero n de la última verificación (condiciones que cumplen).
+  puntajeActual          Int?
+  /// Total de condiciones evaluadas en la última verificación (9 en G1, 6 en G3).
+  totalCondicionesActual Int?
   historial                HistorialEvidencia[]
   versiones                EvidenciaVersion[]
   evaluacionesCondicion    EvaluacionCondicionEvidencia[]
   comentarios              EvidenciaComentario[]
+  evaluacionesCondicionInstitucional EvaluacionCondicionInstitucionalEvidencia[]
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
 
@@ -156,6 +199,7 @@ model Evidencia {
   @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])
+  @@index([puntajeActual])
   @@index([factor, indicador, periodo])
 }
 
@@ -215,6 +259,7 @@ model Plantilla {
   vigente                Boolean              @default(true)
   categoria              CategoriaPlantilla
   tipoTramite            TipoTramitePlantilla @default(General)
+  codigoGuia             CodigoDocumentoGuia?
   esGuiaDocumentoMaestro Boolean              @default(false)
   descripcion            String?
   nombreArchivo          String?              @db.VarChar(255)
@@ -236,6 +281,21 @@ model EvaluacionCondicionEvidencia {
   observacion     String?
   revisorId       String?
   createdAt       DateTime                      @default(now())
+
+  @@unique([evidenciaId, numeroRevision, codigoCondicion])
+  @@index([evidenciaId])
+}
+
+model EvaluacionCondicionInstitucionalEvidencia {
+  id              String                      @id @default(cuid())
+  evidenciaId     String
+  evidencia       Evidencia                   @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroRevision  Int
+  codigoCondicion CodigoCondicionInstitucional
+  cumple          Boolean
+  observacion     String?
+  revisorId       String?
+  createdAt       DateTime                    @default(now())
 
   @@unique([evidenciaId, numeroRevision, codigoCondicion])
   @@index([evidenciaId])
@@ -276,6 +336,28 @@ model AlertaInApp {
   @@index([usuarioId, leida])
 }
 
+model TramiteSIAC {
+  id         String              @id @default(cuid())
+  tipo       TipoTramiteSIAC     @unique
+  alcance    AlcanceTramiteSIAC
+  nombre     String              @db.VarChar(200)
+  activo     Boolean             @default(true)
+  documentos TramiteDocumentoGuia[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+}
+
+model TramiteDocumentoGuia {
+  id         String              @id @default(cuid())
+  tramiteId  String
+  tramite    TramiteSIAC         @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  codigoGuia CodigoDocumentoGuia
+  orden      Int                 @default(0)
+
+  @@unique([tramiteId, codigoGuia])
+  @@index([tramiteId])
+}
+
 model EtapaAcreditacion {
   id          String             @id @default(cuid())
   nombre      String             @db.VarChar(200)
@@ -311,6 +393,7 @@ model DocumentoRequerido {
   formato                FormatoArchivo
   obligatorio            Boolean          @default(true)
   requiereChecklistMaestro Boolean        @default(false)
+  codigoGuia             CodigoDocumentoGuia?
   orden                  Int
   evidencias             Evidencia[]
   createdAt              DateTime         @default(now())

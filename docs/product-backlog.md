@@ -66,10 +66,12 @@
 
 | Sprint | HUs | Estado |
 |--------|-----|--------|
-| Etapa 0 | Planificación | ✅ Completada |
-| Sprint 1 | HU-001, HU-002, HU-011, HU-003* | ✅ Completada |
-| Sprint 2 | HU-003, HU-004, HU-005, HU-008, HU-010 | ✅ Completada |
-| Sprint 3 | HU-006, HU-007, HU-009 | ✅ Completada |
-| Sprint 4 | Aceptación HU-001..011 | ✅ Completada |
+| Etapa 0 | Planificación | Completada |
+| Sprint 1 | HU-001, HU-002, HU-011, inicio HU-003 | Completada. Las brechas de alcance por programa (T-011.1, T-011.2, T-011.3, T-002.1) se cierran al inicio del Sprint 2 |
+| Sprint 2 | HU-003, HU-004, HU-005, HU-008, HU-010 | En progreso. HU-008 y HU-010 por hacer. HU-003, HU-004 y HU-005 conservan su alcance original y tienen subtareas nuevas pendientes |
+| Sprint 3 | HU-006, HU-007, HU-009 | Por hacer |
+| Sprint 4 | Aceptación HU-001..011 | Por hacer |
 
-*HU-003 inicia en Sprint 1, cierra en Sprint 2.
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
+
+*HU-003 inicia en Sprint 1. El cierre de su alcance original figura en la guía; las subtareas nuevas son del Sprint 2 y no reabren la HU en ClickUp.

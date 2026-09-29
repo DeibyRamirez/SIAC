@@ -1,21 +1,23 @@
 # Sprint Review — Sprint 2: Núcleo documental
 
 **Periodo:** 24/09 – 07/10/2026  
-**Tag:** `v0.2.0-sprint-2`
+**Estado:** En progreso (plantilla pendiente)
 
-## Historias completadas
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
+
+## Historias
 
 | HU | Estado |
 |----|--------|
-| HU-003 | ✅ Cierre |
-| HU-004 | ✅ CRUD evidencias |
-| HU-005 | ✅ Plantillas versionadas |
-| HU-008 | ✅ Búsqueda facetada |
-| HU-010 | ✅ Panel semáforo programas |
+| HU-003 | Alcance original entregado; subtareas nuevas del Sprint 2 pendientes. No se reabre en ClickUp |
+| HU-004 | Alcance original entregado; subtareas nuevas pendientes. No se reabre en ClickUp |
+| HU-005 | Alcance original entregado; subtareas nuevas pendientes. No se reabre en ClickUp |
+| HU-008 | Por hacer |
+| HU-010 | Por hacer |
 
 ## Definition of Done
 
-- [x] CRUD end-to-end con restricciones por rol
-- [x] Par académico → 403 en borradores (RN-001)
-- [x] Plantillas versionadas
-- [x] Búsqueda con query params en URL
+- [ ] CRUD end-to-end con restricciones por rol
+- [ ] Par académico solo ve documentos validados (RN-001 ajustada)
+- [ ] Plantillas versionadas por familia
+- [ ] Búsqueda con query params en URL y alcance por rol

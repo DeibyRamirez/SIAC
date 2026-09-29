@@ -1,15 +1,17 @@
 # Sprint Review — Sprint 4: Cierre y entrega
 
 **Periodo:** 10/11 – 20/11/2026  
-**Tag:** `v1.0.0-release`
+**Estado:** Por hacer (plantilla pendiente)
+
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados. No hay tag de release.
 
 ## Entregables
 
-- [x] CI/CD GitHub Actions
-- [x] Manuales usuario y técnico
-- [x] Guía migración Supabase → PostgreSQL + MinIO
-- [x] HU-001..HU-011 aceptadas
+- [ ] CI/CD GitHub Actions
+- [ ] Manuales usuario y técnico
+- [ ] Guía migración Supabase → PostgreSQL + MinIO
+- [ ] HU-001..HU-011 aceptadas
 
-## Release notes v1.0.0
+## Notas de cierre
 
-Sistema SIAC MVP completo para acreditación institucional CUAC.
+Pendiente. Este documento es una plantilla: no certifica un MVP publicado.

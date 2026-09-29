@@ -3,10 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 
-import type { MetaCategoriaPlantilla } from '@/lib/categorias-plantilla'
+import type { MetaAccesoPlantilla } from '@/lib/categorias-plantilla'
 
 interface TarjetaCategoriaPlantillaProps {
-  meta: MetaCategoriaPlantilla
+  meta: MetaAccesoPlantilla
   conteo: number
   href: string
 }

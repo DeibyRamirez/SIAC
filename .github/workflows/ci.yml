@@ -1,10 +1,10 @@
-﻿name: CI
+name: CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, develop_v2, main]
   pull_request:
-    branches: [develop, main]
+    branches: [develop, develop_v2, main]
 
 permissions:
   contents: read
@@ -20,6 +20,21 @@ jobs:
     defaults:
       run:
         working-directory: Backend
+    services:
+      # BD efímera solo para CI: valida las migraciones y la semilla desde cero.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: siac
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d siac"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/siac
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
@@ -37,8 +52,16 @@ jobs:
           cache-dependency-path: Backend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
-      - run: pnpm exec jest --runInBand
-      - run: pnpm build
+      - name: Aplicar migraciones en PostgreSQL de CI
+        run: pnpm exec prisma migrate deploy
+      - name: Verificar el estado de las migraciones
+        run: pnpm exec prisma migrate status
+      - name: Ejecutar la semilla
+        run: pnpm prisma:seed
+      - name: Pruebas del backend
+        run: pnpm exec jest --runInBand
+      - name: Build del backend
+        run: pnpm build
 
   frontend:
     name: Frontend CI

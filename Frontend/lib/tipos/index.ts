@@ -5,7 +5,17 @@ export type RolUsuario =
   | 'Administrador'
   | 'SuperAdmin'
 
-export type EstadoEvidencia = 'Borrador' | 'EnRevision' | 'Validado' | 'Rechazado'
+/**
+ * HU-003 (regla n/9): el checklist deja ConObservaciones (n < total) o Cumple (n = total).
+ * Validado y Rechazado solo salen de la decisión explícita del Revisor (HU-006).
+ */
+export type EstadoEvidencia =
+  | 'Borrador'
+  | 'EnRevision'
+  | 'ConObservaciones'
+  | 'Cumple'
+  | 'Validado'
+  | 'Rechazado'
 
 export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 
@@ -25,12 +35,23 @@ export type CategoriaPlantilla = 'Institucional' | 'Programa' | 'Autoevaluacion'
 
 export type TipoTramitePlantilla = 'Renovacion' | 'NuevoPrograma' | 'General'
 
+export type CodigoDocumentoGuia = 'G1' | 'G2' | 'G3' | 'G4'
+
 export interface Usuario {
   id: string
   nombre: string
   correo: string
   contrasena: string
   rol: RolUsuario
+}
+
+export interface ConteosEstadoPrograma {
+  borrador: number
+  enRevision: number
+  conObservaciones: number
+  cumple: number
+  validado: number
+  rechazado: number
 }
 
 export interface Programa {
@@ -42,6 +63,14 @@ export interface Programa {
   porcentajeAvance: number
   estadoProceso: string
   urlImagen?: string
+  tipoTramiteActivo?: string
+  facultad?: string | null
+  slug?: string
+  activo?: boolean
+  modalidad?: string | null
+  evidenciasValidadas?: number
+  totalEvidencias?: number
+  conteosEstado?: ConteosEstadoPrograma
 }
 
 export interface Evidencia {
@@ -59,8 +88,11 @@ export interface Evidencia {
   responsable?: string
   documentoRequeridoId?: string
   version?: number
-  porcentajeCompletitud?: number
+  /** Puntaje entero n de la última verificación (G1 n/9, G3 n/6). */
+  puntajeActual?: number | null
+  totalCondicionesActual?: number | null
   requiereChecklistMaestro?: boolean
+  codigoGuia?: CodigoDocumentoGuia
 }
 
 export interface Plantilla {

@@ -8,10 +8,13 @@ import {
   OrigenDato,
   TipoTramitePlantilla,
   CodigoCondicionDocumentoMaestro,
+  CodigoDocumentoGuia,
 } from '@prisma/client';
+import { CATALOGO_TRAMITES_SIAC } from '../src/programas/catalogo-tramites-siac';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { generarSlug } from '../src/common/alcance/generar-slug';
 
 const prisma = new PrismaClient();
 
@@ -20,6 +23,29 @@ const MIME_DOCX =
 
 const RUTA_FORMATOS_GUIA = path.join(__dirname, '..', '..', 'FormatosGuia');
 
+async function sembrarTramitesSIAC() {
+  for (const item of CATALOGO_TRAMITES_SIAC) {
+    const tramite = await prisma.tramiteSIAC.upsert({
+      where: { tipo: item.tipo },
+      update: { nombre: item.nombre, alcance: item.alcance, activo: true },
+      create: {
+        tipo: item.tipo,
+        alcance: item.alcance,
+        nombre: item.nombre,
+        activo: true,
+      },
+    });
+    for (let orden = 0; orden < item.documentosGuia.length; orden++) {
+      const codigoGuia = item.documentosGuia[orden];
+      await prisma.tramiteDocumentoGuia.upsert({
+        where: { tramiteId_codigoGuia: { tramiteId: tramite.id, codigoGuia } },
+        update: { orden },
+        create: { tramiteId: tramite.id, codigoGuia, orden },
+      });
+    }
+  }
+}
+
 async function sembrarPlantillasFormatosGuia() {
   const entradas: {
     id: string;
@@ -27,6 +53,7 @@ async function sembrarPlantillasFormatosGuia() {
     archivo: string;
     categoria: CategoriaPlantilla;
     tipoTramite: TipoTramitePlantilla;
+    codigoGuia?: CodigoDocumentoGuia;
     esGuiaDocumentoMaestro: boolean;
     factor: string;
     descripcion: string;
@@ -37,6 +64,7 @@ async function sembrarPlantillasFormatosGuia() {
       archivo: 'Informe de Autoevaluación de Condiciones Institucionales (CI).docx',
       categoria: CategoriaPlantilla.Institucional,
       tipoTramite: TipoTramitePlantilla.General,
+      codigoGuia: CodigoDocumentoGuia.G3,
       esGuiaDocumentoMaestro: true,
       factor: 'CI · Autoevaluación institucional',
       descripcion: 'Guía para el informe de autoevaluación de condiciones institucionales.',
@@ -47,6 +75,7 @@ async function sembrarPlantillasFormatosGuia() {
       archivo: 'Documento Maestro (Condiciones de Programa).docx',
       categoria: CategoriaPlantilla.Programa,
       tipoTramite: TipoTramitePlantilla.Renovacion,
+      codigoGuia: CodigoDocumentoGuia.G1,
       esGuiaDocumentoMaestro: true,
       factor: 'CP · Renovación de registro calificado',
       descripcion: 'Guía del documento maestro para procesos de renovación.',
@@ -57,6 +86,7 @@ async function sembrarPlantillasFormatosGuia() {
       archivo: 'Plan de Desarrollo (solo para primera vez).docx',
       categoria: CategoriaPlantilla.Programa,
       tipoTramite: TipoTramitePlantilla.NuevoPrograma,
+      codigoGuia: CodigoDocumentoGuia.G1,
       esGuiaDocumentoMaestro: true,
       factor: 'CP · Creación de programa',
       descripcion: 'Guía del documento maestro para programas de primera vez.',
@@ -67,6 +97,7 @@ async function sembrarPlantillasFormatosGuia() {
       archivo: 'Evidencias de Autoevaluación de Programa (Renovación).docx',
       categoria: CategoriaPlantilla.Autoevaluacion,
       tipoTramite: TipoTramitePlantilla.Renovacion,
+      codigoGuia: CodigoDocumentoGuia.G2,
       esGuiaDocumentoMaestro: false,
       factor: 'Autoevaluación · Renovación',
       descripcion: 'Matriz de evidencias para renovación de registro calificado.',
@@ -107,6 +138,7 @@ async function sembrarPlantillasFormatosGuia() {
       update: {
         nombre: item.nombre,
         tipoTramite: item.tipoTramite,
+        codigoGuia: item.codigoGuia ?? null,
         esGuiaDocumentoMaestro: item.esGuiaDocumentoMaestro,
         nombreArchivo: item.archivo,
         rutaArchivo: fs.existsSync(origen) ? rutaAlmacen : null,
@@ -122,6 +154,7 @@ async function sembrarPlantillasFormatosGuia() {
         vigente: true,
         categoria: item.categoria,
         tipoTramite: item.tipoTramite,
+        codigoGuia: item.codigoGuia ?? null,
         esGuiaDocumentoMaestro: item.esGuiaDocumentoMaestro,
         descripcion: item.descripcion,
         nombreArchivo: item.archivo,
@@ -129,6 +162,14 @@ async function sembrarPlantillasFormatosGuia() {
       },
     });
   }
+}
+
+async function asegurarVinculo(usuarioId: string, programaId: string) {
+  await prisma.usuarioPrograma.upsert({
+    where: { usuarioId_programaId: { usuarioId, programaId } },
+    update: {},
+    create: { usuarioId, programaId },
+  });
 }
 
 async function main() {
@@ -211,53 +252,53 @@ async function main() {
   });
 
   const programas = [
-    { codigo: 'ING-SIS', nombre: 'Ingeniería de Sistemas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'DER', nombre: 'Derecho', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'ADM-EMP', nombre: 'Administración de Empresas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'PSI', nombre: 'Psicología', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'ENF', nombre: 'Enfermería', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10 },
-    { codigo: 'CON', nombre: 'Contaduría Pública', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'COM-SOC', nombre: 'Comunicación Social', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'EDU-INF', nombre: 'Licenciatura en Educación Infantil', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9 },
-    { codigo: 'ESP-CIB', nombre: 'Especialización en Ciberseguridad', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 2 },
-    { codigo: 'ESP-INN', nombre: 'Especialización en Innovación', nivel: 'Posgrado', modalidad: 'Presencial', duracionSemestres: 2 },
-    { codigo: 'MAE-GES', nombre: 'Maestría en Gestión de Proyectos', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 4 },
+    { codigo: 'ING-SIS', nombre: 'Ingeniería de Sistemas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'DER', nombre: 'Derecho', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Derecho' },
+    { codigo: 'ADM-EMP', nombre: 'Administración de Empresas', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Administrativas' },
+    { codigo: 'PSI', nombre: 'Psicología', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ciencias Sociales' },
+    { codigo: 'ENF', nombre: 'Enfermería', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 10, facultad: 'Facultad de Ciencias de la Salud' },
+    { codigo: 'CON', nombre: 'Contaduría Pública', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Administrativas' },
+    { codigo: 'COM-SOC', nombre: 'Comunicación Social', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Ciencias Sociales' },
+    { codigo: 'EDU-INF', nombre: 'Licenciatura en Educación Infantil', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 9, facultad: 'Facultad de Educación' },
+    { codigo: 'ESP-CIB', nombre: 'Especialización en Ciberseguridad', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 2, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'ESP-INN', nombre: 'Especialización en Innovación', nivel: 'Posgrado', modalidad: 'Presencial', duracionSemestres: 2, facultad: 'Facultad de Ingeniería' },
+    { codigo: 'MAE-GES', nombre: 'Maestría en Gestión de Proyectos', nivel: 'Posgrado', modalidad: 'Virtual', duracionSemestres: 4, facultad: 'Facultad de Ciencias Administrativas' },
     {
       codigo: 'ING-SWC',
       nombre: 'Ingeniería de Software y Computación',
       nivel: 'Pregrado',
       modalidad: 'Presencial',
       duracionSemestres: 10,
+      facultad: 'Facultad de Ingeniería',
     },
-    { codigo: 'TEC-SOF', nombre: 'Tecnología en Desarrollo de Software', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 6 },
+    { codigo: 'TEC-SOF', nombre: 'Tecnología en Desarrollo de Software', nivel: 'Pregrado', modalidad: 'Presencial', duracionSemestres: 6, facultad: 'Facultad de Ingeniería' },
   ];
 
   const programasCreados = [];
   for (const p of programas) {
+    const slug = generarSlug(p.nombre);
+    const urlImagen = '/imagenes/siac/placeholder-programa.svg';
     const prog = await prisma.programa.upsert({
       where: { codigo: p.codigo },
-      update: {},
+      update: { slug, facultad: p.facultad, urlImagen },
       create: {
         ...p,
+        slug,
+        urlImagen,
         semaforo: 'Verde',
         porcentajeAvance: 45,
-        estadoProceso: 'En curso',
+        estadoProceso: 'En progreso',
         origenDato: OrigenDato.Manual,
       },
     });
     programasCreados.push(prog);
   }
 
-  await prisma.usuarioPrograma.upsert({
-    where: { id: 'up-seed-001' },
-    update: {},
-    create: {
-      id: 'up-seed-001',
-      usuarioId: cargador.id,
-      programaId: programasCreados[0].id,
-    },
-  });
+  await asegurarVinculo(cargador.id, programasCreados[0].id);
+  await asegurarVinculo(revisor.id, programasCreados[0].id);
+  await asegurarVinculo(revisor.id, programasCreados[1].id);
 
+  await sembrarTramitesSIAC();
   await sembrarPlantillasFormatosGuia();
 
   await prisma.evidencia.upsert({
@@ -443,7 +484,11 @@ async function main() {
 
   const docMaestro = await prisma.documentoRequerido.upsert({
     where: { id: 'doc-seed-maestro' },
-    update: { requiereChecklistMaestro: true, formato: FormatoArchivo.DOCX },
+    update: {
+      requiereChecklistMaestro: true,
+      formato: FormatoArchivo.DOCX,
+      codigoGuia: CodigoDocumentoGuia.G1,
+    },
     create: {
       id: 'doc-seed-maestro',
       carpetaId: carpetaCp.id,
@@ -452,6 +497,7 @@ async function main() {
       formato: FormatoArchivo.DOCX,
       obligatorio: true,
       requiereChecklistMaestro: true,
+      codigoGuia: CodigoDocumentoGuia.G1,
       orden: 1,
     },
   });
@@ -462,10 +508,13 @@ async function main() {
     const evMaestroId = 'ev-seed-maestro-ing-sw';
     await prisma.evidencia.upsert({
       where: { id: evMaestroId },
+      // Regla n/9 (HU-003): 8 de 9 condiciones cumplen => Con observaciones, puntaje 8/9.
       update: {
-        porcentajeCompletitud: 89,
-        estado: EstadoEvidencia.Rechazado,
+        estado: EstadoEvidencia.ConObservaciones,
         requiereChecklistMaestro: true,
+        codigoGuia: CodigoDocumentoGuia.G1,
+        puntajeActual: 8,
+        totalCondicionesActual: 9,
       },
       create: {
         id: evMaestroId,
@@ -475,12 +524,14 @@ async function main() {
         periodo: '2026-1',
         factor: 'Factor 1 · Proyecto educativo',
         indicador: 'Indicador 1.1 · Diseño curricular y plan de estudios',
-        estado: EstadoEvidencia.Rechazado,
+        estado: EstadoEvidencia.ConObservaciones,
         autorId: cargador.id,
         nombreArchivo: 'Documento_Maestro_IngSoftware.docx',
         responsable: cargador.nombre,
         requiereChecklistMaestro: true,
-        porcentajeCompletitud: 89,
+        codigoGuia: CodigoDocumentoGuia.G1,
+        puntajeActual: 8,
+        totalCondicionesActual: 9,
         observaciones:
           '• Aspectos curriculares: Falta profundizar el enfoque en competencias transversales.',
         rutaArchivo: `evidencias/2026/${evMaestroId}/v1/Documento_Maestro_IngSoftware.docx`,
@@ -536,7 +587,7 @@ async function main() {
 
     await prisma.programa.update({
       where: { id: programaIngSw.id },
-      data: { porcentajeAvance: 89, estadoProceso: 'En revisión documental' },
+      data: { porcentajeAvance: 44, estadoProceso: 'Con observaciones' },
     });
   }
 

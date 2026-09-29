@@ -1,26 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
-
 import { randomUUID } from 'crypto';
+import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.module';
 
 import { Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
 
+import { TOTAL_CONDICIONES_DOCUMENTO_MAESTRO } from '../dominio/condiciones-documento-maestro';
+
+import { TOTAL_CONDICIONES_INSTITUCIONALES } from '../dominio/condiciones-institucionales';
 
 
-export interface ComentarioVersionPersistido {
 
-  hunkId?: string;
+/** Estados que cierran un ciclo de revisión (checklist n/9 o decisión explícita). */
+const ESTADOS_DE_DICTAMEN: EstadoEvidencia[] = [
+  EstadoEvidencia.Cumple,
+  EstadoEvidencia.ConObservaciones,
+  EstadoEvidencia.Validado,
+  EstadoEvidencia.Rechazado,
+];
 
-  anchor?: string;
+/** Estados tras los que el Cargador reenvía una corrección. */
+const ESTADOS_QUE_PIDEN_CORRECCION: EstadoEvidencia[] = [
+  EstadoEvidencia.ConObservaciones,
+  EstadoEvidencia.Rechazado,
+];
 
-  quote?: string;
-
-  texto: string;
-
-  autor?: string;
-
-}
 
 
 export interface FiltrosEvidencia {
@@ -41,6 +45,8 @@ export interface FiltrosEvidencia {
 
   soloValidados?: boolean;
 
+  alcance?: Prisma.EvidenciaWhereInput;
+
   pagina?: number;
 
   limite?: number;
@@ -51,9 +57,21 @@ export interface FiltrosEvidencia {
 
 @Injectable()
 
-export class EvidenciaRepositorio {
+export interface ComentarioVersionPersistido {
 
-  private readonly logger = new Logger(EvidenciaRepositorio.name);
+  hunkId?: string;
+
+  anchor?: string;
+
+  quote?: string;
+
+  texto: string;
+
+  autor?: string;
+
+}
+
+export class EvidenciaRepositorio {
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -77,6 +95,9 @@ export class EvidenciaRepositorio {
         programa: true,
         autor: { select: { id: true, nombre: true, correo: true } },
         evaluacionesCondicion: {
+          orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+        },
+        evaluacionesCondicionInstitucional: {
           orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
         },
       },
@@ -125,6 +146,57 @@ export class EvidenciaRepositorio {
 
   listarEvaluacionesCondicion(evidenciaId: string, numeroRevision?: number) {
     return this.prisma.evaluacionCondicionEvidencia.findMany({
+      where: {
+        evidenciaId,
+        ...(numeroRevision !== undefined ? { numeroRevision } : {}),
+      },
+      orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
+    });
+  }
+
+  guardarEvaluacionesCondicionInstitucional(
+    evidenciaId: string,
+    numeroRevision: number,
+    revisorId: string,
+    filas: {
+      codigoCondicion: import('@prisma/client').CodigoCondicionInstitucional;
+      cumple: boolean;
+      observacion?: string;
+    }[],
+  ) {
+    return this.prisma.$transaction(
+      filas.map((fila) =>
+        this.prisma.evaluacionCondicionInstitucionalEvidencia.upsert({
+          where: {
+            evidenciaId_numeroRevision_codigoCondicion: {
+              evidenciaId,
+              numeroRevision,
+              codigoCondicion: fila.codigoCondicion,
+            },
+          },
+          create: {
+            evidenciaId,
+            numeroRevision,
+            revisorId,
+            codigoCondicion: fila.codigoCondicion,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+          update: {
+            revisorId,
+            cumple: fila.cumple,
+            observacion: fila.observacion,
+          },
+        }),
+      ),
+    );
+  }
+
+  listarEvaluacionesCondicionInstitucional(
+    evidenciaId: string,
+    numeroRevision?: number,
+  ) {
+    return this.prisma.evaluacionCondicionInstitucionalEvidencia.findMany({
       where: {
         evidenciaId,
         ...(numeroRevision !== undefined ? { numeroRevision } : {}),
@@ -183,13 +255,19 @@ export class EvidenciaRepositorio {
 
     const skip = (pagina - 1) * limite;
 
+    const whereFinal: Prisma.EvidenciaWhereInput = filtros.alcance
+
+      ? { AND: [filtros.alcance, where] }
+
+      : where;
+
 
 
     return this.prisma.$transaction([
 
       this.prisma.evidencia.findMany({
 
-        where,
+        where: whereFinal,
 
         include: {
 
@@ -207,7 +285,7 @@ export class EvidenciaRepositorio {
 
       }),
 
-      this.prisma.evidencia.count({ where }),
+      this.prisma.evidencia.count({ where: whereFinal }),
 
     ]);
 
@@ -364,6 +442,42 @@ export class EvidenciaRepositorio {
     return this.prisma.evidenciaVersion.findUnique({
 
       where: { evidenciaId_numero: { evidenciaId, numero } },
+
+    });
+
+  }
+
+
+
+  contarPorEstado(where: Prisma.EvidenciaWhereInput) {
+
+    return this.prisma.evidencia.groupBy({
+
+      by: ['estado'],
+
+      where,
+
+      _count: { _all: true },
+
+    });
+
+  }
+
+
+
+  tieneHistorialDistintoDeBorrador(evidenciaId: string) {
+
+    return this.prisma.historialEvidencia.findFirst({
+
+      where: {
+
+        evidenciaId,
+
+        estado: { not: EstadoEvidencia.Borrador },
+
+      },
+
+      select: { id: true },
 
     });
 
@@ -575,13 +689,25 @@ export class EvidenciaRepositorio {
 
   }
 
+  async listarEnviosRevisionParaRevisor(
 
+    pagina = 1,
 
-  async listarEnviosRevisionParaRevisor(pagina = 1, limite = 20) {
+    limite = 20,
+
+    programaIds?: string[],
+
+  ) {
 
     const eventos = await this.prisma.historialEvidencia.findMany({
 
-      where: { estado: EstadoEvidencia.EnRevision },
+      where: {
+
+        estado: EstadoEvidencia.EnRevision,
+
+        ...(programaIds ? { evidencia: { programaId: { in: programaIds } } } : {}),
+
+      },
 
       orderBy: { createdAt: 'desc' },
 
@@ -615,7 +741,7 @@ export class EvidenciaRepositorio {
 
             evidenciaId: evento.evidenciaId,
 
-            estado: EstadoEvidencia.Rechazado,
+            estado: { in: ESTADOS_QUE_PIDEN_CORRECCION },
 
             createdAt: { lt: evento.createdAt },
 
@@ -635,11 +761,7 @@ export class EvidenciaRepositorio {
 
             evidenciaId: evento.evidenciaId,
 
-            estado: {
-
-              in: [EstadoEvidencia.Validado, EstadoEvidencia.Rechazado],
-
-            },
+            estado: { in: ESTADOS_DE_DICTAMEN },
 
             createdAt: { lt: evento.createdAt },
 
@@ -649,15 +771,85 @@ export class EvidenciaRepositorio {
 
         });
 
+        const siguienteEnvio = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: EstadoEvidencia.EnRevision,
+
+            createdAt: { gt: evento.createdAt },
+
+          },
+
+          orderBy: { createdAt: 'asc' },
+
+        });
+
+        const dictamenCiclo = await this.prisma.historialEvidencia.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            estado: { in: ESTADOS_DE_DICTAMEN },
+
+            createdAt: siguienteEnvio
+
+              ? { gt: evento.createdAt, lt: siguienteEnvio.createdAt }
+
+              : { gt: evento.createdAt },
+
+          },
+
+          orderBy: { createdAt: 'asc' },
+
+        });
+
+        const versionEnEnvio = await this.prisma.evidenciaVersion.findFirst({
+
+          where: {
+
+            evidenciaId: evento.evidenciaId,
+
+            createdAt: { lte: evento.createdAt },
+
+          },
+
+          orderBy: { numero: 'desc' },
+
+          select: { numero: true },
+
+        });
+
+        const numeroRevision = versionEnEnvio?.numero ?? evento.evidencia.version ?? 1;
+
+        const { puntaje, totalCondiciones } = await this.puntajeDeRevision(
+
+          evento.evidenciaId,
+
+          numeroRevision,
+
+          dictamenCiclo?.estado ?? null,
+
+          evento.evidencia,
+
+        );
+
+
+
         return {
 
           evidenciaId: evento.evidenciaId,
 
           nombre: evento.evidencia.nombre,
 
-          estado: evento.evidencia.estado,
+          estado: dictamenCiclo?.estado ?? evento.evidencia.estado,
 
-          version: evento.evidencia.version,
+          version: numeroRevision,
+
+          numeroRevision,
 
           programa: evento.evidencia.programa,
 
@@ -668,6 +860,12 @@ export class EvidenciaRepositorio {
           tipoEnvio,
 
           observacionEnvio: evento.observacion,
+
+          observacionesDictamen: dictamenCiclo?.observacion ?? null,
+
+          puntaje,
+
+          totalCondiciones,
 
           ultimoDictamenEstado: ultimoDictamen?.estado ?? null,
 
@@ -699,6 +897,47 @@ export class EvidenciaRepositorio {
 
   }
 
+
+  /**
+   * Puntaje n/total de un ciclo de revisión, leído de las evaluaciones binarias guardadas
+   * (G1: 9 condiciones; G3: 6). Si el ciclo aún no tiene dictamen devuelve null.
+   */
+  private async puntajeDeRevision(
+    evidenciaId: string,
+    numeroRevision: number,
+    estadoDictamen: EstadoEvidencia | null,
+    evidencia: { puntajeActual: number | null; totalCondicionesActual: number | null },
+  ): Promise<{ puntaje: number | null; totalCondiciones: number | null }> {
+    if (!estadoDictamen) return { puntaje: null, totalCondiciones: null };
+
+    const [programa, institucional] = await Promise.all([
+      this.prisma.evaluacionCondicionEvidencia.findMany({
+        where: { evidenciaId, numeroRevision },
+        select: { cumple: true },
+      }),
+      this.prisma.evaluacionCondicionInstitucionalEvidencia.findMany({
+        where: { evidenciaId, numeroRevision },
+        select: { cumple: true },
+      }),
+    ]);
+
+    if (programa.length > 0) {
+      return {
+        puntaje: programa.filter((e) => e.cumple).length,
+        totalCondiciones: TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
+      };
+    }
+    if (institucional.length > 0) {
+      return {
+        puntaje: institucional.filter((e) => e.cumple).length,
+        totalCondiciones: TOTAL_CONDICIONES_INSTITUCIONALES,
+      };
+    }
+    return {
+      puntaje: evidencia.puntajeActual,
+      totalCondiciones: evidencia.totalCondicionesActual,
+    };
+  }
 }
 
 

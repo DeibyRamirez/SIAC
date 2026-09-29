@@ -35,7 +35,7 @@ Copiar al crear `docs/etapa-N/README.md`:
 # Etapa N — [Nombre]
 
 > **Periodo:** DD/MM/AAAA – DD/MM/AAAA  
-> **Estado:** En curso | Completada  
+> **Estado:** En progreso | Completada  
 > **Referencia:** [MEMORIA_PROYECTO.md](../../Frontend/MEMORIA_PROYECTO.md)
 
 ## Objetivo

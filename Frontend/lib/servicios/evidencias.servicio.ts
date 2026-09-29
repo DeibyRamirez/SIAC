@@ -1,5 +1,6 @@
 import { peticionApi } from './cliente-api';
 import type { CodigoCondicionDocumentoMaestro } from '@/lib/condiciones-documento-maestro';
+import type { CodigoCondicionInstitucional } from '@/lib/condiciones-institucionales';
 import type { Evidencia, EstadoEvidencia } from '@/lib/tipos';
 
 export interface RespuestaPaginada<T> {
@@ -87,12 +88,26 @@ export interface CondicionDictamenPayload {
   observacion?: string
 }
 
+/** Puntaje entero de la verificación por checklist (G1 n/9, G3 n/6). */
+
 export interface ComentarioInlinePayload {
   hunkId?: string
   anchor?: string
   quote?: string
   texto: string
   createdAt?: string
+}
+
+export interface CondicionInstitucionalDictamenPayload {
+  codigo: CodigoCondicionInstitucional
+  cumple: boolean
+  observacion?: string
+}
+
+/** Puntaje entero de la verificación por checklist (G1 n/9, G3 n/6). */
+export interface PuntajeVerificacion {
+  puntajeActual: number
+  totalCondicionesActual: number
 }
 
 export async function dictaminarEvidenciaApi(
@@ -102,6 +117,7 @@ export async function dictaminarEvidenciaApi(
     observaciones?: string
     condiciones?: CondicionDictamenPayload[]
     comentariosInline?: ComentarioInlinePayload[]
+    condicionesInstitucionales?: CondicionInstitucionalDictamenPayload[]
   },
 ): Promise<Evidencia> {
   return peticionApi<Evidencia>(`/evidencias/${id}/dictamen`, {
@@ -176,7 +192,9 @@ export async function obtenerComentariosEvidenciaApi(
   )
 }
 
-export async function obtenerEvaluacionesCondicionApi(id: string) {
+export async function obtenerEvaluacionesCondicionApi(id: string, numeroRevision?: number) {
+  const query =
+    numeroRevision !== undefined ? `?numeroRevision=${numeroRevision}` : '';
   return peticionApi<
     {
       codigoCondicion: CodigoCondicionDocumentoMaestro
@@ -184,7 +202,23 @@ export async function obtenerEvaluacionesCondicionApi(id: string) {
       observacion?: string | null
       numeroRevision: number
     }[]
-  >(`/evidencias/${id}/evaluaciones-condicion`);
+  >(`/evidencias/${id}/evaluaciones-condicion${query}`);
+}
+
+export async function obtenerEvaluacionesCondicionInstitucionalApi(
+  id: string,
+  numeroRevision?: number,
+) {
+  const query =
+    numeroRevision !== undefined ? `?numeroRevision=${numeroRevision}` : '';
+  return peticionApi<
+    {
+      codigoCondicion: CodigoCondicionInstitucional
+      cumple: boolean
+      observacion?: string | null
+      numeroRevision: number
+    }[]
+  >(`/evidencias/${id}/evaluaciones-condicion-institucional${query}`);
 }
 
 export async function enviarRevisionApi(id: string): Promise<Evidencia> {
@@ -221,13 +255,31 @@ export interface FilaRevisionRevisorApi {
   nombre: string
   estado: EstadoEvidencia
   version: number | null
+  numeroRevision: number
   fechaEnvioRevision: string
   tipoEnvio: 'inicial' | 'correccion'
   observacionEnvio?: string | null
+  observacionesDictamen?: string | null
+  /** Puntaje n del ciclo (null si aún no se verifica). */
+  puntaje?: number | null
+  totalCondiciones?: number | null
   ultimoDictamenEstado?: EstadoEvidencia | null
   ultimoDictamenFecha?: string | null
   programa?: { id: string; nombre: string }
   autor?: { id: string; nombre: string }
+}
+
+export interface ConteosEvidenciaApi {
+  borrador: number
+  enRevision: number
+  conObservaciones: number
+  cumple: number
+  validado: number
+  rechazado: number
+}
+
+export async function obtenerConteosEvidenciasApi() {
+  return peticionApi<ConteosEvidenciaApi>('/evidencias/conteos')
 }
 
 export async function listarMisRevisionesRevisorApi(pagina = 1, limite = 20) {

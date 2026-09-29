@@ -25,6 +25,7 @@ import {
   crearEvidenciaApi,
   dictaminarEvidenciaApi,
   type CondicionDictamenPayload,
+  type PuntajeVerificacion,
 } from '@/lib/servicios/evidencias.servicio'
 import {
   crearPlantillaApi,
@@ -51,16 +52,16 @@ interface ContextoAlmacen {
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-    opciones?: { requiereChecklistMaestro?: boolean },
+    opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
   ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
-    estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+    estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
     observaciones?: string,
     condiciones?: CondicionDictamenPayload[],
-    porcentajeCompletitud?: number,
+    puntaje?: PuntajeVerificacion,
   ) => void
   crearPlantilla: (
     plantilla: Omit<Plantilla, 'id'>,
@@ -190,7 +191,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     async (
       evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
       archivo?: File,
-      opciones?: { requiereChecklistMaestro?: boolean },
+      opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
     ) => {
       if (apiDisponible() && archivo) {
         const formData = new FormData()
@@ -200,7 +201,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         formData.append('factor', evidencia.factor)
         formData.append('indicador', evidencia.indicador)
         formData.append('archivo', archivo)
-        if (opciones?.requiereChecklistMaestro) {
+        if (opciones?.codigoGuia) {
+          formData.append('codigoGuia', opciones.codigoGuia)
+        } else if (opciones?.requiereChecklistMaestro) {
           formData.append('requiereChecklistMaestro', 'true')
         }
 
@@ -222,7 +225,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
           observaciones: creada.observaciones,
           responsable: creada.responsable,
           requiereChecklistMaestro: creada.requiereChecklistMaestro,
-          porcentajeCompletitud: creada.porcentajeCompletitud,
+          codigoGuia: creada.codigoGuia,
+          puntajeActual: creada.puntajeActual,
+          totalCondicionesActual: creada.totalCondicionesActual,
         }
         persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
         return mapeada
@@ -233,7 +238,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         id: generarId('ev'),
         estado: 'Borrador',
         fechaCarga: new Date().toISOString().slice(0, 10),
-        requiereChecklistMaestro: opciones?.requiereChecklistMaestro,
+        requiereChecklistMaestro:
+          opciones?.codigoGuia === 'G1' || opciones?.requiereChecklistMaestro,
+        codigoGuia: opciones?.codigoGuia as Evidencia['codigoGuia'],
       }
       persistir((prev) => ({ ...prev, evidencias: [nueva, ...prev.evidencias] }))
       return nueva
@@ -264,15 +271,18 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const dictaminarEvidencia = useCallback(
     async (
       id: string,
-      estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+      estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
       observaciones?: string,
       condiciones?: CondicionDictamenPayload[],
-      porcentajeCompletitud?: number,
+      puntaje?: PuntajeVerificacion,
     ) => {
       if (apiDisponible()) {
         try {
           await dictaminarEvidenciaApi(id, {
-            estado: condiciones?.length ? undefined : estado,
+            estado:
+              condiciones?.length || (estado !== 'Validado' && estado !== 'Rechazado')
+                ? undefined
+                : estado,
             observaciones,
             condiciones,
           })
@@ -288,8 +298,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
                 ...e,
                 estado,
                 observaciones: observaciones ?? e.observaciones,
-                porcentajeCompletitud:
-                  porcentajeCompletitud ?? e.porcentajeCompletitud,
+                puntajeActual: puntaje?.puntajeActual ?? e.puntajeActual,
+                totalCondicionesActual:
+                  puntaje?.totalCondicionesActual ?? e.totalCondicionesActual,
               }
             : e,
         ),
