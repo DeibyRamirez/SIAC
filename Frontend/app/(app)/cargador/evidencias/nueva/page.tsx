@@ -61,10 +61,8 @@ function ContenidoNuevaEvidencia() {
     if (!apiDisponible()) return
     listarProgramasApi()
       .then((lista) => {
-        if (lista.length > 0) {
-          setProgramas(lista)
-          setProgramaId(lista[0].id)
-        }
+        setProgramas(lista)
+        setProgramaId(lista[0]?.id ?? '')
       })
       .catch(() => {
         // Mantiene semilla local
@@ -105,6 +103,12 @@ function ContenidoNuevaEvidencia() {
     setError(null)
     if (!nombre.trim() || !indicador.trim() || !archivo) {
       setError('Completa todos los campos y selecciona un archivo.')
+      return false
+    }
+    if (!programaId) {
+      setError(
+        'No hay programas disponibles. Ejecute la semilla (pnpm prisma:seed) y recargue la página.',
+      )
       return false
     }
     const extension = archivo.name.split('.').pop()?.toLowerCase()

@@ -9,27 +9,56 @@ import {
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 
-function mapearErrorInterno(excepcion: unknown): string | null {
+function mapearErrorInterno(
+  excepcion: unknown,
+): { mensaje: string; codigo?: number } | null {
   if (excepcion instanceof Prisma.PrismaClientKnownRequestError) {
     if (excepcion.code === 'P2022') {
-      return 'Esquema de base de datos desactualizado. Ejecute pnpm prisma:deploy en el backend.';
+      return {
+        mensaje:
+          'Esquema de base de datos desactualizado. Ejecute pnpm prisma:deploy en el backend.',
+      };
     }
-    if (excepcion.code === 'P2003') {
-      return 'Referencia inválida en base de datos (programa, usuario o evidencia inexistente).';
+    if (excepcion.code === 'P2003' || excepcion.code === 'P2025') {
+      return {
+        mensaje:
+          'Referencia inválida: el programa, usuario o registro relacionado no existe.',
+        codigo: HttpStatus.BAD_REQUEST,
+      };
     }
-    return `Error de base de datos (${excepcion.code}).`;
+    if (excepcion.code === 'P2002') {
+      return {
+        mensaje: 'Ya existe un registro con esos datos.',
+        codigo: HttpStatus.CONFLICT,
+      };
+    }
+    return { mensaje: `Error de base de datos (${excepcion.code}).` };
   }
 
   if (excepcion instanceof Error) {
     const texto = excepcion.message.toLowerCase();
     if (texto.includes('nosuchbucket') || texto.includes('bucket does not exist')) {
-      return 'Bucket de almacenamiento no encontrado en Supabase. Cree los buckets evidencias y documentos.';
+      return {
+        mensaje:
+          'Bucket de almacenamiento no encontrado en Supabase. Cree los buckets evidencias y documentos.',
+      };
     }
     if (texto.includes('invalidaccesskeyid') || texto.includes('signaturedoesnotmatch')) {
-      return 'Credenciales S3 de Supabase inválidas. Verifique S3_ACCESS_KEY y S3_SECRET_KEY.';
+      return {
+        mensaje:
+          'Credenciales S3 de Supabase inválidas. Verifique S3_ACCESS_KEY y S3_SECRET_KEY.',
+      };
     }
     if (texto.includes('credentials')) {
-      return 'Credenciales de almacenamiento no configuradas correctamente.';
+      return {
+        mensaje: 'Credenciales de almacenamiento no configuradas correctamente.',
+      };
+    }
+    if (texto.includes('not found in enum')) {
+      return {
+        mensaje:
+          'Datos con estados legacy en la base de datos. Ejecute pnpm prisma:repair-schema en el backend.',
+      };
     }
   }
 
@@ -61,9 +90,13 @@ export class FiltroExcepcionHttp implements ExceptionFilter {
         error = String(obj.error ?? HttpStatus[codigoEstado] ?? error);
       }
     } else {
-      const mensajeMapeado = mapearErrorInterno(excepcion);
-      if (mensajeMapeado) {
-        mensaje = mensajeMapeado;
+      const mapeado = mapearErrorInterno(excepcion);
+      if (mapeado) {
+        mensaje = mapeado.mensaje;
+        if (mapeado.codigo) {
+          codigoEstado = mapeado.codigo;
+          error = HttpStatus[codigoEstado] ?? error;
+        }
       }
 
       this.logger.error(

@@ -8,6 +8,24 @@ export class AvanceProgramaService {
 
   /** Promedio de completitud por documento obligatorio (Decreto 1330). */
   async recalcularPorcentajeAvance(programaId: string): Promise<number> {
+    try {
+      return await this.calcularPorcentajeAvance(programaId);
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message.includes('not found in enum')
+      ) {
+        const programa = await this.prisma.programa.findUnique({
+          where: { id: programaId },
+          select: { porcentajeAvance: true },
+        });
+        return programa?.porcentajeAvance ?? 0;
+      }
+      throw err;
+    }
+  }
+
+  private async calcularPorcentajeAvance(programaId: string): Promise<number> {
     const documentosObligatorios = await this.prisma.documentoRequerido.findMany({
       where: { obligatorio: true },
     });
