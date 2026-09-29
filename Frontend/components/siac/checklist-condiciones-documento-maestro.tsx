@@ -15,6 +15,8 @@ export interface EstadoCondicionDictamen {
   codigo: CodigoCondicionDocumentoMaestro
   decision: DecisionCondicion
   observacion: string
+  /** Observación del dictamen anterior (Documento Maestro), mostrada como contexto. */
+  referenciaPrevia?: string
 }
 
 interface ChecklistCondicionesDocumentoMaestroProps {
@@ -100,11 +102,18 @@ export function ChecklistCondicionesDocumentoMaestro({
                       ? 'border-fucsia bg-fucsia text-white hover:bg-fucsia/90 hover:text-white'
                       : 'border-fucsia/40 bg-white text-primary hover:border-fucsia hover:bg-fucsia/10',
                   )}
-                  onClick={() => actualizar(def.codigo, { decision: 'corregir' })}
+                  onClick={() =>
+                    actualizar(def.codigo, { decision: 'corregir', observacion: estado.observacion || estado.referenciaPrevia || '' })
+                  }
                 >
                   Corregir
                 </Button>
               </div>
+              {estado.decision !== 'corregir' && estado.referenciaPrevia && (
+                <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                  Observación previa: {estado.referenciaPrevia}
+                </p>
+              )}
               {estado.decision === 'corregir' && (
                 <Textarea
                   className="mt-2 min-h-[72px] text-sm"

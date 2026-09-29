@@ -1,7 +1,7 @@
 'use client'
 
 import { FileText, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -20,6 +20,12 @@ export function ZonaCargaDocx({
 }: ZonaCargaDocxProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [arrastrando, setArrastrando] = useState(false)
+
+  useEffect(() => {
+    if (!archivo && inputRef.current) {
+      inputRef.current.value = ''
+    }
+  }, [archivo])
 
   function procesarArchivo(file: File | undefined) {
     if (!file) return

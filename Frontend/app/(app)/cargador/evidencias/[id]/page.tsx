@@ -22,15 +22,20 @@ import { Input } from '@/components/ui/input'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   enviarRevisionApi,
+  listarVersionesApi,
+  obtenerComentariosEvidenciaApi,
   obtenerEvidenciaApi,
   obtenerHistorialApi,
   obtenerUrlDescargaApi,
   actualizarEvidenciaApi,
   subirVersionArchivoApi,
   obtenerEvaluacionesCondicionApi,
+  type ComentarioEvidenciaApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
+import { inspeccionarFirmaDocx } from '@/lib/utilidades/leer-firma-docx'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { cn } from '@/lib/utils'
 
 export default function DetalleEvidenciaCargadorPage() {
   return (
@@ -53,9 +58,23 @@ function ContenidoDetalle() {
   const [cargando, setCargando] = useState(true)
   const [procesando, setProcesando] = useState(false)
   const [confirmarReenvio, setConfirmarReenvio] = useState(false)
+  const [firmaEsperada, setFirmaEsperada] = useState<string | null>(null)
+  const [estadoVerificacion, setEstadoVerificacion] = useState<
+    'inactivo' | 'verificando' | 'valido' | 'invalido'
+  >('inactivo')
+  const [mensajeVerificacion, setMensajeVerificacion] = useState<string | null>(null)
   const [evaluacionesCondicion, setEvaluacionesCondicion] = useState<
     EvaluacionCondicionEvidencia[]
   >([])
+  const [comentariosRevisor, setComentariosRevisor] = useState<
+    ComentarioEvidenciaApi[]
+  >([])
+  const [anclaResaltada, setAnclaResaltada] = useState<{
+    anchor?: string
+    quote?: string
+    nonce: number
+  } | null>(null)
+  const [comentarioActivoId, setComentarioActivoId] = useState<string | null>(null)
 
   async function refrescarDocumento(id: string) {
     if (!apiDisponible()) return
@@ -68,11 +87,12 @@ function ContenidoDetalle() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, historial, evaluaciones] = await Promise.all([
+          const [ev, descarga, historial, evaluaciones, versiones] = await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerHistorialApi(params.id).catch(() => []),
             obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
+            listarVersionesApi(params.id).catch(() => []),
           ])
           const mapeada: Evidencia = {
             ...ev,
@@ -85,6 +105,12 @@ function ContenidoDetalle() {
           setNombre(mapeada.nombre)
           setIndicador(mapeada.indicador)
           if (descarga?.url) setUrlDocumento(descarga.url)
+
+          const firmaActiva =
+            versiones.find((v) => v.numero === (mapeada.version ?? 1))?.firmaDescarga ??
+            versiones[0]?.firmaDescarga ??
+            null
+          setFirmaEsperada(firmaActiva ?? null)
 
           const ultimoRechazo = historial
             .filter((h) => h.estado === 'Rechazado' && h.observacion)
@@ -99,6 +125,12 @@ function ContenidoDetalle() {
               observacion: e.observacion,
             })),
           )
+
+          const comentarios = await obtenerComentariosEvidenciaApi(
+            params.id,
+            mapeada.version ?? 1,
+          ).catch(() => [])
+          setComentariosRevisor(comentarios)
         } else {
           const local = datos.evidencias.find((e) => e.id === params.id) ?? null
           setEvidencia(local)
@@ -147,10 +179,85 @@ function ContenidoDetalle() {
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
   const versionActual = evidencia.version ?? 1
 
+  async function manejarArchivoCorregido(file: File | null) {
+    setArchivoNuevo(file)
+    setMensajeVerificacion(null)
+
+    if (!file) {
+      setEstadoVerificacion('inactivo')
+      return
+    }
+
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      const mensaje = 'Solo se permiten documentos Word (.docx).'
+      setEstadoVerificacion('invalido')
+      setMensajeVerificacion(mensaje)
+      setArchivoNuevo(null)
+      toast.error(mensaje)
+      return
+    }
+
+    setEstadoVerificacion('verificando')
+    const { esDocxValido, firma } = await inspeccionarFirmaDocx(file)
+
+    if (!esDocxValido) {
+      const mensaje = 'El archivo no es un .docx válido.'
+      setEstadoVerificacion('invalido')
+      setMensajeVerificacion(mensaje)
+      setArchivoNuevo(null)
+      toast.error(mensaje)
+      return
+    }
+
+    let firmaVigente = firmaEsperada
+    if (apiDisponible()) {
+      const versiones = await listarVersionesApi(params.id).catch(() => null)
+      if (versiones) {
+        const vigente =
+          versiones.find((v) => v.numero === versionActual) ?? versiones[0]
+        firmaVigente = vigente?.firmaDescarga ?? null
+        setFirmaEsperada(firmaVigente)
+      }
+    }
+
+    if (firmaVigente && !firma) {
+      const mensaje =
+        'Falta la firma de versión SIAC; descarga el documento desde SIAC y vuelve a subirlo.'
+      setEstadoVerificacion('invalido')
+      setMensajeVerificacion(mensaje)
+      setArchivoNuevo(null)
+      toast.error(mensaje)
+      return
+    }
+
+    if (firmaVigente && firma && firma !== firmaVigente) {
+      const mensaje =
+        'La firma no coincide con la última descarga de esta evidencia. Descarga la última versión, corrige sobre ese archivo y vuelve a subirlo.'
+      setEstadoVerificacion('invalido')
+      setMensajeVerificacion(mensaje)
+      setArchivoNuevo(null)
+      toast.error(mensaje)
+      return
+    }
+
+    setEstadoVerificacion('valido')
+    const mensaje = firmaVigente
+      ? 'Documento correcto: firma de la última descarga verificada.'
+      : 'Documento cargado correctamente.'
+    setMensajeVerificacion(mensaje)
+    toast.success(mensaje)
+  }
+
   async function enviarARevision() {
     if (!evidencia) return
     if (evidencia.estado === 'Rechazado' && !archivoNuevo) {
       toast.error('Debe cargar el documento .docx corregido antes de enviar a revisión.')
+      return
+    }
+    if (archivoNuevo && estadoVerificacion !== 'valido') {
+      toast.error(
+        'El documento seleccionado no es válido. Descargue la última versión y corrija sobre ese archivo.',
+      )
       return
     }
 
@@ -217,19 +324,76 @@ function ContenidoDetalle() {
         />
       )}
 
-      {esRechazada && observacionesTexto && evaluacionesCondicion.length === 0 && (
+      {esRechazada && comentariosRevisor.length > 0 && (
         <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Badge variant="destructive">Con observaciones</Badge>
+            <Badge variant="destructive">Comentarios del revisor</Badge>
             <Badge variant="secondary">Versión {versionActual}</Badge>
             <InsigniaEstado estado={evidencia.estado} />
           </div>
-          <p className="text-sm font-medium text-primary">Observaciones del revisor</p>
-          <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
-            {observacionesTexto}
+          <p className="text-xs text-muted-foreground">
+            Al descargar el documento, estos comentarios se abren anclados al texto
+            en Word/Google Docs. Pulsa uno para resaltar la cita en el visor.
           </p>
+          <ul className="mt-3 space-y-2">
+            {comentariosRevisor.map((comentario, indice) => {
+              const idComentario = `${comentario.anchor ?? comentario.hunkId ?? 'c'}-${indice}`
+              const activo = comentarioActivoId === idComentario
+              return (
+                <li key={idComentario}>
+                  <button
+                    type="button"
+                    aria-pressed={activo}
+                    className={cn(
+                      'w-full rounded-lg border bg-white p-3 text-left transition-colors',
+                      activo
+                        ? 'border-fucsia ring-2 ring-fucsia/30'
+                        : 'border-fucsia/20 hover:border-fucsia/50',
+                    )}
+                    onClick={() => {
+                      if (activo) {
+                        setComentarioActivoId(null)
+                        setAnclaResaltada(null)
+                        return
+                      }
+                      setComentarioActivoId(idComentario)
+                      setAnclaResaltada({
+                        anchor: comentario.anchor,
+                        quote: comentario.quote,
+                        nonce: Date.now(),
+                      })
+                    }}
+                  >
+                    {comentario.quote && (
+                      <p className="mb-1 border-l-2 border-emerald-400 pl-2 text-xs italic text-muted-foreground">
+                        «{comentario.quote}»
+                      </p>
+                    )}
+                    <p className="whitespace-pre-line text-sm">{comentario.texto}</p>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
+
+      {esRechazada &&
+        comentariosRevisor.length === 0 &&
+        observacionesTexto &&
+        evaluacionesCondicion.length === 0 && (
+          <div className="rounded-xl border border-fucsia/30 bg-fucsia/5 p-4">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge variant="destructive">Con observaciones</Badge>
+              <Badge variant="secondary">Versión {versionActual}</Badge>
+              <InsigniaEstado estado={evidencia.estado} />
+            </div>
+            <p className="text-sm font-medium text-primary">Observaciones del revisor</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+              {observacionesTexto}
+            </p>
+          </div>
+        )}
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
@@ -241,6 +405,7 @@ function ContenidoDetalle() {
               claveCache={versionActual}
               evidenciaId={evidencia.id}
               versionDocumento={versionActual}
+              anclaResaltada={anclaResaltada ?? undefined}
             />
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
@@ -293,15 +458,37 @@ function ContenidoDetalle() {
                   </p>
                   <ZonaCargaDocx
                     archivo={archivoNuevo}
-                    onArchivoSeleccionado={setArchivoNuevo}
-                    deshabilitado={procesando}
+                    onArchivoSeleccionado={manejarArchivoCorregido}
+                    deshabilitado={procesando || estadoVerificacion === 'verificando'}
                   />
+                  {estadoVerificacion === 'verificando' && (
+                    <p className="text-xs text-muted-foreground">
+                      Verificando que sea el documento de la última versión…
+                    </p>
+                  )}
+                  {mensajeVerificacion && (
+                    <p
+                      className={cn(
+                        'rounded-lg px-3 py-2 text-xs',
+                        estadoVerificacion === 'valido'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-red-50 text-red-700',
+                      )}
+                    >
+                      {mensajeVerificacion}
+                    </p>
+                  )}
                 </div>
 
                 <Button
                   className="w-full"
                   onClick={() => setConfirmarReenvio(true)}
-                  disabled={procesando}
+                  disabled={
+                    procesando ||
+                    estadoVerificacion === 'verificando' ||
+                    (!!archivoNuevo && estadoVerificacion === 'invalido') ||
+                    (esRechazada && !archivoNuevo)
+                  }
                 >
                   Enviar a revisión
                 </Button>
