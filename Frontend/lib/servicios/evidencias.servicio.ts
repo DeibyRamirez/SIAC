@@ -1,7 +1,7 @@
 import { peticionApi } from './cliente-api';
 import type { CodigoCondicionDocumentoMaestro } from '@/lib/condiciones-documento-maestro';
 import type { CodigoCondicionInstitucional } from '@/lib/condiciones-institucionales';
-import type { Evidencia, EstadoEvidencia } from '@/lib/tipos';
+import type { CodigoDocumentoGuia, Evidencia, EstadoEvidencia } from '@/lib/tipos';
 
 export interface RespuestaPaginada<T> {
   datos: T[];
@@ -13,8 +13,7 @@ export interface RespuestaPaginada<T> {
 export interface FiltrosEvidenciaApi {
   programaId?: string;
   periodo?: string;
-  factor?: string;
-  indicador?: string;
+  codigoGuia?: CodigoDocumentoGuia;
   estado?: string;
   busqueda?: string;
   pagina?: number;

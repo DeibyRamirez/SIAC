@@ -82,6 +82,7 @@ export function ModalVisualizadorDocumento({
               formato="DOCX"
               plantillaId={plantillaId}
               variant="fill"
+              ocultarEncabezado
               className="h-full min-h-0 rounded-none border-0"
             />
           ) : (

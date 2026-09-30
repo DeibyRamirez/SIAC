@@ -32,7 +32,6 @@ import {
   obtenerEvidenciaApi,
   obtenerHistorialApi,
   obtenerUrlDescargaApi,
-  actualizarEvidenciaApi,
   subirVersionArchivoApi,
   obtenerEvaluacionesCondicionApi,
   type ComentarioEvidenciaApi,
@@ -42,6 +41,7 @@ import type { Evidencia } from '@/lib/tipos'
 import { inspeccionarFirmaDocx } from '@/lib/utilidades/leer-firma-docx'
 import {
   admiteCorreccion,
+  formatoVisorDesdeArchivo,
   formatearFecha,
   obtenerNombrePrograma,
 } from '@/lib/utilidades-siac'
@@ -63,7 +63,6 @@ function ContenidoDetalle() {
   const [urlDocumento, setUrlDocumento] = useState<string | undefined>()
   const [observacionHistorial, setObservacionHistorial] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
-  const [indicador, setIndicador] = useState('')
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null)
   const [cargando, setCargando] = useState(true)
   const [procesando, setProcesando] = useState(false)
@@ -120,7 +119,6 @@ function ContenidoDetalle() {
           }
           setEvidencia(mapeada)
           setNombre(mapeada.nombre)
-          setIndicador(mapeada.indicador)
           if (descarga?.url) setUrlDocumento(descarga.url)
 
           const firmaActiva =
@@ -161,18 +159,12 @@ function ContenidoDetalle() {
         } else {
           const local = datos.evidencias.find((e) => e.id === params.id) ?? null
           setEvidencia(local)
-          if (local) {
-            setNombre(local.nombre)
-            setIndicador(local.indicador)
-          }
+          if (local) setNombre(local.nombre)
         }
       } catch {
         const local = datos.evidencias.find((e) => e.id === params.id) ?? null
         setEvidencia(local)
-        if (local) {
-          setNombre(local.nombre)
-          setIndicador(local.indicador)
-        }
+        if (local) setNombre(local.nombre)
       } finally {
         setCargando(false)
       }
@@ -203,8 +195,7 @@ function ContenidoDetalle() {
   const esRechazada =
     evidencia.estado === 'ConObservaciones' || evidencia.estado === 'Rechazado'
   const puedeReenviar = admiteCorreccion(evidencia.estado)
-  const extension = evidencia.nombreArchivo.split('.').pop()?.toLowerCase()
-  const formato = extension === 'docx' ? 'DOCX' : extension === 'xlsx' ? 'XLSX' : 'PDF'
+  const formato = formatoVisorDesdeArchivo(evidencia.nombreArchivo)
   const observacionesTexto = evidencia.observaciones ?? observacionHistorial
   const versionActual = evidencia.version ?? 1
 
@@ -293,9 +284,6 @@ function ContenidoDetalle() {
     setProcesando(true)
     try {
       if (apiDisponible()) {
-        if (indicador.trim() !== evidencia.indicador) {
-          await actualizarEvidenciaApi(params.id, { indicador: indicador.trim() })
-        }
         if (archivoNuevo) {
           const actualizada = await subirVersionArchivoApi(params.id, archivoNuevo)
           setEvidencia((prev) =>
@@ -315,7 +303,6 @@ function ContenidoDetalle() {
       actualizarEvidencia(params.id, {
         estado: 'EnRevision',
         observaciones: undefined,
-        indicador: indicador.trim(),
         ...(archivoNuevo
           ? {
               version: versionActual + 1,
@@ -477,15 +464,19 @@ function ContenidoDetalle() {
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+                <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>
                 <p>{evidencia.periodo}</p>
               </div>
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Factor</p>
-                <p>{evidencia.factor}</p>
+                <p className="text-xs uppercase text-muted-foreground">Guía</p>
+                <p>
+                  {evidencia.codigoGuia
+                    ? `${evidencia.codigoGuia} — ${ETIQUETAS_GUIA[evidencia.codigoGuia]}`
+                    : 'Sin guía'}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Versión</p>
@@ -512,11 +503,6 @@ function ContenidoDetalle() {
                   <span className="font-medium">Nombre del documento</span>
                   <Input value={nombre} readOnly className="bg-muted" />
                 </label>
-                <label className="block space-y-2 text-sm">
-                  <span className="font-medium">Indicador</span>
-                  <Input value={indicador} onChange={(e) => setIndicador(e.target.value)} />
-                </label>
-
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-primary">
                     {esRechazada

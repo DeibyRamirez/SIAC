@@ -26,9 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  distribucionEstadosSemilla,
-  tendenciaMensualSemilla,
-} from '@/lib/datos-semilla'
+  calcularDistribucionEstados,
+  calcularTendenciaMensual,
+} from '@/lib/utilidades/metricas-evidencias'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
@@ -119,20 +119,12 @@ function ContenidoResumen() {
   }, [programaProcesoId])
 
   const distribucion = useMemo(
-    () => [
-      { estado: 'Validadas', valor: validadas, clave: 'validadas' },
-      {
-        estado: 'En revisión',
-        valor: evidenciasPeriodo.filter((e) => e.estado === 'EnRevision').length,
-        clave: 'revision',
-      },
-      {
-        estado: 'Borrador',
-        valor: evidenciasPeriodo.filter((e) => e.estado === 'Borrador').length,
-        clave: 'borrador',
-      },
-    ],
-    [evidenciasPeriodo, validadas],
+    () => calcularDistribucionEstados(evidenciasPeriodo),
+    [evidenciasPeriodo],
+  )
+  const tendencia = useMemo(
+    () => calcularTendenciaMensual(datos.evidencias),
+    [datos.evidencias],
   )
 
   const primerNombre = sesion?.nombre.split(' ')[0] ?? 'Administrador'
@@ -197,11 +189,8 @@ function ContenidoResumen() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <GraficoTendencia datos={tendenciaMensualSemilla} />
-        <GraficoDistribucion
-          datos={distribucion.length > 0 ? distribucion : distribucionEstadosSemilla}
-          totalEtiqueta="Total evidencias"
-        />
+        <GraficoTendencia datos={tendencia} />
+        <GraficoDistribucion datos={distribucion} totalEtiqueta="Total evidencias" />
       </div>
 
       <PanelAvanceEtapasSIAC

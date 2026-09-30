@@ -20,14 +20,6 @@ export class CrearEvidenciaDto {
   periodo!: string;
 
   @IsString()
-  @IsNotEmpty()
-  factor!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  indicador!: string;
-
-  @IsString()
   @IsOptional()
   responsable?: string;
 
@@ -54,14 +46,6 @@ export class ActualizarEvidenciaDto {
 
   @IsString()
   @IsOptional()
-  factor?: string;
-
-  @IsString()
-  @IsOptional()
-  indicador?: string;
-
-  @IsString()
-  @IsOptional()
   responsable?: string;
 }
 
@@ -83,13 +67,9 @@ export class FiltrosEvidenciaDto {
   @IsOptional()
   periodo?: string;
 
-  @IsString()
+  @IsEnum(CodigoDocumentoGuia)
   @IsOptional()
-  factor?: string;
-
-  @IsString()
-  @IsOptional()
-  indicador?: string;
+  codigoGuia?: CodigoDocumentoGuia;
 
   @IsString()
   @IsOptional()

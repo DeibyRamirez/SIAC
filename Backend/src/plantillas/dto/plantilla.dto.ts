@@ -1,14 +1,24 @@
+import { Transform } from 'class-transformer';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
-import { CategoriaPlantilla, FormatoArchivo, TipoTramitePlantilla } from '@prisma/client';
+import {
+  CategoriaPlantilla,
+  CodigoDocumentoGuia,
+  FormatoArchivo,
+  TipoTramitePlantilla,
+} from '@prisma/client';
+
+/** multipart/form-data envía booleanos como "true"/"false" (string). */
+function transformarBooleanoMultipart(valor: unknown): boolean | undefined {
+  if (valor === undefined || valor === null || valor === '') return undefined;
+  if (valor === true || valor === 'true' || valor === '1') return true;
+  if (valor === false || valor === 'false' || valor === '0') return false;
+  return valor as boolean;
+}
 
 export class CrearPlantillaDto {
   @IsString()
   @IsNotEmpty()
   nombre!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  factor!: string;
 
   @IsEnum(FormatoArchivo)
   formato!: FormatoArchivo;
@@ -28,9 +38,13 @@ export class CrearPlantillaDto {
   @IsOptional()
   tipoTramite?: TipoTramitePlantilla;
 
+  @Transform(({ value }) => transformarBooleanoMultipart(value))
   @IsBoolean()
   @IsOptional()
   esGuiaDocumentoMaestro?: boolean;
+
+  @IsEnum(CodigoDocumentoGuia)
+  codigoGuia!: CodigoDocumentoGuia;
 }
 
 export class ActualizarPlantillaDto {
@@ -40,16 +54,13 @@ export class ActualizarPlantillaDto {
 
   @IsString()
   @IsOptional()
-  factor?: string;
-
-  @IsString()
-  @IsOptional()
   version?: string;
 
   @IsString()
   @IsOptional()
   descripcion?: string;
 
+  @Transform(({ value }) => transformarBooleanoMultipart(value))
   @IsBoolean()
   @IsOptional()
   vigente?: boolean;
@@ -58,7 +69,12 @@ export class ActualizarPlantillaDto {
   @IsOptional()
   tipoTramite?: TipoTramitePlantilla;
 
+  @Transform(({ value }) => transformarBooleanoMultipart(value))
   @IsBoolean()
   @IsOptional()
   esGuiaDocumentoMaestro?: boolean;
+
+  @IsEnum(CodigoDocumentoGuia)
+  @IsOptional()
+  codigoGuia?: CodigoDocumentoGuia;
 }

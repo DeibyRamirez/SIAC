@@ -95,7 +95,7 @@ flowchart TB
 | ADR-001 | Monolito en capas con API REST (NestJS + Next.js) | Aceptada |
 | ADR-002 | PostgreSQL metadatos + Storage S3 (Supabase dev / MinIO prod) | Aceptada |
 | ADR-003 | JWT con roles; OAuth Google como mejora futura | Aceptada |
-| ADR-004 | Metadatos CNA textuales en Evidencia (periodo, factor, indicador) | Aceptada |
+| ADR-004 | Metadatos CNA textuales en Evidencia (periodo, factor, indicador) | Revisada (T-REF-001, 2026-09-29): se conserva `periodo` textual; factor e indicador se retiran y la clasificación pasa a `codigoGuia` G1–G4 |
 | ADR-005 | Copia local sincronizable de maestros TI + dominio operativo SIAC | Aceptada |
 | ADR-006 | Alertas in-app obligatorias; SMTP opcional | Aceptada |
 

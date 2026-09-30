@@ -13,7 +13,6 @@ import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { catalogoFactoresIndicadores } from '@/lib/datos-semilla'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
@@ -87,20 +86,10 @@ function ContenidoNuevaEvidencia() {
   const [nombre, setNombre] = useState('')
   const [programaId, setProgramaId] = useState('')
   const [periodo, setPeriodo] = useState(periodoAcademicoActual())
-  const [factor, setFactor] = useState(catalogoFactoresIndicadores[0]?.factor ?? '')
-  const [indicador, setIndicador] = useState(
-    catalogoFactoresIndicadores[0]?.indicadores[0] ?? '',
-  )
   const [archivo, setArchivo] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [extrayendo, setExtrayendo] = useState(false)
-
-  const indicadoresDisponibles = useMemo(() => {
-    return (
-      catalogoFactoresIndicadores.find((f) => f.factor === factor)?.indicadores ?? []
-    )
-  }, [factor])
 
   const tramiteSeleccionado = useMemo(() => {
     if (!modalidad || !alcance) return null
@@ -128,13 +117,6 @@ function ContenidoNuevaEvidencia() {
         setError('No se pudieron cargar sus programas asignados.')
       })
   }, [])
-
-  useEffect(() => {
-    if (indicadoresDisponibles.length === 0) return
-    if (!indicadoresDisponibles.includes(indicador)) {
-      setIndicador(indicadoresDisponibles[0])
-    }
-  }, [indicadoresDisponibles, indicador])
 
   function manejarModalidadChange(valor: ModalidadTramiteUI) {
     setModalidad(valor)
@@ -172,16 +154,10 @@ function ContenidoNuevaEvidencia() {
       if (inferido.alcance) setAlcance(inferido.alcance)
       if (inferido.codigoGuia) setCodigoGuia(inferido.codigoGuia)
 
-      const meta = await extraerMetadatosDocx(
-        file,
-        programas,
-        catalogoFactoresIndicadores,
-      )
+      const meta = await extraerMetadatosDocx(file, programas)
       if (meta.nombreSugerido) setNombre(meta.nombreSugerido)
       if (meta.programaId) setProgramaId(meta.programaId)
       if (meta.periodo) setPeriodo(meta.periodo)
-      if (meta.factor) setFactor(meta.factor)
-      if (meta.indicador) setIndicador(meta.indicador)
     } catch {
       setError('No se pudo leer el contenido del .docx; complete el formulario manualmente.')
     } finally {
@@ -199,7 +175,7 @@ function ContenidoNuevaEvidencia() {
       setError('Seleccione un programa asignado.')
       return false
     }
-    if (!nombre.trim() || !indicador.trim() || !archivo) {
+    if (!nombre.trim() || !periodo || !archivo) {
       setError('Completa todos los campos y selecciona un archivo.')
       return false
     }
@@ -230,8 +206,6 @@ function ContenidoNuevaEvidencia() {
           nombre: nombre.trim(),
           programaId,
           periodo,
-          factor,
-          indicador: indicador.trim(),
           autorId: sesion?.usuarioId ?? 'usr-cargador',
           nombreArchivo: archivo.name,
           requiereChecklistMaestro: codigoGuia === 'G1',
@@ -375,37 +349,6 @@ function ContenidoNuevaEvidencia() {
                           {valor}
                         </option>
                       ))}
-                  </select>
-                </label>
-
-                <label className="block space-y-2 text-sm">
-                  <span className="font-medium">Factor</span>
-                  <select
-                    value={factor}
-                    onChange={(evento) => setFactor(evento.target.value)}
-                    className="w-full rounded-lg border border-input px-3 py-2"
-                  >
-                    {catalogoFactoresIndicadores.map((item) => (
-                      <option key={item.factor} value={item.factor}>
-                        {item.factor}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block space-y-2 text-sm">
-                  <span className="font-medium">Indicador</span>
-                  <select
-                    value={indicador}
-                    onChange={(evento) => setIndicador(evento.target.value)}
-                    className="w-full rounded-lg border border-input px-3 py-2"
-                    required
-                  >
-                    {indicadoresDisponibles.map((valor) => (
-                      <option key={valor} value={valor}>
-                        {valor}
-                      </option>
-                    ))}
                   </select>
                 </label>
 

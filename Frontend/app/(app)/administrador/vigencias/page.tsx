@@ -264,7 +264,7 @@ function ContenidoVigencias() {
                         </p>
                       </TableCell>
                       <TableCell className="py-4 text-sm">
-                        {obtenerNombrePrograma(anexo.programaId)}
+                        {obtenerNombrePrograma(anexo.programaId, programas)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap py-4 text-sm">
                         {formatearFecha(anexo.fechaVencimiento)}

@@ -7,8 +7,6 @@ export interface MetadatosExtraidosDocx {
   nombreSugerido?: string
   programaId?: string
   periodo?: string
-  factor?: string
-  indicador?: string
 }
 
 function nombreDesdeArchivo(nombreArchivo: string): string {
@@ -35,7 +33,6 @@ function buscarPeriodo(texto: string, nombreArchivo: string): string | undefined
 export async function extraerMetadatosDocx(
   archivo: File,
   programas: Programa[],
-  catalogoFactores: { factor: string; indicadores: string[] }[],
 ): Promise<MetadatosExtraidosDocx> {
   const buffer = await archivo.arrayBuffer()
   const { value: texto } = await mammoth.extractRawText({
@@ -46,23 +43,10 @@ export async function extraerMetadatosDocx(
   const periodo =
     buscarPeriodo(texto, archivo.name) ?? periodoAcademicoActual()
 
-  let factor: string | undefined
-  let indicador: string | undefined
-  const textoLower = texto.toLowerCase()
-  for (const item of catalogoFactores) {
-    if (textoLower.includes(item.factor.toLowerCase().slice(0, 20))) {
-      factor = item.factor
-      indicador = item.indicadores[0]
-      break
-    }
-  }
-
   return {
     nombreSugerido: nombreDesdeArchivo(archivo.name),
     programaId: programa?.id,
     periodo,
-    factor,
-    indicador,
   }
 }
 

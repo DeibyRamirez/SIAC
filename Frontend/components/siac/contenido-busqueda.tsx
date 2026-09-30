@@ -8,16 +8,19 @@ import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { factoresSemilla, programasSemilla } from '@/lib/datos-semilla'
+import type { CodigoDocumentoGuia } from '@/lib/tipos'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
 
 interface ParametrosBusqueda {
   q?: string
   programa?: string
-  factor?: string
+  codigoGuia?: string
   periodo?: string
 }
+
+const CODIGOS_GUIA = Object.keys(ETIQUETAS_GUIA) as CodigoDocumentoGuia[]
 
 export function ContenidoBusqueda({
   parametrosIniciales,
@@ -30,7 +33,7 @@ export function ContenidoBusqueda({
   const resultados = useMemo(() => {
     const texto = (parametrosIniciales.q ?? '').trim().toLowerCase()
     const programa = parametrosIniciales.programa ?? ''
-    const factor = parametrosIniciales.factor ?? ''
+    const codigoGuia = parametrosIniciales.codigoGuia ?? ''
     const periodo = parametrosIniciales.periodo ?? ''
 
     return datos.evidencias.filter((evidencia) => {
@@ -42,32 +45,31 @@ export function ContenidoBusqueda({
         !texto ||
         [
           evidencia.nombre,
-          evidencia.indicador,
-          evidencia.factor,
-          obtenerNombrePrograma(evidencia.programaId),
+          evidencia.codigoGuia ?? '',
+          obtenerNombrePrograma(evidencia.programaId, datos.programas),
         ]
           .join(' ')
           .toLowerCase()
           .includes(texto)
 
       const coincidePrograma = !programa || evidencia.programaId === programa
-      const coincideFactor = !factor || evidencia.factor === factor
+      const coincideGuia = !codigoGuia || evidencia.codigoGuia === codigoGuia
       const coincidePeriodo = !periodo || evidencia.periodo === periodo
 
-      return coincideTexto && coincidePrograma && coincideFactor && coincidePeriodo
+      return coincideTexto && coincidePrograma && coincideGuia && coincidePeriodo
     })
-  }, [datos.evidencias, parametrosIniciales])
+  }, [datos.evidencias, datos.programas, parametrosIniciales])
 
   function actualizarFiltros(formData: FormData) {
     const params = new URLSearchParams()
     const q = String(formData.get('q') ?? '').trim()
     const programa = String(formData.get('programa') ?? '')
-    const factor = String(formData.get('factor') ?? '')
+    const codigoGuia = String(formData.get('codigoGuia') ?? '')
     const periodo = String(formData.get('periodo') ?? '')
 
     if (q) params.set('q', q)
     if (programa) params.set('programa', programa)
-    if (factor) params.set('factor', factor)
+    if (codigoGuia) params.set('codigoGuia', codigoGuia)
     if (periodo) params.set('periodo', periodo)
 
     router.push(`/administrador/busqueda?${params.toString()}`)
@@ -84,7 +86,7 @@ export function ContenidoBusqueda({
                 name="q"
                 defaultValue={parametrosIniciales.q ?? ''}
                 className="w-full rounded-lg border border-input px-3 py-2"
-                placeholder="Buscar por nombre, factor o indicador"
+                placeholder="Buscar por nombre, programa o guía (G1–G4)"
               />
             </label>
             <label className="block space-y-2 text-sm">
@@ -95,7 +97,7 @@ export function ContenidoBusqueda({
                 className="w-full rounded-lg border border-input px-3 py-2"
               >
                 <option value="">Todos</option>
-                {programasSemilla.map((programa) => (
+                {datos.programas.map((programa) => (
                   <option key={programa.id} value={programa.id}>
                     {programa.nombre}
                   </option>
@@ -103,16 +105,16 @@ export function ContenidoBusqueda({
               </select>
             </label>
             <label className="block space-y-2 text-sm">
-              <span className="font-medium">Factor</span>
+              <span className="font-medium">Guía</span>
               <select
-                name="factor"
-                defaultValue={parametrosIniciales.factor ?? ''}
+                name="codigoGuia"
+                defaultValue={parametrosIniciales.codigoGuia ?? ''}
                 className="w-full rounded-lg border border-input px-3 py-2"
               >
-                <option value="">Todos</option>
-                {factoresSemilla.map((valor) => (
-                  <option key={valor} value={valor}>
-                    {valor}
+                <option value="">Todas</option>
+                {CODIGOS_GUIA.map((codigo) => (
+                  <option key={codigo} value={codigo}>
+                    {codigo} — {ETIQUETAS_GUIA[codigo]}
                   </option>
                 ))}
               </select>
@@ -149,7 +151,7 @@ export function ContenidoBusqueda({
                 <tr className="border-b border-primary/10 bg-primary/5 text-xs font-bold tracking-wide text-primary uppercase">
                   <th className="py-3 pr-4">Documento</th>
                   <th className="py-3 pr-4">Programa</th>
-                  <th className="py-3 pr-4">Factor</th>
+                  <th className="py-3 pr-4">Guía</th>
                   <th className="py-3 pr-4">Periodo</th>
                   <th className="py-3">Estado</th>
                 </tr>
@@ -163,8 +165,8 @@ export function ContenidoBusqueda({
                         {formatearFecha(evidencia.fechaCarga)}
                       </p>
                     </td>
-                    <td className="py-3 pr-4">{obtenerNombrePrograma(evidencia.programaId)}</td>
-                    <td className="py-3 pr-4">{evidencia.factor}</td>
+                    <td className="py-3 pr-4">{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</td>
+                    <td className="py-3 pr-4">{evidencia.codigoGuia ?? '—'}</td>
                     <td className="py-3 pr-4">{evidencia.periodo}</td>
                     <td className="py-3">
                       <InsigniaEstado estado={evidencia.estado} />

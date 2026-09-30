@@ -1,6 +1,4 @@
 import type { EstadoEvidencia, Programa } from '@/lib/tipos'
-import { programasSemilla } from '@/lib/datos-semilla'
-
 const etiquetasEstado: Record<EstadoEvidencia, string> = {
   Borrador: 'Borrador',
   EnRevision: 'Pendiente de verificación',
@@ -24,12 +22,12 @@ export function admiteCorreccion(estado: EstadoEvidencia): boolean {
   return estado === 'Borrador' || estado === 'ConObservaciones' || estado === 'Rechazado'
 }
 
-export function obtenerProgramaPorId(id: string): Programa | undefined {
-  return programasSemilla.find((programa) => programa.id === id)
-}
-
-export function obtenerNombrePrograma(id: string): string {
-  return obtenerProgramaPorId(id)?.nombre ?? 'Institucional'
+/** Resuelve el nombre contra los programas cargados desde la API (`datos.programas` del almacén). */
+export function obtenerNombrePrograma(
+  id: string,
+  programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre'>>,
+): string {
+  return programas.find((programa) => programa.id === id)?.nombre ?? 'Institucional'
 }
 
 export function obtenerInicialesPrograma(nombre: string): string {
@@ -122,6 +120,14 @@ export function inferirFormatoArchivo(nombreArchivo: string): 'PDF' | 'XLSX' | '
   if (ext === 'pdf') return 'PDF'
   if (ext === 'xlsx' || ext === 'xls') return 'XLSX'
   return 'OTRO'
+}
+
+/** Formato para VisorDocumentoInline (previsualización DOCX vía API). */
+export function formatoVisorDesdeArchivo(nombreArchivo: string): 'PDF' | 'DOCX' | 'XLSX' {
+  const ext = nombreArchivo.split('.').pop()?.toLowerCase()
+  if (ext === 'docx') return 'DOCX'
+  if (ext === 'xlsx' || ext === 'xls') return 'XLSX'
+  return 'PDF'
 }
 
 export function manejarCambioSelect(

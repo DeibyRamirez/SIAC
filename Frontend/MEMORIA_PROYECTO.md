@@ -190,10 +190,10 @@ Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel la
 Tipos en `Frontend/lib/tipos/index.ts`:
 
 - `EtapaAcreditacion` — Pre-radicación, Radicación, Autoevaluación, Renovación
-- `CondicionDecreto` — 6 institucionales (CI) + 9 de programa (CP)
+- `CondicionDecreto` — 6 institucionales (CI) + 9 de programa (CP). Catálogo de referencia: las condiciones se evalúan en el checklist del dictamen, no son metadato de carga.
 - `CarpetaNormativa` — Organización admin por etapa/condición
 - `DocumentoRequerido` — Documentos/plantillas dentro de cada carpeta
-- `Evidencia`, `Plantilla`, `Programa`, `AlertaVigencia`, etc.
+- `Evidencia`, `Plantilla`, `Programa`, `AlertaVigencia`, etc. `Evidencia` y `Plantilla` se clasifican por `codigoGuia` (G1–G4); `factor` e `indicador` se retiraron (T-REF-001). `Plantilla.codigoGuia` es obligatorio.
 
 Semilla normativa: `Frontend/lib/datos-semilla/estructura-decreto-1330.ts`
 

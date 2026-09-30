@@ -24,7 +24,7 @@ export default async function EvidenciasAdministradorPage({ searchParams }: Page
   const filtrosIniciales = {
     q: valorParam(params, 'q'),
     programaId: valorParam(params, 'programaId'),
-    factor: valorParam(params, 'factor'),
+    codigoGuia: valorParam(params, 'codigoGuia'),
     periodo: valorParam(params, 'periodo') ?? periodoAcademicoActual(),
     estado: valorParam(params, 'estado'),
     pagina: valorParam(params, 'pagina'),

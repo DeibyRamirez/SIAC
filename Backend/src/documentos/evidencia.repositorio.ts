@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.module';
 
-import { Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
+import { CodigoDocumentoGuia, Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
 
 import { TOTAL_CONDICIONES_DOCUMENTO_MAESTRO } from '../dominio/condiciones-documento-maestro';
 
@@ -33,9 +33,7 @@ export interface FiltrosEvidencia {
 
   periodo?: string;
 
-  factor?: string;
-
-  indicador?: string;
+  codigoGuia?: CodigoDocumentoGuia;
 
   estado?: EstadoEvidencia;
 
@@ -221,9 +219,7 @@ export class EvidenciaRepositorio {
 
     if (filtros.periodo) where.periodo = filtros.periodo;
 
-    if (filtros.factor) where.factor = filtros.factor;
-
-    if (filtros.indicador) where.indicador = filtros.indicador;
+    if (filtros.codigoGuia) where.codigoGuia = filtros.codigoGuia;
 
     if (filtros.estado) where.estado = filtros.estado;
 
@@ -238,10 +234,6 @@ export class EvidenciaRepositorio {
       where.OR = [
 
         { nombre: { contains: filtros.busqueda, mode: 'insensitive' } },
-
-        { factor: { contains: filtros.busqueda, mode: 'insensitive' } },
-
-        { indicador: { contains: filtros.busqueda, mode: 'insensitive' } },
 
         { periodo: { contains: filtros.busqueda, mode: 'insensitive' } },
 

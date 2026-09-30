@@ -16,10 +16,15 @@ cd Backend
 cp .env.example .env
 pnpm install
 pnpm prisma:generate
-pnpm prisma migrate deploy
-pnpm prisma:seed
+pnpm prisma:deploy   # migraciones (incluyen catálogo de trámites G1–G4 e institución CUAC)
+pnpm prisma:seed     # solo 5 usuarios, uno por rol
 pnpm start:dev
 ```
+
+La base arranca sin programas, evidencias, plantillas ni vigencias de ejemplo. Tras iniciar sesión
+como Administrador (`admin.planeacion@uniautonoma.edu.co` / `Admin2026`) se crean los programas
+(o se sincronizan por CSV) y se suben las plantillas `.docx` desde la Biblioteca de plantillas;
+quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
 
 ## Si la terminal va lenta, ejecute esto antes de `pnpm start:dev`:
 

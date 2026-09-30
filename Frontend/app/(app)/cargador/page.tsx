@@ -47,7 +47,7 @@ function ContenidoInicioCargador() {
       <div className="grid gap-4 md:grid-cols-3">
         <TarjetaAcceso
           titulo="Cargar evidencia"
-          descripcion="Sube PDF o Excel con metadatos de programa, periodo, factor e indicador."
+          descripcion="Sube el documento Word de la guía G1–G4 con programa y periodo."
           href="/cargador/evidencias/nueva"
           icono={Files}
           acento="cyan"

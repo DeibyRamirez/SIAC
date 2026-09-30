@@ -119,6 +119,17 @@ model Usuario {
   usuarioProgramas UsuarioPrograma[]
 }
 
+model Institucion {
+  id                String          @id @default(cuid())
+  nombre            String          @db.VarChar(200)
+  codigo            String          @unique @db.VarChar(50)
+  tipoTramiteActivo TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
+  fechaResolucion   DateTime?
+  evidencias        Evidencia[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
 model Programa {
   id                  String          @id @default(cuid())
   nombre              String          @db.VarChar(200)
@@ -131,6 +142,7 @@ model Programa {
   slug                String          @unique @db.VarChar(160)
   urlImagen           String?         @db.VarChar(500)
   tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
+  fechaResolucion     DateTime?
   activo              Boolean         @default(true)
   semaforo            String          @default("Verde") @db.VarChar(20)
   porcentajeAvance    Float           @default(0)
@@ -161,11 +173,11 @@ model UsuarioPrograma {
 model Evidencia {
   id            String               @id @default(cuid())
   nombre        String               @db.VarChar(300)
-  programaId    String
-  programa      Programa             @relation(fields: [programaId], references: [id])
+  programaId    String?
+  programa      Programa?            @relation(fields: [programaId], references: [id])
+  institucionId String?
+  institucion   Institucion?         @relation(fields: [institucionId], references: [id])
   periodo       String               @db.VarChar(100)
-  factor        String               @db.VarChar(100)
-  indicador     String               @db.VarChar(200)
   estado        EstadoEvidencia      @default(Borrador)
   autorId       String
   autor         Usuario              @relation(fields: [autorId], references: [id])
@@ -196,11 +208,13 @@ model Evidencia {
   updatedAt                DateTime             @updatedAt
 
   @@index([programaId])
+  @@index([institucionId])
   @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])
   @@index([puntajeActual])
-  @@index([factor, indicador, periodo])
+  @@index([codigoGuia, periodo])
+  @@index([programaId, codigoGuia])
 }
 
 model EvidenciaVersion {
@@ -253,13 +267,12 @@ model HistorialEvidencia {
 model Plantilla {
   id                     String               @id @default(cuid())
   nombre                 String               @db.VarChar(200)
-  factor                 String               @db.VarChar(100)
   formato                FormatoArchivo
   version                String               @db.VarChar(20)
   vigente                Boolean              @default(true)
   categoria              CategoriaPlantilla
   tipoTramite            TipoTramitePlantilla @default(General)
-  codigoGuia             CodigoDocumentoGuia?
+  codigoGuia             CodigoDocumentoGuia
   esGuiaDocumentoMaestro Boolean              @default(false)
   descripcion            String?
   nombreArchivo          String?              @db.VarChar(255)
@@ -267,7 +280,7 @@ model Plantilla {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 
-  @@index([factor, vigente])
+  @@index([codigoGuia, tipoTramite, vigente])
   @@index([categoria, tipoTramite])
 }
 
@@ -348,11 +361,12 @@ model TramiteSIAC {
 }
 
 model TramiteDocumentoGuia {
-  id         String              @id @default(cuid())
-  tramiteId  String
-  tramite    TramiteSIAC         @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
-  codigoGuia CodigoDocumentoGuia
-  orden      Int                 @default(0)
+  id             String              @id @default(cuid())
+  tramiteId      String
+  tramite        TramiteSIAC         @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  codigoGuia     CodigoDocumentoGuia
+  orden          Int                 @default(0)
+  pesoPorcentaje Int                 @default(100)
 
   @@unique([tramiteId, codigoGuia])
   @@index([tramiteId])

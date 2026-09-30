@@ -1,8 +1,17 @@
-import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { EstadoEvidencia } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 import { BusquedaService } from './busqueda.service';
 import { UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
+
+const CODIGOS_GUIA = Object.values(CodigoDocumentoGuia) as string[];
 
 @Controller('busqueda')
 @UseGuards(AuthGuard('jwt'))
@@ -26,8 +35,7 @@ export class BusquedaController {
   buscar(
     @Query('q') busqueda: string,
     @Query('programaId') programaId: string,
-    @Query('factor') factor: string,
-    @Query('indicador') indicador: string,
+    @Query('codigoGuia') codigoGuia: string,
     @Query('periodo') periodo: string,
     @Query('estado') estado: string,
     @Query('pagina') pagina: string,
@@ -37,13 +45,15 @@ export class BusquedaController {
   ) {
     const formatoNormalizado =
       formato === 'pdf' || formato === 'xlsx' ? formato : undefined;
+    if (codigoGuia && !CODIGOS_GUIA.includes(codigoGuia)) {
+      throw new BadRequestException('codigoGuia debe ser G1, G2, G3 o G4.');
+    }
 
     return this.busquedaService.buscar(
       {
         busqueda,
         programaId,
-        factor,
-        indicador,
+        codigoGuia: (codigoGuia || undefined) as CodigoDocumentoGuia | undefined,
         periodo,
         estado: estado as EstadoEvidencia | undefined,
         formato: formatoNormalizado,
@@ -54,4 +64,4 @@ export class BusquedaController {
     );
   }
 }
-
+

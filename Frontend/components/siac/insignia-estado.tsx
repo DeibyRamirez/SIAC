@@ -47,10 +47,17 @@ export function InsigniaEstado({
   )
 }
 
-export function Semaforo({ valor }: { valor: SemaforoPrograma }) {
+export function Semaforo({
+  valor,
+  etiqueta,
+}: {
+  valor: SemaforoPrograma
+  etiqueta?: string
+}) {
   return (
-    <span className="inline-flex items-center gap-2 text-xs font-bold text-primary">
+    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
       <span className={cn('size-2.5 rounded-full ring-2 ring-white', estilosSemaforo[valor])} />
+      {etiqueta ? <span className="text-muted-foreground">{etiqueta}:</span> : null}
       {valor}
     </span>
   )

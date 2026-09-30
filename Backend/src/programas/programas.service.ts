@@ -198,6 +198,7 @@ export class ProgramasService {
     const conteosPorPrograma = new Map<string, ConteosEstadoPrograma>();
 
     for (const grupo of grupos) {
+      if (!grupo.programaId) continue;
       const conteos = conteosPorPrograma.get(grupo.programaId) ?? conteosVacios();
       sumarConteo(conteos, grupo.estado, grupo._count._all);
       conteosPorPrograma.set(grupo.programaId, conteos);

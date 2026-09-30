@@ -11,15 +11,11 @@ import {
 
 import {
   crearDatosIniciales,
-  fusionarEvidenciasConSemilla,
-  fusionarPlantillasConSemilla,
   guardarAlmacenLocal,
   leerAlmacenLocal,
   type DatosPrototipo,
 } from '@/lib/almacen-prototipo'
-import { CLAVE_SESION } from '@/lib/auth-mock'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import type { RolUsuario } from '@/lib/tipos'
 import {
   listarEvidenciasApi,
   crearEvidenciaApi,
@@ -33,6 +29,7 @@ import {
   listarPlantillasApi,
 } from '@/lib/servicios/plantillas.servicio'
 import {
+  listarProgramasApi,
   listarVigenciasApi,
   listarNotificacionesApi,
   marcarNotificacionLeidaApi,
@@ -90,21 +87,6 @@ function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}`
 }
 
-function leerRolSesion(): RolUsuario | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(CLAVE_SESION)
-    if (!raw) return null
-    return (JSON.parse(raw) as { rol?: RolUsuario }).rol ?? null
-  } catch {
-    return null
-  }
-}
-
-function debeFusionarSemillaEvidencias(rol: RolUsuario | null): boolean {
-  return rol !== 'Administrador' && rol !== 'SuperAdmin'
-}
-
 export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
 
@@ -114,12 +96,13 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
 
       if (apiDisponible()) {
         try {
-          const [evResp, plantillas, anexos, alertas] = await Promise.all([
+          const [evResp, plantillas, anexos, alertas, programas] = await Promise.all([
             // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
             listarEvidenciasApi({ limite: 100 }),
             listarPlantillasApi(),
             listarVigenciasApi(),
             listarNotificacionesApi().catch(() => []),
+            listarProgramasApi().catch(() => []),
           ])
 
           const evidencias: Evidencia[] = evResp.datos.map((e) => ({
@@ -127,8 +110,10 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             nombre: e.nombre,
             programaId: e.programaId,
             periodo: e.periodo,
-            factor: e.factor,
-            indicador: e.indicador,
+            codigoGuia: e.codigoGuia,
+            requiereChecklistMaestro: e.requiereChecklistMaestro,
+            puntajeActual: e.puntajeActual,
+            totalCondicionesActual: e.totalCondicionesActual,
             estado: e.estado,
             autorId: e.autorId,
             nombreArchivo: e.nombreArchivo,
@@ -156,24 +141,30 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             }),
           )
 
-          const iniciales = crearDatosIniciales()
-          const rol = leerRolSesion()
           setDatos({
             ...local,
-            evidencias: debeFusionarSemillaEvidencias(rol)
-              ? fusionarEvidenciasConSemilla(evidencias, iniciales.evidencias)
-              : evidencias,
-            plantillas: fusionarPlantillasConSemilla(plantillas, iniciales.plantillas),
+            programas,
+            evidencias,
+            plantillas,
             anexosVigencia: anexosMapeados,
-            alertas: alertasMapeadas.length > 0 ? alertasMapeadas : local.alertas,
+            alertas: alertasMapeadas,
           })
           return
         } catch {
-          // Fallback a datos locales si la API no responde
+          setDatos({
+            ...crearDatosIniciales(),
+            evidencias: [],
+            plantillas: [],
+          })
+          return
         }
       }
 
-      setDatos(local)
+      setDatos({
+        ...local,
+        evidencias: [],
+        plantillas: [],
+      })
     }
 
     cargarDatos()
@@ -193,57 +184,45 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       archivo?: File,
       opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
     ) => {
-      if (apiDisponible() && archivo) {
-        const formData = new FormData()
-        formData.append('nombre', evidencia.nombre)
-        formData.append('programaId', evidencia.programaId)
-        formData.append('periodo', evidencia.periodo)
-        formData.append('factor', evidencia.factor)
-        formData.append('indicador', evidencia.indicador)
-        formData.append('archivo', archivo)
-        if (opciones?.codigoGuia) {
-          formData.append('codigoGuia', opciones.codigoGuia)
-        } else if (opciones?.requiereChecklistMaestro) {
-          formData.append('requiereChecklistMaestro', 'true')
-        }
-
-        const creada = await crearEvidenciaApi(formData)
-        const mapeada: Evidencia = {
-          id: creada.id,
-          nombre: creada.nombre,
-          programaId: creada.programaId,
-          periodo: creada.periodo,
-          factor: creada.factor,
-          indicador: creada.indicador,
-          estado: creada.estado,
-          autorId: creada.autorId,
-          nombreArchivo: creada.nombreArchivo,
-          fechaCarga:
-            typeof creada.fechaCarga === 'string'
-              ? creada.fechaCarga.slice(0, 10)
-              : new Date().toISOString().slice(0, 10),
-          observaciones: creada.observaciones,
-          responsable: creada.responsable,
-          requiereChecklistMaestro: creada.requiereChecklistMaestro,
-          codigoGuia: creada.codigoGuia,
-          puntajeActual: creada.puntajeActual,
-          totalCondicionesActual: creada.totalCondicionesActual,
-        }
-        persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
-        return mapeada
+      if (!apiDisponible()) {
+        throw new Error('Las evidencias solo se pueden cargar con la API disponible.')
+      }
+      if (!archivo) {
+        throw new Error('Selecciona el archivo de la evidencia.')
+      }
+      const formData = new FormData()
+      formData.append('nombre', evidencia.nombre)
+      formData.append('programaId', evidencia.programaId)
+      formData.append('periodo', evidencia.periodo)
+      formData.append('archivo', archivo)
+      if (opciones?.codigoGuia) {
+        formData.append('codigoGuia', opciones.codigoGuia)
+      } else if (opciones?.requiereChecklistMaestro) {
+        formData.append('requiereChecklistMaestro', 'true')
       }
 
-      const nueva: Evidencia = {
-        ...evidencia,
-        id: generarId('ev'),
-        estado: 'Borrador',
-        fechaCarga: new Date().toISOString().slice(0, 10),
-        requiereChecklistMaestro:
-          opciones?.codigoGuia === 'G1' || opciones?.requiereChecklistMaestro,
-        codigoGuia: opciones?.codigoGuia as Evidencia['codigoGuia'],
+      const creada = await crearEvidenciaApi(formData)
+      const mapeada: Evidencia = {
+        id: creada.id,
+        nombre: creada.nombre,
+        programaId: creada.programaId,
+        periodo: creada.periodo,
+        estado: creada.estado,
+        autorId: creada.autorId,
+        nombreArchivo: creada.nombreArchivo,
+        fechaCarga:
+          typeof creada.fechaCarga === 'string'
+            ? creada.fechaCarga.slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        observaciones: creada.observaciones,
+        responsable: creada.responsable,
+        requiereChecklistMaestro: creada.requiereChecklistMaestro,
+        codigoGuia: creada.codigoGuia,
+        puntajeActual: creada.puntajeActual,
+        totalCondicionesActual: creada.totalCondicionesActual,
       }
-      persistir((prev) => ({ ...prev, evidencias: [nueva, ...prev.evidencias] }))
-      return nueva
+      persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
+      return mapeada
     },
     [persistir],
   )
@@ -311,32 +290,30 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
 
   const crearPlantilla = useCallback(
     async (plantilla: Omit<Plantilla, 'id'>, archivo?: File) => {
-      if (apiDisponible() && archivo) {
-        const formData = new FormData()
-        formData.append('nombre', plantilla.nombre)
-        formData.append('factor', plantilla.factor)
-        formData.append('formato', 'DOCX')
-        formData.append('version', plantilla.version)
-        formData.append('categoria', plantilla.categoria)
-        if (plantilla.descripcion) formData.append('descripcion', plantilla.descripcion)
-        if (plantilla.tipoTramite) formData.append('tipoTramite', plantilla.tipoTramite)
-        if (plantilla.esGuiaDocumentoMaestro) {
-          formData.append('esGuiaDocumentoMaestro', 'true')
-        }
-        formData.append('archivo', archivo)
-        const creada = await crearPlantillaApi(formData)
-        persistir((prev) => ({
-          ...prev,
-          plantillas: [creada, ...prev.plantillas.filter((p) => p.id !== creada.id)],
-        }))
-        return creada
+      if (!apiDisponible()) {
+        throw new Error('Las plantillas solo se pueden crear con la API disponible.')
       }
-      const nueva = { ...plantilla, id: generarId('plt') }
+      if (!archivo) {
+        throw new Error('Selecciona un archivo .docx para la plantilla.')
+      }
+      const formData = new FormData()
+      formData.append('nombre', plantilla.nombre)
+      formData.append('codigoGuia', plantilla.codigoGuia)
+      formData.append('formato', 'DOCX')
+      formData.append('version', plantilla.version)
+      formData.append('categoria', plantilla.categoria)
+      if (plantilla.descripcion) formData.append('descripcion', plantilla.descripcion)
+      if (plantilla.tipoTramite) formData.append('tipoTramite', plantilla.tipoTramite)
+      if (plantilla.esGuiaDocumentoMaestro) {
+        formData.append('esGuiaDocumentoMaestro', 'true')
+      }
+      formData.append('archivo', archivo)
+      const creada = await crearPlantillaApi(formData)
       persistir((prev) => ({
         ...prev,
-        plantillas: [nueva, ...prev.plantillas],
+        plantillas: [creada, ...prev.plantillas.filter((p) => p.id !== creada.id)],
       }))
-      return nueva
+      return creada
     },
     [persistir],
   )

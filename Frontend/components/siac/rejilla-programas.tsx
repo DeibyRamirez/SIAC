@@ -12,11 +12,22 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Progress } from '@/components/ui/progress'
 import { Semaforo } from '@/components/siac/insignia-estado'
-import type { Programa } from '@/lib/tipos'
+import type { Programa, SemaforoPrograma } from '@/lib/tipos'
+import type { FilaPanelPrograma } from '@/lib/servicios/panel-programas.servicio'
 import { obtenerInicialesPrograma } from '@/lib/utilidades-siac'
 
+export type ProgramaRejilla = Programa | (FilaPanelPrograma & {
+  porcentajeAvance: number
+  semaforo: SemaforoPrograma
+  nivel?: string
+  facultad?: string
+  activo?: boolean
+  urlImagen?: string
+  estadoProceso?: string
+})
+
 interface RejillaProgramasProps {
-  programas: Programa[]
+  programas: ProgramaRejilla[]
   enlaceEvidencias?: string
   enlaceDetalle?: (id: string) => string
 }
@@ -52,7 +63,8 @@ export function RejillaProgramas({
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-primary">{programa.nombre}</p>
                 <p className="text-xs text-muted-foreground">
-                  {programa.codigo} · {programa.nivel}
+                  {programa.codigo ?? 'Institución'}
+                  {programa.nivel ? ` · ${programa.nivel}` : ''}
                   {programa.facultad ? ` · ${programa.facultad}` : ''}
                 </p>
                 {programa.activo === false ? (
@@ -89,8 +101,18 @@ export function RejillaProgramas({
 
             <div className="flex items-center justify-between px-1 pb-2">
               <div className="flex flex-col gap-1">
-                <Semaforo valor={programa.semaforo} />
-                <span className="text-xs text-muted-foreground">{programa.estadoProceso}</span>
+                {'semaforoAvance' in programa && programa.semaforoAvance ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Semaforo valor={programa.semaforoGeneral ?? programa.semaforo} etiqueta="General" />
+                    <Semaforo valor={programa.semaforoAvance} etiqueta="Avance" />
+                    <Semaforo valor={programa.semaforoVigencia!} etiqueta="Vigencia" />
+                  </div>
+                ) : (
+                  <Semaforo valor={programa.semaforo} />
+                )}
+                {programa.estadoProceso ? (
+                  <span className="text-xs text-muted-foreground">{programa.estadoProceso}</span>
+                ) : null}
               </div>
               {enlaceDetalle ? (
                 <Link href={enlaceDetalle(programa.id)}>

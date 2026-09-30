@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
-import { Plantilla, Prisma } from '@prisma/client';
+import {
+  CodigoDocumentoGuia,
+  Plantilla,
+  Prisma,
+  TipoTramitePlantilla,
+} from '@prisma/client';
 
 @Injectable()
 export class PlantillaRepositorio {
@@ -16,7 +21,7 @@ export class PlantillaRepositorio {
         ...(soloVigentes ? { vigente: true } : {}),
         ...(tipoTramite ? { tipoTramite } : {}),
       },
-      orderBy: [{ factor: 'asc' }, { version: 'desc' }],
+      orderBy: [{ codigoGuia: 'asc' }, { version: 'desc' }],
     });
   }
 
@@ -24,10 +29,15 @@ export class PlantillaRepositorio {
     return this.prisma.plantilla.findUnique({ where: { id } });
   }
 
-  marcarAnterioresNoVigentes(factor: string, excluirId?: string) {
+  marcarAnterioresNoVigentes(
+    codigoGuia: CodigoDocumentoGuia,
+    tipoTramite: TipoTramitePlantilla,
+    excluirId?: string,
+  ) {
     return this.prisma.plantilla.updateMany({
       where: {
-        factor,
+        codigoGuia,
+        tipoTramite,
         vigente: true,
         ...(excluirId ? { id: { not: excluirId } } : {}),
       },

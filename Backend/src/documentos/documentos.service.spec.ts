@@ -185,6 +185,7 @@ describe('DocumentosService permisos de revisión', () => {
     {} as never,
     {} as never,
     alcance as unknown as ServicioAlcancePrograma,
+    { institucion: { findFirst: jest.fn() } } as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -251,6 +252,7 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     avancePrograma as never,
     {} as never,
     alcance as unknown as ServicioAlcancePrograma,
+    { institucion: { findFirst: jest.fn() } } as never,
   );
   const revisor = { id: 'rev', rol: RolUsuario.Revisor };
 

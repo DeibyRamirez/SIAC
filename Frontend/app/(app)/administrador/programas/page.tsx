@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
-import { RejillaProgramas } from '@/components/siac/rejilla-programas'
+import { RejillaProgramas, type ProgramaRejilla } from '@/components/siac/rejilla-programas'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,9 +28,10 @@ import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import { crearProgramaApi, listarProgramasApi } from '@/lib/servicios/programas.servicio'
-import type { NivelPrograma, Programa } from '@/lib/tipos'
-import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
+import { listarPanelProgramasApi } from '@/lib/servicios/panel-programas.servicio'
+import { crearProgramaApi } from '@/lib/servicios/programas.servicio'
+import type { NivelPrograma, SemaforoPrograma } from '@/lib/tipos'
+import type { AlcanceTramiteUI, TipoTramiteSIAC } from '@/lib/utilidades/catalogo-tramites-siac'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
 
 export default function ProgramasAdministradorPage() {
@@ -45,9 +46,13 @@ function ContenidoProgramas() {
   const { sesion } = usarSesion()
   const puedeAdministrar = sesion?.rol === 'Administrador' || sesion?.rol === 'SuperAdmin'
   const [busqueda, setBusqueda] = useState('')
-  const [nivel, setNivel] = useState('todos')
+  const [alcance, setAlcance] = useState<AlcanceTramiteUI>('Programa')
+  const [tramite, setTramite] = useState<string>('todos')
+  const [semaforo, setSemaforo] = useState<string>('todos')
+  const [semestre, setSemestre] = useState('')
   const [pagina, setPagina] = useState(1)
-  const [programas, setProgramas] = useState<Programa[]>([])
+  const [filas, setFilas] = useState<ProgramaRejilla[]>([])
+  const [total, setTotal] = useState(0)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [nombreNuevo, setNombreNuevo] = useState('')
@@ -55,51 +60,66 @@ function ContenidoProgramas() {
   const [nivelNuevo, setNivelNuevo] = useState<NivelPrograma>('Pregrado')
   const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    async function cargar() {
-      if (!apiDisponible()) {
-        setErrorCarga('No hay conexión con la API. No se muestran datos de prueba.')
-        return
-      }
-      try {
-        const lista = await listarProgramasApi()
-        setProgramas(lista)
-        setErrorCarga(null)
-      } catch (err) {
-        setProgramas([])
-        setErrorCarga(err instanceof Error ? err.message : 'No se pudieron cargar los programas.')
-      }
+  const cargarPanel = useCallback(async () => {
+    if (!apiDisponible()) {
+      setErrorCarga('No hay conexión con la API.')
+      return
     }
-    cargar()
-  }, [])
+    try {
+      const respuesta = await listarPanelProgramasApi({
+        page: pagina,
+        limit: LIMITE_FILAS_TABLA,
+        alcance,
+        tramite: tramite === 'todos' ? undefined : (tramite as TipoTramiteSIAC),
+        semaforo: semaforo === 'todos' ? undefined : (semaforo as SemaforoPrograma),
+        semestre: semestre.trim() || undefined,
+      })
+      const mapeadas: ProgramaRejilla[] = respuesta.datos
+        .filter((fila) => {
+          if (!busqueda.trim()) return true
+          const texto = busqueda.toLowerCase()
+          return (
+            fila.nombre.toLowerCase().includes(texto) ||
+            (fila.codigo?.toLowerCase().includes(texto) ?? false)
+          )
+        })
+        .map((fila) => ({
+          ...fila,
+          porcentajeAvance: fila.avancePorcentual,
+          semaforo: fila.semaforoGeneral,
+          estadoProceso:
+            fila.anexoInfraestructuraVencido
+              ? 'Anexo infraestructura vencido (RN-003)'
+              : fila.avancePorcentual >= 100
+                ? 'Completado'
+                : 'En progreso',
+        }))
+      setFilas(mapeadas)
+      setTotal(respuesta.total)
+      setErrorCarga(null)
+    } catch (err) {
+      setFilas([])
+      setTotal(0)
+      setErrorCarga(err instanceof Error ? err.message : 'No se pudo cargar el panel.')
+    }
+  }, [pagina, alcance, tramite, semaforo, semestre, busqueda])
 
-  const programasFiltrados = useMemo(() => {
-    return programas.filter((programa) => {
-      const coincideTexto =
-        programa.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        programa.codigo.toLowerCase().includes(busqueda.toLowerCase())
-      const coincideNivel = nivel === 'todos' || programa.nivel === nivel
-      return coincideTexto && coincideNivel
-    })
-  }, [busqueda, nivel, programas])
-
-  const programasPagina = useMemo(
-    () => paginarArreglo(programasFiltrados, pagina, LIMITE_FILAS_TABLA),
-    [programasFiltrados, pagina],
-  )
+  useEffect(() => {
+    cargarPanel()
+  }, [cargarPanel])
 
   useEffect(() => {
     setPagina(1)
-  }, [busqueda, nivel])
+  }, [alcance, tramite, semaforo, semestre, busqueda])
 
   return (
     <div className="space-y-6">
       <EncabezadoPagina
-        etiqueta="Catálogo académico"
-        titulo="Programas académicos"
-        descripcion={`Monitorea el avance de ${programas.length} programas en proceso de acreditación (pregrado y posgrado).`}
+        etiqueta="Planeación · Panel consolidado"
+        titulo="Programas e institución"
+        descripcion="Semáforo agregado por programa o institución (G1–G4), sin abrir carpeta por carpeta."
         accion={
-          puedeAdministrar ? (
+          puedeAdministrar && alcance === 'Programa' ? (
             <Button onClick={() => setDialogoAbierto(true)}>Nuevo programa</Button>
           ) : undefined
         }
@@ -107,40 +127,64 @@ function ContenidoProgramas() {
       {errorCarga ? <p className="text-sm text-destructive">{errorCarga}</p> : null}
 
       <BarraHerramientasTabla
-        placeholder="Buscar programa…"
+        placeholder="Buscar…"
         valorBusqueda={busqueda}
-        onBuscar={(valor) => {
-          setBusqueda(valor)
-          setPagina(1)
-        }}
+        onBuscar={setBusqueda}
       >
         <Select
-          value={nivel}
-          onValueChange={manejarCambioSelect((valor) => {
-            setNivel(valor)
-            setPagina(1)
-          })}
+          value={alcance}
+          onValueChange={manejarCambioSelect((valor) => setAlcance(valor as AlcanceTramiteUI))}
         >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Nivel" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Alcance" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos los niveles</SelectItem>
-            <SelectItem value="Pregrado">Pregrado</SelectItem>
-            <SelectItem value="Posgrado">Posgrado</SelectItem>
+            <SelectItem value="Programa">Programas</SelectItem>
+            <SelectItem value="Institucion">Institución</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={tramite} onValueChange={manejarCambioSelect(setTramite)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Trámite" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los trámites</SelectItem>
+            <SelectItem value="RegistroCalificadoNuevo">RC nuevo</SelectItem>
+            <SelectItem value="RenovacionRegistroCalificado">Renovación RC</SelectItem>
+            <SelectItem value="CondicionesInstitucionalesNuevas">CI nuevas</SelectItem>
+            <SelectItem value="RenovacionCondicionesInstitucionales">Renovación CI</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={semaforo} onValueChange={manejarCambioSelect(setSemaforo)}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Semáforo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="Verde">Verde</SelectItem>
+            <SelectItem value="Amarillo">Amarillo</SelectItem>
+            <SelectItem value="Rojo">Rojo</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Semestre (ej. 2026-1)"
+          value={semestre}
+          onChange={(e) => setSemestre(e.target.value)}
+          className="w-[140px]"
+        />
       </BarraHerramientasTabla>
 
       <RejillaProgramas
-        programas={programasPagina}
-        enlaceDetalle={(id) => `/administrador/programas/${id}`}
+        programas={filas}
+        enlaceDetalle={
+          alcance === 'Programa' ? (id) => `/administrador/programas/${id}` : undefined
+        }
       />
-      {programasFiltrados.length > 0 && (
+      {total > 0 && (
         <ControlesPaginacion
           pagina={pagina}
           limite={LIMITE_FILAS_TABLA}
-          total={programasFiltrados.length}
+          total={total}
           onCambiarPagina={setPagina}
         />
       )}
@@ -157,7 +201,6 @@ function ContenidoProgramas() {
                 id="nombre-programa"
                 value={nombreNuevo}
                 onChange={(e) => setNombreNuevo(e.target.value)}
-                placeholder="Ej. Ingeniería de Software y Computación"
               />
             </div>
             <div className="space-y-2">
@@ -166,7 +209,6 @@ function ContenidoProgramas() {
                 id="facultad-programa"
                 value={facultadNueva}
                 onChange={(e) => setFacultadNueva(e.target.value)}
-                placeholder="Ej. Facultad de Derecho"
               />
             </div>
             <div className="space-y-2">
@@ -191,18 +233,16 @@ function ContenidoProgramas() {
               onClick={async () => {
                 setGuardando(true)
                 try {
-                  const creado = await crearProgramaApi({
+                  await crearProgramaApi({
                     nombre: nombreNuevo.trim(),
                     nivel: nivelNuevo,
                     facultad: facultadNueva.trim() || undefined,
                   })
-                  setProgramas((prev) =>
-                    [...prev, creado].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-                  )
-                  toast.success('Programa creado. Ya puede asignarse al cargar evidencias.')
+                  toast.success('Programa creado.')
                   setNombreNuevo('')
                   setFacultadNueva('')
                   setDialogoAbierto(false)
+                  await cargarPanel()
                 } catch (err) {
                   toast.error(
                     err instanceof Error ? err.message : 'No se pudo crear el programa.',

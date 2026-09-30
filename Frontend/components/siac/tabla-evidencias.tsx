@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { FileText, Trash2 } from 'lucide-react'
 
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Evidencia } from '@/lib/tipos'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import {
   esNovedadCargador,
   formatearFecha,
@@ -46,6 +48,7 @@ export function TablaEvidencias({
   mostrarHora,
 }: TablaEvidenciasProps) {
   const router = useRouter()
+  const { datos } = usarAlmacen()
 
   if (evidencias.length === 0) {
     return null
@@ -60,7 +63,7 @@ export function TablaEvidencias({
           <TableRow className="border-primary/10 hover:bg-transparent">
             <TableHead>Documento</TableHead>
             <TableHead>Programa</TableHead>
-            <TableHead>Factor</TableHead>
+            <TableHead>Guía</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Puntaje</TableHead>
             <TableHead>Fecha</TableHead>
@@ -100,9 +103,17 @@ export function TablaEvidencias({
                 </div>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {obtenerNombrePrograma(evidencia.programaId)}
+                {obtenerNombrePrograma(evidencia.programaId, datos.programas)}
               </TableCell>
-              <TableCell className="text-sm">{evidencia.factor}</TableCell>
+              <TableCell className="text-sm">
+                {evidencia.codigoGuia ? (
+                  <Badge variant="outline" title={ETIQUETAS_GUIA[evidencia.codigoGuia]}>
+                    {evidencia.codigoGuia}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
                   <InsigniaEstado estado={evidencia.estado} />

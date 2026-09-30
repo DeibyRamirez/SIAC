@@ -63,6 +63,7 @@ import {
 import type { SeleccionDocx } from '@/lib/utilidades/seleccion-docx'
 import {
   etiquetaEstadoEvidencia,
+  formatoVisorDesdeArchivo,
   formatearFecha,
   formatearPuntaje,
   obtenerNombrePrograma,
@@ -555,7 +556,7 @@ function ContenidoDictamen() {
             <VisorDocumentoInline
               titulo={evidencia.nombreArchivo}
               urlDocumento={urlDocumento}
-              formato="DOCX"
+              formato={formatoVisorDesdeArchivo(evidencia.nombreArchivo)}
               claveCache={versionActual}
               evidenciaId={evidencia.id}
               versionDocumento={versionActual}
@@ -620,19 +621,19 @@ function ContenidoDictamen() {
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+                <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>
                 <p>{evidencia.periodo}</p>
               </div>
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Factor</p>
-                <p>{evidencia.factor}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase text-muted-foreground">Indicador</p>
-                <p>{evidencia.indicador}</p>
+                <p className="text-xs uppercase text-muted-foreground">Guía</p>
+                <p>
+                  {evidencia.codigoGuia
+                    ? `${evidencia.codigoGuia} — ${ETIQUETAS_GUIA[evidencia.codigoGuia]}`
+                    : 'Sin guía'}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Fecha de carga</p>

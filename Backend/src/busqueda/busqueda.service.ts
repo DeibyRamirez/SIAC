@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
-import { EstadoEvidencia, Prisma, RolUsuario } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia, Prisma, RolUsuario } from '@prisma/client';
 import {
   ServicioAlcancePrograma,
   UsuarioAlcance,
@@ -9,13 +9,21 @@ import {
 export interface ParametrosBusqueda {
   busqueda?: string;
   programaId?: string;
-  factor?: string;
-  indicador?: string;
+  codigoGuia?: CodigoDocumentoGuia;
   periodo?: string;
   estado?: EstadoEvidencia;
   formato?: 'pdf' | 'xlsx';
   pagina?: number;
   limite?: number;
+}
+
+const CODIGOS_GUIA = Object.values(CodigoDocumentoGuia) as string[];
+
+function guiaDesdeTexto(texto: string): CodigoDocumentoGuia | undefined {
+  const normalizado = texto.trim().toUpperCase();
+  return CODIGOS_GUIA.includes(normalizado)
+    ? (normalizado as CodigoDocumentoGuia)
+    : undefined;
 }
 
 @Injectable()
@@ -32,8 +40,7 @@ export class BusquedaService {
     }
 
     if (parametros.programaId) where.programaId = parametros.programaId;
-    if (parametros.factor) where.factor = parametros.factor;
-    if (parametros.indicador) where.indicador = parametros.indicador;
+    if (parametros.codigoGuia) where.codigoGuia = parametros.codigoGuia;
     if (parametros.periodo) where.periodo = parametros.periodo;
 
     if (parametros.formato === 'pdf') {
@@ -49,12 +56,12 @@ export class BusquedaService {
     }
 
     if (parametros.busqueda) {
-      const condicionesTexto = [
+      const guiaEnTexto = guiaDesdeTexto(parametros.busqueda);
+      const condicionesTexto: Prisma.EvidenciaWhereInput[] = [
         { nombre: { contains: parametros.busqueda, mode: 'insensitive' } },
-        { factor: { contains: parametros.busqueda, mode: 'insensitive' } },
-        { indicador: { contains: parametros.busqueda, mode: 'insensitive' } },
         { periodo: { contains: parametros.busqueda, mode: 'insensitive' } },
         { nombreArchivo: { contains: parametros.busqueda, mode: 'insensitive' } },
+        ...(guiaEnTexto ? [{ codigoGuia: guiaEnTexto }] : []),
       ];
       where.AND = [
         ...(Array.isArray(where.OR) ? [{ OR: where.OR }] : []),
@@ -108,8 +115,6 @@ export class BusquedaService {
               OR: [
                 { nombre: { contains: q, mode: 'insensitive' } },
                 { nombreArchivo: { contains: q, mode: 'insensitive' } },
-                { factor: { contains: q, mode: 'insensitive' } },
-                { indicador: { contains: q, mode: 'insensitive' } },
               ],
             },
           ],
@@ -122,7 +127,6 @@ export class BusquedaService {
         where: {
           OR: [
             { nombre: { contains: q, mode: 'insensitive' } },
-            { factor: { contains: q, mode: 'insensitive' } },
             { nombreArchivo: { contains: q, mode: 'insensitive' } },
           ],
         },
@@ -148,4 +152,4 @@ export class BusquedaService {
     return { evidencias, plantillas, documentos };
   }
 }
-
+

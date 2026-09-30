@@ -106,6 +106,8 @@ export class DocumentosService {
 
     private readonly alcance: ServicioAlcancePrograma,
 
+    private readonly prisma: PrismaService,
+
   ) {}
 
 
@@ -151,17 +153,30 @@ export class DocumentosService {
       dto.codigoGuia ??
       (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
 
+    const esInstitucional =
+      codigoGuia === CodigoDocumentoGuia.G3 || codigoGuia === CodigoDocumentoGuia.G4;
+
+    if (!esInstitucional) {
+      await this.exigirProgramaAsignado(usuario, dto.programaId);
+    }
+
+    const institucion = esInstitucional
+      ? await this.prisma.institucion.findFirst()
+      : null;
+
+    if (esInstitucional && !institucion) {
+      throw new BadRequestException('No hay institución configurada para evidencias G3/G4.');
+    }
+
     const evidencia = await this.evidenciaRepo.crear({
 
       nombre: dto.nombre,
 
-      programa: { connect: { id: dto.programaId } },
+      ...(esInstitucional && institucion
+        ? { institucion: { connect: { id: institucion.id } } }
+        : { programa: { connect: { id: dto.programaId } } }),
 
       periodo: dto.periodo,
-
-      factor: dto.factor,
-
-      indicador: dto.indicador,
 
       autor: { connect: { id: usuario.id } },
 
@@ -691,7 +706,7 @@ export class DocumentosService {
 
 
 
-    await this.exigirProgramaAsignado(revisor, evidencia.programaId);
+    await this.exigirProgramaAsignadoSiAplica(revisor, evidencia.programaId);
 
 
 
@@ -890,7 +905,9 @@ export class DocumentosService {
       revisor.id,
     );
 
-    await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
+    if (evidencia.programaId) {
+      await this.avancePrograma.recalcularPorcentajeAvance(evidencia.programaId);
+    }
 
     const { tipo, mensaje } = this.construirNotificacionDictamen(
       evidencia.nombre,
@@ -1384,7 +1401,7 @@ export class DocumentosService {
 
   private async verificarAccesoLectura(
 
-    evidencia: { id: string; estado: EstadoEvidencia; autorId: string; programaId: string },
+    evidencia: { id: string; estado: EstadoEvidencia; autorId: string; programaId: string | null },
 
     usuario: UsuarioToken,
 
@@ -1416,7 +1433,7 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      await this.exigirProgramaAsignadoSiAplica(usuario, evidencia.programaId);
 
       return;
 
@@ -1432,7 +1449,7 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      await this.exigirProgramaAsignadoSiAplica(usuario, evidencia.programaId);
 
       return;
 
@@ -1471,6 +1488,18 @@ export class DocumentosService {
       throw new ForbiddenException('No tiene este programa asignado.');
 
     }
+
+  }
+
+
+
+  /** Evidencias G3/G4 (institucionales) no tienen programaId; omitir verificación de alcance. */
+
+  private async exigirProgramaAsignadoSiAplica(usuario: UsuarioToken, programaId: string | null) {
+
+    if (!programaId) return;
+
+    await this.exigirProgramaAsignado(usuario, programaId);
 
   }
 

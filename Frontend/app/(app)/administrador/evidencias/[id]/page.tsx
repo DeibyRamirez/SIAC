@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -16,11 +17,19 @@ import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerEvidenciaApi, obtenerUrlDescargaApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
-import { formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
+import {
+  formatoVisorDesdeArchivo,
+  formatearFecha,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaAdminPage() {
   return (
-    <PlantillaPaginaApp titulo="Detalle de evidencia" roles={ROLES_CONSULTA_INSTITUCIONAL}>
+    <PlantillaPaginaApp
+      titulo="Detalle de evidencia"
+      roles={[...ROLES_CONSULTA_INSTITUCIONAL, 'SuperAdmin']}
+    >
       <ContenidoDetalleAdmin />
     </PlantillaPaginaApp>
   )
@@ -28,6 +37,7 @@ export default function DetalleEvidenciaAdminPage() {
 
 function ContenidoDetalleAdmin() {
   const params = useParams<{ id: string }>()
+  const { datos } = usarAlmacen()
   const [evidencia, setEvidencia] = useState<Evidencia | null>(null)
   const [urlDocumento, setUrlDocumento] = useState<string | undefined>()
   const [cargando, setCargando] = useState(true)
@@ -82,8 +92,7 @@ function ContenidoDetalleAdmin() {
     )
   }
 
-  const extension = evidencia.nombreArchivo.split('.').pop()?.toLowerCase()
-  const formato = extension === 'xlsx' ? 'XLSX' : 'PDF'
+  const formato = formatoVisorDesdeArchivo(evidencia.nombreArchivo)
   const versionActual = evidencia.version ?? 1
 
   return (
@@ -121,19 +130,19 @@ function ContenidoDetalleAdmin() {
           <CardContent className="space-y-4 pt-6 text-sm">
             <div>
               <p className="text-xs uppercase text-muted-foreground">Programa</p>
-              <p>{obtenerNombrePrograma(evidencia.programaId)}</p>
+              <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Periodo</p>
               <p>{evidencia.periodo}</p>
             </div>
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Factor</p>
-              <p>{evidencia.factor}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Indicador</p>
-              <p>{evidencia.indicador}</p>
+              <p className="text-xs uppercase text-muted-foreground">Guía</p>
+              <p>
+                {evidencia.codigoGuia
+                  ? `${evidencia.codigoGuia} — ${ETIQUETAS_GUIA[evidencia.codigoGuia]}`
+                  : 'Sin guía'}
+              </p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Archivo</p>

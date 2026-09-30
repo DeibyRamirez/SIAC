@@ -49,8 +49,7 @@ export class DocumentosController {
     return this.documentosService.listar(req.user, {
       programaId: query.programaId,
       periodo: query.periodo,
-      factor: query.factor,
-      indicador: query.indicador,
+      codigoGuia: query.codigoGuia,
       estado: query.estado as EstadoEvidencia | undefined,
       busqueda: query.busqueda,
       pagina: query.pagina ? parseInt(query.pagina, 10) : 1,

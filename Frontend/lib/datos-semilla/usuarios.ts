@@ -2,6 +2,7 @@ import type { Usuario } from '@/lib/tipos'
 
 export const DOMINIO_INSTITUCIONAL = 'uniautonoma.edu.co'
 
+/** Espejo de `Backend/prisma/semilla.ts`: un usuario por rol (credenciales de acceso inicial). */
 export const usuariosSemilla: Usuario[] = [
   {
     id: 'usr-cargador',
@@ -23,6 +24,13 @@ export const usuariosSemilla: Usuario[] = [
     correo: 'admin.planeacion@uniautonoma.edu.co',
     contrasena: 'Admin2026',
     rol: 'Administrador',
+  },
+  {
+    id: 'usr-par',
+    nombre: 'Carlos Méndez',
+    correo: 'par.academico@uniautonoma.edu.co',
+    contrasena: 'Par2026',
+    rol: 'ParAcademico',
   },
   {
     id: 'usr-superadmin',

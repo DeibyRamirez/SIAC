@@ -1,16 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.module';
-import { EstadoEvidencia } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 
 interface FilaExcel {
   fila: number;
   nombre?: string;
   programaCodigo?: string;
   periodo?: string;
-  factor?: string;
-  indicador?: string;
+  codigoGuia?: string;
 }
+
+const CODIGOS_GUIA = Object.values(CodigoDocumentoGuia) as string[];
 
 @Injectable()
 export class IngestaService {
@@ -48,8 +49,7 @@ export class IngestaService {
         nombre: String(fila.getCell(1).value ?? '').trim(),
         programaCodigo: String(fila.getCell(2).value ?? '').trim(),
         periodo: String(fila.getCell(3).value ?? '').trim(),
-        factor: String(fila.getCell(4).value ?? '').trim(),
-        indicador: String(fila.getCell(5).value ?? '').trim(),
+        codigoGuia: String(fila.getCell(4).value ?? '').trim().toUpperCase(),
       };
 
       if (!datos.nombre) {
@@ -60,10 +60,14 @@ export class IngestaService {
         errores.push({ fila: numeroFila, motivo: "Campo 'programa' vacío" });
         continue;
       }
-      if (!datos.periodo || !datos.factor || !datos.indicador) {
+      if (!datos.periodo) {
+        errores.push({ fila: numeroFila, motivo: "Campo 'periodo' vacío" });
+        continue;
+      }
+      if (!datos.codigoGuia || !CODIGOS_GUIA.includes(datos.codigoGuia)) {
         errores.push({
           fila: numeroFila,
-          motivo: 'Metadatos incompletos (periodo, factor o indicador)',
+          motivo: "Campo 'codigoGuia' inválido (use G1, G2, G3 o G4)",
         });
         continue;
       }
@@ -98,13 +102,15 @@ export class IngestaService {
 
     const autor = await this.prisma.usuario.findUnique({ where: { id: autorId } });
 
+    const codigoGuia = datos.codigoGuia as CodigoDocumentoGuia;
+
     await this.prisma.evidencia.create({
       data: {
         nombre: datos.nombre!,
         programaId: programa.id,
         periodo: datos.periodo!,
-        factor: datos.factor!,
-        indicador: datos.indicador!,
+        codigoGuia,
+        requiereChecklistMaestro: codigoGuia === CodigoDocumentoGuia.G1,
         estado: EstadoEvidencia.Borrador,
         autorId,
         nombreArchivo: `${datos.nombre}.xlsx`,

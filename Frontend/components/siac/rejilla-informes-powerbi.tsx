@@ -13,16 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { informesPowerBiSemilla, type InformePowerBi } from '@/lib/informes-powerbi'
-import { programasSemilla } from '@/lib/datos-semilla'
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { categoriasInformesPowerBi, type InformePowerBi } from '@/lib/informes-powerbi'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
 
 export function RejillaInformesPowerBi() {
+  const { datos } = usarAlmacen()
+  const programas = datos.programas
   const [informeActivo, setInformeActivo] = useState<InformePowerBi | null>(null)
-  const [programaId, setProgramaId] = useState(programasSemilla[0]?.id ?? '')
+  const [programaSeleccionadoId, setProgramaId] = useState<string | null>(null)
   const [tokenValido, setTokenValido] = useState(true)
 
-  const programa = programasSemilla.find((p) => p.id === programaId)
+  const programaId = programaSeleccionadoId ?? programas[0]?.id ?? ''
+  const programa = programas.find((p) => p.id === programaId)
 
   if (informeActivo) {
     return (
@@ -45,12 +48,16 @@ export function RejillaInformesPowerBi() {
           <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-end">
             <label className="block flex-1 space-y-2 text-sm">
               <span className="font-medium">Programa</span>
-              <Select value={programaId} onValueChange={manejarCambioSelect(setProgramaId)}>
+              <Select
+                value={programaId}
+                onValueChange={manejarCambioSelect(setProgramaId)}
+                disabled={programas.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="No hay programas registrados" />
                 </SelectTrigger>
                 <SelectContent>
-                  {programasSemilla.map((p) => (
+                  {programas.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.nombre}
                     </SelectItem>
@@ -67,7 +74,7 @@ export function RejillaInformesPowerBi() {
         {tokenValido ? (
           <div className="tarjeta-visual overflow-hidden bg-white">
             <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-              Informe embebido · {programa?.nombre} · {informeActivo.titulo}
+              Informe embebido · {programa?.nombre ?? 'Sin programa'} · {informeActivo.titulo}
             </div>
             <div className="flex min-h-[420px] items-center justify-center bg-muted p-8 text-center">
               <div>
@@ -104,7 +111,7 @@ export function RejillaInformesPowerBi() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {informesPowerBiSemilla.map((informe) => (
+        {categoriasInformesPowerBi.map((informe) => (
           <TarjetaInformePowerBi
             key={informe.id}
             informe={informe}

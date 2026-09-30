@@ -100,7 +100,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | ADR-001 | Monolito NestJS + Next.js |
 | ADR-002 | Supabase PG + Storage (dev); MinIO prod futuro |
 | ADR-003 | JWT MVP; OAuth Google stub |
-| ADR-004 | periodo/factor/indicador como String |
+| ADR-004 | `periodo` como String; factor/indicador retirados (T-REF-001), clasificación por `codigoGuia` G1–G4 |
 | ADR-005 | Copia local maestros + adapter integracion |
 | ADR-006 | Alertas in-app; SMTP opcional |
 
@@ -135,7 +135,7 @@ Next.js 16, React 19, Tailwind 4, shadcn, Recharts, TanStack Table.
 
 - Cliente: `Frontend/lib/servicios/cliente-api.ts`
 - Base: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
-- El flujo por programa (listado, alta de evidencias, bandeja del revisor) ya no cae a datos de prueba si la API falla. Paneles y búsqueda aún pueden usar semillas (T-010 / HU-008).
+- El flujo por programa (listado, alta de evidencias, bandeja del revisor) ya no cae a datos de prueba si la API falla. **Plantillas y evidencias** no usan semilla (solo usuarios en `prisma/semilla.ts`). Panel HU-010 consume `GET /programas/panel`.
 
 ### Brechas frontend pendientes
 
@@ -388,7 +388,10 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] `GET /programas` deja de escribir semáforo y porcentaje; conteos por estado en `GET /programas/:id`
 - [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
-- [ ] Columnas `semaforo` y `porcentajeAvance` siguen en BD hasta T-010.1 (se calculan al leer y se dejan de escribir en el GET)
+- [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
+- [x] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15; tests unitarios
+- [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
+- [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
 - [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
 - [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
 - [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
@@ -448,8 +451,9 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | T-011.3 — editar/desactivar programa; conteos; GET sin escritura | Backend + Frontend |
 | [x] | T-002.1 — inicio y bandeja del revisor por programas asignados | Frontend |
 | [ ] | HU-003/004/005 ajustes nuevos (fuera de este bloque) | Backend + Frontend |
-| [ ] | HU-008 búsqueda y HU-010 panel (fuera de este bloque) | Frontend |
-| [ ] | Frontend 100% API real (paneles y búsqueda aún con semilla) | Frontend |
+| [x] | HU-010 panel programas/institución (`GET /programas/panel`) | Backend + Frontend |
+| [ ] | HU-008 búsqueda global API | Frontend |
+| [x] | Frontend 100% API real (paneles, búsqueda, plantillas y evidencias sin semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
 
@@ -464,6 +468,20 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-09-29 — Arranque sin datos demo (solo usuarios por rol)
+
+- [Backend] `prisma/semilla.ts` crea solo 5 usuarios (Cargador, Revisor, Administrador, ParAcademico, SuperAdmin) con las claves de siempre. Se retiran de la semilla programas, `UsuarioPrograma`, institución, anexos de vigencia, etapa, carpetas y documento requerido. El catálogo `TramiteSIAC`/`TramiteDocumentoGuia` y la institución CUAC los siguen insertando las migraciones `20260929010000` y `20260928120000`. Ningún servicio depende de ids `*-seed-*`.
+- [Frontend] Programas, evidencias, plantillas, vigencias y alertas vienen solo de la API (el almacén ya no rehidrata esos datos desde `sessionStorage` ni crea evidencias/plantillas locales sin API). `datos.programas` se carga en `ProveedorAlmacen` y `obtenerNombrePrograma(id, programas)` lo usa. Dashboard y resumen del Administrador calculan tendencia y distribución desde las evidencias reales (`lib/utilidades/metricas-evidencias.ts`); Power BI queda como catálogo de categorías sin puntajes inventados. Eliminados `datos-semilla/programas.ts`, `vigencias.ts` y `metricas-dashboard.ts`; se conservan `usuarios.ts` (tarjeta de credenciales del login, ahora con Par académico) y `estructura-decreto-1330.ts` (catálogo normativo).
+- [Frontend] Biblioteca de plantillas: lista solo lo que devuelve `GET /plantillas` (archivos en el bucket `plantillas`); estado vacío explícito y botón **Descargar** con URL firmada (`GET /plantillas/:id/descargar`). Los `.docx` de `FormatosGuia/` siguen en disco como referencia y no se sirven desde la app.
+- [Flujo de arranque] `pnpm prisma:deploy` → `pnpm prisma:seed` → iniciar sesión como Administrador → crear programas (o CSV `/integracion/sincronizar-csv`) y subir plantillas desde la Biblioteca. Pendiente: la migración `20260930010000_eliminar_factor_indicador` se aplica en Supabase con `pnpm prisma:deploy`.
+
+### 2026-09-29 — T-REF-001: retiro de factor/indicador, clasificación por guía
+
+- [Dominio] G1 y G3 son un solo archivo con todas sus condiciones; no hay un archivo por condición. Las 9 condiciones de programa y las 6 institucionales quedan solo como catálogo y checklist del dictamen (sin cambios en `EvaluacionCondicion*`, enums ni umbrales n/9 y n/6).
+- [Backend] Migración `20260930010000_eliminar_factor_indicador`: borra `Evidencia.factor`, `Evidencia.indicador` y `Plantilla.factor`; rellena y exige `Plantilla.codigoGuia`; índices `(codigoGuia, periodo)`, `(programaId, codigoGuia)` y `(codigoGuia, tipoTramite, vigente)`.
+- [Backend] `GET /evidencias` y `GET /busqueda` filtran por `codigoGuia` (en búsqueda se valida G1–G4); el texto libre ya no consulta factor/indicador y `q=G1` encuentra por guía. Plantillas versionadas por guía + tipo de trámite. Ingesta Excel con columnas nombre, programaCodigo, periodo, codigoGuia. Specs nuevas de búsqueda, plantillas e ingesta.
+- [Frontend] Carga de evidencias sin selects de factor/indicador; detalle (cargador, admin, revisor) y tabla muestran la guía; filtro de guía en `/administrador/evidencias` (`?codigoGuia=`); biblioteca de plantillas con guía obligatoria (se infiere de `G1…G4` en el nombre del archivo). Se eliminan `catalogoFactoresIndicadores` y `factoresSemilla`.
 
 ### 2026-09-28 — HU-003 regla n/9, CI en develop_v2 y relleno de migraciones
 

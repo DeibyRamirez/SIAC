@@ -33,7 +33,7 @@ Responsable de cargar y corregir evidencias documentales.
 **Capacidades**
 
 - Descargar plantillas vigentes desde la biblioteca
-- Subir evidencias con programa, periodo, factor e indicador
+- Subir evidencias indicando programa, periodo y guía del trámite (G1–G4)
 - Consultar el estado de cada documento (borrador, en revisión, aprobado, corrección)
 - Ver el documento en el visor integrado (URL firmada desde almacenamiento)
 - Recibir indicador de **novedades** (badge) cuando tiene evidencias en estado *Corrección* (rechazadas)
@@ -123,7 +123,7 @@ Administración técnica del sistema y acceso transversal a todos los módulos.
 
 1. El **cargador** descarga la plantilla desde la biblioteca
 2. Diligencia el documento externamente (Word, Excel, etc.)
-3. Sube la evidencia con metadatos (programa, periodo, factor, indicador) en **Cargar evidencia**
+3. Sube la evidencia con metadatos (programa, periodo y guía G1–G4) en **Cargar evidencia**. Las condiciones del Decreto 1330 no se diligencian al cargar: el revisor las evalúa en el checklist del dictamen (9 de programa en G1, 6 institucionales en G3)
 4. Envía a revisión; el estado pasa a *En revisión*
 5. El **revisor** abre la bandeja, visualiza el PDF/Excel y aprueba o rechaza con observaciones
 6. Si rechaza: el cargador sube una **nueva versión**, corrige según observaciones y reenvía

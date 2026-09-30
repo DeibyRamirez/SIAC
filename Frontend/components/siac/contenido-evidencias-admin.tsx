@@ -20,12 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
-import { factoresSemilla } from '@/lib/datos-semilla'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
-import type { Evidencia } from '@/lib/tipos'
+import type { CodigoDocumentoGuia, Evidencia } from '@/lib/tipos'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
+
+const CODIGOS_GUIA = Object.keys(ETIQUETAS_GUIA) as CodigoDocumentoGuia[]
 
 function reiniciarPaginaAlFiltrar<T>(actualizar: (valor: T) => void, setPagina: (p: number) => void) {
   return (valor: T) => {
@@ -47,7 +49,7 @@ const filtrosEstado = [
 export interface FiltrosInicialesEvidencias {
   q?: string
   programaId?: string
-  factor?: string
+  codigoGuia?: string
   periodo?: string
   estado?: string
   pagina?: string
@@ -67,7 +69,11 @@ export function ContenidoEvidenciasAdmin({
   const [busqueda, setBusqueda] = useState(filtrosIniciales.q ?? '')
   const [filtroEstado, setFiltroEstado] = useState(filtrosIniciales.estado ?? 'todos')
   const [programaId, setProgramaId] = useState(filtrosIniciales.programaId ?? 'todos')
-  const [factor, setFactor] = useState(filtrosIniciales.factor ?? 'todos')
+  const [codigoGuia, setCodigoGuia] = useState<'todos' | CodigoDocumentoGuia>(
+    CODIGOS_GUIA.includes(filtrosIniciales.codigoGuia as CodigoDocumentoGuia)
+      ? (filtrosIniciales.codigoGuia as CodigoDocumentoGuia)
+      : 'todos',
+  )
   const [periodo, setPeriodo] = useState(
     filtrosIniciales.periodo ?? periodoAcademicoActual(),
   )
@@ -77,14 +83,14 @@ export function ContenidoEvidenciasAdmin({
   const sincronizarUrl = useCallback(() => {
     const params = new URLSearchParams()
     if (programaId !== 'todos') params.set('programaId', programaId)
-    if (factor !== 'todos') params.set('factor', factor)
+    if (codigoGuia !== 'todos') params.set('codigoGuia', codigoGuia)
     if (periodo) params.set('periodo', periodo)
     if (busqueda.trim()) params.set('q', busqueda.trim())
     if (filtroEstado !== 'todos') params.set('estado', filtroEstado)
     if (pagina > 1) params.set('pagina', String(pagina))
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [programaId, factor, periodo, busqueda, filtroEstado, pagina, pathname, router])
+  }, [programaId, codigoGuia, periodo, busqueda, filtroEstado, pagina, pathname, router])
 
   useEffect(() => {
     sincronizarUrl()
@@ -98,7 +104,7 @@ export function ContenidoEvidenciasAdmin({
           pagina,
           limite: LIMITE_FILAS_TABLA,
           programaId: programaId === 'todos' ? undefined : programaId,
-          factor: factor === 'todos' ? undefined : factor,
+          codigoGuia: codigoGuia === 'todos' ? undefined : codigoGuia,
           periodo: periodo || undefined,
           estado: filtroEstado === 'todos' ? undefined : filtroEstado,
           busqueda: busqueda.trim() || undefined,
@@ -117,7 +123,7 @@ export function ContenidoEvidenciasAdmin({
     } finally {
       setCargando(false)
     }
-  }, [pagina, programaId, factor, periodo, filtroEstado, busqueda])
+  }, [pagina, programaId, codigoGuia, periodo, filtroEstado, busqueda])
 
   useEffect(() => {
     const timer = setTimeout(cargarEvidencias, 300)
@@ -135,7 +141,7 @@ export function ContenidoEvidenciasAdmin({
       />
 
       <BarraHerramientasTabla
-        placeholder="Buscar por nombre, programa o factor…"
+        placeholder="Buscar por nombre o programa…"
         valorBusqueda={busqueda}
         onBuscar={reiniciarPaginaAlFiltrar(setBusqueda, setPagina)}
       >
@@ -144,17 +150,22 @@ export function ContenidoEvidenciasAdmin({
           onCambiar={reiniciarPaginaAlFiltrar(setProgramaId, setPagina)}
         />
         <Select
-          value={factor}
-          onValueChange={manejarCambioSelect(reiniciarPaginaAlFiltrar(setFactor, setPagina))}
+          value={codigoGuia}
+          onValueChange={manejarCambioSelect(
+            reiniciarPaginaAlFiltrar(
+              (valor: string) => setCodigoGuia(valor as 'todos' | CodigoDocumentoGuia),
+              setPagina,
+            ),
+          )}
         >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Factor" />
+          <SelectTrigger className="w-[180px]" aria-label="Filtrar por guía">
+            <SelectValue placeholder="Guía" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos los factores</SelectItem>
-            {factoresSemilla.map((valor) => (
-              <SelectItem key={valor} value={valor}>
-                {valor}
+            <SelectItem value="todos">Todas las guías</SelectItem>
+            {CODIGOS_GUIA.map((codigo) => (
+              <SelectItem key={codigo} value={codigo}>
+                {codigo} — {ETIQUETAS_GUIA[codigo]}
               </SelectItem>
             ))}
           </SelectContent>

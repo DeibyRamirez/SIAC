@@ -1,12 +1,8 @@
 import {
-  alertasSemilla,
-  anexosVigenciaSemilla,
   carpetasNormativasSemilla,
   condicionesDecretoSemilla,
   documentosRequeridosSemilla,
   etapasAcreditacionSemilla,
-  evidenciasSemilla,
-  plantillasSemilla,
 } from '@/lib/datos-semilla'
 import type {
   AlertaInApp,
@@ -17,11 +13,13 @@ import type {
   EtapaAcreditacion,
   Evidencia,
   Plantilla,
+  Programa,
 } from '@/lib/tipos'
 
 export const CLAVE_ALMACEN = 'siac-almacen-prototipo'
 
 export interface DatosPrototipo {
+  programas: Programa[]
   evidencias: Evidencia[]
   plantillas: Plantilla[]
   anexosVigencia: AnexoVigencia[]
@@ -32,12 +30,18 @@ export interface DatosPrototipo {
   condiciones: CondicionDecreto[]
 }
 
+/**
+ * Programas, evidencias, plantillas, vigencias y alertas llegan solo desde la API.
+ * Etapas, carpetas, documentos requeridos y condiciones son el catálogo normativo
+ * del Decreto 1330 (no datos demo) y no tienen todavía endpoint propio en el almacén.
+ */
 export function crearDatosIniciales(): DatosPrototipo {
   return {
-    evidencias: structuredClone(evidenciasSemilla),
-    plantillas: structuredClone(plantillasSemilla),
-    anexosVigencia: structuredClone(anexosVigenciaSemilla),
-    alertas: structuredClone(alertasSemilla),
+    programas: [],
+    evidencias: [],
+    plantillas: [],
+    anexosVigencia: [],
+    alertas: [],
     etapas: structuredClone(etapasAcreditacionSemilla),
     carpetas: structuredClone(carpetasNormativasSemilla),
     documentosRequeridos: structuredClone(documentosRequeridosSemilla),
@@ -61,22 +65,18 @@ export function leerAlmacenLocal(): DatosPrototipo | null {
     return {
       ...iniciales,
       ...datos,
-      plantillas: fusionarPlantillasConSemilla(
-        datos.plantillas ?? iniciales.plantillas,
-        iniciales.plantillas,
-      ),
-      evidencias: fusionarEvidenciasConSemilla(
-        datos.evidencias ?? iniciales.evidencias,
-        iniciales.evidencias,
-      ),
       etapas: fusionarItemsConSemilla(datos.etapas ?? iniciales.etapas, iniciales.etapas),
       carpetas: fusionarItemsConSemilla(datos.carpetas ?? iniciales.carpetas, iniciales.carpetas),
       documentosRequeridos: fusionarItemsConSemilla(
         datos.documentosRequeridos ?? iniciales.documentosRequeridos,
         iniciales.documentosRequeridos,
       ),
-      anexosVigencia: datos.anexosVigencia ?? iniciales.anexosVigencia,
-      alertas: datos.alertas ?? iniciales.alertas,
+      // Nunca rehidratar datos de negocio desde sessionStorage: solo la API es fuente.
+      programas: [],
+      evidencias: [],
+      plantillas: [],
+      anexosVigencia: [],
+      alertas: [],
       condiciones: datos.condiciones ?? iniciales.condiciones,
     }
   } catch {
@@ -99,52 +99,6 @@ function fusionarItemsConSemilla<T extends { id: string }>(guardados: T[], semil
   }
 
   return fusionados
-}
-
-export function fusionarEvidenciasConSemilla(
-  guardadas: DatosPrototipo['evidencias'],
-  semilla: DatosPrototipo['evidencias'],
-): DatosPrototipo['evidencias'] {
-  const mapaSemilla = new Map(semilla.map((evidencia) => [evidencia.id, evidencia]))
-  const fusionadas = guardadas.map((evidencia) => {
-    const base = mapaSemilla.get(evidencia.id)
-    if (!base) return evidencia
-    return {
-      ...evidencia,
-      documentoRequeridoId: evidencia.documentoRequeridoId ?? base.documentoRequeridoId,
-    }
-  })
-
-  for (const evidencia of semilla) {
-    if (!fusionadas.some((item) => item.id === evidencia.id)) {
-      fusionadas.push(evidencia)
-    }
-  }
-
-  return fusionadas
-}
-
-export function fusionarPlantillasConSemilla(
-  guardadas: Plantilla[],
-  semilla: Plantilla[],
-): Plantilla[] {
-  const mapaSemilla = new Map(semilla.map((plantilla) => [plantilla.id, plantilla]))
-  const fusionadas = guardadas.map((plantilla) => {
-    const base = mapaSemilla.get(plantilla.id)
-    if (!base) return plantilla
-    return {
-      ...plantilla,
-      urlDocumento: plantilla.urlDocumento ?? base.urlDocumento,
-    }
-  })
-
-  for (const plantilla of semilla) {
-    if (!fusionadas.some((item) => item.id === plantilla.id)) {
-      fusionadas.push(plantilla)
-    }
-  }
-
-  return fusionadas
 }
 
 export function reiniciarAlmacenLocal(): DatosPrototipo {

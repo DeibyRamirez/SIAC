@@ -56,7 +56,7 @@ jobs:
         run: pnpm exec prisma migrate deploy
       - name: Verificar el estado de las migraciones
         run: pnpm exec prisma migrate status
-      - name: Ejecutar la semilla
+      - name: Ejecutar la semilla (solo usuarios, uno por rol)
         run: pnpm prisma:seed
       - name: Pruebas del backend
         run: pnpm exec jest --runInBand

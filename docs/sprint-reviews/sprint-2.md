@@ -13,7 +13,7 @@
 | HU-004 | Alcance original entregado; subtareas nuevas pendientes. No se reabre en ClickUp |
 | HU-005 | Alcance original entregado; subtareas nuevas pendientes. No se reabre en ClickUp |
 | HU-008 | Por hacer |
-| HU-010 | Por hacer |
+| HU-010 | Entregado — panel consolidado, semáforos avance/vigencia, biblioteca plantillas unificada |
 
 ## Definition of Done
 

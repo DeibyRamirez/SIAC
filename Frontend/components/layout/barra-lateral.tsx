@@ -95,6 +95,27 @@ function itemsSuperAdmin(): ItemNavegacion[] {
   ]
 }
 
+/**
+ * Solo un ítem activo: gana la ruta más específica (href más largo).
+ * Evita que /cargador/evidencias/nueva marque también "Mis evidencias".
+ */
+function hrefActivo(pathname: string, items: ItemNavegacion[], prefijoRol: string): string | null {
+  let mejorHref: string | null = null
+  let mejorLongitud = -1
+
+  for (const { href } of items) {
+    const coincide =
+      pathname === href ||
+      (href !== prefijoRol && pathname.startsWith(`${href}/`))
+    if (coincide && href.length > mejorLongitud) {
+      mejorHref = href
+      mejorLongitud = href.length
+    }
+  }
+
+  return mejorHref
+}
+
 function itemsPorRol(rol: RolUsuario): ItemNavegacion[] {
   switch (rol) {
     case 'Cargador':
@@ -132,6 +153,8 @@ export function BarraLateral({
   }
 
   const items = itemsPorRol(sesion.rol)
+  const prefijo = prefijoRol(sesion.rol)
+  const rutaActiva = hrefActivo(pathname, items, prefijo)
   const pendientes = contarEvidenciasPendientes(datos.evidencias)
   const novedadesCargador = sesion
     ? contarNovedadesCargador(datos.evidencias, sesion.usuarioId)

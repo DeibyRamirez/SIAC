@@ -78,8 +78,6 @@ export interface Evidencia {
   nombre: string
   programaId: string
   periodo: string
-  factor: string
-  indicador: string
   estado: EstadoEvidencia
   autorId: string
   nombreArchivo: string
@@ -98,7 +96,7 @@ export interface Evidencia {
 export interface Plantilla {
   id: string
   nombre: string
-  factor: string
+  codigoGuia: CodigoDocumentoGuia
   formato: 'PDF' | 'DOCX'
   version: string
   vigente: boolean

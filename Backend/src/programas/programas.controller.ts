@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolUsuario } from '@prisma/client';
 import { ProgramasService } from './programas.service';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
+import { PanelProgramasService } from './panel-programas.service';
+import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import {
   ActualizarEstadoProgramaDto,
@@ -19,11 +21,21 @@ export class ProgramasController {
   constructor(
     private readonly programasService: ProgramasService,
     private readonly avanceProcesoService: AvanceProcesoSIACService,
+    private readonly panelProgramasService: PanelProgramasService,
   ) {}
 
   @Get()
   listarConSemaforo(@Request() req: { user: UsuarioAlcance }) {
     return this.programasService.listarConSemaforo(req.user);
+  }
+
+  @Get('panel')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  listarPanel(
+    @Query() query: ConsultaPanelProgramasDto,
+    @Request() req: { user: UsuarioAlcance },
+  ) {
+    return this.panelProgramasService.listarPanel(query, req.user);
   }
 
   @Post()

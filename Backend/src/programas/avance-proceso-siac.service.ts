@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
+import { esEstadoRevisado } from '../dominio/panel-siac';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 
 export interface DocumentoProgresoSIAC {
@@ -9,7 +10,7 @@ export interface DocumentoProgresoSIAC {
   peso: number;
   porcentajeInterno: number;
   aportacion: number;
-  /** Estado de la evidencia más reciente de la guía (null si no hay carga). */
+  /** Estado de la evidencia más reciente revisada de la guía (null si no hay). */
   estado: EstadoEvidencia | null;
   /** Puntaje entero n de la última verificación con checklist (G1 n/9, G3 n/6). */
   puntaje: number | null;
@@ -40,48 +41,60 @@ export class AvanceProcesoSIACService {
     if (!programa) throw new NotFoundException('Programa no encontrado.');
 
     const tramite = tramitePorTipo(programa.tipoTramiteActivo);
-    const pesoDocumento = tramite.documentosGuia.length > 0
-      ? 100 / tramite.documentosGuia.length
-      : 0;
+    const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
 
-    const documentosRequeridos = await this.prisma.documentoRequerido.findMany({
+    const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
       where: {
-        codigoGuia: { in: tramite.documentosGuia },
-        obligatorio: true,
+        tramite: { tipo: programa.tipoTramiteActivo },
+        codigoGuia: { in: codigosGuia },
       },
+      select: { codigoGuia: true, pesoPorcentaje: true },
     });
+    const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
 
     const evidencias = await this.prisma.evidencia.findMany({
-      where: { programaId },
+      where: {
+        programaId,
+        codigoGuia: { in: codigosGuia },
+        estado: {
+          in: [
+            EstadoEvidencia.Cumple,
+            EstadoEvidencia.ConObservaciones,
+            EstadoEvidencia.Validado,
+            EstadoEvidencia.Rechazado,
+          ],
+        },
+      },
       select: {
-        documentoRequeridoId: true,
         codigoGuia: true,
         estado: true,
         puntajeActual: true,
         totalCondicionesActual: true,
         updatedAt: true,
-        documentoRequerido: { select: { codigoGuia: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
 
-    const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((codigoGuia) => {
-      const docsGuia = documentosRequeridos.filter((doc) => doc.codigoGuia === codigoGuia);
-      const evidencia = evidencias.find(
-        (ev) =>
-          ev.codigoGuia === codigoGuia ||
-          docsGuia.some((doc) => doc.id === ev.documentoRequeridoId),
-      );
+    const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
+    for (const ev of evidencias) {
+      if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
+      if (!ultimaPorGuia.has(ev.codigoGuia)) {
+        ultimaPorGuia.set(ev.codigoGuia, ev);
+      }
+    }
 
-      const porcentajeInterno = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
-
-      const aportacion = Math.round((pesoDocumento * porcentajeInterno) / 100);
+    const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((docGuia) => {
+      const codigoGuia = docGuia.codigo;
+      const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
+      const evidencia = ultimaPorGuia.get(codigoGuia);
+      const porcentajeInterno = evidencia ? Math.round(porcentajeInternoEvidencia(evidencia)) : 0;
+      const aportacion = Math.round((peso * porcentajeInterno) / 100);
 
       return {
         codigoGuia,
         nombre: ETIQUETAS_GUIA[codigoGuia],
-        peso: Math.round(pesoDocumento),
-        porcentajeInterno: Math.round(porcentajeInterno),
+        peso,
+        porcentajeInterno,
         aportacion,
         estado: evidencia?.estado ?? null,
         puntaje: evidencia?.puntajeActual ?? null,
@@ -109,12 +122,11 @@ export class AvanceProcesoSIACService {
 }
 
 /**
- * Aporte interno de una guía (0-100) según la regla n/9:
+ * Aporte interno de una guía (0-100):
  * - Cumple o Validado => 100.
- * - Rechazado (decisión explícita) => 0.
- * - Con puntaje de una verificación previa (Con observaciones, o corrección reenviada) =>
- *   proporción del puntaje (5/9 => 56).
- * - Sin verificación => 0 (sin documentos revisados no se reporta avance).
+ * - Rechazado => 0.
+ * - Con puntaje de verificación previa => proporción n/total.
+ * - Sin verificación revisada => 0.
  */
 export function porcentajeInternoEvidencia(evidencia: {
   estado: EstadoEvidencia;

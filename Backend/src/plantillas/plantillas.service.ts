@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { FormatoArchivo, RolUsuario } from '@prisma/client';
+import { FormatoArchivo, RolUsuario, TipoTramitePlantilla } from '@prisma/client';
 import { PlantillaRepositorio } from './plantilla.repositorio';
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 import { CrearPlantillaDto, ActualizarPlantillaDto } from './dto/plantilla.dto';
@@ -30,7 +30,10 @@ export class PlantillasService {
       ? this.nombreDesdeArchivo(archivo.originalname)
       : dto.nombre;
 
-    await this.plantillaRepo.marcarAnterioresNoVigentes(dto.factor);
+    await this.plantillaRepo.marcarAnterioresNoVigentes(
+      dto.codigoGuia,
+      dto.tipoTramite ?? TipoTramitePlantilla.General,
+    );
 
     const plantilla = await this.plantillaRepo.crear({
       ...dto,

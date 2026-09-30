@@ -29,8 +29,8 @@ Ver `Backend/.env.example` y `Frontend/.env.local.example`.
 cd backend
 pnpm install
 pnpm prisma:generate
-pnpm prisma:migrate
-pnpm prisma:seed
+pnpm prisma:deploy
+pnpm prisma:seed      # solo usuarios (uno por rol); sin programas ni datos de ejemplo
 pnpm start:dev
 pnpm test
 
