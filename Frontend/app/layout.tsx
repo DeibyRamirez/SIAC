@@ -49,6 +49,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="stylesheet" href="/siac-highlight.css" />
+      </head>
       <body className={`${montserrat.variable} fondo-app font-sans antialiased`}>
         <ProveedorSesion>
           <ProveedorAlmacen>

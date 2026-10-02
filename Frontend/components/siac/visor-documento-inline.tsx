@@ -40,6 +40,8 @@ interface VisorDocumentoInlineProps {
   plantillaId?: string
   /** inline: marco fijo con scroll; fill: ocupa el alto del contenedor padre (p. ej. modal). */
   variant?: 'inline' | 'fill'
+  /** Oculta el encabezado interno del visor (útil en modales a pantalla completa). */
+  ocultarEncabezado?: boolean
   /** Toggle "Ver/Ocultar cambios" en el header del propio card del visor. */
   modoCambios?: ModoCambios
   /** Cambios a superponer inline sobre el preview con formato (no lo reemplaza). */
@@ -62,6 +64,7 @@ export function VisorDocumentoInline({
   versionDocumento,
   plantillaId,
   variant = 'inline',
+  ocultarEncabezado = false,
   modoCambios,
   anotacionesCambios,
   pieCambios,
@@ -137,55 +140,57 @@ export function VisorDocumentoInline({
         className,
       )}
     >
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 bg-zinc-800 px-4 py-2.5 text-white">
-        <p className="min-w-0 flex-1 truncate text-sm font-semibold">{titulo}</p>
-        <div className="flex items-center gap-2">
-          {modoCambios && (
-            <Button
-              type="button"
-              size="sm"
-              variant={modoCambios.activo ? 'secondary' : 'ghost'}
-              aria-pressed={modoCambios.activo}
-              disabled={modoCambios.deshabilitado}
-              className={cn(
-                !modoCambios.activo &&
-                  'text-white hover:bg-zinc-700 hover:text-white',
-              )}
-              onClick={modoCambios.onToggle}
-            >
-              <GitCompare className="size-4" />
-              {modoCambios.activo
-                ? (modoCambios.etiquetaActiva ?? 'Ocultar cambios')
-                : (modoCambios.etiquetaInactiva ?? 'Ver cambios')}
-            </Button>
-          )}
-          {(urlBase || usarPreviewDocx) && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-zinc-700 hover:text-white"
-              disabled={usarPreviewDocx && descargando}
-              onClick={() => {
-                if (usarPreviewDocx) {
-                  void descargarDocxBinario()
-                  return
-                }
-                if (urlEfectiva) {
-                  window.open(urlEfectiva, '_blank', 'noopener,noreferrer')
-                }
-              }}
-            >
-              {usarPreviewDocx && descargando ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}
-              {usarPreviewDocx && descargando ? 'Preparando…' : 'Descargar'}
-            </Button>
-          )}
-        </div>
-      </header>
+      {!ocultarEncabezado ? (
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 bg-zinc-800 px-4 py-2.5 text-white">
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold">{titulo}</p>
+          <div className="flex items-center gap-2">
+            {modoCambios && (
+              <Button
+                type="button"
+                size="sm"
+                variant={modoCambios.activo ? 'secondary' : 'ghost'}
+                aria-pressed={modoCambios.activo}
+                disabled={modoCambios.deshabilitado}
+                className={cn(
+                  !modoCambios.activo &&
+                    'text-white hover:bg-zinc-700 hover:text-white',
+                )}
+                onClick={modoCambios.onToggle}
+              >
+                <GitCompare className="size-4" />
+                {modoCambios.activo
+                  ? (modoCambios.etiquetaActiva ?? 'Ocultar cambios')
+                  : (modoCambios.etiquetaInactiva ?? 'Ver cambios')}
+              </Button>
+            )}
+            {(urlBase || usarPreviewDocx) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-zinc-700 hover:text-white"
+                disabled={usarPreviewDocx && descargando}
+                onClick={() => {
+                  if (usarPreviewDocx) {
+                    void descargarDocxBinario()
+                    return
+                  }
+                  if (urlEfectiva) {
+                    window.open(urlEfectiva, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+              >
+                {usarPreviewDocx && descargando ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                {usarPreviewDocx && descargando ? 'Preparando…' : 'Descargar'}
+              </Button>
+            )}
+          </div>
+        </header>
+      ) : null}
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-zinc-200">
         {usarPreviewDocx ? (

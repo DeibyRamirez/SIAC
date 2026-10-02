@@ -127,7 +127,7 @@ function ContenidoDictamen() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const { sesion } = usarSesion()
-  const { dictaminarEvidencia } = usarAlmacen()
+  const { datos, dictaminarEvidencia } = usarAlmacen()
   const [evidencia, setEvidencia] = useState<Evidencia | null>(null)
   const [urlDocumento, setUrlDocumento] = useState<string | undefined>()
   const [cargando, setCargando] = useState(true)

@@ -1,0 +1,10 @@
+/* CSS Custom Highlight API — fuera de PostCSS/Tailwind (el parser no conoce ::highlight). */
+::highlight(siac-citas) {
+  background-color: rgba(250, 204, 21, 0.45);
+  text-decoration: underline;
+  text-decoration-color: rgba(202, 138, 4, 0.9);
+}
+
+::highlight(siac-comentario) {
+  background-color: rgba(251, 191, 36, 0.85);
+}
