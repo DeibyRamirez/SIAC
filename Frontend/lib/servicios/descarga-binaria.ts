@@ -1,12 +1,7 @@
-const URL_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
+import { URL_BASE_CLIENTE } from '@/lib/servicios/config-api'
 
 export const MIME_DOCX_OFICIAL =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-
-function obtenerToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('siac-token-jwt')
-}
 
 function validarBufferDocx(buffer: ArrayBuffer, origen: string): ArrayBuffer {
   if (buffer.byteLength < 4) {
@@ -46,10 +41,9 @@ export async function obtenerContenidoEvidenciaApi(
   id: string,
   version?: number,
 ): Promise<ArrayBuffer> {
-  const token = obtenerToken()
   const query = version !== undefined ? `?version=${version}` : ''
-  const respuesta = await fetch(`${URL_BASE}/evidencias/${id}/contenido${query}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  const respuesta = await fetch(`${URL_BASE_CLIENTE}/evidencias/${id}/contenido${query}`, {
+    credentials: 'include',
   })
   if (!respuesta.ok) {
     throw new Error('No se pudo obtener el contenido del documento.')
@@ -58,9 +52,8 @@ export async function obtenerContenidoEvidenciaApi(
 }
 
 export async function obtenerContenidoPlantillaApi(id: string): Promise<ArrayBuffer> {
-  const token = obtenerToken()
-  const respuesta = await fetch(`${URL_BASE}/plantillas/${id}/contenido`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  const respuesta = await fetch(`${URL_BASE_CLIENTE}/plantillas/${id}/contenido`, {
+    credentials: 'include',
   })
   if (!respuesta.ok) {
     throw new Error('No se pudo obtener el contenido de la plantilla.')

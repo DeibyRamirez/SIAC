@@ -84,7 +84,8 @@ export default function PaginaLogin() {
               width={200}
               height={120}
               priority
-              className="h-auto w-[200px] object-contain"
+              className="w-[200px] object-contain"
+              style={{ height: 'auto' }}
             />
           </div>
 

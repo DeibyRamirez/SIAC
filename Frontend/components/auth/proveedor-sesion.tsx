@@ -108,7 +108,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
   )
 
   const cerrarSesion = useCallback(() => {
-    if (usarApi) cerrarSesionApi()
+    if (usarApi) void cerrarSesionApi()
     cerrarSesionLocal()
     setSesion(null)
     router.replace('/login')

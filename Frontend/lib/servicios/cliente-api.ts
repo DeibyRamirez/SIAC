@@ -4,8 +4,7 @@ import {
   notificarInicioCarga,
   obtenerMensajeCarga,
 } from '@/lib/servicios/control-carga-global';
-
-const URL_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+import { URL_BASE_CLIENTE, apiDisponible } from '@/lib/servicios/config-api';
 
 export class ErrorApi extends Error {
   constructor(
@@ -17,31 +16,13 @@ export class ErrorApi extends Error {
   }
 }
 
-function obtenerToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('siac-token-jwt');
-}
-
-export function guardarToken(token: string): void {
-  localStorage.setItem('siac-token-jwt', token);
-}
-
-export function eliminarToken(): void {
-  localStorage.removeItem('siac-token-jwt');
-}
-
 export async function peticionApi<T>(
   ruta: string,
   opciones: RequestInit = {},
 ): Promise<T> {
-  const token = obtenerToken();
   const headers: Record<string, string> = {
     ...(opciones.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   if (!(opciones.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
@@ -54,9 +35,10 @@ export async function peticionApi<T>(
   }
 
   try {
-    const respuesta = await fetch(`${URL_BASE}${ruta}`, {
+    const respuesta = await fetch(`${URL_BASE_CLIENTE}${ruta}`, {
       ...opciones,
       headers,
+      credentials: 'include',
     });
 
     if (!respuesta.ok) {
@@ -76,6 +58,4 @@ export async function peticionApi<T>(
   }
 }
 
-export function apiDisponible(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1');
-}
+export { apiDisponible };
