@@ -1,97 +1,41 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
-import { CodigoDocumentoGuia, EstadoEvidencia, Prisma, RolUsuario } from '@prisma/client';
+import { Prisma, RolUsuario } from '@prisma/client';
 import {
   ServicioAlcancePrograma,
   UsuarioAlcance,
 } from '../common/alcance/servicio-alcance-programa';
+import { EvidenciaRepositorio } from '../documentos/evidencia.repositorio';
+import {
+  ParametrosConsultaEvidenciasEntrada,
+  parsearParametrosConsultaEvidencias,
+} from '../documentos/parametros-consulta-evidencias';
 
-export interface ParametrosBusqueda {
-  busqueda?: string;
-  programaId?: string;
-  codigoGuia?: CodigoDocumentoGuia;
-  periodo?: string;
-  estado?: EstadoEvidencia;
-  formato?: 'pdf' | 'xlsx';
-  pagina?: number;
-  limite?: number;
-}
-
-const CODIGOS_GUIA = Object.values(CodigoDocumentoGuia) as string[];
-
-function guiaDesdeTexto(texto: string): CodigoDocumentoGuia | undefined {
-  const normalizado = texto.trim().toUpperCase();
-  return CODIGOS_GUIA.includes(normalizado)
-    ? (normalizado as CodigoDocumentoGuia)
-    : undefined;
-}
+export type ParametrosBusqueda = ParametrosConsultaEvidenciasEntrada;
 
 @Injectable()
 export class BusquedaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alcance: ServicioAlcancePrograma,
+    private readonly evidenciaRepo: EvidenciaRepositorio,
   ) {}
 
   async buscar(parametros: ParametrosBusqueda, usuario: UsuarioAlcance) {
-    const where: Record<string, unknown> = {};
-    if (usuario.rol !== RolUsuario.ParAcademico && parametros.estado) {
-      where.estado = parametros.estado;
-    }
+    const filtros = parsearParametrosConsultaEvidencias(parametros, {
+      rolUsuario: usuario.rol,
+      usarFts: true,
+    });
+    filtros.alcance = await this.alcance.filtroVisibilidad(usuario);
 
-    if (parametros.programaId) where.programaId = parametros.programaId;
-    if (parametros.codigoGuia) where.codigoGuia = parametros.codigoGuia;
-    if (parametros.periodo) where.periodo = parametros.periodo;
+    const [resultados, total] = await this.evidenciaRepo.listar(filtros);
 
-    if (parametros.formato === 'pdf') {
-      where.OR = [
-        { mimeType: { contains: 'pdf', mode: 'insensitive' } },
-        { nombreArchivo: { endsWith: '.pdf', mode: 'insensitive' } },
-      ];
-    } else if (parametros.formato === 'xlsx') {
-      where.OR = [
-        { mimeType: { contains: 'spreadsheet', mode: 'insensitive' } },
-        { nombreArchivo: { endsWith: '.xlsx', mode: 'insensitive' } },
-      ];
-    }
-
-    if (parametros.busqueda) {
-      const guiaEnTexto = guiaDesdeTexto(parametros.busqueda);
-      const condicionesTexto: Prisma.EvidenciaWhereInput[] = [
-        { nombre: { contains: parametros.busqueda, mode: 'insensitive' } },
-        { periodo: { contains: parametros.busqueda, mode: 'insensitive' } },
-        { nombreArchivo: { contains: parametros.busqueda, mode: 'insensitive' } },
-        ...(guiaEnTexto ? [{ codigoGuia: guiaEnTexto }] : []),
-      ];
-      where.AND = [
-        ...(Array.isArray(where.OR) ? [{ OR: where.OR }] : []),
-        { OR: condicionesTexto },
-      ];
-      delete where.OR;
-    }
-
-    const pagina = parametros.pagina ?? 1;
-    const limite = parametros.limite ?? 20;
-    const visibilidad = await this.alcance.filtroVisibilidad(usuario);
-    const whereFinal: Prisma.EvidenciaWhereInput = {
-      AND: [where as Prisma.EvidenciaWhereInput, visibilidad],
+    return {
+      resultados,
+      total,
+      pagina: filtros.pagina ?? 1,
+      limite: filtros.limite ?? 20,
     };
-
-    const [resultados, total] = await this.prisma.$transaction([
-      this.prisma.evidencia.findMany({
-        where: whereFinal,
-        include: {
-          programa: { select: { id: true, nombre: true, codigo: true } },
-          autor: { select: { id: true, nombre: true } },
-        },
-        orderBy: { fechaCarga: 'desc' },
-        skip: (pagina - 1) * limite,
-        take: limite,
-      }),
-      this.prisma.evidencia.count({ where: whereFinal }),
-    ]);
-
-    return { resultados, total, pagina, limite };
   }
 
   async buscarUnificada(consulta: string, usuario: UsuarioAlcance, limite = 8) {
@@ -125,6 +69,7 @@ export class BusquedaService {
       }),
       this.prisma.plantilla.findMany({
         where: {
+          vigente: true,
           OR: [
             { nombre: { contains: q, mode: 'insensitive' } },
             { nombreArchivo: { contains: q, mode: 'insensitive' } },
@@ -152,4 +97,3 @@ export class BusquedaService {
     return { evidencias, plantillas, documentos };
   }
 }
-

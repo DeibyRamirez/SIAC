@@ -8,6 +8,15 @@ import { CodigoDocumentoGuia, Evidencia, EstadoEvidencia, Prisma } from '@prisma
 import { TOTAL_CONDICIONES_DOCUMENTO_MAESTRO } from '../dominio/condiciones-documento-maestro';
 
 import { TOTAL_CONDICIONES_INSTITUCIONALES } from '../dominio/condiciones-institucionales';
+import {
+  CampoOrdenEvidencia,
+  ColorSemaforoBusqueda,
+  DireccionOrden,
+  combinarConAlcance,
+  construirFiltrosConsultaEvidencias,
+  construirOrdenConsultaEvidencias,
+} from './constructor-consulta-evidencias';
+import { buscarIdsEvidenciasFts } from './fts-evidencias';
 
 
 
@@ -31,6 +40,8 @@ export interface FiltrosEvidencia {
 
   programaId?: string;
 
+  programaSlug?: string;
+
   periodo?: string;
 
   codigoGuia?: CodigoDocumentoGuia;
@@ -38,6 +49,22 @@ export interface FiltrosEvidencia {
   estado?: EstadoEvidencia;
 
   busqueda?: string;
+
+  formato?: 'pdf' | 'xlsx';
+
+  puntajeMin?: number;
+
+  puntajeMax?: number;
+
+  semaforo?: ColorSemaforoBusqueda;
+
+  fechaCargaDesde?: Date;
+
+  fechaCargaHasta?: Date;
+
+  fechaVerificacionDesde?: Date;
+
+  fechaVerificacionHasta?: Date;
 
   autorId?: string;
 
@@ -48,6 +75,14 @@ export interface FiltrosEvidencia {
   pagina?: number;
 
   limite?: number;
+
+  orden?: CampoOrdenEvidencia;
+
+  direccion?: DireccionOrden;
+
+  rolUsuario?: import('@prisma/client').RolUsuario;
+
+  usarFts?: boolean;
 
 }
 
@@ -209,82 +244,62 @@ export class EvidenciaRepositorio {
 
 
 
-  listar(filtros: FiltrosEvidencia) {
-
-    const where: Prisma.EvidenciaWhereInput = {};
-
-
-
-    if (filtros.programaId) where.programaId = filtros.programaId;
-
-    if (filtros.periodo) where.periodo = filtros.periodo;
-
-    if (filtros.codigoGuia) where.codigoGuia = filtros.codigoGuia;
-
-    if (filtros.estado) where.estado = filtros.estado;
-
-    if (filtros.autorId) where.autorId = filtros.autorId;
-
-    if (filtros.soloValidados) where.estado = EstadoEvidencia.Validado;
-
-
-
-    if (filtros.busqueda) {
-
-      where.OR = [
-
-        { nombre: { contains: filtros.busqueda, mode: 'insensitive' } },
-
-        { periodo: { contains: filtros.busqueda, mode: 'insensitive' } },
-
-        { nombreArchivo: { contains: filtros.busqueda, mode: 'insensitive' } },
-
-      ];
-
+  async listar(filtros: FiltrosEvidencia) {
+    let idsFts: string[] | undefined;
+    if (filtros.usarFts && filtros.busqueda?.trim()) {
+      idsFts = await buscarIdsEvidenciasFts(this.prisma, filtros.busqueda);
+      if (idsFts.length === 0) {
+        return [[], 0] as const;
+      }
     }
 
+    const facetas = construirFiltrosConsultaEvidencias({
+      busqueda: filtros.busqueda,
+      programaId: filtros.programaId,
+      programaSlug: filtros.programaSlug,
+      codigoGuia: filtros.codigoGuia,
+      periodo: filtros.periodo,
+      estado: filtros.soloValidados ? EstadoEvidencia.Validado : filtros.estado,
+      formato: filtros.formato,
+      puntajeMin: filtros.puntajeMin,
+      puntajeMax: filtros.puntajeMax,
+      semaforo: filtros.semaforo,
+      fechaCargaDesde: filtros.fechaCargaDesde,
+      fechaCargaHasta: filtros.fechaCargaHasta,
+      fechaVerificacionDesde: filtros.fechaVerificacionDesde,
+      fechaVerificacionHasta: filtros.fechaVerificacionHasta,
+      idsFts,
+      rolUsuario: filtros.rolUsuario,
+    });
 
+    const partes: Prisma.EvidenciaWhereInput[] = [facetas];
+    if (filtros.autorId) partes.push({ autorId: filtros.autorId });
+
+    const whereBase =
+      partes.length === 1 ? partes[0] : { AND: partes };
+    const whereFinal = combinarConAlcance(whereBase, filtros.alcance);
 
     const pagina = filtros.pagina ?? 1;
-
     const limite = filtros.limite ?? 20;
-
     const skip = (pagina - 1) * limite;
-
-    const whereFinal: Prisma.EvidenciaWhereInput = filtros.alcance
-
-      ? { AND: [filtros.alcance, where] }
-
-      : where;
-
-
+    const orderBy = construirOrdenConsultaEvidencias({
+      orden: filtros.orden,
+      direccion: filtros.direccion,
+    });
 
     return this.prisma.$transaction([
-
       this.prisma.evidencia.findMany({
-
         where: whereFinal,
-
         include: {
-
-          programa: { select: { id: true, nombre: true, codigo: true } },
-
+          programa: { select: { id: true, nombre: true, codigo: true, slug: true } },
           autor: { select: { id: true, nombre: true, correo: true } },
-
         },
-
-        orderBy: { fechaCarga: 'desc' },
-
+        orderBy,
         skip,
-
         take: limite,
-
       }),
-
       this.prisma.evidencia.count({ where: whereFinal }),
-
     ]);
-
   }
 
 

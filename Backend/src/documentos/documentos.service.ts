@@ -13,12 +13,18 @@ import {
 } from '@prisma/client';
 
 import { EvidenciaRepositorio, FiltrosEvidencia } from './evidencia.repositorio';
+import { PrismaService } from '../prisma/prisma.module';
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
-import { CrearEvidenciaDto, ActualizarEvidenciaDto } from './dto/evidencia.dto';
+import {
+  CrearEvidenciaDto,
+  ActualizarEvidenciaDto,
+  FiltrosEvidenciaDto,
+} from './dto/evidencia.dto';
+import { parsearParametrosConsultaEvidencias } from './parametros-consulta-evidencias';
 
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 
@@ -306,32 +312,22 @@ export class DocumentosService {
 
 
 
-  async listar(usuario: UsuarioToken, filtros: FiltrosEvidencia) {
-
-    const filtrosAplicados: FiltrosEvidencia = {
-
-      ...filtros,
-
-      estado: this.normalizarEstadoFiltro(filtros.estado),
-
-      alcance: await this.alcance.filtroVisibilidad(usuario),
-
-    };
+  async listar(usuario: UsuarioToken, query: FiltrosEvidenciaDto) {
+    const filtrosAplicados = parsearParametrosConsultaEvidencias(query, {
+      rolUsuario: usuario.rol,
+      usarFts: true,
+    });
+    filtrosAplicados.estado = this.normalizarEstadoFiltro(filtrosAplicados.estado);
+    filtrosAplicados.alcance = await this.alcance.filtroVisibilidad(usuario);
 
     const [datos, total] = await this.evidenciaRepo.listar(filtrosAplicados);
 
     return {
-
       datos,
-
       total,
-
-      pagina: filtros.pagina ?? 1,
-
-      limite: filtros.limite ?? 20,
-
+      pagina: filtrosAplicados.pagina ?? 1,
+      limite: filtrosAplicados.limite ?? 20,
     };
-
   }
 
 

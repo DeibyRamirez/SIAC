@@ -88,6 +88,11 @@ function escalarUmbral(umbral: number, totalCondiciones: number): number {
   return Math.ceil((umbral * totalCondiciones) / TOTAL_REFERENCIA_SEMAFORO);
 }
 
+/** Expuesto para filtros de búsqueda HU-008 (semáforo por total de condiciones). */
+export function escalarUmbralBusqueda(umbral: number, totalCondiciones: number): number {
+  return escalarUmbral(umbral, totalCondiciones);
+}
+
 function validarPuntaje(puntaje: number, totalCondiciones: number) {
   if (!Number.isInteger(totalCondiciones) || totalCondiciones <= 0) {
     throw new RangeError('El total de condiciones debe ser un entero positivo.');

@@ -148,6 +148,10 @@ function crearRepositorioFake() {
   return repositorio;
 }
 
+const prismaFake = {
+  institucion: { findFirst: jest.fn() },
+} as never;
+
 function crearServicio(repositorio: ReturnType<typeof crearRepositorioFake>) {
   return new DocumentosService(
     repositorio as never,
@@ -163,6 +167,7 @@ function crearServicio(repositorio: ReturnType<typeof crearRepositorioFake>) {
       estaAsignado: jest.fn().mockResolvedValue(true),
       idsProgramasAsignados: jest.fn(),
     } as never,
+    prismaFake,
   );
 }
 
@@ -487,7 +492,13 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       { crear: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
-    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn().mockResolvedValue(true), idsProgramasAsignados: jest.fn() } as never);
+      {
+        filtroVisibilidad: jest.fn(),
+        estaAsignado: jest.fn().mockResolvedValue(true),
+        idsProgramasAsignados: jest.fn(),
+      } as never,
+      prismaFake,
+    );
 
     const { buffer } = await servicio.obtenerContenidoArchivo('ev-1', revisor, 1);
 
@@ -579,7 +590,13 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       { crear: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
-    { filtroVisibilidad: jest.fn(), estaAsignado: jest.fn().mockResolvedValue(true), idsProgramasAsignados: jest.fn() } as never);
+      {
+        filtroVisibilidad: jest.fn(),
+        estaAsignado: jest.fn().mockResolvedValue(true),
+        idsProgramasAsignados: jest.fn(),
+      } as never,
+      prismaFake,
+    );
 
     const { buffer } = await servicio.obtenerContenidoArchivo('ev-1', revisor, 2);
     expect(repositorio.listarComentariosHastaVersion).toHaveBeenCalledWith('ev-1', 2);
@@ -678,6 +695,7 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
         estaAsignado: jest.fn().mockResolvedValue(true),
         idsProgramasAsignados: jest.fn(),
       } as never,
+      prismaFake,
     );
 
     await servicio.reemplazarArchivo(

@@ -46,15 +46,7 @@ export class DocumentosController {
     @Query() query: FiltrosEvidenciaDto,
     @Request() req: { user: { id: string; rol: RolUsuario } },
   ) {
-    return this.documentosService.listar(req.user, {
-      programaId: query.programaId,
-      periodo: query.periodo,
-      codigoGuia: query.codigoGuia,
-      estado: query.estado as EstadoEvidencia | undefined,
-      busqueda: query.busqueda,
-      pagina: query.pagina ? parseInt(query.pagina, 10) : 1,
-      limite: query.limite ? parseInt(query.limite, 10) : 20,
-    });
+    return this.documentosService.listar(req.user, query);
   }
 
   @Get('conteos')

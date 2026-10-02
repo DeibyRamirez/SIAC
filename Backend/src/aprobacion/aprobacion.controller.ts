@@ -19,7 +19,7 @@ export class AprobacionController {
   listarPendientes(@Request() req: { user: UsuarioAlcance }) {
     return this.documentosService.listar(req.user, {
       estado: EstadoEvidencia.EnRevision,
-      limite: 100,
+      limite: '100',
     });
   }
 

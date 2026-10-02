@@ -61,6 +61,14 @@ export class DictaminarEvidenciaDto {
 export class FiltrosEvidenciaDto {
   @IsString()
   @IsOptional()
+  q?: string;
+
+  @IsString()
+  @IsOptional()
+  programa?: string;
+
+  @IsString()
+  @IsOptional()
   programaId?: string;
 
   @IsString()
@@ -81,9 +89,49 @@ export class FiltrosEvidenciaDto {
 
   @IsString()
   @IsOptional()
+  formato?: string;
+
+  @IsString()
+  @IsOptional()
+  puntajeMin?: string;
+
+  @IsString()
+  @IsOptional()
+  puntajeMax?: string;
+
+  @IsString()
+  @IsOptional()
+  semaforo?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaCargaDesde?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaCargaHasta?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaVerificacionDesde?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaVerificacionHasta?: string;
+
+  @IsString()
+  @IsOptional()
   pagina?: string;
 
   @IsString()
   @IsOptional()
   limite?: string;
+
+  @IsString()
+  @IsOptional()
+  orden?: string;
+
+  @IsString()
+  @IsOptional()
+  direccion?: string;
 }
