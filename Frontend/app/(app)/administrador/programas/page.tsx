@@ -98,6 +98,7 @@ function mapearFilasPanel(
       porcentajeAvance: fila.avancePorcentual,
       semaforo: fila.semaforoGeneral,
       activo: fila.activo ?? true,
+      urlImagen: fila.urlImagen ?? undefined,
       estadoProceso:
         fila.anexoInfraestructuraVencido
           ? 'Anexo infraestructura vencido (RN-003)'
