@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-28 |
+| **Última actualización** | 2026-09-30 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -92,6 +92,18 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 **Enums clave:** `RolUsuario` (incl. `ParAcademico`, `SuperAdmin`), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
 
 **Campos maestros TI:** `idExterno`, `origenDato`, `fechaSincronizacion` en Usuario y Programa.
+
+### Catálogo externo vs dominio SIAC (ADR-005)
+
+La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lectura de catálogo**: nombre, facultad, modalidad, duración y `activo`. SIAC **no consulta esa API en cada pantalla**; sincroniza a la tabla `Programa` y opera el resto del flujo en Supabase.
+
+| Capa | Fuente | Qué almacena |
+|------|--------|--------------|
+| API externa | `backend-lac-theta-94.vercel.app/carreras` | Catálogo académico (solo lectura) |
+| Supabase `Programa` | Sync + admin | Catálogo + `tipoTramiteActivo`, semáforos, avance, vigencia |
+| Supabase resto | Cargador / Revisor / Admin | `Evidencia` G1–G4, `UsuarioPrograma`, `AnexoVigencia` |
+
+**Reglas de sync:** en *update* solo se tocan campos de catálogo; no se sobrescriben `porcentajeAvance`, `semaforo`, `tipoTramiteActivo` ni `fechaResolucion`. Carreras que desaparecen del catálogo externo se marcan `activo: false` (no se borran filas ni evidencias). El admin configura `tipoTramiteActivo` (RC nuevo = G1; renovación = G1+G2) en el detalle de cada programa.
 
 ### ADRs aplicadas
 
@@ -375,7 +387,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ---
 
-## 8. Estado actual (2026-09-28)
+## 8. Estado actual (2026-09-30)
 
 El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado con brechas de alcance por programa cerradas al inicio del Sprint 2; Sprint 2 **en progreso**; Sprints 3 y 4 **por hacer**.
 
@@ -389,7 +401,9 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
 - [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
-- [x] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15; tests unitarios
+- [x] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15; tests unitarios; migración `20260930140000` corrige pesos en `TramiteDocumentoGuia`
+- [x] Sync carreras CUAC → `Programa` (`idExterno`, `origenDato: API`); bajas del catálogo → `activo: false`
+- [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
 - [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
 - [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
 - [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
@@ -468,6 +482,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-09-30 — Arquitectura catálogo API + dominio SIAC
+
+- [Backend] Migración `20260930140000_corregir_pesos_tramite_guia`: corrige `pesoPorcentaje` en `TramiteDocumentoGuia` (trámites de 2 guías sumaban 200 % por el default de la migración de relleno).
+- [Backend] `sincronizarDesdeCarreras`: desactiva programas con `origenDato: API` cuyo `idExterno` ya no viene en el catálogo externo; respuesta incluye `desactivados`.
+- [Backend] `PATCH /programas/:id` acepta `tipoTramiteActivo` (`RegistroCalificadoNuevo` | `RenovacionRegistroCalificado`).
+- [Frontend] Detalle admin de programa: selector de tipo de trámite SIAC; toast de sync muestra importados, actualizados y desactivados.
+- [Memoria] Patrón catálogo externo vs dominio SIAC documentado en §3.
 
 ### 2026-09-29 — Arranque sin datos demo (solo usuarios por rol)
 
