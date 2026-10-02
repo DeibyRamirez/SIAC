@@ -29,6 +29,8 @@ export interface FilaPanelPrograma {
   semaforoGeneral: SemaforoPrograma
   documentos: DocumentoPanel[]
   anexoInfraestructuraVencido: boolean
+  activo?: boolean
+  urlImagen?: string | null
 }
 
 export interface RespuestaPanelProgramas {
@@ -39,6 +41,10 @@ export interface RespuestaPanelProgramas {
   totalPaginas: number
 }
 
+export type EstadoFiltroPanel = 'activos' | 'inactivos' | 'todos'
+
+export type OrigenProgramaPanel = 'API' | 'Manual' | 'CSV'
+
 export interface FiltrosPanelProgramas {
   page?: number
   limit?: number
@@ -46,6 +52,8 @@ export interface FiltrosPanelProgramas {
   alcance?: AlcanceTramiteUI
   semaforo?: SemaforoPrograma
   semestre?: string
+  estado?: EstadoFiltroPanel
+  origen?: OrigenProgramaPanel
 }
 
 export async function listarPanelProgramasApi(
@@ -58,6 +66,8 @@ export async function listarPanelProgramasApi(
   if (filtros.alcance) params.set('alcance', filtros.alcance)
   if (filtros.semaforo) params.set('semaforo', filtros.semaforo)
   if (filtros.semestre) params.set('semestre', filtros.semestre)
+  if (filtros.estado) params.set('estado', filtros.estado)
+  if (filtros.origen) params.set('origen', filtros.origen)
   const query = params.toString()
   return peticionApi<RespuestaPanelProgramas>(`/programas/panel${query ? `?${query}` : ''}`)
 }

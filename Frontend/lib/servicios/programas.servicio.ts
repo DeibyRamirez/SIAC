@@ -1,5 +1,6 @@
 import { peticionApi } from './cliente-api';
 import type { NivelPrograma, Programa } from '@/lib/tipos';
+import type { TipoTramiteSIAC } from '@/lib/utilidades/catalogo-tramites-siac';
 
 export async function listarProgramasApi(): Promise<Programa[]> {
   return peticionApi<Programa[]>('/programas');
@@ -23,6 +24,7 @@ export async function actualizarProgramaApi(
     nivel?: NivelPrograma
     facultad?: string
     modalidad?: string
+    tipoTramiteActivo?: TipoTramiteSIAC
   },
 ): Promise<Programa> {
   return peticionApi<Programa>(`/programas/${id}`, {
@@ -38,6 +40,13 @@ export async function actualizarEstadoProgramaApi(id: string, activo: boolean): 
   })
 }
 
+export async function activarVigenciaProgramaApi(id: string): Promise<Programa & { fechaResolucion?: string | null }> {
+  return peticionApi<Programa & { fechaResolucion?: string | null }>(
+    `/programas/${id}/activar-vigencia`,
+    { method: 'POST' },
+  )
+}
+
 export async function obtenerProgramaApi(id: string) {
   return peticionApi<Programa & {
     evidenciasValidadas?: number;
@@ -45,13 +54,6 @@ export async function obtenerProgramaApi(id: string) {
     evidencias?: unknown[];
     anexos?: unknown[];
   }>(`/programas/${id}`);
-}
-
-export async function buscarEvidenciasApi(params: Record<string, string>) {
-  const query = new URLSearchParams(params);
-  return peticionApi<{ resultados: unknown[]; total: number; pagina: number; limite: number }>(
-    `/busqueda?${query}`,
-  );
 }
 
 export async function buscarUnificadaApi(consulta: string, limite = 8) {
