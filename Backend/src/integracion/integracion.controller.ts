@@ -30,4 +30,10 @@ export class IntegracionController {
   sincronizarCsv(@Body('contenido') contenido: string) {
     return this.integracionService.sincronizarDesdeCsv(contenido);
   }
+
+  @Post('sincronizar-carreras')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  sincronizarCarreras() {
+    return this.integracionService.sincronizarDesdeCarreras();
+  }
 }
