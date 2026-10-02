@@ -83,4 +83,5 @@ jobs:
           cache-dependency-path: Frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit
+      - run: pnpm test
       - run: pnpm build
