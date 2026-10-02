@@ -119,6 +119,90 @@ export class AvanceProcesoSIACService {
       documentos,
     };
   }
+
+  async calcularProgresoInstitucion(institucionId: string): Promise<ProgresoProcesoSIAC> {
+    const institucion = await this.prisma.institucion.findUnique({ where: { id: institucionId } });
+    if (!institucion) throw new NotFoundException('Institución no encontrada.');
+
+    const tramite = tramitePorTipo(institucion.tipoTramiteActivo);
+    const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
+
+    const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
+      where: {
+        tramite: { tipo: institucion.tipoTramiteActivo },
+        codigoGuia: { in: codigosGuia },
+      },
+      select: { codigoGuia: true, pesoPorcentaje: true },
+    });
+    const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
+
+    const evidencias = await this.prisma.evidencia.findMany({
+      where: {
+        institucionId,
+        codigoGuia: { in: codigosGuia },
+        estado: {
+          in: [
+            EstadoEvidencia.Cumple,
+            EstadoEvidencia.ConObservaciones,
+            EstadoEvidencia.Validado,
+            EstadoEvidencia.Rechazado,
+          ],
+        },
+      },
+      select: {
+        codigoGuia: true,
+        estado: true,
+        puntajeActual: true,
+        totalCondicionesActual: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
+    for (const ev of evidencias) {
+      if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
+      if (!ultimaPorGuia.has(ev.codigoGuia)) {
+        ultimaPorGuia.set(ev.codigoGuia, ev);
+      }
+    }
+
+    const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((docGuia) => {
+      const codigoGuia = docGuia.codigo;
+      const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
+      const evidencia = ultimaPorGuia.get(codigoGuia);
+      const porcentajeInterno = evidencia ? Math.round(porcentajeInternoEvidencia(evidencia)) : 0;
+      const aportacion = Math.round((peso * porcentajeInterno) / 100);
+
+      return {
+        codigoGuia,
+        nombre: ETIQUETAS_GUIA[codigoGuia],
+        peso,
+        porcentajeInterno,
+        aportacion,
+        estado: evidencia?.estado ?? null,
+        puntaje: evidencia?.puntajeActual ?? null,
+        totalCondiciones: evidencia?.totalCondicionesActual ?? null,
+        aceptado:
+          evidencia?.estado === EstadoEvidencia.Cumple ||
+          evidencia?.estado === EstadoEvidencia.Validado,
+        conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
+        rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+      };
+    });
+
+    const avanceGlobal = documentos.reduce((acc, doc) => acc + doc.aportacion, 0);
+    const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
+
+    return {
+      programaId: institucionId,
+      tipoTramite: institucion.tipoTramiteActivo,
+      avanceGlobal,
+      documentosAceptados,
+      documentosTotal: tramite.documentosGuia.length,
+      documentos,
+    };
+  }
 }
 
 /**

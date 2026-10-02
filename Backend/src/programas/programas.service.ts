@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
@@ -131,6 +136,7 @@ export class ProgramasService {
     if (dto.modalidad !== undefined) datos.modalidad = dto.modalidad.trim() || null;
     if (dto.codigoSnies !== undefined) datos.codigoSnies = dto.codigoSnies.trim() || null;
     if (dto.duracionSemestres !== undefined) datos.duracionSemestres = dto.duracionSemestres;
+    if (dto.tipoTramiteActivo !== undefined) datos.tipoTramiteActivo = dto.tipoTramiteActivo;
 
     return this.programaRepo.actualizar(id, datos);
   }
@@ -139,6 +145,24 @@ export class ProgramasService {
     const programa = await this.programaRepo.buscarPorId(id);
     if (!programa) throw new NotFoundException('Programa no encontrado.');
     return this.programaRepo.actualizar(id, { activo });
+  }
+
+  async activarVigenciaPrograma(id: string) {
+    const programa = await this.programaRepo.buscarPorId(id);
+    if (!programa) throw new NotFoundException('Programa no encontrado.');
+
+    if (programa.fechaResolucion) {
+      throw new BadRequestException('La vigencia de registro ya está activa.');
+    }
+
+    const progreso = await this.avanceProceso.calcularProgresoPrograma(id);
+    if (progreso.avanceGlobal < 100) {
+      throw new BadRequestException(
+        'El proceso documental debe estar al 100% antes de activar la vigencia.',
+      );
+    }
+
+    return this.programaRepo.actualizar(id, { fechaResolucion: new Date() });
   }
 
   async listarConSemaforo(usuario: UsuarioAlcance) {

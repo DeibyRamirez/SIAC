@@ -56,6 +56,12 @@ export class ProgramasController {
     return this.programasService.actualizar(id, dto);
   }
 
+  @Post(':id/activar-vigencia')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  activarVigencia(@Param('id') id: string) {
+    return this.programasService.activarVigenciaPrograma(id);
+  }
+
   @Get(':id/progreso')
   @AlcancePrograma({ parametroPrograma: 'id', modo: 'lectura' })
   progreso(@Param('id') id: string) {

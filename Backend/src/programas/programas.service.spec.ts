@@ -96,6 +96,7 @@ describe('ProgramasService', () => {
   const programaRepo = {
     listar: jest.fn(),
     buscarPorId: jest.fn(),
+    actualizar: jest.fn(),
     listarAnexosDeProgramas: jest.fn(),
     agruparEvidenciasPorEstado: jest.fn(),
     listarEvidenciasParaAvance: jest.fn(),
@@ -260,5 +261,24 @@ describe('ProgramasService', () => {
     alcance.idsProgramasAsignados.mockResolvedValue(['p1']);
     await servicio.listarConSemaforo({ id: 'car', rol: RolUsuario.Cargador });
     expect(programaRepo.listar).toHaveBeenCalledWith({ id: { in: ['p1'] }, activo: true });
+  });
+
+  it('activarVigenciaPrograma persiste fechaResolucion al 100%', async () => {
+    programaRepo.buscarPorId.mockResolvedValue({ ...programa, fechaResolucion: null });
+    avanceProceso.calcularProgresoPrograma.mockResolvedValue({
+      programaId: 'p1',
+      tipoTramite: TipoTramiteSIAC.RenovacionRegistroCalificado,
+      avanceGlobal: 100,
+      documentosAceptados: 2,
+      documentosTotal: 2,
+      documentos: [],
+    });
+    programaRepo.actualizar.mockResolvedValue({ ...programa, fechaResolucion: new Date() });
+
+    await servicio.activarVigenciaPrograma('p1');
+
+    expect(programaRepo.actualizar).toHaveBeenCalledWith('p1', {
+      fechaResolucion: expect.any(Date),
+    });
   });
 });

@@ -47,6 +47,8 @@ export interface FilaPanelDto {
   semaforoGeneral: ColorSemaforo;
   documentos: DocumentoPanelDto[];
   anexoInfraestructuraVencido: boolean;
+  activo?: boolean;
+  urlImagen?: string | null;
 }
 
 export interface RespuestaPanelDto {
@@ -172,6 +174,8 @@ export class PanelProgramasService implements OnModuleInit {
           codigo: true,
           tipoTramiteActivo: true,
           fechaResolucion: true,
+          activo: true,
+          urlImagen: true,
         },
       }),
     ]);
@@ -219,6 +223,8 @@ export class PanelProgramasService implements OnModuleInit {
         alcance: AlcanceTramiteSIAC.Programa,
         tipoTramite,
         fechaResolucion: programa.fechaResolucion,
+        activo: programa.activo,
+        urlImagen: programa.urlImagen,
         anexos: anexosPorPrograma.get(programa.id) ?? [],
         evidencias: evidenciasPorPrograma.get(programa.id) ?? [],
         semestre: query.semestre,
@@ -253,6 +259,8 @@ export class PanelProgramasService implements OnModuleInit {
       periodo: string;
     }[];
     semestre?: string;
+    activo?: boolean;
+    urlImagen?: string | null;
   }): FilaPanelDto {
     const tramite = tramitePorTipo(input.tipoTramite);
     const pesos = this.pesosPorTramite.get(input.tipoTramite) ?? new Map();
@@ -329,6 +337,8 @@ export class PanelProgramasService implements OnModuleInit {
       semaforoGeneral,
       documentos,
       anexoInfraestructuraVencido,
+      activo: input.activo,
+      urlImagen: input.urlImagen,
     };
   }
 
@@ -338,14 +348,35 @@ export class PanelProgramasService implements OnModuleInit {
     return filas.filter((f) => f.semaforoGeneral.toLowerCase() === normalizado);
   }
 
+  private filtroActivoPanel(
+    usuario: UsuarioAlcance,
+    query: ConsultaPanelProgramasDto,
+  ): boolean | undefined {
+    if (usuario.rol !== RolUsuario.Administrador && usuario.rol !== RolUsuario.SuperAdmin) {
+      return true;
+    }
+    const estado = query.estado ?? 'activos';
+    if (estado === 'todos') return undefined;
+    if (estado === 'inactivos') return false;
+    return true;
+  }
+
   private async filtroProgramas(
     usuario: UsuarioAlcance,
     query: ConsultaPanelProgramasDto,
   ): Promise<Prisma.ProgramaWhereInput> {
-    const where: Prisma.ProgramaWhereInput = { activo: true };
+    const where: Prisma.ProgramaWhereInput = {};
+    const activoFiltro = this.filtroActivoPanel(usuario, query);
+    if (activoFiltro !== undefined) {
+      where.activo = activoFiltro;
+    }
 
     if (query.tramite) {
       where.tipoTramiteActivo = query.tramite;
+    }
+
+    if (query.origen) {
+      where.origenDato = query.origen;
     }
 
     if (usuario.rol === RolUsuario.Cargador || usuario.rol === RolUsuario.Revisor) {

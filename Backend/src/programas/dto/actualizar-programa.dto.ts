@@ -1,4 +1,5 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { TipoTramiteSIAC } from '@prisma/client';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class ActualizarProgramaDto {
   @IsOptional()
@@ -30,6 +31,10 @@ export class ActualizarProgramaDto {
   @Min(1)
   @Max(20)
   duracionSemestres?: number;
+
+  @IsOptional()
+  @IsEnum(TipoTramiteSIAC)
+  tipoTramiteActivo?: TipoTramiteSIAC;
 }
 
 export class ActualizarEstadoProgramaDto {

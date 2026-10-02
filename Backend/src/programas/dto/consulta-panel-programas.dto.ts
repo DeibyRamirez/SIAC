@@ -1,6 +1,8 @@
-import { AlcanceTramiteSIAC, TipoTramiteSIAC } from '@prisma/client';
+import { AlcanceTramiteSIAC, OrigenDato, TipoTramiteSIAC } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+
+export type EstadoFiltroPanel = 'activos' | 'inactivos' | 'todos';
 
 export class ConsultaPanelProgramasDto {
   @IsOptional()
@@ -31,4 +33,14 @@ export class ConsultaPanelProgramasDto {
   @IsOptional()
   @IsString()
   semestre?: string;
+
+  /** Solo administradores: activos (default), inactivos o todos. */
+  @IsOptional()
+  @IsIn(['activos', 'inactivos', 'todos'])
+  estado?: EstadoFiltroPanel;
+
+  /** Filtrar por origen del catálogo (p. ej. solo programas sincronizados desde API). */
+  @IsOptional()
+  @IsEnum(OrigenDato)
+  origen?: OrigenDato;
 }

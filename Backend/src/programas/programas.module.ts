@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ProgramasController } from './programas.controller';
+import { InstitucionController } from './institucion.controller';
 import { ProgramasService, ProgramaRepositorio } from './programas.service';
+import { InstitucionService } from './institucion.service';
 import { AvanceProgramaService } from './avance-programa.service';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { PanelProgramasService } from './panel-programas.service';
@@ -8,10 +10,11 @@ import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module
 
 @Module({
   imports: [AlcanceProgramaModule],
-  controllers: [ProgramasController],
+  controllers: [ProgramasController, InstitucionController],
   providers: [
     ProgramasService,
     ProgramaRepositorio,
+    InstitucionService,
     AvanceProgramaService,
     AvanceProcesoSIACService,
     PanelProgramasService,
@@ -19,6 +22,7 @@ import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module
   exports: [
     ProgramasService,
     ProgramaRepositorio,
+    InstitucionService,
     AvanceProgramaService,
     AvanceProcesoSIACService,
     PanelProgramasService,

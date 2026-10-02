@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.module';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 
 @Injectable()
 export class AvanceProgramaService {
-  constructor(private readonly avanceProceso: AvanceProcesoSIACService) {}
+  constructor(
+    private readonly avanceProceso: AvanceProcesoSIACService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /** Avance ponderado por trámite SIAC (T-010). Solo calcula; no persiste columnas derivadas. */
   async recalcularPorcentajeAvance(programaId: string): Promise<number> {
