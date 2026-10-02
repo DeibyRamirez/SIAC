@@ -86,7 +86,7 @@ const RUTAS_SUPERADMIN = ['/superadmin', '/cargador', '/revisor', '/administrado
 const RUTAS_PAR_ACADEMICO = [
   '/administrador/dashboard',
   '/administrador/programas',
-  '/administrador/evidencias',
+  '/administrador/busqueda',
 ] as const
 
 export const ROLES_CONSULTA_INSTITUCIONAL: RolUsuario[] = ['Administrador', 'ParAcademico']

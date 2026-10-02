@@ -13,7 +13,7 @@ const rutasBusqueda = [
   { href: '/administrador', etiqueta: 'Resumen general', grupo: 'Administrador' },
   { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', grupo: 'Administrador' },
   { href: '/administrador/programas', etiqueta: 'Programas académicos', grupo: 'Administrador' },
-  { href: '/administrador/evidencias', etiqueta: 'Evidencias y documentos', grupo: 'Administrador' },
+  { href: '/administrador/busqueda', etiqueta: 'Evidencias y documentos', grupo: 'Administrador' },
   { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', grupo: 'Administrador' },
   { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', grupo: 'Administrador' },
   { href: '/administrador/bandeja-revision', etiqueta: 'Bandeja de revisión', grupo: 'Administrador' },

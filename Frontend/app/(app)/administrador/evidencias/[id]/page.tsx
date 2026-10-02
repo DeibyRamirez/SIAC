@@ -85,7 +85,7 @@ function ContenidoDetalleAdmin() {
     return (
       <div className="space-y-4">
         <p className="text-sm text-destructive">{error ?? 'Evidencia no encontrada.'}</p>
-        <Link href="/administrador/evidencias">
+        <Link href="/administrador/busqueda">
           <Button variant="outline">Volver al listado</Button>
         </Link>
       </div>
@@ -102,7 +102,7 @@ function ContenidoDetalleAdmin() {
         titulo={evidencia.nombre}
         descripcion="Visualización de evidencia. Solo lectura."
         accion={
-          <Link href="/administrador/evidencias">
+          <Link href="/administrador/busqueda">
             <Button variant="outline">Volver al listado</Button>
           </Link>
         }

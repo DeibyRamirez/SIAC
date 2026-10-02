@@ -18,9 +18,16 @@ interface FiltroProgramaProps {
   valor: string
   onCambiar: (programaId: string) => void
   className?: string
+  /** Cuando es true, el valor devuelto es el slug (para URL ?programa=derecho). */
+  usarSlug?: boolean
 }
 
-export function FiltroPrograma({ valor, onCambiar, className }: FiltroProgramaProps) {
+export function FiltroPrograma({
+  valor,
+  onCambiar,
+  className,
+  usarSlug = false,
+}: FiltroProgramaProps) {
   const [programas, setProgramas] = useState<Programa[]>([])
 
   useEffect(() => {
@@ -44,7 +51,10 @@ export function FiltroPrograma({ valor, onCambiar, className }: FiltroProgramaPr
       <SelectContent>
         <SelectItem value="todos">Todas las carreras</SelectItem>
         {programas.map((programa) => (
-          <SelectItem key={programa.id} value={programa.id}>
+          <SelectItem
+            key={programa.id}
+            value={usarSlug ? (programa.slug ?? programa.id) : programa.id}
+          >
             {programa.nombre} ({programa.nivel})
           </SelectItem>
         ))}

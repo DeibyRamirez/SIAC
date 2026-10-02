@@ -1,4 +1,11 @@
-import type { EstadoEvidencia, Programa } from '@/lib/tipos'
+import type { EstadoEvidencia, Evidencia, Programa, ResumenProgramaEvidencia } from '@/lib/tipos'
+
+type EvidenciaApi = Partial<Evidencia> & {
+  programaId?: string | null
+  programa?: ResumenProgramaEvidencia | null
+  fechaCarga?: string | Date
+  createdAt?: string | Date
+}
 const etiquetasEstado: Record<EstadoEvidencia, string> = {
   Borrador: 'Borrador',
   EnRevision: 'Pendiente de verificación',
@@ -22,12 +29,64 @@ export function admiteCorreccion(estado: EstadoEvidencia): boolean {
   return estado === 'Borrador' || estado === 'ConObservaciones' || estado === 'Rechazado'
 }
 
+function normalizarFechaCargaApi(
+  fechaCarga?: string | Date,
+  createdAt?: string | Date,
+): string {
+  const candidato = fechaCarga ?? createdAt
+  if (!candidato) return new Date().toISOString()
+  if (candidato instanceof Date) return candidato.toISOString()
+  return candidato
+}
+
+/** Mapea la respuesta de GET/POST evidencias conservando programa anidado y timestamp. */
+export function mapearEvidenciaDesdeApi(e: EvidenciaApi): Evidencia {
+  const programa = e.programa ?? undefined
+  const programaId = e.programaId ?? programa?.id ?? ''
+
+  return {
+    id: e.id!,
+    nombre: e.nombre!,
+    programaId,
+    programa,
+    periodo: e.periodo!,
+    codigoGuia: e.codigoGuia,
+    requiereChecklistMaestro: e.requiereChecklistMaestro,
+    puntajeActual: e.puntajeActual,
+    totalCondicionesActual: e.totalCondicionesActual,
+    estado: e.estado!,
+    autorId: e.autorId!,
+    nombreArchivo: e.nombreArchivo!,
+    fechaCarga: normalizarFechaCargaApi(e.fechaCarga, e.createdAt),
+    observaciones: e.observaciones,
+    responsable: e.responsable,
+    version: e.version,
+    documentoRequeridoId: e.documentoRequeridoId,
+  }
+}
+
 /** Resuelve el nombre contra los programas cargados desde la API (`datos.programas` del almacén). */
 export function obtenerNombrePrograma(
   id: string,
   programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre'>>,
 ): string {
-  return programas.find((programa) => programa.id === id)?.nombre ?? 'Institucional'
+  if (!id) return 'Institución'
+  return programas.find((programa) => programa.id === id)?.nombre ?? 'Programa no disponible'
+}
+
+/** Nombre de programa para tablas: usa el objeto anidado de la API o el catálogo local. */
+export function obtenerNombreProgramaEvidencia(
+  evidencia: Pick<Evidencia, 'programaId' | 'programa' | 'codigoGuia'>,
+  programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre'>>,
+): string {
+  if (evidencia.programa?.nombre) return evidencia.programa.nombre
+  if (evidencia.programaId) {
+    return obtenerNombrePrograma(evidencia.programaId, programas)
+  }
+  if (evidencia.codigoGuia === 'G3' || evidencia.codigoGuia === 'G4') {
+    return 'Institución'
+  }
+  return 'Programa no disponible'
 }
 
 export function obtenerInicialesPrograma(nombre: string): string {

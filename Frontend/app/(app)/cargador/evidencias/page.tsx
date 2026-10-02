@@ -18,7 +18,7 @@ import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
-import { contarNovedadesCargador } from '@/lib/utilidades-siac'
+import { contarNovedadesCargador, mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
 export default function MisEvidenciasPage() {
   return (
@@ -52,15 +52,7 @@ function ContenidoMisEvidencias() {
           limite: LIMITE_FILAS_TABLA,
           programaId: programaId === 'todos' ? undefined : programaId,
         })
-        setEvidencias(
-          resp.datos.map((e) => ({
-            ...e,
-            fechaCarga:
-              typeof e.fechaCarga === 'string'
-                ? e.fechaCarga.slice(0, 10)
-                : new Date().toISOString().slice(0, 10),
-          })),
-        )
+        setEvidencias(resp.datos.map((e) => mapearEvidenciaDesdeApi(e)))
         setTotal(resp.total)
         return
       }
@@ -130,6 +122,7 @@ function ContenidoMisEvidencias() {
             evidencias={evidencias}
             enlaceDetalle={(id) => `/cargador/evidencias/${id}`}
             mostrarNovedades
+            mostrarHora
             onEliminar={(id) => setIdEliminar(id)}
           />
           <ControlesPaginacion

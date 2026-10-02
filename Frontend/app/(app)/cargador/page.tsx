@@ -70,7 +70,7 @@ function ContenidoInicioCargador() {
       </div>
 
       {misEvidencias.length > 0 && (
-        <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} />
+        <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} mostrarHora />
       )}
     </div>
   )

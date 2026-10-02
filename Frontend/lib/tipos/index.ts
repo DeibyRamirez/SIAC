@@ -73,10 +73,18 @@ export interface Programa {
   conteosEstado?: ConteosEstadoPrograma
 }
 
+export interface ResumenProgramaEvidencia {
+  id: string
+  nombre: string
+  codigo?: string
+  slug?: string
+}
+
 export interface Evidencia {
   id: string
   nombre: string
   programaId: string
+  programa?: ResumenProgramaEvidencia
   periodo: string
   estado: EstadoEvidencia
   autorId: string

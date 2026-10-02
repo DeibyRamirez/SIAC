@@ -43,6 +43,7 @@ import type {
   EstadoEvidencia,
   Plantilla,
 } from '@/lib/tipos'
+import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
 interface ContextoAlmacen {
   datos: DatosPrototipo
@@ -105,25 +106,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             listarProgramasApi().catch(() => []),
           ])
 
-          const evidencias: Evidencia[] = evResp.datos.map((e) => ({
-            id: e.id,
-            nombre: e.nombre,
-            programaId: e.programaId,
-            periodo: e.periodo,
-            codigoGuia: e.codigoGuia,
-            requiereChecklistMaestro: e.requiereChecklistMaestro,
-            puntajeActual: e.puntajeActual,
-            totalCondicionesActual: e.totalCondicionesActual,
-            estado: e.estado,
-            autorId: e.autorId,
-            nombreArchivo: e.nombreArchivo,
-            fechaCarga: typeof e.fechaCarga === 'string'
-              ? e.fechaCarga.slice(0, 10)
-              : new Date().toISOString().slice(0, 10),
-            observaciones: e.observaciones,
-            responsable: e.responsable,
-            version: e.version,
-          }))
+          const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
 
           const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
             ...a,
@@ -202,25 +185,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       }
 
       const creada = await crearEvidenciaApi(formData)
-      const mapeada: Evidencia = {
-        id: creada.id,
-        nombre: creada.nombre,
-        programaId: creada.programaId,
-        periodo: creada.periodo,
-        estado: creada.estado,
-        autorId: creada.autorId,
-        nombreArchivo: creada.nombreArchivo,
-        fechaCarga:
-          typeof creada.fechaCarga === 'string'
-            ? creada.fechaCarga.slice(0, 10)
-            : new Date().toISOString().slice(0, 10),
-        observaciones: creada.observaciones,
-        responsable: creada.responsable,
-        requiereChecklistMaestro: creada.requiereChecklistMaestro,
-        codigoGuia: creada.codigoGuia,
-        puntajeActual: creada.puntajeActual,
-        totalCondicionesActual: creada.totalCondicionesActual,
-      }
+      const mapeada = mapearEvidenciaDesdeApi(creada)
       persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
       return mapeada
     },

@@ -1,40 +1,25 @@
-import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 
-import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
-import { ContenidoEvidenciasAdmin } from '@/components/siac/contenido-evidencias-admin'
-import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
-import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
+import {
+  construirQueryBusqueda,
+  leerFiltrosBusquedaUrl,
+  valorParamUrl,
+} from '@/lib/utilidades/parametros-busqueda-url'
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-function valorParam(
-  params: Record<string, string | string[] | undefined>,
-  clave: string,
-): string | undefined {
-  const valor = params[clave]
-  if (Array.isArray(valor)) return valor[0]
-  return valor
-}
-
+/** Redirige al listado canónico HU-008 preservando los filtros en la URL. */
 export default async function EvidenciasAdministradorPage({ searchParams }: PageProps) {
   const params = await searchParams
+  const filtros = leerFiltrosBusquedaUrl(params)
 
-  const filtrosIniciales = {
-    q: valorParam(params, 'q'),
-    programaId: valorParam(params, 'programaId'),
-    codigoGuia: valorParam(params, 'codigoGuia'),
-    periodo: valorParam(params, 'periodo') ?? periodoAcademicoActual(),
-    estado: valorParam(params, 'estado'),
-    pagina: valorParam(params, 'pagina'),
+  if (!filtros.programa) {
+    const programaId = valorParamUrl(params, 'programaId')
+    if (programaId) filtros.programa = programaId
   }
 
-  return (
-    <PlantillaPaginaApp titulo="Evidencias y documentos" roles={ROLES_CONSULTA_INSTITUCIONAL}>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando…</p>}>
-        <ContenidoEvidenciasAdmin filtrosIniciales={filtrosIniciales} />
-      </Suspense>
-    </PlantillaPaginaApp>
-  )
+  const qs = construirQueryBusqueda(filtros)
+  redirect(qs ? `/administrador/busqueda?${qs}` : '/administrador/busqueda')
 }
