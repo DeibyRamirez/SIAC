@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
 import { calcularAvancePonderado, esEstadoRevisado, redondear2 } from '../dominio/panel-siac';
+import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 
 export interface DocumentoProgresoSIAC {
@@ -218,11 +219,12 @@ export class AvanceProcesoSIACService {
 /**
  * Aporte interno de una guía (0-100):
  * - Cumple o Validado => 100.
- * - Rechazado => 0.
- * - Con puntaje de verificación previa => proporción n/total.
+ * - G2/G4 (sin puntaje): 0 hasta que se aprueban; «Con observaciones» aporta 0 (ya no hay «G2 al 70 %»).
+ * - G1/G3 con puntaje de verificación => proporción n/total.
  * - Sin verificación revisada => 0.
  */
 export function porcentajeInternoEvidencia(evidencia: {
+  codigoGuia?: CodigoDocumentoGuia | null;
   estado: EstadoEvidencia;
   puntajeActual: number | null;
   totalCondicionesActual: number | null;
@@ -231,6 +233,7 @@ export function porcentajeInternoEvidencia(evidencia: {
     return 100;
   }
   if (evidencia.estado === EstadoEvidencia.Rechazado) return 0;
+  if (esGuiaSinPuntaje(evidencia.codigoGuia)) return 0;
   if (evidencia.puntajeActual !== null && evidencia.totalCondicionesActual) {
     return (evidencia.puntajeActual / evidencia.totalCondicionesActual) * 100;
   }

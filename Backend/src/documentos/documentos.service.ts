@@ -29,6 +29,7 @@ import { parsearParametrosConsultaEvidencias } from './parametros-consulta-evide
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 
 import { AvanceProgramaService } from '../programas/avance-programa.service';
+import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 
 import {
 
@@ -715,15 +716,25 @@ export class DocumentosService {
 
 
     const guiaDocumento = this.resolverGuiaEvidencia(evidencia);
+    // Decisión del PO (06/10): G2 y G4 no se puntúan por condiciones.
+    const guiaSinPuntaje = esGuiaSinPuntaje(guiaDocumento);
+
+    if (guiaSinPuntaje && (dto.condiciones?.length || dto.condicionesInstitucionales?.length)) {
+      throw new BadRequestException(
+        `El ${guiaDocumento} no se evalúa por condiciones: apruébelo o déjelo «Con observaciones» con el texto de corrección.`,
+      );
+    }
 
     const usaChecklistPrograma =
-      guiaDocumento === CodigoDocumentoGuia.G1 ||
-      (dto.condiciones && dto.condiciones.length > 0);
+      !guiaSinPuntaje &&
+      (guiaDocumento === CodigoDocumentoGuia.G1 ||
+        (dto.condiciones && dto.condiciones.length > 0));
 
     const usaChecklistInstitucional =
-      guiaDocumento === CodigoDocumentoGuia.G3 ||
-      (dto.condicionesInstitucionales &&
-        dto.condicionesInstitucionales.length > 0);
+      !guiaSinPuntaje &&
+      (guiaDocumento === CodigoDocumentoGuia.G3 ||
+        (dto.condicionesInstitucionales &&
+          dto.condicionesInstitucionales.length > 0));
 
 
 
@@ -836,8 +847,23 @@ export class DocumentosService {
         );
       observacionesResumen =
         lineasObservacion.length > 0 ? lineasObservacion.join('\n') : dto.observaciones;
+    } else if (guiaSinPuntaje) {
+      // G2/G4: aprobar (Validado) o «Con observaciones» con texto de corrección; el Cargador
+      // corrige y sube una versión nueva (mismo ciclo que G1). Ya no se usa «Rechazado».
+      if (estadoFinal !== EstadoEvidencia.Validado && estadoFinal !== EstadoEvidencia.ConObservaciones) {
+        throw new BadRequestException(
+          `El dictamen del ${guiaDocumento} debe ser «Validado» (aprobado) o «Con observaciones».`,
+        );
+      }
+      const tieneTextoCorreccion =
+        !!dto.observaciones?.trim() || !!dto.comentariosInline?.some((c) => c.texto?.trim());
+      if (estadoFinal === EstadoEvidencia.ConObservaciones && !tieneTextoCorreccion) {
+        throw new BadRequestException(
+          'Registra el texto de corrección para dejar el documento «Con observaciones».',
+        );
+      }
     } else {
-      // Documentos sin checklist (G2, G4 u otros): decisión explícita del Revisor.
+      // Documentos sin guía (legado): decisión explícita del Revisor.
       if (
         estadoFinal !== EstadoEvidencia.Validado &&
         estadoFinal !== EstadoEvidencia.Rechazado

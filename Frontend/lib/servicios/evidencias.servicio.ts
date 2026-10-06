@@ -112,7 +112,7 @@ export interface PuntajeVerificacion {
 export async function dictaminarEvidenciaApi(
   id: string,
   payload: {
-    estado?: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>
+    estado?: Extract<EstadoEvidencia, 'Validado' | 'Rechazado' | 'ConObservaciones'>
     observaciones?: string
     condiciones?: CondicionDictamenPayload[]
     comentariosInline?: ComentarioInlinePayload[]

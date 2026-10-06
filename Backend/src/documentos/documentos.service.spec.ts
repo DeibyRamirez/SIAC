@@ -320,6 +320,51 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     );
   });
 
+  describe('G2/G4 sin puntaje (decisión del PO, 06/10)', () => {
+    it('rechaza un dictamen con condiciones para G2', async () => {
+      evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
+
+      await expect(
+        servicio.dictaminar('ev-1', { condiciones: condicionesPrograma(7) }, revisor),
+      ).rejects.toThrow(/no se evalúa por condiciones/);
+      expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('«Con observaciones» exige texto de corrección', async () => {
+      evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G4));
+
+      await expect(
+        servicio.dictaminar('ev-1', { estado: EstadoEvidencia.ConObservaciones }, revisor),
+      ).rejects.toThrow(/texto de corrección/);
+    });
+
+    it('«Con observaciones» con texto queda sin puntaje y el cargador puede corregir', async () => {
+      evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
+
+      await servicio.dictaminar(
+        'ev-1',
+        { estado: EstadoEvidencia.ConObservaciones, observaciones: 'Falta el plan de mejoramiento 2025.' },
+        revisor,
+      );
+
+      const datos = evidenciaRepo.actualizar.mock.calls[0][1];
+      expect(datos).toMatchObject({ estado: EstadoEvidencia.ConObservaciones });
+      expect(datos).not.toHaveProperty('puntajeActual');
+      expect(notificaciones.crear).toHaveBeenCalledWith('car', expect.stringContaining('plan de mejoramiento'), 'observaciones');
+    });
+
+    it('aprobar deja el G2 «Validado»; «Rechazado» ya no aplica', async () => {
+      evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
+      await servicio.dictaminar('ev-1', { estado: EstadoEvidencia.Validado }, revisor);
+      expect(evidenciaRepo.actualizar.mock.calls[0][1]).toMatchObject({ estado: EstadoEvidencia.Validado });
+
+      evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
+      await expect(
+        servicio.dictaminar('ev-1', { estado: EstadoEvidencia.Rechazado, observaciones: 'x' }, revisor),
+      ).rejects.toThrow(/Validado.*Con observaciones/);
+    });
+  });
+
   it('9 de 9 condiciones => estado Cumple (no Validado)', async () => {
     evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G1));
 
@@ -400,8 +445,8 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('sin checklist, Rechazado solo sale de la decisión explícita del Revisor', async () => {
-    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
+  it('evidencia sin guía (legado): Rechazado solo sale de la decisión explícita del Revisor', async () => {
+    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(null));
 
     await servicio.dictaminar(
       'ev-1',
@@ -417,7 +462,7 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     expect(datos).not.toHaveProperty('puntajeActual');
   });
 
-  it('sin checklist no acepta Cumple ni Con observaciones como decisión', async () => {
+  it('G2 no acepta «Cumple» como decisión (no tiene puntaje)', async () => {
     evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G2));
 
     await expect(

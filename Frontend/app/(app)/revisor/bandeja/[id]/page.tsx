@@ -433,15 +433,15 @@ function ContenidoDictamen() {
     }
 
     // Con checklist el resultado sale del puntaje: Cumple (n = total) o Con observaciones.
-    // Sin checklist (G2/G4) es la decisión explícita del Revisor: Validado o Rechazado.
+    // G2/G4 no se puntúan (decisión del PO, 06/10): aprobar (Validado) o «Con observaciones».
     const estado = usaChecklist
       ? todasCumplen
         ? 'Cumple'
         : 'ConObservaciones'
       : aprobacionTotal
         ? 'Validado'
-        : 'Rechazado'
-    const estadoDecision = aprobacionTotal ? 'Validado' : 'Rechazado'
+        : 'ConObservaciones'
+    const estadoDecision = aprobacionTotal ? 'Validado' : 'ConObservaciones'
     const observaciones = usaChecklist
       ? (usaChecklistInstitucional
           ? payloadCondicionesInstitucionales
@@ -464,9 +464,14 @@ function ContenidoDictamen() {
             }))
         : []
 
-    if (!usaChecklist && !aprobacionTotal && comentariosPayload.length === 0) {
+    if (
+      !usaChecklist &&
+      !aprobacionTotal &&
+      comentariosPayload.length === 0 &&
+      !observacionesGenerales.trim()
+    ) {
       setMensaje(
-        'Selecciona texto en el documento y agrega al menos un comentario para enviar a corrección.',
+        'Escribe el texto de corrección o agrega al menos un comentario sobre el documento.',
       )
       return
     }
@@ -803,7 +808,7 @@ function ContenidoDictamen() {
                 />
                 <p className="text-xs text-muted-foreground">
                   {guiaDocumento === 'G2' || guiaDocumento === 'G4'
-                    ? 'Documento de respaldo de mejoramiento: aprueba si cumple el artículo correspondiente o envía observaciones de corrección.'
+                    ? 'Documento de respaldo de mejoramiento (sin puntaje): apruébalo o déjalo «Con observaciones» con el texto de corrección. Aporta 0 % al avance hasta que se apruebe.'
                     : 'Para aprobar, el campo de observaciones debe estar vacío.'}
                 </p>
               </label>
@@ -888,8 +893,8 @@ function ContenidoDictamen() {
           usaChecklist
             ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
             : comentariosInline.filter((c) => c.body.trim()).length > 0
-              ? `El documento quedará «Rechazado» y el cargador verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) sobre el documento.`
-              : 'El documento quedará «Rechazado» y el cargador verá tus observaciones.'
+              ? `El documento quedará «Con observaciones» y el cargador verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
+              : 'El documento quedará «Con observaciones» y el cargador verá el texto de corrección para subir una versión corregida.'
         }
         etiquetaConfirmar="Sí, enviar"
         variant="destructive"

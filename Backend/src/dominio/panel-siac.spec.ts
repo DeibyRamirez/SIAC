@@ -11,14 +11,21 @@ import {
 
 describe('panel-siac', () => {
   describe('calcularAvancePonderado', () => {
-    it('renovación programa G1 8/9 y G2 70% con pesos 90/10', () => {
+    it('renovación programa G1 8/9 y G2 sin aprobar (0 %) con pesos 90/10 = 80,0', () => {
       const g1Pct = (8 / 9) * 100;
       const avance = calcularAvancePonderado([
         { codigoGuia: 'G1', porcentajeInterno: g1Pct, peso: 90 },
-        { codigoGuia: 'G2', porcentajeInterno: 70, peso: 10 },
+        { codigoGuia: 'G2', porcentajeInterno: 0, peso: 10 },
       ]);
-      const esperado = g1Pct * 0.9 + 70 * 0.1;
-      expect(avance).toBeCloseTo(esperado, 1);
+      expect(avance).toBe(80);
+    });
+
+    it('renovación programa G1 9/9 y G2 aprobado (100 %) = 100', () => {
+      const avance = calcularAvancePonderado([
+        { codigoGuia: 'G1', porcentajeInterno: 100, peso: 90 },
+        { codigoGuia: 'G2', porcentajeInterno: 100, peso: 10 },
+      ]);
+      expect(avance).toBe(100);
     });
 
     it('nuevo con G1 100% y peso 100%', () => {
