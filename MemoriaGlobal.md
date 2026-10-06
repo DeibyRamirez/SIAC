@@ -496,6 +496,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Frontend] Panel de programas como Server Component con filtros en la URL, n/9, fecha de resolución y semestre; sin datos simulados.
 - [CI] La CI corre `jest`, `test:e2e` (supertest sobre `postgres:16`) y `pnpm test` (Vitest). E2E del flujo CP-E2E-01 a CP-E2E-05 en `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`.
 - [Docs] T-DOC.1: jerarquía real de ClickUp (workspace `90171502668`, lista `901717352937`), HU-008 y HU-010 en curso, DoD de la Etapa 2 sin marcar hasta el cierre en ClickUp, RN-003 corregida en la Etapa 1 y se elimina el volcado de texto del backend que estaba en la raíz del repositorio.
+- [HU-010] Cierre del PR #7 (auditoría F.3): se portan sobre la `Institucion` existente solo el propietario único de la evidencia (CHECK `Evidencia_propietario_unico_chk` y `Evidencia_guia_propietario_chk`: G1/G2 → programa, G3/G4 → institución), los trámites por alcance (CHECK en `Programa` e `Institucion`; `PATCH /programas/:id` responde 400 con un trámite institucional), la FK `Evidencia.institucionId` con `ON DELETE RESTRICT` (migración `20261006050000`), `programaId`/`institucionId` opcionales con `resolverPropietario`, `dominio/alcance-guia.ts` y, en el frontend, la carga G3/G4 sin programa, `obtenerNombrePropietario` y la columna «Programa / institución». Se descartan el segundo modelo `Institucion` (con `sigla`), su migración, `factor`/`indicador`, la búsqueda vieja, la semilla demo y `/instituciones`.
 
 ### 2026-09-30 — Arquitectura catálogo API + dominio SIAC
 

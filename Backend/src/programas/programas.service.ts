@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
+import { AlcanceTramiteSIAC, CategoriaAnexo, EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
 import { conEstadoCalculado, hayAnexoInfraestructuraVencido } from '../dominio/vigencia-anexo';
+import { alcanceDeTramite } from '../dominio/alcance-guia';
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
@@ -139,7 +141,15 @@ export class ProgramasService {
     if (dto.modalidad !== undefined) datos.modalidad = dto.modalidad.trim() || null;
     if (dto.codigoSnies !== undefined) datos.codigoSnies = dto.codigoSnies.trim() || null;
     if (dto.duracionSemestres !== undefined) datos.duracionSemestres = dto.duracionSemestres;
-    if (dto.tipoTramiteActivo !== undefined) datos.tipoTramiteActivo = dto.tipoTramiteActivo;
+    if (dto.tipoTramiteActivo !== undefined) {
+      // HU-010: un programa solo lleva trámites de programa (CHECK Programa_tramite_alcance_programa_chk).
+      if (alcanceDeTramite(dto.tipoTramiteActivo) !== AlcanceTramiteSIAC.Programa) {
+        throw new BadRequestException(
+          'El trámite debe ser de alcance de programa (G1/G2). Los trámites institucionales se gestionan en la institución.',
+        );
+      }
+      datos.tipoTramiteActivo = dto.tipoTramiteActivo;
+    }
 
     return this.programaRepo.actualizar(id, datos);
   }

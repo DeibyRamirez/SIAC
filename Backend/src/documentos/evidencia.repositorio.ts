@@ -130,6 +130,7 @@ export class EvidenciaRepositorio {
 
       include: {
         programa: true,
+        institucion: { select: { id: true, nombre: true, codigo: true } },
         autor: { select: { id: true, nombre: true, correo: true } },
         evaluacionesCondicion: {
           orderBy: [{ numeroRevision: 'desc' }, { codigoCondicion: 'asc' }],
@@ -292,6 +293,7 @@ export class EvidenciaRepositorio {
         where: whereFinal,
         include: {
           programa: { select: { id: true, nombre: true, codigo: true, slug: true } },
+          institucion: { select: { id: true, nombre: true, codigo: true } },
           autor: { select: { id: true, nombre: true, correo: true } },
         },
         orderBy,
@@ -740,6 +742,8 @@ export class EvidenciaRepositorio {
           include: {
 
             programa: { select: { id: true, nombre: true } },
+
+            institucion: { select: { id: true, nombre: true, codigo: true } },
 
             autor: { select: { id: true, nombre: true } },
 

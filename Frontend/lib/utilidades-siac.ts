@@ -1,8 +1,16 @@
-import type { EstadoEvidencia, Evidencia, Programa, ResumenProgramaEvidencia } from '@/lib/tipos'
+import type {
+  EstadoEvidencia,
+  Evidencia,
+  Programa,
+  ReferenciaInstitucion,
+  ResumenProgramaEvidencia,
+} from '@/lib/tipos'
 
 type EvidenciaApi = Partial<Evidencia> & {
   programaId?: string | null
   programa?: ResumenProgramaEvidencia | null
+  institucionId?: string | null
+  institucion?: ReferenciaInstitucion | null
   fechaCarga?: string | Date
   createdAt?: string | Date
 }
@@ -42,13 +50,16 @@ function normalizarFechaCargaApi(
 /** Mapea la respuesta de GET/POST evidencias conservando programa anidado y timestamp. */
 export function mapearEvidenciaDesdeApi(e: EvidenciaApi): Evidencia {
   const programa = e.programa ?? undefined
-  const programaId = e.programaId ?? programa?.id ?? ''
+  const programaId = e.programaId ?? programa?.id ?? null
+  const institucion = e.institucion ?? undefined
 
   return {
     id: e.id!,
     nombre: e.nombre!,
     programaId,
     programa,
+    institucionId: e.institucionId ?? institucion?.id ?? null,
+    institucion,
     periodo: e.periodo!,
     codigoGuia: e.codigoGuia,
     requiereChecklistMaestro: e.requiereChecklistMaestro,
@@ -67,25 +78,44 @@ export function mapearEvidenciaDesdeApi(e: EvidenciaApi): Evidencia {
 
 /** Resuelve el nombre contra los programas cargados desde la API (`datos.programas` del almacén). */
 export function obtenerNombrePrograma(
-  id: string,
+  id: string | null | undefined,
   programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre'>>,
 ): string {
   if (!id) return 'Institución'
   return programas.find((programa) => programa.id === id)?.nombre ?? 'Programa no disponible'
 }
 
-/** Nombre de programa para tablas: usa el objeto anidado de la API o el catálogo local. */
-export function obtenerNombreProgramaEvidencia(
-  evidencia: Pick<Evidencia, 'programaId' | 'programa' | 'codigoGuia'>,
+/** HU-010: los documentos G3/G4 pertenecen a la institución; los demás, a un programa. */
+export function esEvidenciaInstitucional(
+  evidencia: Pick<Evidencia, 'programaId' | 'institucionId' | 'codigoGuia'>,
+): boolean {
+  if (evidencia.institucionId) return true
+  if (evidencia.programaId) return false
+  return evidencia.codigoGuia === 'G3' || evidencia.codigoGuia === 'G4'
+}
+
+/** Etiqueta del propietario para detalles: «Institución» o «Programa». */
+export function etiquetaPropietario(
+  evidencia: Pick<Evidencia, 'programaId' | 'institucionId' | 'codigoGuia'>,
+): string {
+  return esEvidenciaInstitucional(evidencia) ? 'Institución' : 'Programa'
+}
+
+/**
+ * HU-010: nombre del propietario de la evidencia (programa o institución) para tablas y detalles.
+ * Usa los objetos anidados de la API y, si faltan, el catálogo local de programas.
+ */
+export function obtenerNombrePropietario(
+  evidencia: Pick<Evidencia, 'programaId' | 'programa' | 'institucionId' | 'institucion' | 'codigoGuia'>,
   programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre'>>,
 ): string {
+  if (esEvidenciaInstitucional(evidencia)) {
+    const institucion = evidencia.institucion
+    if (!institucion?.nombre) return 'Institución'
+    return institucion.codigo ? `${institucion.nombre} (${institucion.codigo})` : institucion.nombre
+  }
   if (evidencia.programa?.nombre) return evidencia.programa.nombre
-  if (evidencia.programaId) {
-    return obtenerNombrePrograma(evidencia.programaId, programas)
-  }
-  if (evidencia.codigoGuia === 'G3' || evidencia.codigoGuia === 'G4') {
-    return 'Institución'
-  }
+  if (evidencia.programaId) return obtenerNombrePrograma(evidencia.programaId, programas)
   return 'Programa no disponible'
 }
 

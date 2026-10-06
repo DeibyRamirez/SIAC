@@ -21,7 +21,8 @@ import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import {
   formatoVisorDesdeArchivo,
   formatearFecha,
-  obtenerNombrePrograma,
+  etiquetaPropietario,
+  obtenerNombrePropietario,
 } from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaAdminPage() {
@@ -129,8 +130,8 @@ function ContenidoDetalleAdmin() {
         <Card>
           <CardContent className="space-y-4 pt-6 text-sm">
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Programa</p>
-              <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
+              <p className="text-xs uppercase text-muted-foreground">{etiquetaPropietario(evidencia)}</p>
+              <p>{obtenerNombrePropietario(evidencia, datos.programas)}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Periodo</p>

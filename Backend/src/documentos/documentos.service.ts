@@ -65,6 +65,8 @@ import {
   ServicioAlcancePrograma,
 } from '../common/alcance/servicio-alcance-programa';
 
+import { esGuiaInstitucional } from '../dominio/alcance-guia';
+
 
 
 const TIPOS_PERMITIDOS = [
@@ -131,15 +133,6 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-    await this.exigirProgramaAsignado(usuario, dto.programaId);
-
-    const programa = await this.evidenciaRepo.buscarPrograma(dto.programaId);
-    if (!programa) {
-      throw new BadRequestException(
-        'El programa seleccionado no existe. Actualice la lista de programas y vuelva a intentarlo.',
-      );
-    }
-
     if (dto.documentoRequeridoId) {
       const documento = await this.evidenciaRepo.buscarDocumentoRequerido(
         dto.documentoRequeridoId,
@@ -149,9 +142,6 @@ export class DocumentosService {
       }
     }
 
-
-
-
     const requiereChecklistLegacy =
       dto.requiereChecklistMaestro === 'true' ||
       dto.requiereChecklistMaestro === '1';
@@ -160,28 +150,14 @@ export class DocumentosService {
       dto.codigoGuia ??
       (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
 
-    const esInstitucional =
-      codigoGuia === CodigoDocumentoGuia.G3 || codigoGuia === CodigoDocumentoGuia.G4;
-
-    if (!esInstitucional) {
-      await this.exigirProgramaAsignado(usuario, dto.programaId);
-    }
-
-    const institucion = esInstitucional
-      ? await this.prisma.institucion.findFirst()
-      : null;
-
-    if (esInstitucional && !institucion) {
-      throw new BadRequestException('No hay institución configurada para evidencias G3/G4.');
-    }
+    // HU-010: la guía define el propietario (G1/G2 → programa; G3/G4 → institución).
+    const propietario = await this.resolverPropietario(dto, codigoGuia, usuario);
 
     const evidencia = await this.evidenciaRepo.crear({
 
       nombre: dto.nombre,
 
-      ...(esInstitucional && institucion
-        ? { institucion: { connect: { id: institucion.id } } }
-        : { programa: { connect: { id: dto.programaId } } }),
+      ...propietario,
 
       periodo: dto.periodo,
 
@@ -1569,6 +1545,71 @@ export class DocumentosService {
 
     }
 
+  }
+
+  /**
+   * HU-010: define el propietario de la evidencia según la guía.
+   * - G3/G4 → institución (la indicada o la única configurada, la CUAC). No aceptan programa.
+   * - G1/G2 o sin guía → programa asignado al Cargador. No aceptan institución.
+   * Quien carga documentos institucionales debe tener al menos un programa asignado
+   * (salvo el SuperAdmin), la misma condición que exigía el «programa de referencia».
+   */
+  private async resolverPropietario(
+    dto: CrearEvidenciaDto,
+    codigoGuia: CodigoDocumentoGuia | undefined,
+    usuario: UsuarioToken,
+  ): Promise<
+    | { programa: { connect: { id: string } } }
+    | { institucion: { connect: { id: string } } }
+  > {
+    if (esGuiaInstitucional(codigoGuia)) {
+      if (dto.programaId) {
+        throw new BadRequestException(
+          'Los documentos institucionales (G3 y G4) se asocian a la institución, no a un programa.',
+        );
+      }
+
+      const institucion = dto.institucionId
+        ? await this.prisma.institucion.findUnique({ where: { id: dto.institucionId } })
+        : await this.prisma.institucion.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (!institucion) {
+        throw new BadRequestException(
+          dto.institucionId
+            ? 'La institución indicada no existe.'
+            : 'No hay institución configurada para evidencias G3/G4.',
+        );
+      }
+
+      if (!this.esSuperAdmin(usuario)) {
+        const asignados = await this.alcance.idsProgramasAsignados(usuario.id);
+        if (asignados.length === 0) {
+          throw new ForbiddenException(
+            'Necesita al menos un programa asignado para cargar documentos institucionales.',
+          );
+        }
+      }
+
+      return { institucion: { connect: { id: institucion.id } } };
+    }
+
+    if (dto.institucionId) {
+      throw new BadRequestException('Solo los documentos G3 y G4 se asocian a la institución.');
+    }
+
+    if (!dto.programaId) {
+      throw new BadRequestException('Seleccione el programa del documento.');
+    }
+
+    await this.exigirProgramaAsignado(usuario, dto.programaId);
+
+    const programa = await this.evidenciaRepo.buscarPrograma(dto.programaId);
+    if (!programa) {
+      throw new BadRequestException(
+        'El programa seleccionado no existe. Actualice la lista de programas y vuelva a intentarlo.',
+      );
+    }
+
+    return { programa: { connect: { id: dto.programaId } } };
   }
 
   private resolverGuiaEvidencia(evidencia: {

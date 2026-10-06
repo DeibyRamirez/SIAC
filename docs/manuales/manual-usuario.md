@@ -33,7 +33,7 @@ Responsable de cargar y corregir evidencias documentales.
 **Capacidades**
 
 - Descargar plantillas vigentes desde la biblioteca
-- Subir evidencias indicando programa, periodo y guía del trámite (G1–G4)
+- Subir evidencias indicando periodo y guía del trámite (G1–G4). G1 y G2 se asocian a un programa asignado; G3 y G4 pertenecen a la institución (CUAC) y no piden programa
 - Consultar el estado de cada documento (borrador, en revisión, aprobado, corrección)
 - Ver el documento en el visor integrado (URL firmada desde almacenamiento)
 - Recibir indicador de **novedades** (badge) cuando tiene evidencias en estado *Corrección* (rechazadas)

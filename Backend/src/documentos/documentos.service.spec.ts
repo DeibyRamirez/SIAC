@@ -765,3 +765,135 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     );
   });
 });
+
+describe('DocumentosService propietario de la evidencia (HU-010)', () => {
+  const evidenciaRepo = {
+    crear: jest.fn(),
+    actualizar: jest.fn(),
+    registrarVersion: jest.fn(),
+    registrarHistorial: jest.fn(),
+    buscarPorId: jest.fn(),
+    buscarPrograma: jest.fn(),
+    buscarDocumentoRequerido: jest.fn(),
+    eliminar: jest.fn(),
+  };
+  const almacenamiento = {
+    generarClaveEvidencia: jest.fn().mockReturnValue('evidencias/clave.docx'),
+    subirArchivo: jest.fn(),
+  };
+  const alcance = {
+    estaAsignado: jest.fn(),
+    idsProgramasAsignados: jest.fn(),
+  };
+  const prisma = {
+    institucion: { findFirst: jest.fn(), findUnique: jest.fn() },
+  };
+  const servicio = new DocumentosService(
+    evidenciaRepo as unknown as EvidenciaRepositorio,
+    almacenamiento as never,
+    {} as never,
+    {} as never,
+    { validarEsDocxZip: jest.fn() } as never,
+    alcance as unknown as ServicioAlcancePrograma,
+    prisma as never,
+  );
+  const cargador = { id: 'car', rol: RolUsuario.Cargador };
+  const archivo = {
+    originalname: 'documento.docx',
+    mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    size: 1024,
+    buffer: Buffer.from('PK'),
+  } as Express.Multer.File;
+  const base = { nombre: 'Condiciones institucionales', periodo: '2026-1' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    evidenciaRepo.crear.mockResolvedValue({ id: 'ev-n' });
+    evidenciaRepo.buscarPorId.mockResolvedValue({ id: 'ev-n' });
+    evidenciaRepo.buscarPrograma.mockResolvedValue({ id: 'prog-1' });
+    prisma.institucion.findFirst.mockResolvedValue({ id: 'inst-cuac' });
+    prisma.institucion.findUnique.mockResolvedValue(null);
+    alcance.idsProgramasAsignados.mockResolvedValue(['prog-1']);
+    alcance.estaAsignado.mockResolvedValue(true);
+  });
+
+  it('G3 sin programa se asocia a la CUAC y no a un programa', async () => {
+    await servicio.crearConArchivo({ ...base, codigoGuia: CodigoDocumentoGuia.G3 }, archivo, cargador);
+
+    const datos = evidenciaRepo.crear.mock.calls[0][0];
+    expect(datos.institucion).toEqual({ connect: { id: 'inst-cuac' } });
+    expect(datos).not.toHaveProperty('programa');
+    expect(alcance.estaAsignado).not.toHaveBeenCalled();
+    expect(evidenciaRepo.buscarPrograma).not.toHaveBeenCalled();
+  });
+
+  it('G4 con institución explícita inexistente responde 400', async () => {
+    await expect(
+      servicio.crearConArchivo(
+        { ...base, codigoGuia: CodigoDocumentoGuia.G4, institucionId: 'no-existe' },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evidenciaRepo.crear).not.toHaveBeenCalled();
+  });
+
+  it('G4 con programa responde 400', async () => {
+    await expect(
+      servicio.crearConArchivo(
+        { ...base, codigoGuia: CodigoDocumentoGuia.G4, programaId: 'prog-1' },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evidenciaRepo.crear).not.toHaveBeenCalled();
+  });
+
+  it('un Cargador sin programas asignados no carga documentos institucionales', async () => {
+    alcance.idsProgramasAsignados.mockResolvedValue([]);
+
+    await expect(
+      servicio.crearConArchivo({ ...base, codigoGuia: CodigoDocumentoGuia.G3 }, archivo, cargador),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('G1 exige programa y no acepta institución', async () => {
+    await expect(
+      servicio.crearConArchivo({ ...base, codigoGuia: CodigoDocumentoGuia.G1 }, archivo, cargador),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await expect(
+      servicio.crearConArchivo(
+        { ...base, codigoGuia: CodigoDocumentoGuia.G1, programaId: 'prog-1', institucionId: 'inst-cuac' },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evidenciaRepo.crear).not.toHaveBeenCalled();
+  });
+
+  it('G1 de un programa no asignado responde 403', async () => {
+    alcance.estaAsignado.mockResolvedValue(false);
+
+    await expect(
+      servicio.crearConArchivo(
+        { ...base, codigoGuia: CodigoDocumentoGuia.G1, programaId: 'prog-ajeno' },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('G2 de un programa asignado se asocia al programa', async () => {
+    await servicio.crearConArchivo(
+      { ...base, codigoGuia: CodigoDocumentoGuia.G2, programaId: 'prog-1' },
+      archivo,
+      cargador,
+    );
+
+    const datos = evidenciaRepo.crear.mock.calls[0][0];
+    expect(datos.programa).toEqual({ connect: { id: 'prog-1' } });
+    expect(datos).not.toHaveProperty('institucion');
+    expect(prisma.institucion.findFirst).not.toHaveBeenCalled();
+  });
+});

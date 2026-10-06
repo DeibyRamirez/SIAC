@@ -66,7 +66,8 @@ import {
   formatoVisorDesdeArchivo,
   formatearFecha,
   formatearPuntaje,
-  obtenerNombrePrograma,
+  etiquetaPropietario,
+  obtenerNombrePropietario,
 } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -625,8 +626,8 @@ function ContenidoDictamen() {
             />
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
+                <p className="text-xs uppercase text-muted-foreground">{etiquetaPropietario(evidencia)}</p>
+                <p>{obtenerNombrePropietario(evidencia, datos.programas)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>
