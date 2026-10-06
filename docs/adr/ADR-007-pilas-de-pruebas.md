@@ -1,4 +1,4 @@
-# ADR 0001 — Pilas de pruebas: Jest + supertest en el backend y Vitest + Testing Library en el frontend
+# ADR-007 — Pilas de pruebas: Jest + supertest en el backend y Vitest + Testing Library en el frontend
 
 - **Estado:** Aceptada
 - **Fecha:** 06/10/2026

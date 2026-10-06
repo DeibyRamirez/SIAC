@@ -115,6 +115,7 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-004 | `periodo` como String; factor/indicador retirados (T-REF-001), clasificación por `codigoGuia` G1–G4 |
 | ADR-005 | Copia local maestros + adapter integracion |
 | ADR-006 | Alertas in-app; SMTP opcional |
+| ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
 
