@@ -15,8 +15,12 @@ export class IntegracionController {
 
   @Get('estado-storage')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  estadoStorage() {
-    return this.almacenamiento.obtenerEstadoConexion();
+  async estadoStorage() {
+    // R-D 3b: incluye si cada bucket (evidencias, plantillas, documentos) existe de verdad.
+    return {
+      ...this.almacenamiento.obtenerEstadoConexion(),
+      buckets: await this.almacenamiento.verificarBuckets(),
+    };
   }
 
   @Post('sincronizar')

@@ -19,6 +19,7 @@ import {
   validarPesosTramite,
 } from '../dominio/panel-siac';
 import { ColorSemaforo } from '../dominio/puntaje-condiciones';
+import { conEstadoCalculado } from '../dominio/vigencia-anexo';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
@@ -188,10 +189,13 @@ export class PanelProgramasService implements OnModuleInit {
     const guiasPrograma = [CodigoDocumentoGuia.G1, CodigoDocumentoGuia.G2];
 
     const [anexos, evidencias] = await Promise.all([
-      this.prisma.anexoVigencia.findMany({
-        where: { programaId: { in: ids } },
-        select: { programaId: true, estado: true, tipo: true },
-      }),
+      this.prisma.anexoVigencia
+        .findMany({
+          where: { programaId: { in: ids } },
+          select: { programaId: true, estado: true, tipo: true, fechaVencimiento: true },
+        })
+        // R-D 3e: estado calculado al consultar; no depende del cron de las 6:00.
+        .then((filas) => filas.map((anexo) => conEstadoCalculado(anexo))),
       this.prisma.evidencia.findMany({
         where: {
           programaId: { in: ids },

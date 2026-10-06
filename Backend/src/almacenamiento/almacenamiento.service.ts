@@ -12,6 +12,8 @@ import {
 
   DeleteObjectCommand,
 
+  HeadBucketCommand,
+
 } from '@aws-sdk/client-s3';
 
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -35,6 +37,8 @@ import {
 import { join, dirname } from 'path';
 
 import { randomUUID } from 'crypto';
+
+import { sanitizarSegmentoClaveS3 } from './utilidades-nombre-archivo';
 
 
 
@@ -136,12 +140,42 @@ export class AlmacenamientoService {
 
 
 
+  /**
+   * Clave ASCII para Supabase Storage (R-D 3a): tildes, «ñ», rayas y espacios del nombre o
+   * de la carpeta hacían fallar la subida con «Invalid key».
+   */
   generarClaveDocumento(carpeta: string, nombreOriginal: string): string {
+    const carpetaNormalizada =
+      carpeta
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'general';
+    return `documentos/${carpetaNormalizada}/${randomUUID()}/${sanitizarSegmentoClaveS3(nombreOriginal)}`;
+  }
 
-    const carpetaNormalizada = carpeta.trim().toLowerCase().replace(/\s+/g, '-');
-
-    return `documentos/${carpetaNormalizada}/${randomUUID()}/${nombreOriginal}`;
-
+  /**
+   * Comprueba que los buckets configurados existan (R-D 3b). En modo local siempre existen.
+   * No lanza: devuelve el resultado por bucket para registrarlo o mostrarlo en el diagnóstico.
+   */
+  async verificarBuckets(): Promise<{ tipo: TipoBucket; bucket: string; existe: boolean; error?: string }[]> {
+    const tipos: TipoBucket[] = ['evidencias', 'plantillas', 'documentos'];
+    return Promise.all(
+      tipos.map(async (tipo) => {
+        const bucket = this.resolverBucket(tipo);
+        if (this.usarLocal) return { tipo, bucket, existe: true };
+        try {
+          await this.s3Client!.send(new HeadBucketCommand({ Bucket: bucket }));
+          return { tipo, bucket, existe: true };
+        } catch (error) {
+          const nombre = (error as { name?: string }).name ?? 'Error';
+          return { tipo, bucket, existe: false, error: `${nombre}: ${(error as Error).message}` };
+        }
+      }),
+    );
   }
 
 

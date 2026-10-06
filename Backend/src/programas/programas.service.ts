@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
+import { conEstadoCalculado } from '../dominio/vigencia-anexo';
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
@@ -38,11 +39,14 @@ export class ProgramaRepositorio {
     return this.prisma.programa.findUnique({ where: { id } });
   }
 
+  /** El estado se deriva de `fechaVencimiento` al consultar (R-D 3e), no de la columna. */
   listarAnexosDeProgramas(programaIds: string[]) {
-    return this.prisma.anexoVigencia.findMany({
-      where: { programaId: { in: programaIds } },
-      select: { programaId: true, estado: true, tipo: true },
-    });
+    return this.prisma.anexoVigencia
+      .findMany({
+        where: { programaId: { in: programaIds } },
+        select: { programaId: true, estado: true, tipo: true, fechaVencimiento: true },
+      })
+      .then((anexos) => anexos.map((anexo) => conEstadoCalculado(anexo)));
   }
 
   agruparEvidenciasPorEstado(programaIds: string[]) {

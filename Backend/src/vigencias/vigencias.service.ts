@@ -1,4 +1,13 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import { Cron, CronExpression } from '@nestjs/schedule';
 
@@ -13,16 +22,19 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
 import { EstadoVigencia } from '@prisma/client';
+import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
+import { calcularEstadoAnexo } from '../dominio/vigencia-anexo';
 
 
 
+// Los formatos admitidos en anexos (PDF/DOC/DOCX) siguen pendientes de decisión del PO; no se cambian aquí.
 const TIPOS_DOCUMENTO = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
 
 
 @Injectable()
 
-export class VigenciasService {
+export class VigenciasService implements OnModuleInit {
 
   private readonly logger = new Logger(VigenciasService.name);
 
@@ -68,6 +80,22 @@ export class VigenciasService {
 
 
 
+  /** R-D 3b: deja constancia en el log si el bucket de anexos no existe (no bloquea el arranque). */
+  async onModuleInit(): Promise<void> {
+    try {
+      const buckets = await this.almacenamiento.verificarBuckets();
+      const documentos = buckets.find((b) => b.tipo === 'documentos');
+      if (documentos && !documentos.existe) {
+        this.logger.error(
+          `El bucket de anexos "${documentos.bucket}" no está disponible en Storage (${documentos.error}). ` +
+            'Las cargas de Vigencias fallarán hasta crearlo (S3_BUCKET_DOCUMENTOS).',
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudo verificar el bucket de anexos: ${(error as Error).message}`);
+    }
+  }
+
   listarAnexos(programaId?: string) {
 
     return this.prisma.anexoVigencia.findMany({
@@ -103,9 +131,9 @@ export class VigenciasService {
   }) {
 
     const hoy = new Date();
-
     hoy.setHours(0, 0, 0, 0);
-
+    // R-D 3e: el estado se calcula al consultar; la columna solo la refresca el cron.
+    const estado = calcularEstadoAnexo(anexo.fechaVencimiento, hoy);
     const inicio = new Date(anexo.fechaCarga);
 
     inicio.setHours(0, 0, 0, 0);
@@ -124,7 +152,7 @@ export class VigenciasService {
 
 
 
-    return { ...anexo, porcentajeTranscurrido, totalDias, diasTranscurridos: transcurridos };
+    return { ...anexo, estado, porcentajeTranscurrido, totalDias, diasTranscurridos: transcurridos };
 
   }
 
@@ -164,71 +192,75 @@ export class VigenciasService {
 
   ) {
 
-    if (!archivo) throw new NotFoundException('Se requiere un archivo.');
-
+    // R-D 3c: falta de archivo o formato inválido es un error del cliente (400), no un 404.
+    if (!archivo) throw new BadRequestException('Se requiere un archivo para el anexo.');
     if (!TIPOS_DOCUMENTO.includes(archivo.mimetype)) {
-
-      throw new NotFoundException('Formato de archivo no permitido.');
-
+      throw new BadRequestException(
+        `Formato de archivo no permitido (${archivo.mimetype || 'desconocido'}). Use PDF, DOC o DOCX.`,
+      );
     }
 
-
-
+    const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
     const fechaCarga = new Date();
-
     const fechaVencimiento = this.calcularFechaVencimiento(fechaCarga, datos.aniosVigencia);
-
     const estado = this.calcularEstado(fechaVencimiento);
+    const clave = this.almacenamiento.generarClaveDocumento(datos.carpeta, nombreArchivo);
 
-    const clave = this.almacenamiento.generarClaveDocumento(datos.carpeta, archivo.originalname);
-
-
-
-    const anexo = await this.prisma.anexoVigencia.create({
-
-      data: {
-
-        ...datos,
-
-        fechaCarga,
-
-        fechaVencimiento,
-
-        estado,
-
-        nombreArchivo: archivo.originalname,
-
-        rutaArchivo: clave,
-
-        mimeType: archivo.mimetype,
-
-      },
-
-      include: { programa: { select: { id: true, nombre: true, codigo: true } } },
-
-    });
-
-
+    // R-D 3d: primero se sube el archivo y solo si funciona se crea la fila. Ya no hay
+    // reversión silenciosa: el fallo queda en el log y el cliente recibe el motivo.
+    try {
+      await this.almacenamiento.subirArchivo(archivo.buffer, clave, 'documentos', archivo.mimetype);
+    } catch (error) {
+      throw this.errorSubidaAnexo(error, datos.titulo, clave);
+    }
 
     try {
-
-      await this.almacenamiento.subirArchivo(archivo.buffer, clave, 'documentos', archivo.mimetype);
-
-    } catch (err) {
-
-      await this.prisma.anexoVigencia.delete({ where: { id: anexo.id } }).catch(() => undefined);
-
-      throw err;
-
+      const anexo = await this.prisma.anexoVigencia.create({
+        data: {
+          ...datos,
+          fechaCarga,
+          fechaVencimiento,
+          estado,
+          nombreArchivo,
+          rutaArchivo: clave,
+          mimeType: archivo.mimetype,
+        },
+        include: { programa: { select: { id: true, nombre: true, codigo: true } } },
+      });
+      return this.enriquecerAnexo(anexo);
+    } catch (error) {
+      this.logger.error(
+        `No se pudo registrar el anexo "${datos.titulo}" tras subir ${clave}: ${(error as Error).message}. Se elimina el archivo.`,
+      );
+      await this.almacenamiento.eliminarArchivo(clave, 'documentos').catch((errorBorrado) =>
+        this.logger.error(`No se pudo eliminar el archivo huérfano ${clave}: ${errorBorrado}`),
+      );
+      throw error;
     }
-
-
-
-    return this.enriquecerAnexo(anexo);
-
   }
 
-
+  /** Traduce un fallo de Storage en una respuesta útil y lo registra con su causa. */
+  private errorSubidaAnexo(error: unknown, titulo: string, clave: string): HttpException {
+    const detalle = error as { name?: string; Code?: string } | undefined;
+    const nombre = detalle?.name ?? detalle?.Code ?? 'Error';
+    const motivo = error instanceof Error ? error.message : String(error);
+    this.logger.error(
+      `Fallo al subir el anexo "${titulo}" al bucket de documentos (clave ${clave}): ${nombre}: ${motivo}`,
+    );
+    if (nombre === 'NoSuchBucket') {
+      return new ServiceUnavailableException(
+        'El bucket de documentos no existe en Storage. Pida a TI crearlo (S3_BUCKET_DOCUMENTOS) e intente de nuevo. No se creó el anexo.',
+      );
+    }
+    if (nombre === 'InvalidKey' || /invalid key/i.test(motivo)) {
+      return new BadRequestException(
+        'Storage rechazó el nombre del archivo. Renómbrelo sin caracteres especiales e intente de nuevo. No se creó el anexo.',
+      );
+    }
+    return new BadGatewayException(
+      `No se pudo guardar el archivo en Storage (${motivo}). No se creó el anexo.`,
+    );
+  }
 
   crearAnexo(datos: {
 
@@ -329,27 +361,7 @@ export class VigenciasService {
 
 
   calcularEstado(fechaVencimiento: Date): EstadoVigencia {
-
-    const hoy = new Date();
-
-    hoy.setHours(0, 0, 0, 0);
-
-    const vencimiento = new Date(fechaVencimiento);
-
-    vencimiento.setHours(0, 0, 0, 0);
-
-
-
-    const diffDias = Math.ceil((vencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-
-
-
-    if (diffDias < 0) return EstadoVigencia.Vencido;
-
-    if (diffDias <= 30) return EstadoVigencia.Proximo;
-
-    return EstadoVigencia.Vigente;
-
+    return calcularEstadoAnexo(fechaVencimiento);
   }
 
 
