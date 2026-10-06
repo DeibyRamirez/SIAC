@@ -4,17 +4,18 @@
 >
 > **El estado oficial vive en ClickUp; este repositorio no declara sprints completados.**
 
-El ID de lista `901716974523` («Hito 4 · Desarrollo · 3 sprints (F-04)») **no existe** en el workspace de ClickUp accesible al revisar esta guía (28/09/2026). Ese conector solo ve el espacio Capsoul, que no es SIAC. No se sustituye el ID por uno de otro proyecto. Hay que contrastarlo con la jerarquía real del workspace CUAC cuando el equipo tenga acceso.
+La lista de la guía anterior («Hito 4 · Desarrollo · 3 sprints (F-04)») no existía en el workspace de SIAC. La jerarquía real se verificó en ClickUp el 06/10/2026 (solo lectura).
 
-## Workspace ClickUp (CUAC)
+## Workspace ClickUp (SIAC)
 
 | Recurso | ID / Nombre |
 |---------|-------------|
-| Space | `Universidad` |
-| Folder | `Tareas` |
-| Lista recomendada | **Hito 4 · Desarrollo · 3 sprints (F-04)** — `901716974523` |
+| Workspace | `90171502668` |
+| Space | **Sprints** — `90177117506` |
+| Lista del Sprint 2 | **Sprint 2·Núcleo documental** — `901717352937` ([abrir](https://app.clickup.com/90171502668/v/l/li/901717352937)) |
+| Estados de la lista | `to do` → `in progress` → `complete` |
 
-Crear los 4 Epics de sprint en esa lista usando las plantillas de abajo.
+Cada sprint tiene su propia lista en el space **Sprints**; las historias (HU) y sus subtareas (T-xxx.y) viven en la lista del sprint correspondiente.
 
 ## Estructura de Epics (1 por sprint)
 
@@ -113,5 +114,5 @@ git tag -l
 | Rama | Estado |
 |------|--------|
 | `main` | Estable |
-| `develop_v2` | Integración actual. Sprint 2 en progreso |
+| `develop_v2` | Integración actual. Sprint 2 en progreso (HU-008 y HU-010 en curso) |
 | `feature/HU-*` | Historias en progreso hacia `develop_v2` |

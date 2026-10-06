@@ -139,9 +139,9 @@ sequenceDiagram
     API-->>R: 200 OK
 ```
 
-### Flujo 3 — Cron vigencias (00:00)
+### Flujo 3 — Cron vigencias (6:00)
 
-`VigenciasService` recalcula `EstadoVigencia`, actualiza `Programa.semaforo` (RN-003), genera alertas in-app. SMTP opcional (ADR-006).
+`VigenciasService` (cron diario a las 6:00) genera alertas in-app del día anterior al vencimiento. SMTP opcional (ADR-006). El cron **no** escribe `Programa.semaforo` ni el estado del anexo: el estado (`Vigente`/`Proximo`/`Vencido`) y RN-003 (anexo de categoría Infraestructura vencido → rojo) se calculan al consultar el panel y los listados.
 
 ### Flujo 4 — Sincronización catálogos TI
 

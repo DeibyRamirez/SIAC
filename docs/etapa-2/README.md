@@ -54,12 +54,14 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 
 ## Criterios de aceptación
 
-- [x] CRUD evidencias end-to-end con restricciones por rol
-- [x] Plantillas versionadas; Cargador solo descarga vigentes
-- [x] Búsqueda con filtros query params
-- [x] Panel programas con semáforo (RN-003: infra vencido → rojo)
-- [x] Par académico no accede a borradores (API 403)
+> Se marcan cuando la historia se cierre en ClickUp (Sprint 2·Núcleo documental, lista `901717352937`). Evidencia en el repositorio a 06/10/2026 entre paréntesis.
+
+- [ ] CRUD evidencias end-to-end con restricciones por rol (CP-E2E-02 a CP-E2E-04 en verde)
+- [ ] Plantillas versionadas; Cargador solo descarga vigentes
+- [ ] Búsqueda con filtros query params (HU-008 en curso)
+- [ ] Panel programas con semáforo (RN-003: anexo de categoría Infraestructura vencido → rojo; CP-E2E-05 en verde; HU-010 en curso)
+- [ ] Par académico no accede a borradores (API 403); Par académico en pausa por decisión del PO (06/10)
 
 ## Regla de negocio RN-003
 
-Programa con anexo de infraestructura vencido → semáforo **Rojo** en panel.
+Programa con un anexo de categoría **Infraestructura** vencido (vencimiento del certificado anterior a hoy) → `semaforoGeneral` **Rojo** en el panel, aunque el avance documental sea 100 %. La categoría es explícita (`CategoriaAnexo`) y el estado se calcula al consultar (`hayAnexoInfraestructuraVencido` en `Backend/src/dominio/vigencia-anexo.ts`).

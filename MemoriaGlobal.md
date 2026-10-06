@@ -401,8 +401,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] `GET /programas` deja de escribir semáforo y porcentaje; conteos por estado en `GET /programas/:id`
 - [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
-- [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
-- [x] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15; tests unitarios; migración `20260930140000` corrige pesos en `TramiteDocumentoGuia`
+- [ ] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4) — implementado; HU-010 en curso hasta su cierre en ClickUp
+- [ ] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15 y umbrales en `ConfiguracionSIAC`; tests unitarios — implementado; HU-010 en curso
 - [x] Sync carreras CUAC → `Programa` (`idExterno`, `origenDato: API`); bajas del catálogo → `activo: false`
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
 - [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
@@ -466,8 +466,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | T-011.3 — editar/desactivar programa; conteos; GET sin escritura | Backend + Frontend |
 | [x] | T-002.1 — inicio y bandeja del revisor por programas asignados | Frontend |
 | [ ] | HU-003/004/005 ajustes nuevos (fuera de este bloque) | Backend + Frontend |
-| [x] | HU-010 panel programas/institución (`GET /programas/panel`) | Backend + Frontend |
-| [ ] | HU-008 búsqueda global API | Frontend |
+| [ ] | HU-010 panel programas/institución (`GET /programas/panel`) — en curso | Backend + Frontend |
+| [ ] | HU-008 búsqueda global API — en curso | Frontend |
 | [x] | Frontend 100% API real (paneles, búsqueda, plantillas y evidencias sin semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
@@ -483,6 +483,19 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-06 — Cierre del Sprint 2 (auditoría) y decisiones del PO
+
+- [Decisión PO] G2 y G4 sin puntaje: el Revisor aprueba (Validado) o deja «Con observaciones» con texto; aportan 0 % hasta aprobarse y el 100 % de su peso (configurable) después. Se elimina el criterio «G2 al 70 %».
+- [Decisión PO] Resolución MEN: con todos los documentos del trámite aprobados, el Administrador carga el PDF (única excepción a la regla .docx; MIME + firma %PDF) con número y fecha reales. Fin de vigencia = fecha + 7 años; sin resolución = «Sin vigencia» (gris). Se retira «activar vigencia». Tabla `ResolucionMen` y tipo de evidencia `ResolucionMen` (migración `20261006030000`).
+- [Decisión PO] Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend), ambas en la CI (ADR-007).
+- [Decisión PO] PR #7 se cierra sin merge; lo útil (propietario único de evidencia, alcance por guía, columna «Programa / institución») va en un PR nuevo desde `develop_v2`.
+- [Decisión PO] Par académico en pausa (T-006.4): sin acceso al panel de programas, sin página 403; rol y datos intactos.
+- [Decisión PO] AnexoVigencia: script explícito `pnpm datos:limpiar-anexos-sin-documento` (respaldo JSON/CSV, idempotente) borra los anexos sin documento; los nuevos exigen documento, evidencia y categoría (`CategoriaAnexo`, CHECK `NOT VALID`, migración `20261006040000`). RN-003 usa la categoría y el vencimiento del certificado.
+- [Backend] Umbrales del semáforo en `ConfiguracionSIAC` (verde 100, amarillo 55, vigencia 7 años, aviso 12 meses; migración `20261006020000`). Avance sin redondeos intermedios; filtro por semáforo antes de paginar.
+- [Frontend] Panel de programas como Server Component con filtros en la URL, n/9, fecha de resolución y semestre; sin datos simulados.
+- [CI] La CI corre `jest`, `test:e2e` (supertest sobre `postgres:16`) y `pnpm test` (Vitest). E2E del flujo CP-E2E-01 a CP-E2E-05 en `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`.
+- [Docs] T-DOC.1: jerarquía real de ClickUp (workspace `90171502668`, lista `901717352937`), HU-008 y HU-010 en curso, DoD de la Etapa 2 sin marcar hasta el cierre en ClickUp, RN-003 corregida en la Etapa 1 y se elimina el volcado de texto del backend que estaba en la raíz del repositorio.
 
 ### 2026-09-30 — Arquitectura catálogo API + dominio SIAC
 
