@@ -56,6 +56,15 @@ jobs:
         run: pnpm exec prisma migrate deploy
       - name: Verificar el estado de las migraciones
         run: pnpm exec prisma migrate status
+      - name: Verificar que schema.prisma no tenga drift frente a las migraciones
+        # R-008.1a: si falla, el próximo `migrate dev` generaría DROP (p. ej. del FTS searchVector).
+        run: |
+          psql -h localhost -U postgres -d siac -c 'CREATE DATABASE siac_shadow'
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url postgresql://postgres@localhost:5432/siac_shadow \
+            --exit-code
       - name: Ejecutar la semilla (solo usuarios, uno por rol)
         run: pnpm prisma:seed
       - name: Pruebas del backend

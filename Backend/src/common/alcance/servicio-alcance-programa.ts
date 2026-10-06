@@ -80,17 +80,25 @@ export function construirFiltroVisibilidad(
     };
   }
 
+  // R-008.1b: las evidencias G3/G4 se asocian a la Institución (programaId NULL), así que
+  // además de los programas asignados se incluye el alcance institucional.
   if (usuario.rol === RolUsuario.Cargador) {
     return {
       autorId: usuario.id,
-      programaId: { in: programasAsignados },
+      OR: [
+        { programaId: { in: programasAsignados } },
+        { institucionId: { not: null } },
+      ],
     };
   }
 
   if (usuario.rol === RolUsuario.Revisor) {
     return {
-      programaId: { in: programasAsignados },
       estado: { not: EstadoEvidencia.Borrador },
+      OR: [
+        { programaId: { in: programasAsignados } },
+        { institucionId: { not: null } },
+      ],
     };
   }
 
