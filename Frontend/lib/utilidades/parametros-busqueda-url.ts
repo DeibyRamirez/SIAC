@@ -1,3 +1,5 @@
+import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
+
 export interface FiltrosBusquedaUrl {
   q?: string
   programa?: string
@@ -75,4 +77,20 @@ export function filtrosBusquedaAQuery(filtros: FiltrosBusquedaUrl): Record<strin
 export function construirQueryBusqueda(filtros: FiltrosBusquedaUrl): string {
   const params = new URLSearchParams(filtrosBusquedaAQuery(filtros))
   return params.toString()
+}
+
+/** Valor del selector que representa «Todos los periodos» (no viaja en la URL). */
+export const PERIODO_TODOS = 'todos'
+
+export const RUTA_BUSQUEDA_ADMIN = '/administrador/busqueda'
+
+/**
+ * R-008.2b: la URL determina la vista. Sin `periodo` se consultan todos los periodos;
+ * el periodo actual solo se aplica cuando viaja explícito en la URL (enlaces de entrada).
+ */
+export function rutaBusquedaConPeriodoActual(
+  base = RUTA_BUSQUEDA_ADMIN,
+  fecha = new Date(),
+): string {
+  return `${base}?${new URLSearchParams({ periodo: periodoAcademicoActual(fecha) })}`
 }

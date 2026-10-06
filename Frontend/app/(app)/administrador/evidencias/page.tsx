@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
 
 import {
+  RUTA_BUSQUEDA_ADMIN,
   construirQueryBusqueda,
   leerFiltrosBusquedaUrl,
+  rutaBusquedaConPeriodoActual,
   valorParamUrl,
 } from '@/lib/utilidades/parametros-busqueda-url'
 
@@ -21,5 +23,5 @@ export default async function EvidenciasAdministradorPage({ searchParams }: Page
   }
 
   const qs = construirQueryBusqueda(filtros)
-  redirect(qs ? `/administrador/busqueda?${qs}` : '/administrador/busqueda')
+  redirect(qs ? `${RUTA_BUSQUEDA_ADMIN}?${qs}` : rutaBusquedaConPeriodoActual())
 }

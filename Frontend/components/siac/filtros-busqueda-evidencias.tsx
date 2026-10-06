@@ -24,6 +24,7 @@ import {
 import type { CodigoDocumentoGuia } from '@/lib/tipos'
 import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { PERIODO_TODOS } from '@/lib/utilidades/parametros-busqueda-url'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
 
 const CODIGOS_GUIA = Object.keys(ETIQUETAS_GUIA) as CodigoDocumentoGuia[]
@@ -86,6 +87,11 @@ export function FiltrosBusquedaEvidencias({
   mostrarLimpiar = false,
 }: FiltrosBusquedaEvidenciasProps) {
   const periodosDisponibles = periodosConActual()
+  // `items` permite que el disparador muestre la etiqueta («Todos los periodos») y no el valor interno.
+  const opcionesPeriodo = [
+    { value: PERIODO_TODOS, label: 'Todos los periodos' },
+    ...periodosDisponibles.map((valor) => ({ value: valor, label: valor })),
+  ]
 
   return (
     <Card className="tarjeta-institucional">
@@ -154,12 +160,14 @@ export function FiltrosBusquedaEvidencias({
           <CampoFiltro etiqueta="Periodo">
             <Select
               value={valores.periodo}
+              items={opcionesPeriodo}
               onValueChange={manejarCambioSelect((valor) => onCambiar({ periodo: valor }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label="Filtrar por periodo">
                 <SelectValue placeholder="Periodo" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={PERIODO_TODOS}>Todos los periodos</SelectItem>
                 {periodosDisponibles.map((valor) => (
                   <SelectItem key={valor} value={valor}>
                     {valor}

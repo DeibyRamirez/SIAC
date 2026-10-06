@@ -42,7 +42,52 @@ describe('ContenidoBusquedaEvidencias', () => {
     const botones = screen.getAllByRole('button', { name: /Limpiar filtros/i })
     await usuario.click(botones[0])
 
-    expect(reemplazar).toHaveBeenCalledWith('/administrador/busqueda', { scroll: false })
+    expect(reemplazar).toHaveBeenLastCalledWith('/administrador/busqueda', { scroll: false })
+  })
+
+  it('Limpiar no vuelve a escribir ?periodo= en la URL (R-008.3a)', async () => {
+    const usuario = userEvent.setup()
+
+    render(
+      <ContenidoBusquedaEvidencias
+        filtrosIniciales={{ periodo: '2026-2', estado: 'Cumple' }}
+        datosIniciales={{ resultados: [], total: 0, pagina: 1, limite: 20 }}
+      />,
+    )
+    expect(reemplazar).toHaveBeenLastCalledWith(
+      '/administrador/busqueda?periodo=2026-2&estado=Cumple',
+      { scroll: false },
+    )
+
+    await usuario.click(screen.getAllByRole('button', { name: /Limpiar filtros/i })[0])
+
+    const ultimaUrl = reemplazar.mock.calls.at(-1)?.[0] as string
+    expect(ultimaUrl).toBe('/administrador/busqueda')
+    expect(ultimaUrl).not.toContain('periodo=')
+  })
+
+  it('sin periodo en la URL no inyecta el periodo actual (R-008.2b)', () => {
+    render(
+      <ContenidoBusquedaEvidencias
+        filtrosIniciales={{ programa: 'derecho' }}
+        datosIniciales={{ resultados: [], total: 0, pagina: 1, limite: 20 }}
+      />,
+    )
+
+    expect(reemplazar).toHaveBeenLastCalledWith('/administrador/busqueda?programa=derecho', {
+      scroll: false,
+    })
+  })
+
+  it('muestra Limpiar cuando el único filtro activo es el periodo', () => {
+    render(
+      <ContenidoBusquedaEvidencias
+        filtrosIniciales={{ periodo: '2025-1' }}
+        datosIniciales={{ resultados: [], total: 0, pagina: 1, limite: 20 }}
+      />,
+    )
+
+    expect(screen.getAllByRole('button', { name: /Limpiar filtros/i }).length).toBeGreaterThan(0)
   })
 
   it('muestra la columna Fecha y hora cuando hay resultados', () => {

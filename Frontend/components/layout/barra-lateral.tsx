@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { prefijoRol } from '@/lib/auth-mock'
 import type { RolUsuario } from '@/lib/tipos'
 import { contarEvidenciasPendientes, contarNovedadesCargador } from '@/lib/utilidades-siac'
+import { rutaBusquedaConPeriodoActual } from '@/lib/utilidades/parametros-busqueda-url'
 import { cn } from '@/lib/utils'
 
 interface ItemNavegacion {
@@ -64,7 +65,7 @@ function itemsAdministrador(): ItemNavegacion[] {
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
     { href: '/administrador/usuarios', etiqueta: 'Asignación de programas', icono: Users },
-    { href: '/administrador/busqueda', etiqueta: 'Evidencias y documentos', icono: Files },
+    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias y documentos', icono: Files },
     { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', icono: Bell },
     { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', icono: FileCheck2 },
     {
@@ -81,7 +82,7 @@ function itemsParAcademico(): ItemNavegacion[] {
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
-    { href: '/administrador/busqueda', etiqueta: 'Evidencias validadas', icono: Files },
+    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
   ]
 }
 
@@ -103,12 +104,14 @@ function hrefActivo(pathname: string, items: ItemNavegacion[], prefijoRol: strin
   let mejorHref: string | null = null
   let mejorLongitud = -1
 
-  for (const { href } of items) {
+  for (const { href: hrefConQuery } of items) {
+    // Los enlaces de entrada pueden llevar query (p. ej. ?periodo=); se compara solo la ruta.
+    const href = hrefConQuery.split('?')[0]
     const coincide =
       pathname === href ||
       (href !== prefijoRol && pathname.startsWith(`${href}/`))
     if (coincide && href.length > mejorLongitud) {
-      mejorHref = href
+      mejorHref = hrefConQuery
       mejorLongitud = href.length
     }
   }

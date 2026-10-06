@@ -7,7 +7,6 @@ import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { apiDisponible } from '@/lib/servicios/config-api'
 import type { RespuestaBusquedaEvidencias } from '@/lib/servicios/busqueda.servicio'
 import { buscarEvidenciasServidor } from '@/lib/servicios/busqueda.servidor'
-import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
 import { leerFiltrosBusquedaUrl } from '@/lib/utilidades/parametros-busqueda-url'
 
 interface PageProps {
@@ -16,11 +15,8 @@ interface PageProps {
 
 export default async function BusquedaAdministradorPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const leidos = leerFiltrosBusquedaUrl(params)
-  const filtrosIniciales = {
-    ...leidos,
-    periodo: leidos.periodo ?? periodoAcademicoActual(),
-  }
+  // R-008.2b: no se inyecta un periodo implícito; la URL compartida da la misma vista otro día.
+  const filtrosIniciales = leerFiltrosBusquedaUrl(params)
 
   let datosIniciales: RespuestaBusquedaEvidencias = {
     resultados: [],
@@ -32,8 +28,9 @@ export default async function BusquedaAdministradorPage({ searchParams }: PagePr
   if (apiDisponible()) {
     try {
       datosIniciales = await buscarEvidenciasServidor(filtrosIniciales, LIMITE_FILAS_TABLA)
-    } catch {
-      // El cliente reintentará con la cookie o mostrará estado vacío.
+    } catch (error) {
+      // El cliente reintentará con la cookie; se deja rastro en el log del servidor.
+      console.error('[busqueda] Falló la consulta SSR de evidencias:', error)
     }
   }
 

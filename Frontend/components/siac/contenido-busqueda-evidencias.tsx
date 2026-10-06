@@ -14,7 +14,6 @@ import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
-import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   buscarEvidenciasApi,
@@ -23,6 +22,7 @@ import {
 import type { CodigoDocumentoGuia } from '@/lib/tipos'
 import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import {
+  PERIODO_TODOS,
   type FiltrosBusquedaUrl,
   construirQueryBusqueda,
 } from '@/lib/utilidades/parametros-busqueda-url'
@@ -36,7 +36,7 @@ function valoresDesdeUrl(filtros: FiltrosBusquedaUrl): ValoresFiltrosBusqueda {
     codigoGuia: CODIGOS_GUIA.includes(filtros.codigoGuia as CodigoDocumentoGuia)
       ? (filtros.codigoGuia as CodigoDocumentoGuia)
       : 'todos',
-    periodo: filtros.periodo ?? periodoAcademicoActual(),
+    periodo: filtros.periodo ?? PERIODO_TODOS,
     estado: filtros.estado ?? 'todos',
     puntajeMin: filtros.puntajeMin ?? '',
     puntajeMax: filtros.puntajeMax ?? '',
@@ -51,7 +51,7 @@ function urlDesdeValores(valores: ValoresFiltrosBusqueda, pagina: number): Filtr
     q: valores.busqueda.trim() || undefined,
     programa: valores.programa !== 'todos' ? valores.programa : undefined,
     codigoGuia: valores.codigoGuia !== 'todos' ? valores.codigoGuia : undefined,
-    periodo: valores.periodo || undefined,
+    periodo: valores.periodo && valores.periodo !== PERIODO_TODOS ? valores.periodo : undefined,
     estado: valores.estado !== 'todos' ? valores.estado : undefined,
     puntajeMin: valores.puntajeMin || undefined,
     puntajeMax: valores.puntajeMax || undefined,
@@ -115,12 +115,14 @@ export function ContenidoBusquedaEvidencias({
     setPagina(1)
   }, [])
 
+  // R-008.3a: Limpiar deja todos los filtros (periodo incluido) en su valor neutro; el efecto
+  // sincronizarUrl escribe entonces la ruta sin query y no reinyecta ?periodo=.
   const limpiarFiltros = useCallback(() => {
     setValores({
       busqueda: '',
       programa: 'todos',
       codigoGuia: 'todos',
-      periodo: periodoAcademicoActual(),
+      periodo: PERIODO_TODOS,
       estado: 'todos',
       puntajeMin: '',
       puntajeMax: '',
@@ -129,13 +131,13 @@ export function ContenidoBusquedaEvidencias({
       fechaCargaHasta: '',
     })
     setPagina(1)
-    router.replace(pathname, { scroll: false })
-  }, [pathname, router])
+  }, [])
 
   const hayFiltrosActivos =
     valores.busqueda.trim() ||
     valores.programa !== 'todos' ||
     valores.codigoGuia !== 'todos' ||
+    valores.periodo !== PERIODO_TODOS ||
     valores.estado !== 'todos' ||
     valores.puntajeMin ||
     valores.puntajeMax ||
