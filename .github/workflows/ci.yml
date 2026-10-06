@@ -60,6 +60,8 @@ jobs:
         run: pnpm prisma:seed
       - name: Pruebas del backend
         run: pnpm exec jest --runInBand
+      - name: Pruebas E2E contra PostgreSQL de CI (supertest)
+        run: pnpm test:e2e
       - name: Build del backend
         run: pnpm build
 
