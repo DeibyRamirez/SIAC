@@ -47,6 +47,20 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | CP-03 | PDF + metadatos Cargador | Estado Borrador | Diseñado |
 | CP-04 | Admin GET borrador | HTTP 403 | Diseñado |
 
+## Pruebas E2E del flujo de carga y panel (CP-E2E-01 a CP-E2E-05, T-010.4)
+
+Archivo: `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts` (Jest + supertest contra la API completa, PostgreSQL local o de CI y Storage en memoria). Se ejecutan con `pnpm test:e2e` en la CI (job *Backend CI*).
+
+| Caso | Entrada | Resultado esperado | Estado |
+|------|---------|-------------------|--------|
+| CP-E2E-01 | Cargador sube un .docx G1 de Derecho (programa nuevo), lo envía; el Revisor marca 5 de 9 condiciones | El Admin ve la evidencia «ConObservaciones», G1 `5/9` en el panel, avance 55,56 % y `semaforoAvance = Amarillo` (umbrales por defecto 55/100 de `ConfiguracionSIAC`) | Automatizado |
+| CP-E2E-02 | PDF renombrado a `.docx` | HTTP 400 (no es un ZIP de Word) | Automatizado |
+| CP-E2E-03 | Revisor asignado a otro programa dictamina la evidencia de Derecho | HTTP 403 | Automatizado |
+| CP-E2E-04 | Borrador nunca enviado | No aparece en `GET /evidencias` del Admin y su detalle responde 403/404 | Automatizado |
+| CP-E2E-05 | Anexo de categoría Infraestructura vencido (01/09/2026) vinculado a la G1 | `anexoInfraestructuraVencido = true` y `semaforoGeneral = Rojo` (RN-003) | Automatizado |
+
+Otras suites E2E del cierre del Sprint 2: `vigencias.e2e-spec.ts` (anexos, R-D), `resolucion-men.e2e-spec.ts` (resolución MEN), `limpiar-anexos-sin-documento.e2e-spec.ts` (script de datos), `busqueda.e2e-spec.ts` y `humo.e2e-spec.ts`. Las pruebas del panel en el frontend (T-010.5) usan Vitest + Testing Library (ver `docs/adr/0001-pilas-de-pruebas.md`).
+
 ## Criterios de aceptación
 
 - [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
