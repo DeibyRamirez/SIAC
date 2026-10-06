@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, RolUsuario } from '@prisma/client';
 import {
   ProgramasService,
@@ -271,4 +272,20 @@ describe('ProgramasService', () => {
     expect(programaRepo.listar).toHaveBeenCalledWith({ id: { in: ['p1'] }, activo: true });
   });
 
+  it('rechaza con 400 un trámite institucional en un programa (HU-010)', async () => {
+    await expect(
+      servicio.actualizar('p1', {
+        tipoTramiteActivo: TipoTramiteSIAC.RenovacionCondicionesInstitucionales,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(programaRepo.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('acepta un trámite de programa (HU-010)', async () => {
+    programaRepo.actualizar.mockResolvedValue(programa);
+    await servicio.actualizar('p1', { tipoTramiteActivo: TipoTramiteSIAC.RegistroCalificadoNuevo });
+    expect(programaRepo.actualizar).toHaveBeenCalledWith('p1', {
+      tipoTramiteActivo: TipoTramiteSIAC.RegistroCalificadoNuevo,
+    });
+  });
 });

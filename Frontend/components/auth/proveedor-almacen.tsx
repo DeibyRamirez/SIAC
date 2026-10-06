@@ -44,6 +44,7 @@ import type {
   Plantilla,
 } from '@/lib/tipos'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
+import { camposPropietarioEvidencia } from '@/lib/utilidades/propietario-evidencia'
 
 interface ContextoAlmacen {
   datos: DatosPrototipo
@@ -175,7 +176,14 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       }
       const formData = new FormData()
       formData.append('nombre', evidencia.nombre)
-      formData.append('programaId', evidencia.programaId)
+      // HU-010: G3/G4 se asocian a la institución (sin programa); G1/G2 al programa.
+      for (const [campo, valor] of camposPropietarioEvidencia({
+        codigoGuia: opciones?.codigoGuia ?? evidencia.codigoGuia,
+        programaId: evidencia.programaId,
+        institucionId: evidencia.institucionId,
+      })) {
+        formData.append(campo, valor)
+      }
       formData.append('periodo', evidencia.periodo)
       formData.append('archivo', archivo)
       if (opciones?.codigoGuia) {

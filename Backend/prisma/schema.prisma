@@ -138,6 +138,7 @@ model Institucion {
   id                String          @id @default(cuid())
   nombre            String          @db.VarChar(200)
   codigo            String          @unique @db.VarChar(50)
+  /// CHECK Institucion_tramite_alcance_institucion_chk: solo trámites institucionales (G3/G4).
   tipoTramiteActivo TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
   fechaResolucion   DateTime?
   evidencias        Evidencia[]
@@ -157,6 +158,7 @@ model Programa {
   facultad            String?         @db.VarChar(200)
   slug                String          @unique @db.VarChar(160)
   urlImagen           String?         @db.VarChar(500)
+  /// CHECK Programa_tramite_alcance_programa_chk: solo trámites de programa (G1/G2).
   tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
   fechaResolucion     DateTime?
   activo              Boolean         @default(true)
@@ -194,7 +196,11 @@ model Evidencia {
   /// onDelete Restrict: es la regla que crean las migraciones (un programa con evidencias se desactiva, no se borra).
   programa      Programa?            @relation(fields: [programaId], references: [id], onDelete: Restrict)
   institucionId String?
-  institucion   Institucion?         @relation(fields: [institucionId], references: [id])
+  /// HU-010 (migración 20261006050000_evidencia_propietario_checks), CHECK que Prisma no modela:
+  /// - Evidencia_propietario_unico_chk: exactamente uno de programaId / institucionId.
+  /// - Evidencia_guia_propietario_chk: G1/G2 → programa; G3/G4 → institución.
+  /// onDelete Restrict: borrar la institución no deja evidencias sin propietario.
+  institucion   Institucion?         @relation(fields: [institucionId], references: [id], onDelete: Restrict)
   periodo       String
   estado        EstadoEvidencia      @default(Borrador)
   autorId       String

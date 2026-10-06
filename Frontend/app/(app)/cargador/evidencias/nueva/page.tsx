@@ -20,6 +20,10 @@ import { enviarRevisionApi } from '@/lib/servicios/evidencias.servicio'
 import type { CodigoDocumentoGuia, Programa } from '@/lib/tipos'
 import { extraerMetadatosDocx } from '@/lib/utilidades/extraer-metadatos-docx'
 import {
+  INSTITUCION_POR_DEFECTO,
+  esGuiaInstitucional,
+} from '@/lib/utilidades/propietario-evidencia'
+import {
   ETIQUETAS_GUIA,
   documentosExigidosPorSeleccion,
   tramiteDesdeSeleccion,
@@ -97,6 +101,7 @@ function ContenidoNuevaEvidencia() {
   }, [modalidad, alcance])
 
   const configuracionCompleta = Boolean(modalidad && alcance && codigoGuia)
+  const esInstitucional = alcance === 'Institucion' || esGuiaInstitucional(codigoGuia)
 
   useEffect(() => {
     if (!apiDisponible()) {
@@ -171,7 +176,7 @@ function ContenidoNuevaEvidencia() {
       setError('Complete los pasos 1 a 3 para definir el documento a cargar.')
       return false
     }
-    if (!programaId) {
+    if (!esGuiaInstitucional(codigoGuia) && !programaId) {
       setError('Seleccione un programa asignado.')
       return false
     }
@@ -204,7 +209,8 @@ function ContenidoNuevaEvidencia() {
       const creada = await crearEvidencia(
         {
           nombre: nombre.trim(),
-          programaId,
+          // HU-010: G3/G4 van a la institución (el backend usa la CUAC); G1/G2 al programa.
+          programaId: esGuiaInstitucional(codigoGuia) ? null : programaId,
           periodo,
           autorId: sesion?.usuarioId ?? 'usr-cargador',
           nombreArchivo: archivo.name,
@@ -310,30 +316,33 @@ function ContenidoNuevaEvidencia() {
                   />
                 </label>
 
-                <label className="block space-y-2 text-sm">
-                  <span className="font-medium">
-                    {alcance === 'Institucion'
-                      ? 'Programa de referencia (asignado)'
-                      : 'Programa'}
-                  </span>
-                  <select
-                    value={programaId}
-                    onChange={(evento) => setProgramaId(evento.target.value)}
-                    className="w-full rounded-lg border border-input px-3 py-2"
-                  >
-                    {programas.map((programa) => (
-                      <option key={programa.id} value={programa.id}>
-                        {programa.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {alcance === 'Institucion' && (
+                {esInstitucional ? (
+                  <div className="space-y-2 text-sm">
+                    <span className="font-medium">Institución</span>
+                    <p className="w-full rounded-lg border border-input bg-muted px-3 py-2">
+                      {INSTITUCION_POR_DEFECTO}
+                    </p>
                     <span className="text-xs text-muted-foreground">
-                      Los documentos institucionales (G3/G4) se asocian a un programa de su
-                      alcance para trazabilidad en SIAC.
+                      Los documentos institucionales (G3/G4) pertenecen a la institución; no se
+                      asocian a un programa.
                     </span>
-                  )}
-                </label>
+                  </div>
+                ) : (
+                  <label className="block space-y-2 text-sm">
+                    <span className="font-medium">Programa</span>
+                    <select
+                      value={programaId}
+                      onChange={(evento) => setProgramaId(evento.target.value)}
+                      className="w-full rounded-lg border border-input px-3 py-2"
+                    >
+                      {programas.map((programa) => (
+                        <option key={programa.id} value={programa.id}>
+                          {programa.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Periodo</span>

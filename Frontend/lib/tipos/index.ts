@@ -82,11 +82,21 @@ export interface ResumenProgramaEvidencia {
   slug?: string
 }
 
+/** Institución propietaria de los documentos G3/G4 (HU-010). */
+export interface ReferenciaInstitucion {
+  id: string
+  nombre: string
+  codigo?: string
+}
+
 export interface Evidencia {
   id: string
   nombre: string
-  programaId: string
+  /** HU-010: null en documentos institucionales (G3/G4), que pertenecen a la institución. */
+  programaId?: string | null
   programa?: ResumenProgramaEvidencia
+  institucionId?: string | null
+  institucion?: ReferenciaInstitucion
   periodo: string
   estado: EstadoEvidencia
   autorId: string
