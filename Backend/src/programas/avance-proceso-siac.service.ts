@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
-import { esEstadoRevisado } from '../dominio/panel-siac';
+import { calcularAvancePonderado, esEstadoRevisado, redondear2 } from '../dominio/panel-siac';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 
 export interface DocumentoProgresoSIAC {
@@ -83,12 +83,14 @@ export class AvanceProcesoSIACService {
       }
     }
 
-    const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((docGuia) => {
+    const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
       const codigoGuia = docGuia.codigo;
       const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
       const evidencia = ultimaPorGuia.get(codigoGuia);
-      const porcentajeInterno = evidencia ? Math.round(porcentajeInternoEvidencia(evidencia)) : 0;
-      const aportacion = Math.round((peso * porcentajeInterno) / 100);
+      // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
+      const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+      const porcentajeInterno = redondear2(porcentajeBruto);
+      const aportacion = redondear2((peso * porcentajeBruto) / 100);
 
       return {
         codigoGuia,
@@ -104,10 +106,13 @@ export class AvanceProcesoSIACService {
           evidencia?.estado === EstadoEvidencia.Validado,
         conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
         rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+        porcentajeBruto,
       };
     });
 
-    const avanceGlobal = documentos.reduce((acc, doc) => acc + doc.aportacion, 0);
+    const avanceGlobal = calcularAvancePonderado(
+      documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
+    );
     const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
 
     return {
@@ -116,7 +121,7 @@ export class AvanceProcesoSIACService {
       avanceGlobal,
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
-      documentos,
+      documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
     };
   }
 
@@ -167,12 +172,14 @@ export class AvanceProcesoSIACService {
       }
     }
 
-    const documentos: DocumentoProgresoSIAC[] = tramite.documentosGuia.map((docGuia) => {
+    const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
       const codigoGuia = docGuia.codigo;
       const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
       const evidencia = ultimaPorGuia.get(codigoGuia);
-      const porcentajeInterno = evidencia ? Math.round(porcentajeInternoEvidencia(evidencia)) : 0;
-      const aportacion = Math.round((peso * porcentajeInterno) / 100);
+      // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
+      const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+      const porcentajeInterno = redondear2(porcentajeBruto);
+      const aportacion = redondear2((peso * porcentajeBruto) / 100);
 
       return {
         codigoGuia,
@@ -188,10 +195,13 @@ export class AvanceProcesoSIACService {
           evidencia?.estado === EstadoEvidencia.Validado,
         conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
         rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+        porcentajeBruto,
       };
     });
 
-    const avanceGlobal = documentos.reduce((acc, doc) => acc + doc.aportacion, 0);
+    const avanceGlobal = calcularAvancePonderado(
+      documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
+    );
     const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
 
     return {
@@ -200,7 +210,7 @@ export class AvanceProcesoSIACService {
       avanceGlobal,
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
-      documentos,
+      documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
     };
   }
 }

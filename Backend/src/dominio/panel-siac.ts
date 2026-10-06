@@ -32,14 +32,22 @@ export function esEstadoRevisado(estado: EstadoEvidencia): boolean {
   return ESTADOS_EVIDENCIA_REVISADOS.includes(estado);
 }
 
-/** Avance ponderado: suma de (porcentajeInterno × peso / 100). */
+/** Redondeo de presentación a 2 decimales (solo al final, nunca en pasos intermedios). */
+export function redondear2(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
+
+/**
+ * Avance ponderado: suma de (porcentajeInterno × peso / 100), redondeada una sola vez.
+ * R-010.1a: los porcentajes deben llegar sin redondear (8/9 × 90 = 80,0 y no 80,1).
+ */
 export function calcularAvancePonderado(documentos: DocumentoAvancePanel[]): number {
   if (documentos.length === 0) return 0;
   const total = documentos.reduce(
     (acc, doc) => acc + (doc.porcentajeInterno * doc.peso) / 100,
     0,
   );
-  return Math.round(total * 100) / 100;
+  return redondear2(total);
 }
 
 export function calcularSemaforoAvance(

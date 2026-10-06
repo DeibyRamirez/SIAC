@@ -16,6 +16,7 @@ import {
   calcularSemaforoGeneral,
   calcularSemaforoVigencia,
   esEstadoRevisado,
+  redondear2,
   validarPesosTramite,
 } from '../dominio/panel-siac';
 import { ColorSemaforo } from '../dominio/puntaje-condiciones';
@@ -48,6 +49,10 @@ export interface FilaPanelDto {
   semaforoGeneral: ColorSemaforo;
   documentos: DocumentoPanelDto[];
   anexoInfraestructuraVencido: boolean;
+  /** Fecha de la resolución MEN vigente (ISO) o null si no se ha registrado. */
+  fechaResolucion: string | null;
+  /** Periodo (semestre) de la evidencia revisada más reciente usada en el cálculo. */
+  semestre: string | null;
   activo?: boolean;
   urlImagen?: string | null;
 }
@@ -161,14 +166,16 @@ export class PanelProgramasService implements OnModuleInit {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = await this.filtroProgramas(usuario, query);
+    // R-010.1b: el semáforo es un valor calculado; si se filtra por él hay que calcular todas
+    // las filas y paginar después, o el total y las páginas quedan mal.
+    const paginarEnBd = !query.semaforo;
 
-    const [total, programas] = await Promise.all([
+    const [totalBd, programas] = await Promise.all([
       this.prisma.programa.count({ where }),
       this.prisma.programa.findMany({
         where,
         orderBy: { nombre: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...(paginarEnBd ? { skip: (page - 1) * limit, take: limit } : {}),
         select: {
           id: true,
           nombre: true,
@@ -182,6 +189,7 @@ export class PanelProgramasService implements OnModuleInit {
     ]);
 
     if (programas.length === 0) {
+      const total = paginarEnBd ? totalBd : 0;
       return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit) };
     }
 
@@ -235,14 +243,18 @@ export class PanelProgramasService implements OnModuleInit {
       });
     });
 
-    const datos = this.filtrarPorSemaforo(filas, query.semaforo);
+    if (paginarEnBd) {
+      return { datos: filas, total: totalBd, page, limit, totalPaginas: Math.ceil(totalBd / limit) };
+    }
 
+    const filtradas = this.filtrarPorSemaforo(filas, query.semaforo);
+    const inicio = (page - 1) * limit;
     return {
-      datos,
-      total,
+      datos: filtradas.slice(inicio, inicio + limit),
+      total: filtradas.length,
       page,
       limit,
-      totalPaginas: Math.ceil(total / limit),
+      totalPaginas: Math.ceil(filtradas.length / limit),
     };
   }
 
@@ -281,16 +293,17 @@ export class PanelProgramasService implements OnModuleInit {
       }
     }
 
+    const porcentajesBrutos = new Map<CodigoDocumentoGuia, number>();
     const documentos: DocumentoPanelDto[] = tramite.documentosGuia.map((docGuia) => {
       const codigo = docGuia.codigo;
       const peso = pesos.get(codigo) ?? docGuia.pesoPorcentaje;
       const evidencia = ultimaPorGuia.get(codigo);
       const revisado = !!evidencia;
-      const porcentajeInterno = evidencia
-        ? Math.round(porcentajeInternoEvidencia(evidencia))
-        : 0;
-      const aportacion = Math.round((peso * porcentajeInterno) / 100);
-
+      // R-010.1a: sin redondeos intermedios (antes 8/9 → 89 % → 80,1 en lugar de 80,0).
+      const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+      porcentajesBrutos.set(codigo, porcentajeBruto);
+      const porcentajeInterno = redondear2(porcentajeBruto);
+      const aportacion = redondear2((peso * porcentajeBruto) / 100);
       return {
         codigoGuia: codigo,
         nombre: ETIQUETAS_GUIA[codigo],
@@ -308,7 +321,7 @@ export class PanelProgramasService implements OnModuleInit {
       ? calcularAvancePonderado(
           documentos.map((d) => ({
             codigoGuia: d.codigoGuia,
-            porcentajeInterno: d.porcentajeInterno,
+            porcentajeInterno: porcentajesBrutos.get(d.codigoGuia) ?? 0,
             peso: d.peso,
           })),
         )
@@ -341,6 +354,8 @@ export class PanelProgramasService implements OnModuleInit {
       semaforoGeneral,
       documentos,
       anexoInfraestructuraVencido,
+      fechaResolucion: input.fechaResolucion ? input.fechaResolucion.toISOString() : null,
+      semestre: semestreMasReciente(ultimaPorGuia),
       activo: input.activo,
       urlImagen: input.urlImagen,
     };
@@ -418,4 +433,15 @@ function colorMasCriticoPanel(colores: ColorSemaforo[]): ColorSemaforo {
   if (colores.includes('Rojo')) return 'Rojo';
   if (colores.includes('Amarillo')) return 'Amarillo';
   return 'Verde';
+}
+
+/** Periodo de la evidencia revisada más reciente (las evidencias llegan ordenadas por fecha). */
+function semestreMasReciente(
+  ultimaPorGuia: Map<CodigoDocumentoGuia, { updatedAt: Date; periodo: string }>,
+): string | null {
+  let reciente: { updatedAt: Date; periodo: string } | null = null;
+  for (const evidencia of ultimaPorGuia.values()) {
+    if (!reciente || evidencia.updatedAt > reciente.updatedAt) reciente = evidencia;
+  }
+  return reciente?.periodo ?? null;
 }
