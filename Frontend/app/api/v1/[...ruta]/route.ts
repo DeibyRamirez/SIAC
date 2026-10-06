@@ -5,6 +5,24 @@ import {
   urlBackendInterna,
 } from '@/lib/servicios/config-api';
 
+/**
+ * Cabeceras de salto (hop-by-hop) o propias del navegador que no se reenvían al backend.
+ * `expect: 100-continue` (curl y algunos clientes en cargas grandes) hace fallar el fetch de Node.
+ */
+const CABECERAS_NO_REENVIABLES = new Set([
+  'host',
+  'cookie',
+  'connection',
+  'keep-alive',
+  'expect',
+  'transfer-encoding',
+  'upgrade',
+  'te',
+  'trailer',
+  'proxy-authorization',
+  'proxy-connection',
+]);
+
 async function reenviar(
   request: NextRequest,
   context: { params: Promise<{ ruta: string[] }> },
@@ -19,8 +37,7 @@ async function reenviar(
 
   const cabeceras = new Headers();
   request.headers.forEach((valor, clave) => {
-    const normalizada = clave.toLowerCase();
-    if (normalizada === 'host' || normalizada === 'cookie' || normalizada === 'connection') {
+    if (CABECERAS_NO_REENVIABLES.has(clave.toLowerCase())) {
       return;
     }
     cabeceras.set(clave, valor);

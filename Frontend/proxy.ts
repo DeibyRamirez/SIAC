@@ -34,6 +34,12 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+/**
+ * El proxy no debe ejecutarse en `/api/*`: Next 16 bufferiza el cuerpo de cada
+ * petición que pasa por el proxy hasta `proxyClientMaxBodySize` (10 MB por defecto)
+ * y trunca el resto en silencio. Las rutas `/api/sesion` y `/api/v1` (BFF) ya
+ * gestionan la cookie por su cuenta, así que se excluyen del matcher (R-008.4a).
+ */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|.*\\..*).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|.*\\..*).*)'],
 };
