@@ -414,6 +414,14 @@ export class PanelProgramasService implements OnModuleInit {
       where.origenDato = query.origen;
     }
 
+    const texto = query.q?.trim();
+    if (texto) {
+      where.OR = [
+        { nombre: { contains: texto, mode: 'insensitive' } },
+        { codigo: { contains: texto, mode: 'insensitive' } },
+      ];
+    }
+
     if (usuario.rol === RolUsuario.Cargador || usuario.rol === RolUsuario.Revisor) {
       const ids = await this.alcance.idsProgramasAsignados(usuario.id);
       where.id = { in: ids };

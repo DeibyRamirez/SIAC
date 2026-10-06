@@ -34,6 +34,11 @@ export class ConsultaPanelProgramasDto {
   @IsString()
   semestre?: string;
 
+  /** R-010.3c: búsqueda por nombre o código en el servidor (antes se filtraba solo la página en el cliente). */
+  @IsOptional()
+  @IsString()
+  q?: string;
+
   /** Solo administradores: activos (default), inactivos o todos. */
   @IsOptional()
   @IsIn(['activos', 'inactivos', 'todos'])

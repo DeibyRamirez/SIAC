@@ -33,7 +33,7 @@ function crearServicio(
     tramiteSIAC: { findMany: jest.fn().mockResolvedValue(opciones.tramites ?? []) },
     programa: {
       count: jest.fn().mockResolvedValue(programas.length),
-      findMany: jest.fn(({ skip, take }: { skip?: number; take?: number }) =>
+      findMany: jest.fn(({ skip, take }: { skip?: number; take?: number; where?: Record<string, unknown> }) =>
         Promise.resolve(programas.slice(skip ?? 0, take ? (skip ?? 0) + take : undefined)),
       ),
     },
@@ -223,5 +223,17 @@ describe('PanelProgramasService (T-010.2)', () => {
     const [fila] = (await servicio.listarPanel({}, ADMIN)).datos;
 
     expect(fila.fechaFinVigencia).toBe('2027-03-01T00:00:00.000Z');
+  });
+
+  it('pasa la búsqueda por texto al filtro de la BD (nombre o código)', async () => {
+    const { servicio, prisma } = crearServicio([programa(1)], []);
+    await servicio.onModuleInit();
+
+    await servicio.listarPanel({ q: ' derecho ' }, ADMIN);
+
+    expect(prisma.programa.findMany.mock.calls[0][0].where?.OR).toEqual([
+      { nombre: { contains: 'derecho', mode: 'insensitive' } },
+      { codigo: { contains: 'derecho', mode: 'insensitive' } },
+    ]);
   });
 });

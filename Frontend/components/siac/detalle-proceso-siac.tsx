@@ -15,8 +15,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import { USAR_MOCK_PROGRAMAS_ADMIN } from '@/lib/config-programas-admin'
-import { ID_INSTITUCION_MOCK } from '@/lib/datos-mock/programas-admin.mock'
 import type { ProgresoProcesoSIAC } from '@/lib/servicios/progreso-programa.servicio'
 import {
   activarVigenciaInstitucionApi,
@@ -24,13 +22,6 @@ import {
   obtenerInstitucionApi,
   obtenerProgresoInstitucionApi,
 } from '@/lib/servicios/institucion.servicio'
-import {
-  activarVigenciaMock,
-  actualizarEstadoProgramaMock,
-  actualizarProgramaMock,
-  obtenerProgresoProgramaMock,
-  obtenerProgramaMock,
-} from '@/lib/servicios/programas-admin.mock.servicio'
 import {
   activarVigenciaProgramaApi,
   actualizarEstadoProgramaApi,
@@ -128,53 +119,16 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     setCargando(true)
     try {
       if (esInstitucion) {
-        if (USAR_MOCK_PROGRAMAS_ADMIN) {
-          const mockId = entidadId ?? ID_INSTITUCION_MOCK
-          const [data, prog] = await Promise.all([
-            obtenerProgramaMock(mockId),
-            obtenerProgresoProgramaMock(mockId),
-          ])
-          const detalle = mapearInstitucionADetalle({
-            id: data.id,
-            nombre: data.nombre,
-            codigo: data.codigo,
-            tipoTramiteActivo:
-              (data.tipoTramiteActivo as TipoTramiteSIAC) ??
-              'RenovacionCondicionesInstitucionales',
-            fechaResolucion: data.fechaResolucion,
-            porcentajeAvance: data.porcentajeAvance,
-            semaforo: data.semaforo,
-            estadoProceso: data.estadoProceso,
-            evidencias: data.evidencias as { estado: string }[] | undefined,
-          })
-          setPrograma(detalle)
-          setProgreso(prog)
-          setTipoTramiteActivo(detalle.tipoTramiteActivo as TipoTramiteSIAC)
-        } else {
-          const [data, prog] = await Promise.all([
-            obtenerInstitucionApi(),
-            obtenerProgresoInstitucionApi(),
-          ])
-          const detalle = mapearInstitucionADetalle(data)
-          setPrograma(detalle)
-          setProgreso(prog)
-          setTipoTramiteActivo(data.tipoTramiteActivo)
-        }
+        const [data, prog] = await Promise.all([
+          obtenerInstitucionApi(),
+          obtenerProgresoInstitucionApi(),
+        ])
+        const detalle = mapearInstitucionADetalle(data)
+        setPrograma(detalle)
+        setProgreso(prog)
+        setTipoTramiteActivo(data.tipoTramiteActivo)
       } else if (!entidadId) {
         throw new Error('Identificador de programa requerido.')
-      } else if (USAR_MOCK_PROGRAMAS_ADMIN) {
-        const [data, prog] = await Promise.all([
-          obtenerProgramaMock(entidadId),
-          obtenerProgresoProgramaMock(entidadId),
-        ])
-        setPrograma(data)
-        setProgreso(prog)
-        setNombre(data.nombre)
-        setFacultad(data.facultad ?? '')
-        setNivel(data.nivel)
-        setTipoTramiteActivo(
-          (data.tipoTramiteActivo as TipoTramiteSIAC) ?? 'RenovacionRegistroCalificado',
-        )
       } else {
         const data = await obtenerProgramaApi(entidadId)
         const prog = await obtenerProgresoProgramaApi(entidadId)
@@ -256,17 +210,9 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     setGuardando(true)
     try {
       if (esInstitucion) {
-        if (USAR_MOCK_PROGRAMAS_ADMIN) {
-          await activarVigenciaMock(entidadId ?? ID_INSTITUCION_MOCK)
-        } else {
-          await activarVigenciaInstitucionApi()
-        }
+        await activarVigenciaInstitucionApi()
       } else if (entidadId) {
-        if (USAR_MOCK_PROGRAMAS_ADMIN) {
-          await activarVigenciaMock(entidadId)
-        } else {
-          await activarVigenciaProgramaApi(entidadId)
-        }
+        await activarVigenciaProgramaApi(entidadId)
       }
       toast.success('Vigencia de registro activada.')
       await cargarDatos()
@@ -378,13 +324,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
               onClick={async () => {
                 setGuardando(true)
                 try {
-                  if (USAR_MOCK_PROGRAMAS_ADMIN) {
-                    await actualizarProgramaMock(entidadId ?? ID_INSTITUCION_MOCK, {
-                      tipoTramiteActivo,
-                    })
-                  } else {
-                    await actualizarInstitucionApi({ tipoTramiteActivo })
-                  }
+                  await actualizarInstitucionApi({ tipoTramiteActivo })
                   toast.success('Trámite institucional actualizado.')
                   await cargarDatos()
                 } catch (err) {
@@ -465,9 +405,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
                       nivel,
                       tipoTramiteActivo,
                     }
-                    const actualizado = USAR_MOCK_PROGRAMAS_ADMIN
-                      ? await actualizarProgramaMock(entidadId!, datosActualizacion)
-                      : await actualizarProgramaApi(entidadId!, datosActualizacion)
+                    const actualizado = await actualizarProgramaApi(entidadId!, datosActualizacion)
                     setPrograma((prev) => (prev ? { ...prev, ...actualizado } : prev))
                     toast.success('Programa actualizado.')
                   } catch (err) {
@@ -486,9 +424,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
                   setGuardando(true)
                   try {
                     const activo = programa.activo === false
-                    const actualizado = USAR_MOCK_PROGRAMAS_ADMIN
-                      ? await actualizarEstadoProgramaMock(entidadId!, activo)
-                      : await actualizarEstadoProgramaApi(entidadId!, activo)
+                    const actualizado = await actualizarEstadoProgramaApi(entidadId!, activo)
                     setPrograma((prev) => (prev ? { ...prev, ...actualizado } : prev))
                     toast.success(activo ? 'Programa activado.' : 'Programa desactivado.')
                   } catch (err) {

@@ -81,7 +81,6 @@ function itemsParAcademico(): ItemNavegacion[] {
   return [
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
-    { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
     { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
   ]
 }

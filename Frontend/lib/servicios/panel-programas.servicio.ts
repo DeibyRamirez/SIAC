@@ -60,11 +60,12 @@ export interface FiltrosPanelProgramas {
   semestre?: string
   estado?: EstadoFiltroPanel
   origen?: OrigenProgramaPanel
+  /** Búsqueda por nombre o código (en el servidor). */
+  q?: string
 }
 
-export async function listarPanelProgramasApi(
-  filtros: FiltrosPanelProgramas = {},
-): Promise<RespuestaPanelProgramas> {
+/** Ruta de la API del panel; la usan el cliente y el SSR (R-010.3a). */
+export function rutaPanelProgramas(filtros: FiltrosPanelProgramas = {}): string {
   const params = new URLSearchParams()
   if (filtros.page) params.set('page', String(filtros.page))
   if (filtros.limit) params.set('limit', String(filtros.limit))
@@ -74,6 +75,13 @@ export async function listarPanelProgramasApi(
   if (filtros.semestre) params.set('semestre', filtros.semestre)
   if (filtros.estado) params.set('estado', filtros.estado)
   if (filtros.origen) params.set('origen', filtros.origen)
+  if (filtros.q?.trim()) params.set('q', filtros.q.trim())
   const query = params.toString()
-  return peticionApi<RespuestaPanelProgramas>(`/programas/panel${query ? `?${query}` : ''}`)
+  return `/programas/panel${query ? `?${query}` : ''}`
+}
+
+export async function listarPanelProgramasApi(
+  filtros: FiltrosPanelProgramas = {},
+): Promise<RespuestaPanelProgramas> {
+  return peticionApi<RespuestaPanelProgramas>(rutaPanelProgramas(filtros))
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import type { FilaPanelPrograma } from '@/lib/servicios/panel-programas.servicio'
+import { etiquetaDocumentoPanel, formatearFechaResolucion } from '@/lib/utilidades/parametros-panel-url'
 
 interface TarjetaInstitucionPanelProps {
   institucion: FilaPanelPrograma
@@ -31,7 +32,13 @@ export function TarjetaInstitucionPanel({
             </p>
             <h2 className="text-xl font-bold text-primary">{institucion.nombre}</h2>
             <p className="text-sm text-muted-foreground">
-              Renovación de condiciones institucionales (G3 + G4)
+              {institucion.tipoTramite === 'CondicionesInstitucionalesNuevas'
+                ? 'Condiciones institucionales nuevas (G3)'
+                : 'Renovación de condiciones institucionales (G3 + G4)'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Resolución MEN: {formatearFechaResolucion(institucion.fechaResolucion)} · Semestre:{' '}
+              {institucion.semestre ?? '—'}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Semaforo valor={institucion.semaforoGeneral} etiqueta="General" />
@@ -45,7 +52,7 @@ export function TarjetaInstitucionPanel({
           {institucion.documentos.map((doc) => (
             <div key={doc.codigoGuia} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-primary">{doc.codigoGuia}</span>
+                <span className="font-medium text-primary">{etiquetaDocumentoPanel(doc)}</span>
                 <span className="font-semibold text-esmeralda">{doc.porcentajeInterno}%</span>
               </div>
               <Progress value={doc.porcentajeInterno} className="h-2" />
