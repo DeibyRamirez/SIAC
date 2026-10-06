@@ -47,6 +47,11 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 - Plantillas (HU-005): `codigoGuia` es obligatorio; una plantilla nueva desactiva las vigentes de la misma guía y tipo de trámite.
 - Ingesta Excel: columnas `nombre`, `programaCodigo`, `periodo`, `codigoGuia`.
 
+## Pruebas (T-010.4 y T-010.5)
+
+- **T-010.5 (criterio ajustado por el PO, 06/10):** el backend usa Jest + supertest (`pnpm exec jest` y `pnpm test:e2e` con PostgreSQL y Storage en memoria) y el frontend usa Vitest + React Testing Library (`pnpm test`). Las dos suites corren en la CI en cada push y PR a `develop_v2`. Decisión registrada en [ADR 0001](../adr/0001-pilas-de-pruebas.md).
+- **T-010.4:** casos CP-E2E-01 a CP-E2E-05 en `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`, documentados en [Etapa 3](../etapa-3/README.md).
+
 ## Criterios de aceptación
 
 - [x] CRUD evidencias end-to-end con restricciones por rol
