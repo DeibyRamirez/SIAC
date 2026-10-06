@@ -6,6 +6,7 @@ dist/
 *.log
 .DS_Store
 Backend/almacen-local/
+Backend/respaldos/
 package-lock.json
 .cursor/memory.jsonl
 *.tsbuildinfo
