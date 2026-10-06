@@ -33,6 +33,14 @@ enum TipoEvidencia {
   ResolucionMen
 }
 
+/// Categoría explícita del anexo (R-D): RN-003 solo mira «Infraestructura».
+enum CategoriaAnexo {
+  Infraestructura
+  Permiso
+  Convenio
+  Otro
+}
+
 enum EstadoVigencia {
   Vigente
   Proximo
@@ -208,6 +216,7 @@ model Evidencia {
   /// «ResolucionMen»: única excepción a la regla .docx (solo PDF real); no pasa por revisión.
   tipoEvidencia          TipoEvidencia        @default(DocumentoGuia)
   resolucionMen          ResolucionMen?
+  anexosVigencia         AnexoVigencia[]
   /// Puntaje entero n de la última verificación (condiciones que cumplen).
   puntajeActual          Int?
   /// Total de condiciones evaluadas en la última verificación (9 en G1, 6 en G3).
@@ -338,6 +347,14 @@ model AnexoVigencia {
   programaId       String
   programa         Programa       @relation(fields: [programaId], references: [id])
   tipo             String
+  /// R-D: categoría explícita; RN-003 marca rojo si un anexo «Infraestructura» está vencido.
+  categoria        CategoriaAnexo @default(Otro)
+  /// Evidencia (documento guía G1/G3…) que respalda el anexo. La migración exige, para filas nuevas
+  /// o modificadas, documento archivado y evidencia (CHECK … NOT VALID; ver migración 20261006040000).
+  evidenciaId      String?
+  evidencia        Evidencia?     @relation(fields: [evidenciaId], references: [id], onDelete: Restrict)
+  /// Fecha de expedición del certificado (opcional); el vencimiento sale del certificado.
+  fechaExpedicion  DateTime?      @db.Date
   carpeta          String         @default("general") @db.VarChar(150)
   nombreArchivo    String?        @db.VarChar(255)
   rutaArchivo      String?        @db.VarChar(500)
@@ -353,6 +370,8 @@ model AnexoVigencia {
   @@index([programaId])
   @@index([fechaVencimiento])
   @@index([carpeta])
+  @@index([categoria, fechaVencimiento])
+  @@index([evidenciaId])
 }
 
 model AlertaInApp {

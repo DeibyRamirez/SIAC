@@ -23,6 +23,9 @@ describe('pnpm datos:limpiar-anexos-sin-documento', () => {
       data: { id: 'prog-e2e-limpieza', nombre: 'Programa limpieza', codigo: 'E2E-LIMP', slug: 'e2e-limpieza', nivel: 'Pregrado' },
     });
     const base = { programaId: 'prog-e2e-limpieza', tipo: 'Infraestructura', responsable: 'admin', fechaVencimiento: new Date('2027-01-01') };
+    // Simula filas históricas, anteriores al CHECK de documento y evidencia (como en producción):
+    // se insertan sin la restricción y se restaura igual que en la migración (NOT VALID).
+    await prisma.$executeRawUnsafe(`ALTER TABLE "AnexoVigencia" DROP CONSTRAINT "AnexoVigencia_documento_y_evidencia_chk"`);
     await prisma.anexoVigencia.createMany({
       data: [
         { ...base, id: 'anx-e2e-sin-1', titulo: 'Semilla antigua 1' },
@@ -30,6 +33,10 @@ describe('pnpm datos:limpiar-anexos-sin-documento', () => {
         { ...base, id: 'anx-e2e-con', titulo: 'Con archivo', rutaArchivo: 'documentos/general/u/a.pdf', nombreArchivo: 'a.pdf' },
       ],
     });
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "AnexoVigencia" ADD CONSTRAINT "AnexoVigencia_documento_y_evidencia_chk"
+         CHECK ("rutaArchivo" IS NOT NULL AND "rutaArchivo" <> '' AND "evidenciaId" IS NOT NULL) NOT VALID`,
+    );
   });
 
   afterAll(async () => {

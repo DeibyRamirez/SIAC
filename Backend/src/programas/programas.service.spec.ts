@@ -1,4 +1,4 @@
-import { EstadoEvidencia, EstadoVigencia, RolUsuario } from '@prisma/client';
+import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, RolUsuario } from '@prisma/client';
 import {
   ProgramasService,
   ProgramaRepositorio,
@@ -12,13 +12,21 @@ import {
 import { ServicioAlcancePrograma } from '../common/alcance/servicio-alcance-programa';
 import { TipoTramiteSIAC } from '@prisma/client';
 
+const INFRA_VENCIDO = {
+  estado: EstadoVigencia.Vencido,
+  categoria: CategoriaAnexo.Infraestructura,
+  fechaVencimiento: new Date('2026-09-01T00:00:00Z'),
+};
+
 describe('calcularSemaforo', () => {
-  it('prioriza el anexo de infraestructura vencido', () => {
+  it('prioriza el anexo de infraestructura vencido (categoría explícita)', () => {
+    expect(calcularSemaforo([INFRA_VENCIDO])).toBe('Rojo');
+  });
+
+  it('un permiso vencido ya no se confunde con infraestructura aunque el texto lo mencione', () => {
     expect(
-      calcularSemaforo([
-        { estado: EstadoVigencia.Vencido, tipo: 'Infraestructura física' },
-      ]),
-    ).toBe('Rojo');
+      calcularSemaforo([{ ...INFRA_VENCIDO, categoria: CategoriaAnexo.Permiso, estado: EstadoVigencia.Vigente }]),
+    ).toBe('Verde');
   });
 });
 
@@ -49,7 +57,7 @@ describe('calcularSemaforoPrograma (regla n/9, D2)', () => {
   it('RN-003 prevalece sobre un 9/9', () => {
     expect(
       calcularSemaforoPrograma(
-        [{ estado: EstadoVigencia.Vencido, tipo: 'Infraestructura física' }],
+        [INFRA_VENCIDO],
         [doc(9)],
       ),
     ).toBe('Rojo');

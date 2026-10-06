@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   AlcanceTramiteSIAC,
+  CategoriaAnexo,
   CodigoDocumentoGuia,
   EstadoEvidencia,
   EstadoVigencia,
@@ -22,7 +23,7 @@ import {
   validarPesosTramite,
 } from '../dominio/panel-siac';
 import { ColorSemaforo } from '../dominio/puntaje-condiciones';
-import { conEstadoCalculado } from '../dominio/vigencia-anexo';
+import { conEstadoCalculado, hayAnexoInfraestructuraVencido } from '../dominio/vigencia-anexo';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
@@ -212,7 +213,7 @@ export class PanelProgramasService implements OnModuleInit {
       this.prisma.anexoVigencia
         .findMany({
           where: { programaId: { in: ids } },
-          select: { programaId: true, estado: true, tipo: true, fechaVencimiento: true },
+          select: { programaId: true, estado: true, categoria: true, fechaVencimiento: true },
         })
         // R-D 3e: estado calculado al consultar; no depende del cron de las 6:00.
         .then((filas) => filas.map((anexo) => conEstadoCalculado(anexo))),
@@ -277,7 +278,7 @@ export class PanelProgramasService implements OnModuleInit {
     alcance: AlcanceTramiteSIAC;
     tipoTramite: TipoTramiteSIAC;
     fechaResolucion: Date | null;
-    anexos: { estado: EstadoVigencia; tipo: string }[];
+    anexos: { estado: EstadoVigencia; categoria: CategoriaAnexo; fechaVencimiento: Date }[];
     evidencias: {
       codigoGuia: CodigoDocumentoGuia | null;
       estado: EstadoEvidencia;
@@ -339,11 +340,8 @@ export class PanelProgramasService implements OnModuleInit {
         )
       : 0;
 
-    const anexoInfraestructuraVencido = input.anexos.some(
-      (anexo) =>
-        anexo.estado === EstadoVigencia.Vencido &&
-        anexo.tipo.toLowerCase().includes('infraestructura'),
-    );
+    // RN-003 (R-D): categoría explícita y vencimiento real del certificado.
+    const anexoInfraestructuraVencido = hayAnexoInfraestructuraVencido(input.anexos);
 
     const umbrales = this.configuracion.obtener();
     const semaforoAvance = tieneRevisados ? calcularSemaforoAvance(avancePorcentual, umbrales) : 'Rojo';

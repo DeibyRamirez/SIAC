@@ -146,6 +146,8 @@ El fin de vigencia es la fecha de la resolución + 7 años y el color se calcula
 
 ## Semáforo de anexos de vigencia
 
+En **Vigencias y alertas → Cargar documento** el anexo exige: documento adjunto, programa, **evidencia que respalda** (documento guía del mismo programa), **categoría** (Infraestructura, Permiso, Convenio u Otro) y el **vencimiento del certificado** (o su fecha de expedición + años). Un anexo de categoría *Infraestructura* vencido pone en rojo el semáforo general del programa (RN-003), aunque el avance documental sea 100 %.
+
 | Color | Significado |
 |-------|-------------|
 | Verde | Vigente (>30 días) |

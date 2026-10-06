@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   HttpException,
   Injectable,
   Logger,
@@ -21,9 +22,10 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { EstadoVigencia } from '@prisma/client';
+import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
-import { calcularEstadoAnexo } from '../dominio/vigencia-anexo';
+import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
+import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 
 
 
@@ -158,40 +160,7 @@ export class VigenciasService implements OnModuleInit {
 
 
 
-  calcularFechaVencimiento(fechaCarga: Date, aniosVigencia: number): Date {
-
-    const vencimiento = new Date(fechaCarga);
-
-    vencimiento.setFullYear(vencimiento.getFullYear() + aniosVigencia);
-
-    return vencimiento;
-
-  }
-
-
-
-  async crearAnexoConArchivo(
-
-    datos: {
-
-      titulo: string;
-
-      programaId: string;
-
-      tipo: string;
-
-      carpeta: string;
-
-      aniosVigencia: number;
-
-      responsable: string;
-
-    },
-
-    archivo: Express.Multer.File,
-
-  ) {
-
+  async crearAnexoConArchivo(dto: CrearAnexoConArchivoDto, archivo: Express.Multer.File) {
     // R-D 3c: falta de archivo o formato inválido es un error del cliente (400), no un 404.
     if (!archivo) throw new BadRequestException('Se requiere un archivo para el anexo.');
     if (!TIPOS_DOCUMENTO.includes(archivo.mimetype)) {
@@ -200,9 +169,33 @@ export class VigenciasService implements OnModuleInit {
       );
     }
 
+    // Vencimiento desde el certificado (PO, 06/10): fecha de vencimiento o expedición + años.
+    const fechaExpedicion = dto.fechaExpedicion ? fechaUtc(dto.fechaExpedicion) : null;
+    const fechaVencimiento = calcularVencimientoAnexo({
+      fechaVencimiento: dto.fechaVencimiento ? fechaUtc(dto.fechaVencimiento) : null,
+      fechaExpedicion,
+      aniosVigencia: dto.aniosVigencia,
+    });
+    if (!fechaVencimiento) {
+      throw new BadRequestException(
+        'Indique la fecha de vencimiento del certificado o su fecha de expedición y los años de vigencia.',
+      );
+    }
+    await this.validarEvidenciaDelPrograma(dto.evidenciaId, dto.programaId);
+
+    const datos = {
+      titulo: dto.titulo,
+      programaId: dto.programaId,
+      categoria: dto.categoria,
+      evidenciaId: dto.evidenciaId,
+      tipo: dto.tipo?.trim() || dto.categoria,
+      carpeta: dto.carpeta?.trim() || 'general',
+      aniosVigencia: dto.aniosVigencia ?? 7,
+      fechaExpedicion,
+      responsable: dto.responsable,
+    };
     const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
     const fechaCarga = new Date();
-    const fechaVencimiento = this.calcularFechaVencimiento(fechaCarga, datos.aniosVigencia);
     const estado = this.calcularEstado(fechaVencimiento);
     const clave = this.almacenamiento.generarClaveDocumento(datos.carpeta, nombreArchivo);
 
@@ -262,73 +255,44 @@ export class VigenciasService implements OnModuleInit {
     );
   }
 
-  crearAnexo(datos: {
-
-    titulo: string;
-
-    programaId: string;
-
-    tipo: string;
-
-    fechaVencimiento: Date;
-
-    responsable: string;
-
-    carpeta?: string;
-
-    aniosVigencia?: number;
-
-  }) {
-
-    const fechaCarga = new Date();
-
-    const estado = this.calcularEstado(datos.fechaVencimiento);
-
-    return this.prisma.anexoVigencia.create({
-
-      data: {
-
-        titulo: datos.titulo,
-
-        programaId: datos.programaId,
-
-        tipo: datos.tipo,
-
-        responsable: datos.responsable,
-
-        carpeta: datos.carpeta ?? 'general',
-
-        aniosVigencia: datos.aniosVigencia ?? 7,
-
-        fechaCarga,
-
-        fechaVencimiento: datos.fechaVencimiento,
-
-        estado,
-
-      },
-
-    }).then((a) => this.enriquecerAnexo(a));
-
-  }
-
-
-
-  actualizarAnexo(id: string, datos: Partial<{ titulo: string; fechaVencimiento: Date; responsable: string }>) {
-
-    const updateData: Record<string, unknown> = { ...datos };
-
-    if (datos.fechaVencimiento) {
-
-      updateData.estado = this.calcularEstado(datos.fechaVencimiento);
-
+  async actualizarAnexo(id: string, dto: ActualizarAnexoDto) {
+    const anexo = await this.prisma.anexoVigencia.findUnique({ where: { id } });
+    if (!anexo) throw new NotFoundException('Anexo no encontrado.');
+    const evidenciaId = dto.evidenciaId ?? anexo.evidenciaId;
+    if (!anexo.rutaArchivo || !evidenciaId) {
+      throw new ConflictException(
+        'Este anexo no tiene documento o evidencia vinculada. Vincúlelo a una evidencia (evidenciaId) o cárguelo de nuevo con su documento.',
+      );
     }
+    if (dto.evidenciaId) await this.validarEvidenciaDelPrograma(dto.evidenciaId, anexo.programaId);
 
-    return this.prisma.anexoVigencia.update({ where: { id }, data: updateData }).then((a) => this.enriquecerAnexo(a));
-
+    const data: Prisma.AnexoVigenciaUncheckedUpdateInput = {
+      titulo: dto.titulo,
+      responsable: dto.responsable,
+      categoria: dto.categoria,
+      evidenciaId: dto.evidenciaId,
+    };
+    if (dto.fechaVencimiento) {
+      data.fechaVencimiento = fechaUtc(dto.fechaVencimiento);
+      data.estado = this.calcularEstado(data.fechaVencimiento as Date);
+    }
+    const actualizado = await this.prisma.anexoVigencia.update({ where: { id }, data });
+    return this.enriquecerAnexo(actualizado);
   }
 
-
+  /** La evidencia vinculada debe existir, ser un documento guía y pertenecer al mismo programa. */
+  private async validarEvidenciaDelPrograma(evidenciaId: string, programaId: string) {
+    const evidencia = await this.prisma.evidencia.findUnique({
+      where: { id: evidenciaId },
+      select: { programaId: true, tipoEvidencia: true, codigoGuia: true },
+    });
+    if (!evidencia || evidencia.programaId !== programaId) {
+      throw new BadRequestException('La evidencia vinculada no existe o no pertenece al programa del anexo.');
+    }
+    if (evidencia.tipoEvidencia !== TipoEvidencia.DocumentoGuia || !evidencia.codigoGuia) {
+      throw new BadRequestException('El anexo debe vincularse a un documento guía (G1–G4), no a otro tipo de evidencia.');
+    }
+  }
 
   async eliminarAnexo(id: string) {
 
@@ -386,24 +350,8 @@ export class VigenciasService implements OnModuleInit {
 
     for (const anexo of anexos) {
 
-      const nuevoEstado = this.calcularEstado(anexo.fechaVencimiento);
-
-
-
-      if (nuevoEstado !== anexo.estado) {
-
-        await this.prisma.anexoVigencia.update({
-
-          where: { id: anexo.id },
-
-          data: { estado: nuevoEstado },
-
-        });
-
-      }
-
-
-
+      // El estado se calcula al consultar (R-D 3e); el cron ya no reescribe la columna, así no choca
+      // con el CHECK de documento y evidencia en los anexos históricos.
       const vencimiento = new Date(anexo.fechaVencimiento);
 
       vencimiento.setHours(0, 0, 0, 0);
@@ -474,4 +422,7 @@ export class VigenciasService implements OnModuleInit {
 
 }
 
-
+/** Fecha AAAA-MM-DD a medianoche UTC. */
+function fechaUtc(valor: string): Date {
+  return new Date(`${valor.slice(0, 10)}T00:00:00.000Z`);
+}

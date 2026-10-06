@@ -3,8 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
-import { conEstadoCalculado } from '../dominio/vigencia-anexo';
+import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
+import { conEstadoCalculado, hayAnexoInfraestructuraVencido } from '../dominio/vigencia-anexo';
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
@@ -43,7 +43,7 @@ export class ProgramaRepositorio {
     return this.prisma.anexoVigencia
       .findMany({
         where: { programaId: { in: programaIds } },
-        select: { programaId: true, estado: true, tipo: true, fechaVencimiento: true },
+        select: { programaId: true, estado: true, categoria: true, fechaVencimiento: true },
       })
       .then((anexos) => anexos.map((anexo) => conEstadoCalculado(anexo)));
   }
@@ -163,7 +163,8 @@ export class ProgramasService {
     const evidencias = await this.programaRepo.listarEstadosEvidencia(id);
     const anexos = (await this.programaRepo.listarAnexosDeProgramas([id])).map((anexo) => ({
       estado: anexo.estado,
-      tipo: anexo.tipo,
+      categoria: anexo.categoria,
+      fechaVencimiento: anexo.fechaVencimiento,
     }));
 
     return {
@@ -314,14 +315,12 @@ function agrupar<T>(filas: T[], clave: (fila: T) => string): Map<string, T[]> {
   return mapa;
 }
 
-/** RN-003 vigente: anexo de infraestructura vencido → rojo. El resto sigue la heurística actual. */
-export function calcularSemaforo(anexos: { estado: EstadoVigencia; tipo: string }[]): ColorSemaforo {
-  const infraVencido = anexos.some(
-    (anexo) =>
-      anexo.estado === EstadoVigencia.Vencido &&
-      anexo.tipo.toLowerCase().includes('infraestructura'),
-  );
-  if (infraVencido) return 'Rojo';
+/** Anexo tal como lo usa el semáforo: estado calculado, categoría explícita y vencimiento real. */
+export type AnexoSemaforo = { estado: EstadoVigencia; categoria: CategoriaAnexo; fechaVencimiento: Date };
+
+/** RN-003 (R-D): anexo de categoría Infraestructura vencido → rojo. El resto sigue la heurística actual. */
+export function calcularSemaforo(anexos: AnexoSemaforo[]): ColorSemaforo {
+  if (hayAnexoInfraestructuraVencido(anexos)) return 'Rojo';
 
   if (anexos.some((anexo) => anexo.estado === EstadoVigencia.Proximo)) return 'Amarillo';
   if (anexos.some((anexo) => anexo.estado === EstadoVigencia.Vencido)) return 'Rojo';
@@ -333,7 +332,7 @@ export function calcularSemaforo(anexos: { estado: EstadoVigencia; tipo: string 
  * color más crítico entre los anexos y el puntaje n/total de cada documento ya verificado.
  */
 export function calcularSemaforoPrograma(
-  anexos: { estado: EstadoVigencia; tipo: string }[],
+  anexos: AnexoSemaforo[],
   documentos: { puntaje: number | null; totalCondiciones: number | null }[],
 ): ColorSemaforo {
   const colorAnexos = calcularSemaforo(anexos);

@@ -38,15 +38,21 @@ import {
 } from '@/components/ui/table'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import {
   crearVigenciaConArchivoApi,
   listarProgramasApi,
   listarVigenciasApi,
   obtenerUrlDescargaVigenciaApi,
 } from '@/lib/servicios/programas.servicio'
-import type { AnexoVigencia, EstadoVigencia, Programa } from '@/lib/tipos'
+import type { AnexoVigencia, CategoriaAnexo, EstadoVigencia, Evidencia, Programa } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
+import {
+  CATEGORIAS_ANEXO,
+  FORMULARIO_ANEXO_INICIAL,
+  construirFormularioAnexo,
+} from '@/lib/utilidades/formulario-anexo'
 import { formatearFecha, manejarCambioSelect, obtenerNombrePrograma } from '@/lib/utilidades-siac'
 
 const estilosTarjetaResumen: Record<EstadoVigencia, string> = {
@@ -72,14 +78,8 @@ function ContenidoVigencias() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [formulario, setFormulario] = useState({
-    titulo: '',
-    programaId: '',
-    tipo: 'Documento institucional',
-    carpeta: 'permisos',
-    aniosVigencia: '7',
-    responsable: '',
-  })
+  const [formulario, setFormulario] = useState(FORMULARIO_ANEXO_INICIAL)
+  const [evidenciasPrograma, setEvidenciasPrograma] = useState<Evidencia[]>([])
 
   const alertasPendientes = useMemo(
     () => datos.alertas.filter((alerta) => !alerta.leida).length,
@@ -139,22 +139,32 @@ function ContenidoVigencias() {
     cargarProgramas()
   }, [cargarAnexos, searchParams])
 
-  async function guardarAnexo() {
-    if (!formulario.titulo || !archivo || !formulario.responsable) {
-      toast.error('Complete título, archivo y responsable.')
+  // El anexo se vincula a una evidencia (documento guía) del mismo programa (decisión del PO, 06/10).
+  useEffect(() => {
+    if (!formulario.programaId || !apiDisponible()) {
+      setEvidenciasPrograma([])
       return
     }
+    let vigente = true
+    listarEvidenciasApi({ programaId: formulario.programaId, limite: 100 })
+      .then((respuesta) => {
+        if (vigente) setEvidenciasPrograma(respuesta.datos.filter((e) => Boolean(e.codigoGuia)))
+      })
+      .catch(() => vigente && setEvidenciasPrograma([]))
+    return () => {
+      vigente = false
+    }
+  }, [formulario.programaId])
+
+  async function guardarAnexo() {
+    const resultado = construirFormularioAnexo(formulario, archivo)
+    if ('error' in resultado) {
+      toast.error(resultado.error)
+      return
+    }
+    const { formData } = resultado
     setGuardando(true)
     try {
-      const formData = new FormData()
-      formData.append('titulo', formulario.titulo)
-      formData.append('programaId', formulario.programaId)
-      formData.append('tipo', formulario.tipo)
-      formData.append('carpeta', formulario.carpeta)
-      formData.append('aniosVigencia', formulario.aniosVigencia)
-      formData.append('responsable', formulario.responsable)
-      formData.append('archivo', archivo)
-
       if (apiDisponible()) {
         await crearVigenciaConArchivoApi(formData)
         await cargarAnexos()
@@ -319,11 +329,11 @@ function ContenidoVigencias() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Programa (opcional institucional)</Label>
+              <Label>Programa</Label>
               <Select
                 value={formulario.programaId}
                 onValueChange={manejarCambioSelect((v) =>
-                  setFormulario({ ...formulario, programaId: v }),
+                  setFormulario({ ...formulario, programaId: v, evidenciaId: '' }),
                 )}
               >
                 <SelectTrigger>
@@ -339,17 +349,75 @@ function ContenidoVigencias() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="anios">Años de vigencia</Label>
-              <Input
-                id="anios"
-                type="number"
-                min={1}
-                max={30}
-                value={formulario.aniosVigencia}
-                onChange={(e) =>
-                  setFormulario({ ...formulario, aniosVigencia: e.target.value })
-                }
-              />
+              <Label>Categoría</Label>
+              <Select
+                value={formulario.categoria}
+                onValueChange={manejarCambioSelect((v) =>
+                  setFormulario({ ...formulario, categoria: v as CategoriaAnexo }),
+                )}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS_ANEXO.map((c) => (
+                    <SelectItem key={c.valor} value={c.valor}>
+                      {c.etiqueta}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Evidencia que respalda</Label>
+              <Select
+                value={formulario.evidenciaId}
+                onValueChange={manejarCambioSelect((v) =>
+                  setFormulario({ ...formulario, evidenciaId: v }),
+                )}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={evidenciasPrograma.length ? 'Seleccione la evidencia' : 'El programa no tiene evidencias'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {evidenciasPrograma.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.codigoGuia} · {e.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="vencimiento">Vence (según certificado)</Label>
+                <Input
+                  id="vencimiento"
+                  type="date"
+                  value={formulario.fechaVencimiento}
+                  onChange={(e) => setFormulario({ ...formulario, fechaVencimiento: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expedicion">o expedición</Label>
+                <Input
+                  id="expedicion"
+                  type="date"
+                  value={formulario.fechaExpedicion}
+                  onChange={(e) => setFormulario({ ...formulario, fechaExpedicion: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="anios">+ años</Label>
+                <Input
+                  id="anios"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={formulario.aniosVigencia}
+                  onChange={(e) => setFormulario({ ...formulario, aniosVigencia: e.target.value })}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="responsable">Responsable</Label>

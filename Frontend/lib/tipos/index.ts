@@ -118,11 +118,18 @@ export interface Plantilla {
   nombreArchivo?: string | null
 }
 
+/** Categoría explícita del anexo; RN-003 solo considera «Infraestructura». */
+export type CategoriaAnexo = 'Infraestructura' | 'Permiso' | 'Convenio' | 'Otro'
+
 export interface AnexoVigencia {
   id: string
   titulo: string
   programaId: string
   tipo: string
+  categoria?: CategoriaAnexo
+  /** Evidencia (documento guía) que respalda el anexo. */
+  evidenciaId?: string | null
+  fechaExpedicion?: string | null
   carpeta?: string
   nombreArchivo?: string
   aniosVigencia?: number

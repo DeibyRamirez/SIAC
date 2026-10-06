@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
 import { Prisma, RolUsuario } from '@prisma/client';
+import { calcularEstadoAnexo } from '../dominio/vigencia-anexo';
 import {
   ServicioAlcancePrograma,
   UsuarioAlcance,
@@ -89,9 +90,14 @@ export class BusquedaService {
             { tipo: { contains: q, mode: 'insensitive' } },
           ],
         },
-        select: { id: true, titulo: true, nombreArchivo: true, carpeta: true, estado: true },
+        select: { id: true, titulo: true, nombreArchivo: true, carpeta: true, estado: true, fechaVencimiento: true },
         take: limite,
-      }),
+      })
+        // Estado calculado al consultar (R-D 3e): el cron ya no reescribe la columna.
+        .then((anexos) => anexos.map(({ fechaVencimiento, ...anexo }) => ({
+          ...anexo,
+          estado: calcularEstadoAnexo(fechaVencimiento),
+        }))),
     ]);
 
     return { evidencias, plantillas, documentos };
