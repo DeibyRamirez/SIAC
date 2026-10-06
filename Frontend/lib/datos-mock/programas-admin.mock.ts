@@ -1,6 +1,6 @@
 import type { DocumentoPanel, FilaPanelPrograma } from '@/lib/servicios/panel-programas.servicio'
 import type { DocumentoProgresoSIAC, ProgresoProcesoSIAC } from '@/lib/servicios/progreso-programa.servicio'
-import type { NivelPrograma, Programa, SemaforoPrograma } from '@/lib/tipos'
+import type { NivelPrograma, Programa, SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 import {
   CATALOGO_TRAMITES_SIAC,
   ETIQUETAS_GUIA,
@@ -27,7 +27,7 @@ export interface EntidadMockAdmin extends Programa {
   fechaResolucion: string | null
   documentosInternos: Record<CodigoDocumentoGuia, number>
   semaforoAvance: SemaforoPrograma
-  semaforoVigencia: SemaforoPrograma
+  semaforoVigencia: SemaforoVigencia
   semaforoGeneral: SemaforoPrograma
 }
 
@@ -118,7 +118,8 @@ function sincronizarMetricas(entidad: EntidadMockAdmin): EntidadMockAdmin {
   const avance = calcularAvancePonderado(entidad.tipoTramite, entidad.documentosInternos)
   const semaforoAvance = calcularSemaforoAvance(avance)
   const semaforoVigencia = calcularSemaforoVigencia(entidad.fechaResolucion)
-  const semaforoGeneral = colorMasCritico([semaforoAvance, semaforoVigencia])
+  const semaforoGeneral =
+    semaforoVigencia === 'SinVigencia' ? semaforoAvance : colorMasCritico([semaforoAvance, semaforoVigencia])
 
   const estadoProceso =
     avance >= 100 && !entidad.fechaResolucion
@@ -156,7 +157,7 @@ export function crearDatosSemilla(): EntidadMockAdmin[] {
     fechaResolucion: null,
     documentosInternos: { G1: 0, G2: 0, G3: 90, G4: 10 },
     semaforoAvance: 'Amarillo',
-    semaforoVigencia: 'Verde',
+    semaforoVigencia: 'SinVigencia',
     semaforoGeneral: 'Amarillo',
   }
 
@@ -179,6 +180,9 @@ export function entidadAFilaPanel(
     semaforoGeneral: entidad.semaforoGeneral,
     documentos,
     anexoInfraestructuraVencido: false,
+    fechaResolucion: entidad.fechaResolucion,
+    fechaFinVigencia: null,
+    semestre: null,
     activo: entidad.activo,
   }
 }

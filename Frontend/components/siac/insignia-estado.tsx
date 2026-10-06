@@ -1,4 +1,4 @@
-import type { EstadoEvidencia, EstadoVigencia, SemaforoPrograma } from '@/lib/tipos'
+import type { EstadoEvidencia, EstadoVigencia, SemaforoVigencia } from '@/lib/tipos'
 import { etiquetaEstadoEvidencia } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -17,10 +17,18 @@ const estilosVigencia: Record<EstadoVigencia, string> = {
   Vencido: 'bg-fucsia/15 text-fucsia border border-fucsia/30',
 }
 
-const estilosSemaforo: Record<SemaforoPrograma, string> = {
+const estilosSemaforo: Record<SemaforoVigencia, string> = {
   Verde: 'bg-esmeralda',
   Amarillo: 'bg-ocre',
   Rojo: 'bg-fucsia',
+  SinVigencia: 'bg-muted-foreground/40',
+}
+
+const etiquetasSemaforo: Record<SemaforoVigencia, string> = {
+  Verde: 'Verde',
+  Amarillo: 'Amarillo',
+  Rojo: 'Rojo',
+  SinVigencia: 'Sin vigencia',
 }
 
 export function InsigniaEstado({
@@ -51,14 +59,14 @@ export function Semaforo({
   valor,
   etiqueta,
 }: {
-  valor: SemaforoPrograma
+  valor: SemaforoVigencia
   etiqueta?: string
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
       <span className={cn('size-2.5 rounded-full ring-2 ring-white', estilosSemaforo[valor])} />
       {etiqueta ? <span className="text-muted-foreground">{etiqueta}:</span> : null}
-      {valor}
+      {etiquetasSemaforo[valor]}
     </span>
   )
 }

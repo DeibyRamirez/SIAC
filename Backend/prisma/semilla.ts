@@ -71,7 +71,20 @@ async function main() {
     });
   }
 
-  console.log('Semilla completada:', { usuarios: USUARIOS_SEMILLA.length });
+  // T-010.2: umbrales vigentes del semáforo (la migración ya inserta la fila; esto la asegura).
+  await prisma.configuracionSIAC.upsert({
+    where: { id: 'global' },
+    update: {},
+    create: {
+      id: 'global',
+      avanceMinimoVerde: 100,
+      avanceMinimoAmarillo: 55,
+      aniosVigencia: 7,
+      mesesAvisoVigencia: 12,
+    },
+  });
+
+  console.log('Semilla completada:', { usuarios: USUARIOS_SEMILLA.length, configuracion: 'global' });
 }
 
 main()

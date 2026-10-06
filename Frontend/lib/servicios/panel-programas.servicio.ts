@@ -1,5 +1,5 @@
 import { peticionApi } from './cliente-api'
-import type { SemaforoPrograma } from '@/lib/tipos'
+import type { SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 import type {
   AlcanceTramiteUI,
   CodigoDocumentoGuia,
@@ -25,10 +25,16 @@ export interface FilaPanelPrograma {
   tipoTramite: TipoTramiteSIAC
   avancePorcentual: number
   semaforoAvance: SemaforoPrograma
-  semaforoVigencia: SemaforoPrograma
+  semaforoVigencia: SemaforoVigencia
   semaforoGeneral: SemaforoPrograma
   documentos: DocumentoPanel[]
   anexoInfraestructuraVencido: boolean
+  /** Fecha de la resolución MEN (ISO) o null. */
+  fechaResolucion: string | null
+  /** Fin de vigencia (resolución + 7 años, configurable) o null. */
+  fechaFinVigencia: string | null
+  /** Periodo de la evidencia revisada más reciente. */
+  semestre: string | null
   activo?: boolean
   urlImagen?: string | null
 }

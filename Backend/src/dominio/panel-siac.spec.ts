@@ -2,8 +2,11 @@ import {
   calcularAvancePonderado,
   calcularSemaforoAvance,
   calcularSemaforoGeneral,
+  calcularFechaFinVigencia,
   calcularSemaforoVigencia,
+  UMBRALES_SEMAFORO_DEFECTO,
   validarPesosTramite,
+  validarUmbralesSemaforo,
 } from './panel-siac';
 
 describe('panel-siac', () => {
@@ -58,9 +61,49 @@ describe('panel-siac', () => {
       expect(calcularSemaforoVigencia(base, ref)).toBe('Amarillo');
     });
 
-    it('rojo después de 7 años', () => {
-      const ref = new Date('2028-01-02');
-      expect(calcularSemaforoVigencia(base, ref)).toBe('Rojo');
+    it('rojo cuando la vigencia ya terminó', () => {
+      expect(calcularSemaforoVigencia(base, new Date('2027-01-01'))).toBe('Rojo');
+      expect(calcularSemaforoVigencia(base, new Date('2028-01-02'))).toBe('Rojo');
+    });
+
+    it('sin resolución → SinVigencia (gris), nunca verde', () => {
+      expect(calcularSemaforoVigencia(null)).toBe('SinVigencia');
+      expect(calcularSemaforoVigencia(undefined)).toBe('SinVigencia');
+    });
+
+    it('2020-03-01 → fin 2027-03-01 y el 2026-10-06 está en amarillo', () => {
+      const fecha = new Date('2020-03-01T00:00:00.000Z');
+      expect(calcularFechaFinVigencia(fecha).toISOString()).toBe('2027-03-01T00:00:00.000Z');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-10-06T12:00:00Z'))).toBe('Amarillo');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-02-28T12:00:00Z'))).toBe('Verde');
+    });
+
+    it('respeta umbrales configurados (aviso 24 meses)', () => {
+      const fecha = new Date('2020-03-01T00:00:00.000Z');
+      const umbrales = { aniosVigencia: 7, mesesAvisoVigencia: 24 };
+      expect(calcularSemaforoVigencia(fecha, new Date('2025-06-01'), umbrales)).toBe('Amarillo');
+    });
+  });
+
+  describe('calcularSemaforoGeneral con SinVigencia', () => {
+    it('sin vigencia no empeora el avance, pero RN-003 sigue forzando rojo', () => {
+      expect(calcularSemaforoGeneral('Amarillo', 'SinVigencia', false)).toBe('Amarillo');
+      expect(calcularSemaforoGeneral('Verde', 'SinVigencia', true)).toBe('Rojo');
+    });
+  });
+
+  describe('validarUmbralesSemaforo', () => {
+    it('acepta los valores por defecto', () => {
+      expect(() => validarUmbralesSemaforo(UMBRALES_SEMAFORO_DEFECTO)).not.toThrow();
+    });
+
+    it('rechaza amarillo ≥ verde o aviso mayor que la vigencia', () => {
+      expect(() => validarUmbralesSemaforo({ ...UMBRALES_SEMAFORO_DEFECTO, minimoAmarillo: 100 })).toThrow(
+        /incoherentes/,
+      );
+      expect(() => validarUmbralesSemaforo({ ...UMBRALES_SEMAFORO_DEFECTO, mesesAvisoVigencia: 84 })).toThrow(
+        /mesesAvisoVigencia/,
+      );
     });
   });
 

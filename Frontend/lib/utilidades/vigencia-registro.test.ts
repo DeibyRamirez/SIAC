@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ANIOS_VIGENCIA_AMARILLO,
   ANIOS_VIGENCIA_REGISTRO,
+  calcularFechaFinVigencia,
   calcularPorcentajeVigencia,
   calcularSemaforoAvance,
   calcularSemaforoVigencia,
@@ -16,9 +17,17 @@ describe('vigencia-registro', () => {
     expect(calcularSemaforoAvance(54)).toBe('Rojo')
   })
 
-  it('retorna verde sin fecha de resolución', () => {
-    expect(calcularSemaforoVigencia(null)).toBe('Verde')
+  it('sin fecha de resolución es «SinVigencia» (gris), nunca verde', () => {
+    expect(calcularSemaforoVigencia(null)).toBe('SinVigencia')
     expect(calcularPorcentajeVigencia(null)).toBe(0)
+    expect(mensajeAlertaVigencia(null, 'Derecho')).toBeNull()
+  })
+
+  it('resolución 2020-03-01 → fin 2027-03-01 y amarillo el 2026-10-06', () => {
+    expect(calcularFechaFinVigencia('2020-03-01T00:00:00.000Z').toISOString()).toBe('2027-03-01T00:00:00.000Z')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-10-06T12:00:00Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-02-28T12:00:00Z'))).toBe('Verde')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2027-03-01T00:00:00Z'))).toBe('Rojo')
   })
 
   it('marca amarillo a partir del año 6', () => {

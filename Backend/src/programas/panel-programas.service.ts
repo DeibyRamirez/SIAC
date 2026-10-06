@@ -12,15 +12,18 @@ import { PrismaService } from '../prisma/prisma.module';
 import { ServicioAlcancePrograma, UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
 import {
   calcularAvancePonderado,
+  calcularFechaFinVigencia,
   calcularSemaforoAvance,
   calcularSemaforoGeneral,
   calcularSemaforoVigencia,
+  ColorSemaforoVigencia,
   esEstadoRevisado,
   redondear2,
   validarPesosTramite,
 } from '../dominio/panel-siac';
 import { ColorSemaforo } from '../dominio/puntaje-condiciones';
 import { conEstadoCalculado } from '../dominio/vigencia-anexo';
+import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
@@ -45,12 +48,15 @@ export interface FilaPanelDto {
   tipoTramite: TipoTramiteSIAC;
   avancePorcentual: number;
   semaforoAvance: ColorSemaforo;
-  semaforoVigencia: ColorSemaforo;
+  /** «SinVigencia» (gris) cuando no hay resolución MEN registrada; nunca verde. */
+  semaforoVigencia: ColorSemaforoVigencia;
   semaforoGeneral: ColorSemaforo;
   documentos: DocumentoPanelDto[];
   anexoInfraestructuraVencido: boolean;
   /** Fecha de la resolución MEN vigente (ISO) o null si no se ha registrado. */
   fechaResolucion: string | null;
+  /** Fin de vigencia = resolución + años configurados (ISO) o null. */
+  fechaFinVigencia: string | null;
   /** Periodo (semestre) de la evidencia revisada más reciente usada en el cálculo. */
   semestre: string | null;
   activo?: boolean;
@@ -75,9 +81,15 @@ export class PanelProgramasService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alcance: ServicioAlcancePrograma,
+    private readonly configuracion: ConfiguracionSiacService,
   ) {}
 
+  /**
+   * R-010.2a: carga umbrales y pesos de la BD; si son incoherentes el backend no arranca
+   * (antes solo se registraba una advertencia y el panel calculaba con datos inválidos).
+   */
   async onModuleInit(): Promise<void> {
+    await this.configuracion.cargar();
     const tramites = await this.prisma.tramiteSIAC.findMany({
       include: { documentos: true },
     });
@@ -90,9 +102,9 @@ export class PanelProgramasService implements OnModuleInit {
       try {
         validarPesosTramite(tramite.documentos.map((d) => d.pesoPorcentaje));
       } catch (error) {
-        this.logger.warn(
-          `Pesos inválidos en trámite ${tramite.tipo}: ${(error as Error).message}`,
-        );
+        const mensaje = `Pesos inválidos en el trámite ${tramite.tipo}: ${(error as Error).message}`;
+        this.logger.error(mensaje);
+        throw new Error(mensaje);
       }
       this.pesosPorTramite.set(tramite.tipo, mapa);
     }
@@ -333,8 +345,9 @@ export class PanelProgramasService implements OnModuleInit {
         anexo.tipo.toLowerCase().includes('infraestructura'),
     );
 
-    const semaforoAvance = tieneRevisados ? calcularSemaforoAvance(avancePorcentual) : 'Rojo';
-    const semaforoVigencia = calcularSemaforoVigencia(input.fechaResolucion);
+    const umbrales = this.configuracion.obtener();
+    const semaforoAvance = tieneRevisados ? calcularSemaforoAvance(avancePorcentual, umbrales) : 'Rojo';
+    const semaforoVigencia = calcularSemaforoVigencia(input.fechaResolucion, new Date(), umbrales);
     const semaforoAnexos = calcularSemaforo(input.anexos);
     const semaforoGeneral = calcularSemaforoGeneral(
       colorMasCriticoPanel([semaforoAvance, semaforoAnexos]),
@@ -355,6 +368,9 @@ export class PanelProgramasService implements OnModuleInit {
       documentos,
       anexoInfraestructuraVencido,
       fechaResolucion: input.fechaResolucion ? input.fechaResolucion.toISOString() : null,
+      fechaFinVigencia: input.fechaResolucion
+        ? calcularFechaFinVigencia(input.fechaResolucion, umbrales.aniosVigencia).toISOString()
+        : null,
       semestre: semestreMasReciente(ultimaPorGuia),
       activo: input.activo,
       urlImagen: input.urlImagen,

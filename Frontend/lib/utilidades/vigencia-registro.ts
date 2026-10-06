@@ -1,7 +1,10 @@
-import type { SemaforoPrograma } from '@/lib/tipos'
+import type { SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 
+/** Valores por defecto; el backend los lee de `ConfiguracionSIAC` (T-010.2) y manda el semáforo ya calculado. */
 export const ANIOS_VIGENCIA_REGISTRO = 7
-export const ANIOS_VIGENCIA_AMARILLO = 6
+export const MESES_AVISO_VIGENCIA = 12
+/** Año desde el que el semáforo pasa a amarillo (7 años − 12 meses = año 6). */
+export const ANIOS_VIGENCIA_AMARILLO = ANIOS_VIGENCIA_REGISTRO - MESES_AVISO_VIGENCIA / 12
 
 /** Semáforo de avance documental (misma regla que panel-siac backend). */
 export function calcularSemaforoAvance(avancePorcentual: number): SemaforoPrograma {
@@ -30,15 +33,28 @@ export function calcularPorcentajeVigencia(
   return Math.min(100, Math.round((anios / ANIOS_VIGENCIA_REGISTRO) * 100))
 }
 
+function sumarMesesUtc(fecha: Date, meses: number): Date {
+  const resultado = new Date(fecha.getTime())
+  resultado.setUTCMonth(resultado.getUTCMonth() + meses)
+  return resultado
+}
+
+/** Fin de vigencia = fecha de resolución + 7 años. */
+export function calcularFechaFinVigencia(fechaResolucion: Date | string): Date {
+  const inicio = typeof fechaResolucion === 'string' ? new Date(fechaResolucion) : fechaResolucion
+  return sumarMesesUtc(inicio, ANIOS_VIGENCIA_REGISTRO * 12)
+}
+
+/** Misma regla que `panel-siac.ts` del backend: sin resolución → «SinVigencia», nunca verde. */
 export function calcularSemaforoVigencia(
   fechaResolucion: Date | string | null | undefined,
   referencia: Date = new Date(),
-): SemaforoPrograma {
-  if (!fechaResolucion) return 'Verde'
+): SemaforoVigencia {
+  if (!fechaResolucion) return 'SinVigencia'
 
-  const anios = calcularAniosTranscurridos(fechaResolucion, referencia)
-  if (anios > ANIOS_VIGENCIA_REGISTRO) return 'Rojo'
-  if (anios >= ANIOS_VIGENCIA_AMARILLO) return 'Amarillo'
+  const fin = calcularFechaFinVigencia(fechaResolucion)
+  if (referencia.getTime() >= fin.getTime()) return 'Rojo'
+  if (referencia.getTime() >= sumarMesesUtc(fin, -MESES_AVISO_VIGENCIA).getTime()) return 'Amarillo'
   return 'Verde'
 }
 

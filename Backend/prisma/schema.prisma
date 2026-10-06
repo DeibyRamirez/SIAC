@@ -355,6 +355,20 @@ model AlertaInApp {
   @@index([usuarioId, leida])
 }
 
+/// T-010.2: umbrales del semáforo (fila única "global"). Se leen al arrancar el backend.
+model ConfiguracionSIAC {
+  id                   String   @id @default("global")
+  /// Avance mínimo (%) para verde.
+  avanceMinimoVerde    Int      @default(100)
+  /// Avance mínimo (%) para amarillo; por debajo es rojo.
+  avanceMinimoAmarillo Int      @default(55)
+  /// Años de vigencia de la resolución MEN.
+  aniosVigencia        Int      @default(7)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo.
+  mesesAvisoVigencia   Int      @default(12)
+  updatedAt            DateTime @default(now()) @updatedAt
+}
+
 model TramiteSIAC {
   id         String              @id @default(cuid())
   tipo       TipoTramiteSIAC     @unique

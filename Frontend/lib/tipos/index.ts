@@ -22,6 +22,8 @@ export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 export type NivelPrograma = 'Pregrado' | 'Posgrado'
 
 export type SemaforoPrograma = 'Verde' | 'Amarillo' | 'Rojo'
+/** Semáforo de vigencia: «SinVigencia» (gris) cuando no hay resolución MEN registrada. */
+export type SemaforoVigencia = SemaforoPrograma | 'SinVigencia'
 
 export type TipoEtapaAcreditacion =
   | 'PreRadicacion'

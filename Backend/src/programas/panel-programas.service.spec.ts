@@ -1,5 +1,6 @@
 import { EstadoEvidencia, RolUsuario, TipoTramiteSIAC } from '@prisma/client';
 import { PanelProgramasService } from './panel-programas.service';
+import { UMBRALES_SEMAFORO_DEFECTO, UmbralesSemaforo } from '../dominio/panel-siac';
 
 interface ProgramaFalso {
   id: string;
@@ -21,9 +22,15 @@ interface EvidenciaFalsa {
   periodo: string;
 }
 
-function crearServicio(programas: ProgramaFalso[], evidencias: EvidenciaFalsa[]) {
+function crearServicio(
+  programas: ProgramaFalso[],
+  evidencias: EvidenciaFalsa[],
+  opciones: { umbrales?: UmbralesSemaforo; tramites?: unknown[] } = {},
+) {
+  const umbrales = opciones.umbrales ?? UMBRALES_SEMAFORO_DEFECTO;
+  const configuracion = { cargar: jest.fn().mockResolvedValue(umbrales), obtener: () => umbrales };
   const prisma = {
-    tramiteSIAC: { findMany: jest.fn().mockResolvedValue([]) },
+    tramiteSIAC: { findMany: jest.fn().mockResolvedValue(opciones.tramites ?? []) },
     programa: {
       count: jest.fn().mockResolvedValue(programas.length),
       findMany: jest.fn(({ skip, take }: { skip?: number; take?: number }) =>
@@ -37,7 +44,7 @@ function crearServicio(programas: ProgramaFalso[], evidencias: EvidenciaFalsa[])
       ),
     },
   };
-  const servicio = new PanelProgramasService(prisma as never, {} as never);
+  const servicio = new PanelProgramasService(prisma as never, {} as never, configuracion as never);
   return { servicio, prisma };
 }
 
@@ -143,5 +150,78 @@ describe('PanelProgramasService (T-010.1)', () => {
     expect(respuesta.total).toBe(25);
     expect(respuesta.totalPaginas).toBe(3);
     expect(respuesta.datos).toHaveLength(5);
+  });
+});
+
+describe('PanelProgramasService (T-010.2)', () => {
+  function evidenciaG1(programaId: string, puntaje: number, total: number): EvidenciaFalsa {
+    return {
+      programaId,
+      codigoGuia: 'G1',
+      estado: EstadoEvidencia.ConObservaciones,
+      puntajeActual: puntaje,
+      totalCondicionesActual: total,
+      updatedAt: new Date('2026-09-01'),
+      periodo: '2026-2',
+    };
+  }
+
+  it('con pesos 90/20 en la BD el servicio no arranca', async () => {
+    const { servicio } = crearServicio([], [], {
+      tramites: [
+        {
+          tipo: TipoTramiteSIAC.RenovacionRegistroCalificado,
+          documentos: [
+            { codigoGuia: 'G1', pesoPorcentaje: 90 },
+            { codigoGuia: 'G2', pesoPorcentaje: 20 },
+          ],
+        },
+      ],
+    });
+
+    await expect(servicio.onModuleInit()).rejects.toThrow(/Pesos inválidos.*110/);
+  });
+
+  it('al subir el umbral amarillo a 60, un avance de 58 % pasa de amarillo a rojo', async () => {
+    const evidencias = [evidenciaG1('p01', 29, 50)];
+    const porDefecto = crearServicio([programa(1)], evidencias);
+    await porDefecto.servicio.onModuleInit();
+    const conUmbral60 = crearServicio([programa(1)], evidencias, {
+      umbrales: { ...UMBRALES_SEMAFORO_DEFECTO, minimoAmarillo: 60 },
+    });
+    await conUmbral60.servicio.onModuleInit();
+
+    const antes = (await porDefecto.servicio.listarPanel({}, ADMIN)).datos[0];
+    const despues = (await conUmbral60.servicio.listarPanel({}, ADMIN)).datos[0];
+
+    expect(antes.avancePorcentual).toBe(58);
+    expect(antes.semaforoAvance).toBe('Amarillo');
+    expect(despues.semaforoAvance).toBe('Rojo');
+  });
+
+  it('sin fecha de resolución la vigencia es «SinVigencia» (gris), nunca verde', async () => {
+    const { servicio } = crearServicio(
+      [{ ...programa(1), fechaResolucion: null }],
+      [{ ...evidenciaG1('p01', 9, 9), estado: EstadoEvidencia.Cumple }],
+    );
+    await servicio.onModuleInit();
+
+    const [fila] = (await servicio.listarPanel({}, ADMIN)).datos;
+
+    expect(fila.semaforoVigencia).toBe('SinVigencia');
+    expect(fila.fechaFinVigencia).toBeNull();
+    expect(fila.semaforoGeneral).toBe('Verde'); // lo define el avance (100 %), no una vigencia inexistente
+  });
+
+  it('resolución 2020-03-01 → fin 2027-03-01', async () => {
+    const { servicio } = crearServicio(
+      [{ ...programa(1), fechaResolucion: new Date('2020-03-01T00:00:00.000Z') }],
+      [],
+    );
+    await servicio.onModuleInit();
+
+    const [fila] = (await servicio.listarPanel({}, ADMIN)).datos;
+
+    expect(fila.fechaFinVigencia).toBe('2027-03-01T00:00:00.000Z');
   });
 });
