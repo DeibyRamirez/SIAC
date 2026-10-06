@@ -27,6 +27,12 @@ enum EstadoEvidencia {
   Cumple
 }
 
+/// Tipo de evidencia: documento guía (G1–G4) o resolución MEN (decisión del PO, 06/10).
+enum TipoEvidencia {
+  DocumentoGuia
+  ResolucionMen
+}
+
 enum EstadoVigencia {
   Vigente
   Proximo
@@ -111,6 +117,7 @@ model Usuario {
   origenDato           OrigenDato    @default(Manual)
   fechaSincronizacion  DateTime?
   evidencias           Evidencia[]
+  resolucionesMen      ResolucionMen[]
   versionesEvidencia   EvidenciaVersion[]
   alertas              AlertaInApp[]
   createdAt            DateTime      @default(now())
@@ -126,6 +133,7 @@ model Institucion {
   tipoTramiteActivo TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
   fechaResolucion   DateTime?
   evidencias        Evidencia[]
+  resoluciones      ResolucionMen[]
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 }
@@ -152,6 +160,7 @@ model Programa {
   fechaSincronizacion DateTime?
   evidencias          Evidencia[]
   anexos              AnexoVigencia[]
+  resoluciones        ResolucionMen[]
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -196,6 +205,9 @@ model Evidencia {
   porcentajeCompletitud  Float               @default(0)
   requiereChecklistMaestro Boolean           @default(false)
   codigoGuia             CodigoDocumentoGuia?
+  /// «ResolucionMen»: única excepción a la regla .docx (solo PDF real); no pasa por revisión.
+  tipoEvidencia          TipoEvidencia        @default(DocumentoGuia)
+  resolucionMen          ResolucionMen?
   /// Puntaje entero n de la última verificación (condiciones que cumplen).
   puntajeActual          Int?
   /// Total de condiciones evaluadas en la última verificación (9 en G1, 6 en G3).
@@ -355,6 +367,28 @@ model AlertaInApp {
   @@index([usuarioId, leida])
 }
 
+/// Resolución MEN que inicia la vigencia (reemplaza «activar vigencia»). El Administrador registra la
+/// fecha y el número reales; fin de vigencia = fecha + años de ConfiguracionSIAC (7), calculado al consultar.
+/// CHECK en la migración: exactamente un propietario (programaId o institucionId).
+model ResolucionMen {
+  id              String          @id @default(cuid())
+  evidenciaId     String          @unique
+  evidencia       Evidencia       @relation(fields: [evidenciaId], references: [id], onDelete: Restrict)
+  numero          String          @db.VarChar(60)
+  fechaResolucion DateTime        @db.Date
+  tipoTramite     TipoTramiteSIAC
+  programaId      String?
+  programa        Programa?       @relation(fields: [programaId], references: [id], onDelete: Restrict)
+  institucionId   String?
+  institucion     Institucion?    @relation(fields: [institucionId], references: [id], onDelete: Restrict)
+  registradoPorId String
+  registradoPor   Usuario         @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+
+  @@index([programaId, fechaResolucion])
+  @@index([institucionId, fechaResolucion])
+}
+
 /// T-010.2: umbrales del semáforo (fila única "global"). Se leen al arrancar el backend.
 model ConfiguracionSIAC {
   id                   String   @id @default("global")
@@ -375,6 +409,9 @@ model TramiteSIAC {
   alcance    AlcanceTramiteSIAC
   nombre     String              @db.VarChar(200)
   activo     Boolean             @default(true)
+  /// Todo trámite cierra con la resolución MEN (renovación programa = G1+G2+resolución, programa nuevo = G1+resolución,
+  /// CI nueva = G3+resolución, renovación CI = G3+G4+resolución).
+  requiereResolucionMen Boolean    @default(true)
   documentos TramiteDocumentoGuia[]
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt

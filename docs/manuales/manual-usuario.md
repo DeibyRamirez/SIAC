@@ -129,8 +129,22 @@ Administración técnica del sistema y acceso transversal a todos los módulos.
 6. Si rechaza: el cargador sube una **nueva versión**, corrige según observaciones y reenvía
 7. Si aprueba: la evidencia queda *Validada* y es visible para **Administrador** y **Par académico**
 8. El **administrador** supervisa avance por programa, vigencias y métricas en el dashboard
+9. Cuando todos los documentos del trámite están aprobados, el **administrador** usa **Cargar resolución MEN** en el detalle del programa o de la institución: adjunta el PDF de la resolución (única excepción a la regla .docx; se valida que sea un PDF real) y registra su número y fecha reales. Con documentos pendientes el botón queda deshabilitado (la API responde 409)
 
-## Semáforo de vigencias
+Documentos por trámite: renovación de programa = G1 + G2 + resolución; programa nuevo = G1 + resolución; condiciones institucionales nuevas = G3 + resolución; renovación institucional = G3 + G4 + resolución.
+
+## Semáforo de vigencia del registro (resolución MEN)
+
+El fin de vigencia es la fecha de la resolución + 7 años y el color se calcula al consultar con los umbrales configurables de `ConfiguracionSIAC`.
+
+| Color | Significado |
+|-------|-------------|
+| Gris («Sin vigencia») | No hay resolución MEN cargada (nunca verde) |
+| Verde | Vigente, a más de 12 meses del fin |
+| Amarillo | Desde 12 meses antes del fin (año 6) |
+| Rojo | Vencida |
+
+## Semáforo de anexos de vigencia
 
 | Color | Significado |
 |-------|-------------|

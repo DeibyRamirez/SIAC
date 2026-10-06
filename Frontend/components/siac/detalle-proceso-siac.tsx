@@ -8,6 +8,7 @@ import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { BarraVigenciaRegistro } from '@/components/siac/barra-vigencia-registro'
 import { ProcesoProgramaDetalle } from '@/components/siac/proceso-programa-detalle'
 import { Semaforo } from '@/components/siac/insignia-estado'
+import { TarjetaCargarResolucion } from '@/components/siac/tarjeta-cargar-resolucion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { Button } from '@/components/ui/button'
@@ -17,13 +18,11 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import type { ProgresoProcesoSIAC } from '@/lib/servicios/progreso-programa.servicio'
 import {
-  activarVigenciaInstitucionApi,
   actualizarInstitucionApi,
   obtenerInstitucionApi,
   obtenerProgresoInstitucionApi,
 } from '@/lib/servicios/institucion.servicio'
 import {
-  activarVigenciaProgramaApi,
   actualizarEstadoProgramaApi,
   actualizarProgramaApi,
   obtenerProgramaApi,
@@ -202,26 +201,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   }
 
   const vigenciaActiva = Boolean(programa.fechaResolucion)
-  const puedeActivarVigencia =
-    puedeAdministrar && progreso.avanceGlobal >= 100 && !vigenciaActiva
   const avanceMostrado = progreso.avanceGlobal
-
-  async function manejarActivarVigencia() {
-    setGuardando(true)
-    try {
-      if (esInstitucion) {
-        await activarVigenciaInstitucionApi()
-      } else if (entidadId) {
-        await activarVigenciaProgramaApi(entidadId)
-      }
-      toast.success('Vigencia de registro activada.')
-      await cargarDatos()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo activar.')
-    } finally {
-      setGuardando(false)
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -253,18 +233,13 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         />
       ) : null}
 
-      {puedeActivarVigencia ? (
-        <Card>
-          <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              El proceso documental está completo. Active la vigencia de registro para iniciar el
-              conteo de 7 años.
-            </p>
-            <Button disabled={guardando} onClick={manejarActivarVigencia}>
-              Activar vigencia de registro
-            </Button>
-          </CardContent>
-        </Card>
+      {puedeAdministrar && !vigenciaActiva ? (
+        <TarjetaCargarResolucion
+          programaId={esInstitucion ? undefined : entidadId}
+          puedeCargar={progreso.puedeCargarResolucion ?? false}
+          documentosPendientes={progreso.documentosPendientes ?? []}
+          onCargada={cargarDatos}
+        />
       ) : null}
 
       <Card>

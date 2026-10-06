@@ -6,6 +6,7 @@ import { InstitucionService } from './institucion.service';
 import { AvanceProgramaService } from './avance-programa.service';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { PanelProgramasService } from './panel-programas.service';
+import { ResolucionMenService } from './resolucion-men.service';
 import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module
     AvanceProgramaService,
     AvanceProcesoSIACService,
     PanelProgramasService,
+    ResolucionMenService,
   ],
   exports: [
     ProgramasService,

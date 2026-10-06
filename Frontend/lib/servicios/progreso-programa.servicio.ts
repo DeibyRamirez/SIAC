@@ -27,6 +27,10 @@ export interface ProgresoProcesoSIAC {
   documentosAceptados: number
   documentosTotal: number
   documentos: DocumentoProgresoSIAC[]
+  /** Guías del trámite aún sin aprobar. */
+  documentosPendientes?: CodigoDocumentoGuia[]
+  /** «Cargar resolución MEN» solo con todos los documentos aprobados. */
+  puedeCargarResolucion?: boolean
 }
 
 export async function obtenerProgresoProgramaApi(

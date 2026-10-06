@@ -31,6 +31,10 @@ export interface ProgresoProcesoSIAC {
   documentosAceptados: number;
   documentosTotal: number;
   documentos: DocumentoProgresoSIAC[];
+  /** Guías del trámite que aún no están aprobadas (Cumple/Validado). */
+  documentosPendientes: CodigoDocumentoGuia[];
+  /** Se habilita «Cargar resolución» solo cuando todos los documentos del trámite están aprobados. */
+  puedeCargarResolucion: boolean;
 }
 
 @Injectable()
@@ -123,6 +127,7 @@ export class AvanceProcesoSIACService {
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
       documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
+      ...estadoResolucion(documentos),
     };
   }
 
@@ -212,6 +217,7 @@ export class AvanceProcesoSIACService {
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
       documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
+      ...estadoResolucion(documentos),
     };
   }
 }
@@ -238,4 +244,13 @@ export function porcentajeInternoEvidencia(evidencia: {
     return (evidencia.puntajeActual / evidencia.totalCondicionesActual) * 100;
   }
   return 0;
+}
+
+/** Documentos pendientes y habilitación de la carga de la resolución MEN. */
+function estadoResolucion(documentos: { codigoGuia: CodigoDocumentoGuia; aceptado: boolean }[]) {
+  const documentosPendientes = documentos.filter((doc) => !doc.aceptado).map((doc) => doc.codigoGuia);
+  return {
+    documentosPendientes,
+    puedeCargarResolucion: documentos.length > 0 && documentosPendientes.length === 0,
+  };
 }

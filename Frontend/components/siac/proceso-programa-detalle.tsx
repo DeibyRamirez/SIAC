@@ -143,7 +143,7 @@ export function ProcesoProgramaDetalle({
 
         {procesoCompleto && !vigenciaActiva ? (
           <p className="rounded-lg border border-esmeralda/30 bg-esmeralda/10 p-3 text-sm text-primary">
-            Proceso documental completado. Pendiente activación de vigencia por el administrador.
+            Proceso documental completado. Pendiente cargar la resolución MEN (Administrador).
           </p>
         ) : null}
       </CardContent>

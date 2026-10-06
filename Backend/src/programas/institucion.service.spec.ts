@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import {
   CodigoDocumentoGuia,
   EstadoEvidencia,
@@ -49,40 +49,9 @@ describe('InstitucionService', () => {
     });
   });
 
-  it('activarVigencia persiste fechaResolucion cuando el avance es 100%', async () => {
-    prisma.institucion.update.mockResolvedValue({
-      ...institucion,
-      fechaResolucion: new Date(),
-    });
-
-    await servicio.activarVigencia();
-
-    expect(prisma.institucion.update).toHaveBeenCalledWith({
-      where: { id: institucion.id },
-      data: { fechaResolucion: expect.any(Date) },
-    });
-  });
-
-  it('activarVigencia rechaza si el avance es menor a 100%', async () => {
-    (avanceProceso.calcularProgresoInstitucion as jest.Mock).mockResolvedValue({
-      programaId: institucion.id,
-      tipoTramite: institucion.tipoTramiteActivo,
-      avanceGlobal: 85,
-      documentosAceptados: 1,
-      documentosTotal: 2,
-      documentos: [],
-    });
-
-    await expect(servicio.activarVigencia()).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it('activarVigencia rechaza si ya estaba activa', async () => {
-    prisma.institucion.findFirst.mockResolvedValue({
-      ...institucion,
-      fechaResolucion: new Date('2020-01-01'),
-    });
-
-    await expect(servicio.activarVigencia()).rejects.toBeInstanceOf(BadRequestException);
+  it('sin resolución y al 100% indica que falta la resolución MEN (ya no «activar vigencia»)', async () => {
+    const resultado = await servicio.obtener();
+    expect(resultado.estadoProceso).toBe('Completado — pendiente resolución MEN');
   });
 
   it('obtener lanza 404 si no hay institución', async () => {

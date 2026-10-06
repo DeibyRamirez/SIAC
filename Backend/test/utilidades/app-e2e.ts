@@ -84,6 +84,7 @@ export async function limpiarDatosNegocio(prisma: PrismaService): Promise<void> 
       "EvidenciaVersion",
       "HistorialEvidencia",
       "AlertaInApp",
+      "ResolucionMen",
       "Evidencia",
       "AnexoVigencia",
       "UsuarioPrograma",

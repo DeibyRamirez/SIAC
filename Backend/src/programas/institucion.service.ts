@@ -42,7 +42,7 @@ export class InstitucionService {
       semaforo,
       estadoProceso:
         progreso.avanceGlobal >= 100 && !institucion.fechaResolucion
-          ? 'Completado — pendiente activación de vigencia'
+          ? 'Completado — pendiente resolución MEN'
           : progreso.avanceGlobal >= 100
             ? 'Completado'
             : 'En progreso',
@@ -75,29 +75,6 @@ export class InstitucionService {
           ? { tipoTramiteActivo: dto.tipoTramiteActivo }
           : {}),
       },
-    });
-
-    return this.obtener();
-  }
-
-  async activarVigencia() {
-    const institucion = await this.prisma.institucion.findFirst();
-    if (!institucion) throw new NotFoundException('Institución no configurada.');
-
-    if (institucion.fechaResolucion) {
-      throw new BadRequestException('La vigencia institucional ya está activa.');
-    }
-
-    const progreso = await this.avanceProceso.calcularProgresoInstitucion(institucion.id);
-    if (progreso.avanceGlobal < 100) {
-      throw new BadRequestException(
-        'El proceso documental institucional debe estar al 100% antes de activar la vigencia.',
-      );
-    }
-
-    await this.prisma.institucion.update({
-      where: { id: institucion.id },
-      data: { fechaResolucion: new Date() },
     });
 
     return this.obtener();

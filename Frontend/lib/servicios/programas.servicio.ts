@@ -40,13 +40,6 @@ export async function actualizarEstadoProgramaApi(id: string, activo: boolean): 
   })
 }
 
-export async function activarVigenciaProgramaApi(id: string): Promise<Programa & { fechaResolucion?: string | null }> {
-  return peticionApi<Programa & { fechaResolucion?: string | null }>(
-    `/programas/${id}/activar-vigencia`,
-    { method: 'POST' },
-  )
-}
-
 export async function obtenerProgramaApi(id: string) {
   return peticionApi<Programa & {
     evidenciasValidadas?: number;

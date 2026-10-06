@@ -40,9 +40,3 @@ export async function actualizarInstitucionApi(datos: {
     body: JSON.stringify(datos),
   })
 }
-
-export async function activarVigenciaInstitucionApi(): Promise<InstitucionDetalle> {
-  return peticionApi<InstitucionDetalle>('/institucion/activar-vigencia', {
-    method: 'POST',
-  })
-}

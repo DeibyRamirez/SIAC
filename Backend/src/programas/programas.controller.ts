@@ -1,4 +1,21 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Request,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { TAMANO_MAXIMO_RESOLUCION } from '../dominio/archivo-pdf';
+import { CargarResolucionDto } from './dto/cargar-resolucion.dto';
+import { ResolucionMenService } from './resolucion-men.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolUsuario } from '@prisma/client';
 import { ProgramasService } from './programas.service';
@@ -22,6 +39,7 @@ export class ProgramasController {
     private readonly programasService: ProgramasService,
     private readonly avanceProcesoService: AvanceProcesoSIACService,
     private readonly panelProgramasService: PanelProgramasService,
+    private readonly resolucionMen: ResolucionMenService,
   ) {}
 
   @Get()
@@ -56,10 +74,17 @@ export class ProgramasController {
     return this.programasService.actualizar(id, dto);
   }
 
-  @Post(':id/activar-vigencia')
+  /** Resolución MEN (solo PDF real): reemplaza «activar vigencia». 409 si hay documentos pendientes. */
+  @Post(':id/resolucion')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  activarVigencia(@Param('id') id: string) {
-    return this.programasService.activarVigenciaPrograma(id);
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: TAMANO_MAXIMO_RESOLUCION } }))
+  cargarResolucion(
+    @Param('id') id: string,
+    @Body() dto: CargarResolucionDto,
+    @UploadedFile() archivo: Express.Multer.File | undefined,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.resolucionMen.cargarParaPrograma(id, dto, archivo, req.user);
   }
 
   @Get(':id/progreso')
