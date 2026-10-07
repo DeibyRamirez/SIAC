@@ -20,6 +20,7 @@ import { IngestaModule } from './ingesta/ingesta.module';
 import { AcreditacionModule } from './acreditacion/acreditacion.module';
 import { MetricasModule } from './metricas/metricas.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
+import { CifrasModule } from './cifras/cifras.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ConfiguracionModule } from './configuracion/configuracion.module';
     IngestaModule,
     AcreditacionModule,
     MetricasModule,
+    CifrasModule,
   ],
 })
 export class AppModule {}
