@@ -84,13 +84,16 @@ export async function marcarNotificacionLeidaApi(id: string) {
   return peticionApi(`/notificaciones/${id}/leida`, { method: 'PATCH' });
 }
 
-export async function obtenerEmbedPowerBiApi() {
+export async function obtenerEmbedPowerBiApi(categoriaId?: string) {
+  const params = categoriaId ? `?categoriaId=${encodeURIComponent(categoriaId)}` : '';
   return peticionApi<{
     embedUrl: string;
     embedToken: string | null;
+    reportId: string;
+    categoriaId: string | null;
     fallback: boolean;
     mensaje?: string;
-  }>('/powerbi/embed-token');
+  }>(`/powerbi/embed-token${params}`);
 }
 
 export async function listarEstructuraApi() {
