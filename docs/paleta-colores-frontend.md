@@ -1,7 +1,9 @@
 # Paleta de colores del Frontend — SIAC
 
 > **Proyecto:** Sistema Interno de Aseguramiento de la Calidad (SIAC)  
-> **Institución:** Corporación Universitaria Autónoma del Cauca (CUAC)  
+> **Institución:** Corporación Universitaria Autónoma del Cauca (CUAC)
+
+> **Autores:** [David Urrutia Ceron](https://github.com/BICHO128) y [Deiby Alejandro Ramirez Galvis](https://github.com/DeibyRamirez)  
 > **Fuente principal:** `Frontend/app/globals.css`  
 > **Fuentes complementarias:** `Frontend/lib/informes-powerbi.ts`, componentes y páginas del Frontend
 

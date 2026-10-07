@@ -157,7 +157,7 @@ Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel la
 | Ruta | Descripción |
 |------|-------------|
 | `/administrador` | Resumen: KPIs, hero acreditación, gráficos |
-| `/administrador/dashboard` | Métricas Recharts + tab Power BI (placeholder) |
+| `/administrador/dashboard` | Métricas Recharts + tab Power BI (Estudiantes: embed + fallback API cifras) |
 | `/administrador/programas` | Grid 12 programas académicos |
 | `/administrador/evidencias` | Tabla completa + CRUD mock |
 | `/administrador/vigencias` | Alertas semáforo + anexos |

@@ -82,6 +82,8 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Integracion | `/integracion` | UPSERT maestros TI |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
+| Cifras | `/cifras` | KPIs institucionales (HU-009; v1 estudiantes) |
+| Power BI | `/powerbi/embed-token` | Embed por categoría |
 | Estructura | `/estructura` | CRUD etapas/carpetas/docs |
 | Almacenamiento | (servicio) | Supabase S3 |
 
@@ -483,6 +485,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-07 — Inicio Etapa 3 / Sprint 3 (HU-009 dashboard Power BI)
+
+- [Backend] `CifrasModule`: `GET /api/v1/cifras/categorias`, `GET /api/v1/cifras/estudiantes` (semilla JSON, contrato escalable `meta` + `indicadores` + `series`); guards Administrador y ParAcademico.
+- [Backend] `PowerBiService`: query `categoriaId=estudiantes`, vista publicada por defecto sin Azure; roles embed ampliados a ParAcademico.
+- [Frontend] Tab Power BI → categoría Estudiantes: iframe + fallback Recharts vía API (`PanelCifrasEstudiantes`, `ContenedorInformePowerBi`).
+- [Docs] Variables env y checklist manual en `docs/etapa-3/README.md`.
 
 ### 2026-10-06 — Cierre del Sprint 2 (auditoría) y decisiones del PO
 

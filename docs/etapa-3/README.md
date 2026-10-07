@@ -2,9 +2,9 @@
 
 > **Sprint PDF:** 3 (08/10 – 18/11/2026)  
 > **Historias:** HU-006, HU-007, HU-009  
-> **Estado:** Por hacer
+> **Estado:** En curso — arranque Sprint 3 (HU-009: dashboard Power BI, categoría Estudiantes en `/administrador/dashboard`)
 
-> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
+> El estado oficial vive en ClickUp; este repositorio documenta el inicio de la Etapa 3 en código y docs.
 
 ## Objetivo
 
@@ -34,9 +34,36 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | POST | `/api/aprobacion/:id/dictaminar` | HU-006 |
 | GET/POST/PATCH/DELETE | `/api/vigencias` | HU-007 |
 | POST | `/api/vigencias/ejecutar-cron` | HU-007 |
-| GET/PATCH | `/api/notificaciones` | HU-006/007 |
-| GET | `/api/powerbi/embed-token` | HU-009 |
+| GET | `/api/notificaciones` | HU-006/007 |
+| GET | `/api/v1/cifras/categorias` | HU-009 (cifras) |
+| GET | `/api/v1/cifras/estudiantes?periodo=` | HU-009 (cifras estudiantes) |
+| GET | `/api/v1/powerbi/embed-token?categoriaId=estudiantes` | HU-009 |
 | CRUD | `/api/estructura/*` | Estructura normativa |
+
+### Variables de entorno — Power BI / cifras (HU-009)
+
+```env
+# Azure App Owns Data (producción)
+POWERBI_CLIENT_ID=
+POWERBI_CLIENT_SECRET=
+POWERBI_TENANT_ID=
+POWERBI_WORKSPACE_ID=
+POWERBI_REPORT_ID_ESTUDIANTES=ee3e7c91-76df-4f35-90b6-2e4f67ed6567
+
+# Demo sin Azure: iframe con informe publicado
+POWERBI_VISTA_PUBLICA_ESTUDIANTES=https://app.powerbi.com/view?r=eyJrIjoi...
+```
+
+Sin `POWERBI_CLIENT_ID`, el backend devuelve `embedUrl` de vista pública y `fallback: true`. El frontend muestra el iframe; si el token falla o no hay URL, consume `GET /cifras/estudiantes` y renderiza Recharts.
+
+### Checklist manual — Dashboard Estudiantes
+
+1. Iniciar sesión como **Administrador** o **Par académico**.
+2. Ir a **Dashboard de métricas** → pestaña **Power BI** → tarjeta **Estudiantes**.
+3. Verificar iframe del informe (vista publicada en desarrollo).
+4. Pulsar **Simular token expirado** → deben aparecer KPIs y gráficos desde la API.
+5. **Reintentar carga del informe** → vuelve el iframe.
+6. Swagger: probar `GET /api/v1/cifras/estudiantes` con Bearer JWT.
 
 ## Casos de prueba (CP-01 a CP-04)
 
