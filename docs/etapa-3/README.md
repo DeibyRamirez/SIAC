@@ -88,6 +88,17 @@ Archivo: `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts` (Jest + supertest cont
 
 Otras suites E2E del cierre del Sprint 2: `vigencias.e2e-spec.ts` (anexos, R-D), `resolucion-men.e2e-spec.ts` (resolución MEN), `limpiar-anexos-sin-documento.e2e-spec.ts` (script de datos), `busqueda.e2e-spec.ts` y `humo.e2e-spec.ts`. Las pruebas del panel en el frontend (T-010.5) usan Vitest + Testing Library (ver `docs/adr/ADR-007-pilas-de-pruebas.md`).
 
+## Incrementos entregados tras el cierre de Etapa 2 (10/10/2026)
+
+No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se registran aquí para el arranque del Sprint 3:
+
+| Área | Entrega |
+|------|---------|
+| HU-010 / panel | Pesos renovación programa G1/G2 **50/50**; avance institucional (`GET /programas/avance-institucional`); ciclo manual `inicioCicloTramiteAt` + `POST …/iniciar-ciclo-renovacion` |
+| Alcance institucional | `Usuario.responsableProcesoInstitucional`, G3/G4 por asignación, `GET /institucion/resumen` |
+| Admin UX | Métricas sin borradores (validadas / revisión / corrección); hero con avance institucional |
+| Revisor | Panel «Mis revisiones» con detalle por programa o institución |
+
 ## Criterios de aceptación
 
 - [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado

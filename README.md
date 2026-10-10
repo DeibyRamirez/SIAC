@@ -6,14 +6,40 @@ Monorepo del proyecto académico CUAC (Frontend Next.js + Backend NestJS).
 
 - Node.js 20 LTS
 - pnpm 10.x (`corepack enable`)
+- Docker Desktop (PostgreSQL local)
 
 ## Arranque local
+
+### PostgreSQL (Docker)
+
+Desde la raíz del monorepo:
+
+```bash
+docker compose up -d
+docker exec siac-postgres pg_isready -U postgres -d siac
+```
+
+El contenedor expone PostgreSQL 16 en **localhost:5433** (puerto 5433 evita conflicto con un Postgres nativo en 5432). Credenciales: usuario `postgres`, contraseña `postgres`, base `siac`.
 
 ### Backend (API `/api/v1`)
 
 ```bash
 cd Backend
 cp .env.example .env
+```
+
+En `.env`, apunte la base de datos al Postgres local (Storage puede seguir en Supabase):
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/siac"
+DIRECT_URL="postgresql://postgres:postgres@localhost:5433/siac"
+S3_USAR_ALMACEN_LOCAL="false"
+# Completar S3_ENDPOINT, S3_ACCESS_KEY y S3_SECRET_KEY con Supabase Storage
+```
+
+Luego:
+
+```bash
 pnpm install
 pnpm prisma:generate
 pnpm prisma:deploy   # migraciones (incluyen catálogo de trámites G1–G4 e institución CUAC)
@@ -30,7 +56,7 @@ quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
 
 ```bash
 pnpm build
-node dist/main.js
+node dist/src/main.js
 ```
 
 Swagger: `http://localhost:3001/api/docs`

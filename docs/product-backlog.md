@@ -68,8 +68,8 @@
 |--------|-----|--------|
 | Etapa 0 | Planificación | Completada |
 | Sprint 1 | HU-001, HU-002, HU-011, inicio HU-003 | Completada. Las brechas de alcance por programa (T-011.1, T-011.2, T-011.3, T-002.1) se cierran al inicio del Sprint 2 |
-| Sprint 2 | HU-003, HU-004, HU-005, HU-008, HU-010 | En progreso. HU-008 y HU-010 por hacer. HU-003, HU-004 y HU-005 conservan su alcance original y tienen subtareas nuevas pendientes |
-| Sprint 3 | HU-006, HU-007, HU-009 | Por hacer |
+| Sprint 2 | HU-003, HU-004, HU-005, HU-008, HU-010 | Completada en repo (09/10/2026). Ver [sprint-2](sprint-reviews/sprint-2.md) y [etapa-2](etapa-2/README.md) |
+| Sprint 3 | HU-006, HU-007, HU-009 | En curso en repo (desde 08/10/2026). Ver [etapa-3](etapa-3/README.md) |
 | Sprint 4 | Aceptación HU-001..011 | Por hacer |
 
 > El estado oficial vive en ClickUp; este repositorio no declara sprints completados.

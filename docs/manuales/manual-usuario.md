@@ -137,22 +137,24 @@ Documentos por trámite: renovación de programa = G1 + G2 + resolución; progra
 
 El fin de vigencia es la fecha de la resolución + 7 años y el color se calcula al consultar con los umbrales configurables de `ConfiguracionSIAC`.
 
-| Color | Significado |
-|-------|-------------|
-| Gris («Sin vigencia») | No hay resolución MEN cargada (nunca verde) |
-| Verde | Vigente, a más de 12 meses del fin |
-| Amarillo | Desde 12 meses antes del fin (año 6) |
-| Rojo | Vencida |
+En pantalla verá **etiquetas con color** (no los nombres «Verde/Amarillo/Rojo»):
+
+| Indicador (color) | Significado en la UI |
+|-------------------|----------------------|
+| Gris — «Sin vigencia» | No hay resolución MEN cargada |
+| Esmeralda — «Vigente» | A más de 12 meses del fin de vigencia |
+| Ámbar — «Próximo a vencer» | Desde 12 meses antes del fin (año 6) |
+| Fucsia — «Vencida» | Fin de vigencia superado |
 
 ## Semáforo de anexos de vigencia
 
 En **Vigencias y alertas → Cargar documento** el anexo exige: documento adjunto, programa, **evidencia que respalda** (documento guía del mismo programa), **categoría** (Infraestructura, Permiso, Convenio u Otro) y el **vencimiento del certificado** (o su fecha de expedición + años). Un anexo de categoría *Infraestructura* vencido pone en rojo el semáforo general del programa (RN-003), aunque el avance documental sea 100 %.
 
-| Color | Significado |
-|-------|-------------|
-| Verde | Vigente (>30 días) |
-| Amarillo | Próximo a vencer (≤30 días) |
-| Rojo | Vencido |
+| Indicador (color) | Significado en la UI |
+|-------------------|----------------------|
+| Esmeralda — «Vigente» | Más de 30 días para el vencimiento |
+| Ámbar — «Próximo a vencer» | 30 días o menos |
+| Fucsia — «Vencido» | Certificado vencido |
 
 ## Soporte
 

@@ -61,7 +61,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Framework | NestJS 10, TypeScript |
 | ORM | Prisma 6 → Supabase PostgreSQL |
 | Auth | JWT + Passport, dominio `@uniautonoma.edu.co` |
-| Storage | Supabase Storage S3 + URLs firmadas |
+| Storage | Por defecto en dev: disco `Backend/almacen-local` (`S3_USAR_ALMACEN_LOCAL=true`); producción opcional Supabase S3 |
 | Docs API | Swagger en `/api/docs` |
 | Cron | `@nestjs/schedule` — vigencias 00:00 |
 
@@ -390,9 +390,9 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ---
 
-## 8. Estado actual (2026-09-30)
+## 8. Estado actual (2026-10-10)
 
-El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado con brechas de alcance por programa cerradas al inicio del Sprint 2; Sprint 2 **en progreso**; Sprints 3 y 4 **por hacer**.
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK.
 
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
@@ -403,8 +403,9 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] `GET /programas` deja de escribir semáforo y porcentaje; conteos por estado en `GET /programas/:id`
 - [x] `PATCH /programas/:id` y `PATCH /programas/:id/estado`; pantalla de asignación en `/administrador/usuarios`
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
-- [ ] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4) — implementado; HU-010 en curso hasta su cierre en ClickUp
-- [ ] T-010.2 dominio `panel-siac.ts` con pesos 90/10 y 85/15 y umbrales en `ConfiguracionSIAC`; tests unitarios — implementado; HU-010 en curso
+- [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
+- [x] T-010.2 dominio `panel-siac.ts` con pesos renovación programa **50/50** (G1/G2), institución 85/15 (G3/G4) y umbrales en `ConfiguracionSIAC`; tests unitarios
+- [x] Avance institucional admin: `GET /programas/avance-institucional` (promedio igualitario de programas activos); ciclo manual `POST /programas/:id/iniciar-ciclo-renovacion` + `Programa.inicioCicloTramiteAt`
 - [x] Sync carreras CUAC → `Programa` (`idExterno`, `origenDato: API`); bajas del catálogo → `activo: false`
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
 - [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
@@ -458,7 +459,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [ ] | Crear buckets Storage Supabase | Supabase |
 | [ ] | Configurar `.env` y ejecutar semilla | Backend |
 
-### P1 — Sprint 2 (en progreso; no reabrir HU-003/004/005)
+### P1 — Sprint 2 (completada en repo, 09/10/2026)
 
 | ✓ | Tarea | Ámbito |
 |---|-------|--------|
@@ -467,9 +468,10 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | T-011.2 — alcance por programa, API y pantalla de asignación | Backend + Frontend |
 | [x] | T-011.3 — editar/desactivar programa; conteos; GET sin escritura | Backend + Frontend |
 | [x] | T-002.1 — inicio y bandeja del revisor por programas asignados | Frontend |
-| [ ] | HU-003/004/005 ajustes nuevos (fuera de este bloque) | Backend + Frontend |
-| [ ] | HU-010 panel programas/institución (`GET /programas/panel`) — en curso | Backend + Frontend |
-| [ ] | HU-008 búsqueda global API — en curso | Frontend |
+| [x] | HU-003, HU-004, HU-005 — núcleo documental | Backend + Frontend |
+| [x] | HU-010 panel programas/institución (`GET /programas/panel`) | Backend + Frontend |
+| [x] | HU-008 búsqueda, filtros URL, export CSV, columna «Nivel» | Frontend |
+| [x] | Semáforos UI: etiquetas de negocio + color (`etiquetas-semaforo.ts`) | Frontend |
 | [x] | Frontend 100% API real (paneles, búsqueda, plantillas y evidencias sin semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
@@ -485,6 +487,34 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-10 — Cierre verificado Etapa 2 / Sprint 2
+
+- [Docs] Gate CI-equivalente local (Jest, E2E CP-E2E-01..05, Vitest, builds); corrección regex en `vigencias.e2e-spec.ts` (rutas `documentos/{año}/{trámite}/…`).
+- [Docs] `MemoriaGlobal` §8 y `sprint-2.md` alineados a Sprint 2 completado; incrementos post-09/10 listados en `docs/etapa-3/README.md`.
+- [Operación] Pendiente manual: marcar Sprint 2 en ClickUp.
+
+### 2026-10-10 — Avance institucional y ciclo de renovación por programa
+
+- [Backend] Pesos renovación programa G1/G2 **50/50**; `GET /programas/avance-institucional`; `Programa.inicioCicloTramiteAt` y `POST /programas/:id/iniciar-ciclo-renovacion` (solo ventana de vigencia amarilla/roja).
+- [Frontend] Hero y dashboard de métricas usan avance institucional; detalle de programa con botón «Iniciar nuevo ciclo de renovación».
+
+### 2026-10-08 — Almacenamiento local, trámites por programa y roles
+
+- [Backend] Claves S3/local con `{año}/{tipoTramite}/…`; `GET /api/v1/almacen-local/*` (JWT) en modo disco; validación de guía vs `tipoTramiteActivo` al crear evidencia.
+- [Backend] `PATCH /usuarios/:id/rol` solo SuperAdmin; asignación de programas limitada a Cargador/Revisor.
+- [Frontend] Administrador: solo asignación de programas; cargador nueva evidencia acotada al trámite del programa.
+
+### 2026-10-10 — Asignación proceso institucional (G3/G4)
+
+- [Backend] `Usuario.responsableProcesoInstitucional`; `PUT /usuarios/:id/alcance-institucional`; alcance RN-001: G3/G4 solo para responsables asignados; creación institucional sin `programaId`; `GET /institucion/resumen` para Cargador/Revisor.
+- [Frontend] Panel de asignación: badge destacado y checkbox del proceso único; cargador nueva evidencia con alcance Institución solo si tiene el flag.
+
+### 2026-10-09 — Cierre Sprint 2 / Etapa 2 en repositorio
+
+- [Frontend] `lib/utilidades/etiquetas-semaforo.ts`: semáforos con etiquetas de negocio (sin texto Verde/Amarillo/Rojo); componente `Semaforo` con `contexto`; filtros panel y búsqueda con `OpcionFiltroSemaforo`; badge de `estadoProceso` en rejilla de programas (RN-003).
+- [Frontend] HU-008: filtros `formato`, fechas de verificación, columna «Nivel» en búsqueda, export CSV de resultados visibles.
+- [Docs] `docs/etapa-2/README.md`, `docs/sprint-reviews/sprint-2.md`, `docs/product-backlog.md` y manual de usuario actualizados al cierre del sprint.
 
 ### 2026-10-07 — Inicio Etapa 3 / Sprint 3 (HU-009 dashboard Power BI)
 

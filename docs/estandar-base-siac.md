@@ -254,6 +254,22 @@ Ejemplos reales del proyecto: `feat: conservar formato DOCX en Ver cambios…`, 
 - El autor del commit es la persona del equipo (cuenta de GitHub), no una herramienta.
 - Antes de integrar: `tsc` del front y del back en verde, y pruebas del módulo tocado (`jest` en backend cuando el cambio es de evidencias o DOCX).
 
+## 12.1 Avance por trámite y avance institucional (T-010.2)
+
+Cada programa activo aporta **por igual** al avance institucional mostrado al administrador:
+
+`avanceInstitucional = redondeo( Σ avanceGlobal_programa / N )`, con `N` = programas `activo: true`.
+
+Dentro de cada programa, el `avanceGlobal` del trámite activo es la suma ponderada del avance **interno** (0–100 %) de cada guía:
+
+| Alcance | Trámite | Guías | Peso en el trámite | Avance interno |
+|---------|---------|-------|-------------------|----------------|
+| Programa | Registro calificado nuevo | G1 | 100 % | Checklist n/9 hasta Cumple/Validado (= 100 %) |
+| Programa | Renovación registro calificado | G1 + G2 | **50 % + 50 %** | G2/G4 sin puntaje: 0 % hasta aprobación, luego 100 % |
+| Institución | Renovación condiciones | G3 + G4 | 85 % + 15 % | Igual criterio G3 con n/6 |
+
+La resolución MEN inicia vigencia de **7 años** (`ConfiguracionSIAC.aniosVigencia`). Para un **nuevo ciclo** de renovación, el administrador ejecuta `POST /programas/:id/iniciar-ciclo-renovacion` cuando el semáforo de vigencia está en aviso o vencido; a partir de `Programa.inicioCicloTramiteAt` solo cuentan evidencias nuevas. Las versiones anteriores no se borran.
+
 ## 13. Comentarios en el código
 
 Se escribe en castellano, en tercera persona, y solo cuando el *porqué* no se ve en el nombre.

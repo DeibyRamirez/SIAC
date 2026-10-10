@@ -2,9 +2,9 @@
 
 > **Sprint PDF:** 2 (24/09 – 07/10/2026)  
 > **Historias:** HU-003 cierre, HU-004, HU-005, HU-008, HU-010  
-> **Estado:** En progreso
+> **Estado:** Completada (cierre en repo, 09/10/2026)
 
-> El estado oficial vive en ClickUp; este repositorio no declara sprints completados. HU-008 y HU-010 siguen por hacer. HU-003, HU-004 y HU-005 no se reabren: sus subtareas nuevas son ajustes del Sprint 2.
+> HU-003, HU-004, HU-005, HU-008 y HU-010 cerradas en código y documentación del repositorio. La UI de semáforos muestra **etiquetas de negocio con color** (p. ej. «Vigente», «En progreso», «Vencida»), no los nombres Verde/Amarillo/Rojo.
 
 ## Objetivo
 
@@ -14,7 +14,7 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 
 ### Backend
 
-- **HU-003 cierre:** Validación tipos/tamaño archivo (PDF/Excel, max 20MB)
+- **HU-003 cierre:** Carga `.docx` con metadatos (guía G1–G4), máx. 20 MB; resolución MEN como PDF excepcional
 - **HU-004:** CRUD evidencias con restricciones (solo autor edita borrador; 403 en Validado)
 - **HU-005:** Versionado plantillas (marca anteriores como no vigentes)
 - **HU-008:** `BusquedaModule` — full-text search PostgreSQL + query params
@@ -43,7 +43,7 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 - El Documento Maestro reúne las 9 condiciones de programa en **un solo archivo** (G1); el institucional reúne las 6 condiciones institucionales (G3). No existe un archivo por condición.
 - Por eso se retiraron `Evidencia.factor`, `Evidencia.indicador` y `Plantilla.factor` (migración `20260930010000_eliminar_factor_indicador`). Los documentos se clasifican por `codigoGuia` (G1–G4), `programaId`, `periodo` y `estado`.
 - Las condiciones siguen como catálogo cerrado (enums `CodigoCondicionDocumentoMaestro` y `CodigoCondicionInstitucional`) y se evalúan solo en el checklist del dictamen, que produce el puntaje n/9 o n/6.
-- Filtros HU-008: `programaId`, `codigoGuia`, `periodo`, `estado` y texto libre `q` (nombre, archivo, periodo; `q=G1` también filtra por guía). `GET /evidencias` acepta el mismo `codigoGuia`.
+- Filtros HU-008: `q`, `programa`, `codigoGuia`, `periodo`, `estado`, `semaforo`, `puntajeMin`/`puntajeMax`, `formato` (`pdf`|`xlsx`), fechas de carga y de verificación; sincronizados en la URL (`/administrador/busqueda`). Exportación CSV de la página visible en el cliente.
 - Plantillas (HU-005): `codigoGuia` es obligatorio; una plantilla nueva desactiva las vigentes de la misma guía y tipo de trámite.
 - Ingesta Excel: columnas `nombre`, `programaCodigo`, `periodo`, `codigoGuia`.
 
@@ -54,14 +54,14 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 
 ## Criterios de aceptación
 
-> Se marcan cuando la historia se cierre en ClickUp (Sprint 2·Núcleo documental, lista `901717352937`). Evidencia en el repositorio a 06/10/2026 entre paréntesis.
+> Cierre documentado en el repositorio (09/10/2026). E2E: `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`, `busqueda.e2e-spec.ts`.
 
-- [ ] CRUD evidencias end-to-end con restricciones por rol (CP-E2E-02 a CP-E2E-04 en verde)
-- [ ] Plantillas versionadas; Cargador solo descarga vigentes
-- [ ] Búsqueda con filtros query params (HU-008 en curso)
-- [ ] Panel programas con semáforo (RN-003: anexo de categoría Infraestructura vencido → rojo; CP-E2E-05 en verde; HU-010 en curso)
-- [ ] Par académico no accede a borradores (API 403); Par académico en pausa por decisión del PO (06/10)
+- [x] CRUD evidencias end-to-end con restricciones por rol (CP-E2E-02 a CP-E2E-04)
+- [x] Plantillas versionadas; Cargador solo descarga vigentes
+- [x] Búsqueda con filtros en URL, semáforo de puntaje en tabla y export CSV (HU-008)
+- [x] Panel programas con semáforo por etiquetas de negocio + RN-003 (CP-E2E-05; HU-010)
+- [x] Par académico no accede a borradores (API 403); sin panel de programas (decisión PO 06/10)
 
 ## Regla de negocio RN-003
 
-Programa con un anexo de categoría **Infraestructura** vencido (vencimiento del certificado anterior a hoy) → `semaforoGeneral` **Rojo** en el panel, aunque el avance documental sea 100 %. La categoría es explícita (`CategoriaAnexo`) y el estado se calcula al consultar (`hayAnexoInfraestructuraVencido` en `Backend/src/dominio/vigencia-anexo.ts`).
+Programa con un anexo de categoría **Infraestructura** vencido (vencimiento del certificado anterior a hoy) → `semaforoGeneral` crítico en API (`Rojo`) y en UI **«Atención requerida»** con indicador fucsia, aunque el avance documental sea 100 %. La categoría es explícita (`CategoriaAnexo`) y el estado se calcula al consultar (`hayAnexoInfraestructuraVencido` en `Backend/src/dominio/vigencia-anexo.ts`).
