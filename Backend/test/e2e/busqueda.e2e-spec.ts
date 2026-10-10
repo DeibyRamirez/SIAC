@@ -36,6 +36,11 @@ describe('Búsqueda de evidencias contra PostgreSQL (HU-008)', () => {
     tokenCargador = cargador.token;
     tokenRevisor = revisor.token;
 
+    await ctx.prisma.usuario.updateMany({
+      where: { id: { in: [cargador.usuarioId, revisor.usuarioId] } },
+      data: { responsableProcesoInstitucional: true },
+    });
+
     const derecho = await crearPrograma(ctx.prisma, { nombre: 'Derecho', slug: 'derecho' });
     const medicina = await crearPrograma(ctx.prisma, { nombre: 'Medicina', slug: 'medicina' });
     await asignarPrograma(ctx.prisma, cargador.usuarioId, derecho.id);
