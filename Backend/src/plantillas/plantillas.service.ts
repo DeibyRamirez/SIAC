@@ -46,6 +46,7 @@ export class PlantillasService {
       const clave = this.almacenamiento.generarClavePlantilla(
         plantilla.id,
         archivo.originalname,
+        { tipoTramite: dto.tipoTramite ?? TipoTramitePlantilla.General },
       );
       await this.almacenamiento.subirArchivo(
         archivo.buffer,
@@ -117,7 +118,9 @@ export class PlantillasService {
     const plantilla = await this.plantillaRepo.buscarPorId(id);
     if (!plantilla) throw new NotFoundException('Plantilla no encontrada.');
 
-    const clave = this.almacenamiento.generarClavePlantilla(id, archivo.originalname);
+    const clave = this.almacenamiento.generarClavePlantilla(id, archivo.originalname, {
+      tipoTramite: plantilla.tipoTramite,
+    });
     await this.almacenamiento.subirArchivo(
       archivo.buffer,
       clave,
