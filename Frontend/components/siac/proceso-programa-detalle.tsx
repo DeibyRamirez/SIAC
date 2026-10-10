@@ -115,7 +115,7 @@ export function ProcesoProgramaDetalle({
                     <span className="text-sm font-bold text-esmeralda">
                       {doc.porcentajeInterno}%
                     </span>
-                    <Semaforo valor={semaforo} />
+                    <Semaforo valor={semaforo} contexto="avancePrograma" />
                     <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
                   </div>
                 </div>
@@ -130,16 +130,16 @@ export function ProcesoProgramaDetalle({
           })}
         </div>
 
-        <div className="rounded-xl border border-primary/30 bg-accent/50 p-4">
+        {/* <div className="rounded-xl border border-primary/30 bg-accent/50 p-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-primary">Total del proceso</span>
+            <span className="font-medium text-primary">Total del proceso ...</span>
             <span className="text-lg font-bold text-esmeralda">{progreso.avanceGlobal}%</span>
           </div>
           <Progress value={progreso.avanceGlobal} className="mt-2 h-3">
             <ProgressLabel className="sr-only">Avance global</ProgressLabel>
             <ProgressValue />
           </Progress>
-        </div>
+        </div> */}
 
         {procesoCompleto && !vigenciaActiva ? (
           <p className="rounded-lg border border-esmeralda/30 bg-esmeralda/10 p-3 text-sm text-primary">

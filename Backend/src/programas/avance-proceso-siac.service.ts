@@ -61,6 +61,7 @@ export class AvanceProcesoSIACService {
       where: {
         programaId,
         codigoGuia: { in: codigosGuia },
+        createdAt: { gte: programa.inicioCicloTramiteAt },
         estado: {
           in: [
             EstadoEvidencia.Cumple,

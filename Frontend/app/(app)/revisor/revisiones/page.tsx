@@ -6,17 +6,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
-import { ResumenObservacionesPorCondicion } from '@/components/siac/resumen-observaciones-por-condicion'
+import {
+  PanelDetalleRevisionRevisor,
+  type ModoDetalleRevisionRevisor,
+} from '@/components/siac/panel-detalle-revision-revisor'
+import type { EvaluacionCondicionResumenItem } from '@/components/siac/resumen-observaciones-por-condicion'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -25,15 +23,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
+import {
+  etiquetaCondicionInstitucional,
+  type CodigoCondicionInstitucional,
+} from '@/lib/condiciones-institucionales'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   listarMisRevisionesRevisorApi,
   obtenerEvaluacionesCondicionApi,
+  obtenerEvaluacionesCondicionInstitucionalApi,
   type FilaRevisionRevisorApi,
 } from '@/lib/servicios/evidencias.servicio'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
-import type { EvaluacionCondicionEvidencia } from '@/lib/condiciones-documento-maestro'
 import { formatearFechaHora, formatearPuntaje } from '@/lib/utilidades-siac'
 
 export default function MisRevisionesRevisorPage() {
@@ -50,7 +51,8 @@ function ContenidoMisRevisiones() {
   const [total, setTotal] = useState(0)
   const [cargando, setCargando] = useState(true)
   const [filaSeleccionada, setFilaSeleccionada] = useState<FilaRevisionRevisorApi | null>(null)
-  const [evaluaciones, setEvaluaciones] = useState<EvaluacionCondicionEvidencia[]>([])
+  const [evaluaciones, setEvaluaciones] = useState<EvaluacionCondicionResumenItem[]>([])
+  const [modoDetalle, setModoDetalle] = useState<ModoDetalleRevisionRevisor>('vacio')
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -76,25 +78,44 @@ function ContenidoMisRevisiones() {
   async function abrirDetalle(fila: FilaRevisionRevisorApi) {
     setFilaSeleccionada(fila)
     setEvaluaciones([])
+    setModoDetalle('vacio')
     setCargandoDetalle(true)
     try {
-      if (apiDisponible() && fila.numeroRevision) {
-        const evals = await obtenerEvaluacionesCondicionApi(
-          fila.evidenciaId,
-          fila.numeroRevision,
-        )
-        setEvaluaciones(
-          evals.map((e) => ({
-            codigoCondicion: e.codigoCondicion,
-            cumple: e.cumple,
-            observacion: e.observacion,
-            numeroRevision: e.numeroRevision,
-          })),
-        )
+      if (!apiDisponible() || !fila.numeroRevision) {
+        setModoDetalle(fila.observacionesDictamen ? 'texto' : 'vacio')
+        return
+      }
+
+      const esInstitucional = !fila.programa
+      const evals = esInstitucional
+        ? await obtenerEvaluacionesCondicionInstitucionalApi(
+            fila.evidenciaId,
+            fila.numeroRevision,
+          )
+        : await obtenerEvaluacionesCondicionApi(fila.evidenciaId, fila.numeroRevision)
+
+      const mapeadas: EvaluacionCondicionResumenItem[] = evals.map((e) => ({
+        codigoCondicion: e.codigoCondicion,
+        cumple: e.cumple,
+        observacion: e.observacion,
+        numeroRevision: e.numeroRevision,
+      }))
+      setEvaluaciones(mapeadas)
+
+      if (mapeadas.length > 0) {
+        setModoDetalle(esInstitucional ? 'institucional' : 'programa')
+      } else if (fila.observacionesDictamen) {
+        setModoDetalle('texto')
+      } else {
+        setModoDetalle('vacio')
       }
     } finally {
       setCargandoDetalle(false)
     }
+  }
+
+  function cerrarDetalle() {
+    setFilaSeleccionada(null)
   }
 
   return (
@@ -149,7 +170,9 @@ function ContenidoMisRevisiones() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">v{fila.numeroRevision ?? fila.version ?? 1}</TableCell>
+                    <TableCell className="text-sm">
+                      v{fila.numeroRevision ?? fila.version ?? 1}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatearFechaHora(fila.fechaEnvioRevision)}
                     </TableCell>
@@ -161,11 +184,7 @@ function ContenidoMisRevisiones() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => abrirDetalle(fila)}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => abrirDetalle(fila)}>
                           Ver observaciones
                         </Button>
                         {fila.estado === 'EnRevision' && (
@@ -192,46 +211,31 @@ function ContenidoMisRevisiones() {
       <Sheet
         open={filaSeleccionada !== null}
         onOpenChange={(abierto) => {
-          if (!abierto) setFilaSeleccionada(null)
+          if (!abierto) cerrarDetalle()
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          {filaSeleccionada && (
-            <>
-              <SheetHeader>
-                <SheetTitle>{filaSeleccionada.nombre}</SheetTitle>
-                <SheetDescription>
-                  Versión {filaSeleccionada.numeroRevision} ·{' '}
-                  {formatearFechaHora(filaSeleccionada.fechaEnvioRevision)}
-                </SheetDescription>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                {cargandoDetalle ? (
-                  <p className="text-sm text-muted-foreground">Cargando observaciones…</p>
-                ) : evaluaciones.length > 0 ? (
-                  <ResumenObservacionesPorCondicion
-                    evaluaciones={evaluaciones}
-                    puntaje={filaSeleccionada.puntaje}
-                    totalCondiciones={filaSeleccionada.totalCondiciones}
-                  />
-                ) : filaSeleccionada.observacionesDictamen ? (
-                  <label className="block space-y-2 text-sm">
-                    <span className="font-medium">Observaciones del dictamen</span>
-                    <Textarea
-                      value={filaSeleccionada.observacionesDictamen}
-                      readOnly
-                      disabled
-                      className="min-h-32 resize-none bg-muted/50"
-                    />
-                  </label>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Sin observaciones registradas para esta versión.
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+        <SheetContent className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-xl">
+          {filaSeleccionada ? (
+            <PanelDetalleRevisionRevisor
+              key={`${filaSeleccionada.evidenciaId}-${filaSeleccionada.fechaEnvioRevision}`}
+              fila={filaSeleccionada}
+              modo={modoDetalle}
+              evaluaciones={evaluaciones}
+              cargando={cargandoDetalle}
+              tituloChecklist={
+                modoDetalle === 'institucional'
+                  ? 'Evaluación por condiciones institucionales'
+                  : 'Evaluación por condiciones del documento'
+              }
+              resolverEtiqueta={
+                modoDetalle === 'institucional'
+                  ? (codigo) =>
+                      etiquetaCondicionInstitucional(codigo as CodigoCondicionInstitucional)
+                  : undefined
+              }
+              onCerrar={cerrarDetalle}
+            />
+          ) : null}
         </SheetContent>
       </Sheet>
     </div>

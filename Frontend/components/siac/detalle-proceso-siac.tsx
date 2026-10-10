@@ -25,6 +25,7 @@ import {
 import {
   actualizarEstadoProgramaApi,
   actualizarProgramaApi,
+  iniciarCicloRenovacionProgramaApi,
   obtenerProgramaApi,
 } from '@/lib/servicios/programas.servicio'
 import { obtenerProgresoProgramaApi } from '@/lib/servicios/progreso-programa.servicio'
@@ -201,6 +202,15 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   }
 
   const vigenciaActiva = Boolean(programa.fechaResolucion)
+  const semaforoVigencia =
+    programa.fechaResolucion
+      ? calcularSemaforoVigencia(programa.fechaResolucion)
+      : 'SinVigencia'
+  const puedeIniciarCicloRenovacion =
+    puedeAdministrar &&
+    !esInstitucion &&
+    vigenciaActiva &&
+    (semaforoVigencia === 'Amarillo' || semaforoVigencia === 'Rojo')
   const avanceMostrado = progreso.avanceGlobal
 
   return (
@@ -233,6 +243,32 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         />
       ) : null}
 
+      {puedeIniciarCicloRenovacion && entidadId ? (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <p className="text-sm text-muted-foreground">
+              {mensajeAlertaVigencia(programa.fechaResolucion, programa.nombre) ??
+                'Ventana de renovación abierta.'}{' '}
+              Puede abrir un nuevo ciclo; las evidencias anteriores se conservan en el historial.
+            </p>
+            <Button
+              variant="default"
+              onClick={async () => {
+                try {
+                  const respuesta = await iniciarCicloRenovacionProgramaApi(entidadId)
+                  toast.success(respuesta.mensaje)
+                  await cargarDatos()
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'No se pudo iniciar el ciclo.')
+                }
+              }}
+            >
+              Iniciar nuevo ciclo de renovación
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {puedeAdministrar && !vigenciaActiva ? (
         <TarjetaCargarResolucion
           programaId={esInstitucion ? undefined : entidadId}
@@ -253,7 +289,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
           <Progress value={avanceMostrado} className="h-3" />
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Semáforo institucional (RN-003)</span>
-            <Semaforo valor={programa.semaforo} />
+            <Semaforo valor={programa.semaforo} contexto="avancePrograma" />
           </div>
         </CardContent>
       </Card>

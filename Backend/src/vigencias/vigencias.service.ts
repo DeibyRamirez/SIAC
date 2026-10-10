@@ -82,19 +82,29 @@ export class VigenciasService implements OnModuleInit {
 
 
 
-  /** R-D 3b: deja constancia en el log si el bucket de anexos no existe (no bloquea el arranque). */
+  /** R-D 3b: deja constancia en el log si algún bucket S3 no existe (no bloquea el arranque). */
   async onModuleInit(): Promise<void> {
     try {
       const buckets = await this.almacenamiento.verificarBuckets();
-      const documentos = buckets.find((b) => b.tipo === 'documentos');
-      if (documentos && !documentos.existe) {
-        this.logger.error(
-          `El bucket de anexos "${documentos.bucket}" no está disponible en Storage (${documentos.error}). ` +
-            'Las cargas de Vigencias fallarán hasta crearlo (S3_BUCKET_DOCUMENTOS).',
-        );
+      for (const bucket of buckets) {
+        if (bucket.existe) continue;
+        const detalle = `${bucket.bucket} (${bucket.error ?? 'no disponible'})`;
+        if (bucket.tipo === 'documentos') {
+          this.logger.error(
+            `Bucket de anexos "${detalle}". Las cargas de Vigencias fallarán hasta crearlo (S3_BUCKET_DOCUMENTOS).`,
+          );
+        } else if (bucket.tipo === 'plantillas') {
+          this.logger.error(
+            `Bucket de plantillas "${detalle}". Descargas/subidas de guías fallarán (S3_BUCKET_PLANTILLAS).`,
+          );
+        } else {
+          this.logger.error(
+            `Bucket de evidencias "${detalle}". Cargas de evidencias fallarán (S3_BUCKET).`,
+          );
+        }
       }
     } catch (error) {
-      this.logger.warn(`No se pudo verificar el bucket de anexos: ${(error as Error).message}`);
+      this.logger.warn(`No se pudo verificar buckets de Storage: ${(error as Error).message}`);
     }
   }
 
@@ -197,7 +207,13 @@ export class VigenciasService implements OnModuleInit {
     const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
     const fechaCarga = new Date();
     const estado = this.calcularEstado(fechaVencimiento);
-    const clave = this.almacenamiento.generarClaveDocumento(datos.carpeta, nombreArchivo);
+    const programa = await this.prisma.programa.findUnique({
+      where: { id: dto.programaId },
+      select: { tipoTramiteActivo: true },
+    });
+    const clave = this.almacenamiento.generarClaveDocumento(datos.carpeta, nombreArchivo, {
+      tipoTramite: programa?.tipoTramiteActivo,
+    });
 
     // R-D 3d: primero se sube el archivo y solo si funciona se crea la fila. Ya no hay
     // reversión silenciosa: el fallo queda en el log y el cliente recibe el motivo.

@@ -1,4 +1,10 @@
-import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, RolUsuario } from '@prisma/client';
+import {
+  CategoriaAnexo,
+  EstadoEvidencia,
+  EstadoVigencia,
+  OrigenDato,
+  RolUsuario,
+} from '@prisma/client';
 import {
   ProgramasService,
   ProgramaRepositorio,
@@ -103,6 +109,9 @@ describe('porcentajeInternoEvidencia', () => {
 describe('ProgramasService', () => {
   const programaRepo = {
     listar: jest.fn(),
+    crear: jest.fn(),
+    buscarPorCodigo: jest.fn(),
+    buscarPorSlug: jest.fn(),
     buscarPorId: jest.fn(),
     actualizar: jest.fn(),
     listarAnexosDeProgramas: jest.fn(),
@@ -115,10 +124,12 @@ describe('ProgramasService', () => {
   const avanceProceso = {
     calcularProgresoPrograma: jest.fn(),
   };
+  const configuracion = { obtener: jest.fn().mockReturnValue({ aniosVigencia: 7, mesesAvisoVigencia: 12 }) };
   const servicio = new ProgramasService(
     programaRepo as unknown as ProgramaRepositorio,
     alcance as unknown as ServicioAlcancePrograma,
     avanceProceso as unknown as AvanceProcesoSIACService,
+    configuracion as never,
   );
 
   const programa = {
@@ -269,6 +280,42 @@ describe('ProgramasService', () => {
     alcance.idsProgramasAsignados.mockResolvedValue(['p1']);
     await servicio.listarConSemaforo({ id: 'car', rol: RolUsuario.Cargador });
     expect(programaRepo.listar).toHaveBeenCalledWith({ id: { in: ['p1'] }, activo: true });
+  });
+
+  it('avance institucional promedia programas activos', async () => {
+    programaRepo.listar.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+    avanceProceso.calcularProgresoPrograma
+      .mockResolvedValueOnce({ avanceGlobal: 100 })
+      .mockResolvedValueOnce({ avanceGlobal: 0 });
+
+    const resumen = await servicio.calcularAvanceInstitucional({
+      id: 'admin',
+      rol: RolUsuario.Administrador,
+    });
+
+    expect(resumen).toEqual({
+      avanceInstitucional: 50,
+      programasActivos: 2,
+      programasCompletos: 1,
+    });
+    expect(programaRepo.listar).toHaveBeenCalledWith({ activo: true });
+  });
+
+  it('crear programa manual fija RC nuevo (solo G1)', async () => {
+    programaRepo.buscarPorCodigo.mockResolvedValue(null);
+    programaRepo.buscarPorSlug.mockResolvedValue(null);
+    programaRepo.crear.mockResolvedValue({ id: 'nuevo' });
+
+    await servicio.crear({ nombre: 'Prueba RC', nivel: 'Pregrado' });
+
+    expect(programaRepo.crear).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nombre: 'Prueba RC',
+        nivel: 'Pregrado',
+        origenDato: OrigenDato.Manual,
+        tipoTramiteActivo: TipoTramiteSIAC.RegistroCalificadoNuevo,
+      }),
+    );
   });
 
 });

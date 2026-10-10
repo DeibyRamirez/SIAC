@@ -243,7 +243,7 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 - **Git:** repo oficial `DeibyRamirez/SIAC`, rama de trabajo `develop_v2`. El estado de sprints lo define ClickUp.
 - **Fecha de esta nota:** 2026-09-28.
 - **Flujo por programa:** el listado y alta de programas, el selector del cargador y la bandeja/inicio del revisor consumen la API. Si falla, muestran error y no rellenan con datos de prueba.
-- **Asignación:** `/administrador/usuarios` permite asignar programas a Cargador y Revisor. El Administrador no puede otorgar SuperAdmin.
+- **Asignación:** `/administrador/usuarios` permite asignar programas (G1/G2) y el flag de proceso institucional único (G3/G4) a Cargador y Revisor. El Administrador no puede otorgar SuperAdmin.
 - **Pendiente de este frente:** paneles administrativos y búsqueda global aún pueden mostrar semillas (HU-008 / HU-010, fuera de este bloque).
 
 ### Validaciones recientes

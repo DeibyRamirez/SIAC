@@ -18,7 +18,7 @@ export const PESOS_DOCUMENTO_GUIA: Record<
   Partial<Record<CodigoDocumentoGuia, number>>
 > = {
   [TipoTramiteSIAC.RegistroCalificadoNuevo]: { G1: 100 },
-  [TipoTramiteSIAC.RenovacionRegistroCalificado]: { G1: 90, G2: 10 },
+  [TipoTramiteSIAC.RenovacionRegistroCalificado]: { G1: 50, G2: 50 },
   [TipoTramiteSIAC.CondicionesInstitucionalesNuevas]: { G3: 100 },
   [TipoTramiteSIAC.RenovacionCondicionesInstitucionales]: { G3: 85, G4: 15 },
 };
@@ -84,4 +84,9 @@ export function tramitePorTipo(tipo: TipoTramiteSIAC): TramiteSIACDefinicion {
     throw new Error(`Trámite SIAC no configurado: ${tipo}`);
   }
   return tramite;
+}
+
+export function codigosGuiaPermitidos(tipoTramite: TipoTramiteSIAC | null | undefined): CodigoDocumentoGuia[] {
+  if (!tipoTramite) return [];
+  return tramitePorTipo(tipoTramite).documentosGuia.map((doc) => doc.codigo);
 }

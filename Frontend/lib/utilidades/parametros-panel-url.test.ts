@@ -32,6 +32,7 @@ describe('parametros-panel-url (R-010.3a)', () => {
   it('traduce a filtros de la API con la búsqueda en el servidor', () => {
     const api = filtrosPanelParaApi(leerFiltrosPanelUrl({ q: 'med', tramite: 'RegistroCalificadoNuevo' }), 12)
     expect(api).toMatchObject({ q: 'med', tramite: 'RegistroCalificadoNuevo', limit: 12, page: 1, semaforo: undefined })
+    expect(api).not.toHaveProperty('origen')
   })
 
   it('muestra «n/9» para G1, porcentaje para guías sin puntaje y «sin revisar»', () => {

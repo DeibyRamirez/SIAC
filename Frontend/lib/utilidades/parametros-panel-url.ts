@@ -51,10 +51,7 @@ export function construirUrlPanel(filtros: FiltrosPanelUrl, base = RUTA_PANEL_PR
   return qs ? `${base}?${qs}` : base
 }
 
-/**
- * Filtros de la API. `origen: 'API'` se conserva como estaba: incluir programas creados a mano
- * está pendiente de decisión del PO.
- */
+/** Filtros del panel para la API (catálogo API y programas creados en SIAC). */
 export function filtrosPanelParaApi(filtros: FiltrosPanelUrl, limite: number): FiltrosPanelProgramas {
   return {
     page: filtros.pagina,
@@ -63,7 +60,6 @@ export function filtrosPanelParaApi(filtros: FiltrosPanelUrl, limite: number): F
     semaforo: filtros.semaforo === OPCION_TODOS ? undefined : (filtros.semaforo as SemaforoPrograma),
     semestre: filtros.semestre || undefined,
     estado: filtros.estado,
-    origen: 'API',
     q: filtros.q || undefined,
   }
 }

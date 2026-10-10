@@ -28,6 +28,17 @@ export class InstitucionController {
     return this.institucionService.obtenerProgreso();
   }
 
+  @Get('resumen')
+  @Roles(
+    RolUsuario.Administrador,
+    RolUsuario.SuperAdmin,
+    RolUsuario.Cargador,
+    RolUsuario.Revisor,
+  )
+  obtenerResumen() {
+    return this.institucionService.obtenerResumen();
+  }
+
   @Patch()
   actualizar(@Body() dto: ActualizarInstitucionDto) {
     return this.institucionService.actualizar(dto);

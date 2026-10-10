@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const colores = ['#1cbca6', '#0a3b74', '#94a3b8']
+const colores = ['#1cbca6', '#0a3b74', '#c28b10']
 
 interface GraficoDistribucionProps {
   datos: { estado: string; valor: number; clave: string }[]

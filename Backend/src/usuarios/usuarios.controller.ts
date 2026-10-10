@@ -21,6 +21,7 @@ import {
   ActualizarUsuarioDto,
 } from '../auth/dto/auth.dto';
 import { AsignarProgramasDto } from './dto/asignar-programas.dto';
+import { AsignarAlcanceInstitucionalDto } from './dto/asignar-alcance-institucional.dto';
 import { UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
 
 @Controller('usuarios')
@@ -33,8 +34,12 @@ export class UsuariosController {
 
   @Get()
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  listar() {
-    return this.usuarioRepo.listarTodos();
+  async listar() {
+    const usuarios = await this.usuarioRepo.listarTodosConProgramas();
+    return usuarios.map(({ usuarioProgramas, ...usuario }) => ({
+      ...usuario,
+      programasAsignados: usuarioProgramas.map((vinculo) => vinculo.programa),
+    }));
   }
 
   @Post()
@@ -67,8 +72,17 @@ export class UsuariosController {
     return this.usuariosService.asignarProgramas(id, dto.programaIds);
   }
 
-  @Patch(':id/rol')
+  @Put(':id/alcance-institucional')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  asignarAlcanceInstitucional(
+    @Param('id') id: string,
+    @Body() dto: AsignarAlcanceInstitucionalDto,
+  ) {
+    return this.usuariosService.asignarAlcanceInstitucional(id, dto.responsable);
+  }
+
+  @Patch(':id/rol')
+  @Roles(RolUsuario.SuperAdmin)
   actualizarRol(
     @Param('id') id: string,
     @Body() dto: ActualizarRolDto,

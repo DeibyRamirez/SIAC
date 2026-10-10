@@ -53,7 +53,12 @@ import {
   FORMULARIO_ANEXO_INICIAL,
   construirFormularioAnexo,
 } from '@/lib/utilidades/formulario-anexo'
-import { formatearFecha, manejarCambioSelect, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import {
+  formatearFecha,
+  itemsSelectProgramas,
+  manejarCambioSelect,
+  obtenerNombrePrograma,
+} from '@/lib/utilidades-siac'
 
 const estilosTarjetaResumen: Record<EstadoVigencia, string> = {
   Vigente: 'border-l-esmeralda',
@@ -89,6 +94,11 @@ function ContenidoVigencias() {
   const anexosPagina = useMemo(
     () => paginarArreglo(anexos, pagina, LIMITE_FILAS_TABLA),
     [anexos, pagina],
+  )
+
+  const opcionesPrograma = useMemo(
+    () => itemsSelectProgramas(programas),
+    [programas],
   )
 
   useEffect(() => {
@@ -332,17 +342,18 @@ function ContenidoVigencias() {
               <Label>Programa</Label>
               <Select
                 value={formulario.programaId}
+                items={opcionesPrograma}
                 onValueChange={manejarCambioSelect((v) =>
                   setFormulario({ ...formulario, programaId: v, evidenciaId: '' }),
                 )}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccione un programa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {programas.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nombre}
+                  {opcionesPrograma.map((opcion) => (
+                    <SelectItem key={opcion.value} value={opcion.value}>
+                      {opcion.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

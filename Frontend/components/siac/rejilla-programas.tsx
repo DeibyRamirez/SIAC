@@ -32,7 +32,9 @@ import type { Programa, SemaforoPrograma } from '@/lib/tipos'
 
 import type { FilaPanelPrograma } from '@/lib/servicios/panel-programas.servicio'
 
+import { clasesBadgeEstadoProceso } from '@/lib/utilidades/etiquetas-semaforo'
 import { obtenerInicialesPrograma } from '@/lib/utilidades-siac'
+import { cn } from '@/lib/utils'
 import { etiquetaDocumentoPanel, formatearFechaResolucion } from '@/lib/utilidades/parametros-panel-url'
 
 
@@ -264,24 +266,43 @@ export function RejillaProgramas({
 
                     <div className="flex flex-wrap items-center gap-2">
 
-                      <Semaforo valor={programa.semaforoGeneral ?? programa.semaforo} etiqueta="General" />
+                      <Semaforo
+                        valor={programa.semaforoGeneral ?? programa.semaforo}
+                        contexto="avancePrograma"
+                        etiqueta="General"
+                      />
 
-                      <Semaforo valor={programa.semaforoAvance} etiqueta="Avance" />
+                      <Semaforo valor={programa.semaforoAvance} contexto="avancePrograma" etiqueta="Avance" />
 
-                      <Semaforo valor={programa.semaforoVigencia!} etiqueta="Vigencia" />
+                      <Semaforo
+                        valor={programa.semaforoVigencia!}
+                        contexto="vigenciaRegistro"
+                        etiqueta="Vigencia"
+                      />
 
                     </div>
 
                   ) : (
 
-                    <Semaforo valor={programa.semaforo} />
+                    <Semaforo valor={programa.semaforo} contexto="avancePrograma" />
 
                   )}
 
                   {programa.estadoProceso ? (
-
-                    <span className="text-xs text-muted-foreground">{programa.estadoProceso}</span>
-
+                    <span
+                      className={cn(
+                        'inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold',
+                        clasesBadgeEstadoProceso(
+                          'anexoInfraestructuraVencido' in programa &&
+                            Boolean(programa.anexoInfraestructuraVencido),
+                          'avancePorcentual' in programa
+                            ? programa.avancePorcentual
+                            : programa.porcentajeAvance,
+                        ),
+                      )}
+                    >
+                      {programa.estadoProceso}
+                    </span>
                   ) : null}
 
                 </div>

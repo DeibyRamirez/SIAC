@@ -4,14 +4,16 @@ import { AvanceProcesoSIACService, porcentajeInternoEvidencia } from './avance-p
 /** Decisión del PO (06/10): G2/G4 sin puntaje; aportan 0 % hasta aprobarse y el 100 % de su peso después. */
 describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
   function crearServicio(evidencias: unknown[], pesos = [
-    { codigoGuia: CodigoDocumentoGuia.G1, pesoPorcentaje: 90 },
-    { codigoGuia: CodigoDocumentoGuia.G2, pesoPorcentaje: 10 },
+    { codigoGuia: CodigoDocumentoGuia.G1, pesoPorcentaje: 50 },
+    { codigoGuia: CodigoDocumentoGuia.G2, pesoPorcentaje: 50 },
   ]) {
+    const inicioCiclo = new Date('2020-01-01T00:00:00.000Z');
     const prisma = {
       programa: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'p1',
           tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
+          inicioCicloTramiteAt: inicioCiclo,
         }),
       },
       tramiteDocumentoGuia: { findMany: jest.fn().mockResolvedValue(pesos) },
@@ -26,9 +28,10 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
     puntajeActual: 9,
     totalCondicionesActual: 9,
     updatedAt: new Date('2026-10-01'),
+    createdAt: new Date('2026-09-01'),
   };
 
-  it('renovación con G1 9/9 y G2 «Con observaciones» = 90 %', async () => {
+  it('renovación con G1 9/9 y G2 «Con observaciones» = 50 %', async () => {
     const servicio = crearServicio([
       g1Cumple,
       {
@@ -37,12 +40,13 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
         puntajeActual: null,
         totalCondicionesActual: null,
         updatedAt: new Date('2026-10-02'),
+        createdAt: new Date('2026-09-02'),
       },
     ]);
 
     const progreso = await servicio.calcularProgresoPrograma('p1');
 
-    expect(progreso.avanceGlobal).toBe(90);
+    expect(progreso.avanceGlobal).toBe(50);
     expect(progreso.documentos.find((d) => d.codigoGuia === 'G2')).toMatchObject({
       porcentajeInterno: 0,
       aportacion: 0,
@@ -59,6 +63,7 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
         puntajeActual: null,
         totalCondicionesActual: null,
         updatedAt: new Date('2026-10-02'),
+        createdAt: new Date('2026-09-02'),
       },
     ]);
 
@@ -71,13 +76,19 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
   it('el peso del G2 es el configurado en la BD (p. ej. 20 %)', async () => {
     const servicio = crearServicio(
       [
-        { ...g1Cumple, estado: EstadoEvidencia.ConObservaciones, puntajeActual: 8 },
+        {
+          ...g1Cumple,
+          estado: EstadoEvidencia.ConObservaciones,
+          puntajeActual: 8,
+          createdAt: new Date('2026-09-01'),
+        },
         {
           codigoGuia: CodigoDocumentoGuia.G2,
           estado: EstadoEvidencia.Validado,
           puntajeActual: null,
           totalCondicionesActual: null,
           updatedAt: new Date('2026-10-02'),
+          createdAt: new Date('2026-09-02'),
         },
       ],
       [

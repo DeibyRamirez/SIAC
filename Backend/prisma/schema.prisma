@@ -120,6 +120,8 @@ model Usuario {
   cargo                String?       @db.VarChar(150)
   dependencia          String?       @db.VarChar(150)
   rol                  RolUsuario
+  /// Responsable asignado del proceso institucional único (G3/G4): carga si es Cargador, revisión si es Revisor.
+  responsableProcesoInstitucional Boolean @default(false)
   activo               Boolean       @default(true)
   idExterno            String?       @unique @db.VarChar(100)
   origenDato           OrigenDato    @default(Manual)
@@ -159,6 +161,8 @@ model Programa {
   urlImagen           String?         @db.VarChar(500)
   tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
   fechaResolucion     DateTime?
+  /// Evidencias con createdAt anterior no cuentan para el avance del trámite activo (ciclos de renovación).
+  inicioCicloTramiteAt DateTime       @default(now())
   activo              Boolean         @default(true)
   semaforo            String          @default("Verde")
   porcentajeAvance    Float           @default(0)

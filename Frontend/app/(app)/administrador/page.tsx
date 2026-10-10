@@ -26,12 +26,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  calcularDistribucionEstados,
+  calcularDistribucionEstadosAdministrador,
   calcularTendenciaMensual,
+  filtrarEvidenciasVisiblesAdministrador,
 } from '@/lib/utilidades/metricas-evidencias'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
+import {
+  listarProgramasApi,
+  obtenerAvanceInstitucionalApi,
+} from '@/lib/servicios/programas.servicio'
+import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
 import type { Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import {
@@ -57,18 +62,24 @@ function ContenidoResumen() {
   const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
+  const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
   useEffect(() => {
     async function cargar() {
       if (!apiDisponible()) return
       try {
-        const lista = await listarProgramasApi()
+        const [lista, resumen] = await Promise.all([
+          listarProgramasApi(),
+          obtenerAvanceInstitucionalApi(),
+        ])
         setProgramas(lista)
+        setAvanceInstitucional(resumen.avanceInstitucional)
         if (lista.length > 0 && !programaProcesoId) {
           setProgramaProcesoId(lista[0].id)
         }
       } catch {
         setProgramas([])
+        setAvanceInstitucional(null)
       }
     }
     cargar()
@@ -79,25 +90,34 @@ function ContenidoResumen() {
     [datos.evidencias, periodo],
   )
 
+  const evidenciasPanelAdmin = useMemo(
+    () => filtrarEvidenciasVisiblesAdministrador(evidenciasPeriodo),
+    [evidenciasPeriodo],
+  )
+
   const validadas = useMemo(
     () =>
-      evidenciasPeriodo.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
-    [evidenciasPeriodo],
+      evidenciasPanelAdmin.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
+    [evidenciasPanelAdmin],
   )
   const enProceso = useMemo(
     () =>
-      evidenciasPeriodo.filter((e) => e.estado === 'Borrador' || e.estado === 'EnRevision').length,
-    [evidenciasPeriodo],
+      evidenciasPanelAdmin.filter(
+        (e) =>
+          e.estado === 'EnRevision' ||
+          e.estado === 'ConObservaciones' ||
+          e.estado === 'Rechazado',
+      ).length,
+    [evidenciasPanelAdmin],
   )
   const porVencer = datos.anexosVigencia.filter((a) => a.estado === 'Proximo').length
   const pendientes = contarEvidenciasPendientes(datos.evidencias)
 
   const pregrado = programas.filter((p) => p.nivel === 'Pregrado').length
   const posgrado = programas.filter((p) => p.nivel === 'Posgrado').length
-  const avancePromedio =
-    programas.length > 0
-      ? Math.round(programas.reduce((acc, p) => acc + p.porcentajeAvance, 0) / programas.length)
-      : 0
+  const avanceHero =
+    avanceInstitucional ??
+    (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : 0)
 
   useEffect(() => {
     async function cargarProgreso() {
@@ -119,11 +139,11 @@ function ContenidoResumen() {
   }, [programaProcesoId])
 
   const distribucion = useMemo(
-    () => calcularDistribucionEstados(evidenciasPeriodo),
+    () => calcularDistribucionEstadosAdministrador(evidenciasPeriodo),
     [evidenciasPeriodo],
   )
   const tendencia = useMemo(
-    () => calcularTendenciaMensual(datos.evidencias),
+    () => calcularTendenciaMensual(filtrarEvidenciasVisiblesAdministrador(datos.evidencias)),
     [datos.evidencias],
   )
 
@@ -152,7 +172,7 @@ function ContenidoResumen() {
       </div>
 
       <TarjetaHeroAcreditacion
-        avance={progresoProceso?.avanceGlobal ?? avancePromedio}
+        avance={avanceHero}
         evidenciasValidadas={validadas}
         evidenciasEnProceso={enProceso}
       />
@@ -190,7 +210,7 @@ function ContenidoResumen() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <GraficoTendencia datos={tendencia} />
-        <GraficoDistribucion datos={distribucion} totalEtiqueta="Total evidencias" />
+        <GraficoDistribucion datos={distribucion} totalEtiqueta="Total en seguimiento" />
       </div>
 
       <PanelAvanceEtapasSIAC
@@ -201,7 +221,7 @@ function ContenidoResumen() {
         cargando={cargandoProgreso}
       />
 
-      <EstructuraNormativaPanel />
+      {/* <EstructuraNormativaPanel /> */}
     </div>
   )
 }

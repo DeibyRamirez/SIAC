@@ -23,20 +23,38 @@ export function calcularTendenciaMensual(
   return serie
 }
 
-export function calcularDistribucionEstados(
+/** Evidencias que el administrador puede ver en paneles (sin borradores internos del cargador). */
+export function filtrarEvidenciasVisiblesAdministrador<T extends Pick<Evidencia, 'estado'>>(
+  evidencias: T[],
+): T[] {
+  return evidencias.filter((e) => e.estado !== 'Borrador')
+}
+
+/**
+ * Distribución para panel administrador: válidas, en revisión y en corrección.
+ * No incluye borradores (RN visibilidad administrador).
+ */
+export function calcularDistribucionEstadosAdministrador(
   evidencias: Pick<Evidencia, 'estado'>[],
 ): { estado: string; valor: number; clave: string }[] {
   let validadas = 0
   let enRevision = 0
-  let borrador = 0
-  for (const { estado } of evidencias) {
+  let enCorreccion = 0
+  for (const { estado } of filtrarEvidenciasVisiblesAdministrador(evidencias)) {
     if (estado === 'Validado' || estado === 'Cumple') validadas++
     else if (estado === 'EnRevision') enRevision++
-    else if (estado === 'Borrador') borrador++
+    else if (estado === 'ConObservaciones' || estado === 'Rechazado') enCorreccion++
   }
   return [
     { estado: 'Validadas', valor: validadas, clave: 'validadas' },
     { estado: 'En revisión', valor: enRevision, clave: 'revision' },
-    { estado: 'Borrador', valor: borrador, clave: 'borrador' },
+    { estado: 'En corrección', valor: enCorreccion, clave: 'correccion' },
   ]
+}
+
+/** @deprecated Preferir calcularDistribucionEstadosAdministrador en rutas de administrador. */
+export function calcularDistribucionEstados(
+  evidencias: Pick<Evidencia, 'estado'>[],
+): { estado: string; valor: number; clave: string }[] {
+  return calcularDistribucionEstadosAdministrador(evidencias)
 }

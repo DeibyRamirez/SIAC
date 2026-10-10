@@ -88,7 +88,7 @@ export class ResolucionMenService {
     archivo: Express.Multer.File | undefined;
     usuario: UsuarioRegistro;
   }) {
-    const { propietario, progreso, dto, archivo, usuario } = input;
+    const { propietario, progreso, dto, archivo, usuario, tipoTramite } = input;
 
     // 409: el trámite todavía tiene documentos sin aprobar.
     if (!progreso.puedeCargarResolucion) {
@@ -106,7 +106,9 @@ export class ResolucionMenService {
     if (motivo) throw new BadRequestException(motivo);
 
     const nombreArchivo = decodificarNombreArchivoMultipart(archivo.originalname);
-    const clave = this.almacenamiento.generarClaveDocumento('resoluciones-men', nombreArchivo);
+    const clave = this.almacenamiento.generarClaveDocumento('resoluciones-men', nombreArchivo, {
+      tipoTramite,
+    });
     try {
       await this.almacenamiento.subirArchivo(archivo.buffer, clave, 'documentos', 'application/pdf');
     } catch (error) {

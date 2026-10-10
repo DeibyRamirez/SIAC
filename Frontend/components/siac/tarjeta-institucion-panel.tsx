@@ -41,9 +41,13 @@ export function TarjetaInstitucionPanel({
               {institucion.semestre ?? '—'}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Semaforo valor={institucion.semaforoGeneral} etiqueta="General" />
-              <Semaforo valor={institucion.semaforoAvance} etiqueta="Avance" />
-              <Semaforo valor={institucion.semaforoVigencia} etiqueta="Vigencia" />
+              <Semaforo valor={institucion.semaforoGeneral} contexto="avancePrograma" etiqueta="General" />
+              <Semaforo valor={institucion.semaforoAvance} contexto="avancePrograma" etiqueta="Avance" />
+              <Semaforo
+                valor={institucion.semaforoVigencia}
+                contexto="vigenciaRegistro"
+                etiqueta="Vigencia"
+              />
             </div>
           </div>
         </div>

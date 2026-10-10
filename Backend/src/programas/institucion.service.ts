@@ -57,6 +57,19 @@ export class InstitucionService {
     return this.avanceProceso.calcularProgresoInstitucion(institucion.id);
   }
 
+  async obtenerResumen() {
+    const institucion = await this.prisma.institucion.findFirst();
+    if (!institucion) throw new NotFoundException('Institución no configurada.');
+    const tramite = tramitePorTipo(institucion.tipoTramiteActivo);
+    return {
+      id: institucion.id,
+      nombre: institucion.nombre,
+      codigo: institucion.codigo,
+      tipoTramiteActivo: institucion.tipoTramiteActivo,
+      nombreTramite: tramite.nombre,
+    };
+  }
+
   async actualizar(dto: ActualizarInstitucionDto) {
     const institucion = await this.prisma.institucion.findFirst();
     if (!institucion) throw new NotFoundException('Institución no configurada.');

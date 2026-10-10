@@ -1,10 +1,21 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CategoriaAnexo, EstadoEvidencia, EstadoVigencia, OrigenDato, Prisma, RolUsuario } from '@prisma/client';
+import {
+  CategoriaAnexo,
+  EstadoEvidencia,
+  EstadoVigencia,
+  OrigenDato,
+  Prisma,
+  RolUsuario,
+  TipoTramiteSIAC,
+} from '@prisma/client';
 import { conEstadoCalculado, hayAnexoInfraestructuraVencido } from '../dominio/vigencia-anexo';
+import { calcularSemaforoVigencia } from '../dominio/panel-siac';
+import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { PrismaService } from '../prisma/prisma.module';
 import { CrearProgramaDto } from './dto/crear-programa.dto';
 import { ActualizarProgramaDto } from './dto/actualizar-programa.dto';
@@ -101,12 +112,19 @@ export class ProgramaRepositorio {
   }
 }
 
+export interface ResumenAvanceInstitucional {
+  avanceInstitucional: number;
+  programasActivos: number;
+  programasCompletos: number;
+}
+
 @Injectable()
 export class ProgramasService {
   constructor(
     private readonly programaRepo: ProgramaRepositorio,
     private readonly alcance: ServicioAlcancePrograma,
     private readonly avanceProceso: AvanceProcesoSIACService,
+    private readonly configuracion: ConfiguracionSiacService,
   ) {}
 
   async crear(dto: CrearProgramaDto) {
@@ -119,6 +137,7 @@ export class ProgramasService {
       nivel: dto.nivel,
       facultad: dto.facultad?.trim() || null,
       origenDato: OrigenDato.Manual,
+      tipoTramiteActivo: TipoTramiteSIAC.RegistroCalificadoNuevo,
       semaforo: 'Verde',
       porcentajeAvance: 0,
       estadoProceso: 'En progreso',
@@ -153,6 +172,62 @@ export class ProgramasService {
   async listarConSemaforo(usuario: UsuarioAlcance) {
     const programas = await this.programaRepo.listar(await this.filtroListado(usuario));
     return this.enriquecer(programas);
+  }
+
+  /** Promedio igualitario del avanceGlobal de cada programa activo (T-010.2). */
+  async calcularAvanceInstitucional(usuario: UsuarioAlcance): Promise<ResumenAvanceInstitucional> {
+    const filtro = await this.filtroListado(usuario);
+    const programas = await this.programaRepo.listar({ ...filtro, activo: true });
+    if (programas.length === 0) {
+      return { avanceInstitucional: 0, programasActivos: 0, programasCompletos: 0 };
+    }
+    const progresos = await Promise.all(
+      programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id)),
+    );
+    const suma = progresos.reduce((acc, p) => acc + p.avanceGlobal, 0);
+    const programasCompletos = progresos.filter((p) => p.avanceGlobal >= 100).length;
+    return {
+      avanceInstitucional: Math.round(suma / programas.length),
+      programasActivos: programas.length,
+      programasCompletos,
+    };
+  }
+
+  /**
+   * Reinicia el cómputo de avance del trámite sin borrar evidencias (versiones históricas).
+   * Solo cuando la vigencia está en aviso o vencida.
+   */
+  async iniciarCicloRenovacion(programaId: string) {
+    const programa = await this.programaRepo.buscarPorId(programaId);
+    if (!programa) throw new NotFoundException('Programa no encontrado.');
+    if (!programa.fechaResolucion) {
+      throw new BadRequestException(
+        'Registre primero la resolución MEN del ciclo anterior antes de iniciar uno nuevo.',
+      );
+    }
+    const umbrales = this.configuracion.obtener();
+    const semaforoVigencia = calcularSemaforoVigencia(programa.fechaResolucion, new Date(), umbrales);
+    if (semaforoVigencia === 'Verde') {
+      throw new BadRequestException(
+        'La vigencia del registro calificado sigue activa. Inicie el nuevo ciclo cuando entre en ventana de aviso o haya vencido.',
+      );
+    }
+    if (semaforoVigencia === 'SinVigencia') {
+      throw new BadRequestException('No hay fecha de resolución válida para evaluar la vigencia.');
+    }
+
+    await this.programaRepo.actualizar(programaId, {
+      inicioCicloTramiteAt: new Date(),
+      tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
+      estadoProceso: 'En progreso',
+    });
+
+    const progreso = await this.avanceProceso.calcularProgresoPrograma(programaId);
+    return {
+      mensaje:
+        'Ciclo de renovación iniciado. Cargue el documento maestro (G1) y el respaldo de mejoramiento (G2) del nuevo periodo.',
+      progreso,
+    };
   }
 
   async obtenerPorId(id: string) {

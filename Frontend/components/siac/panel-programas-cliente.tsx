@@ -7,6 +7,8 @@ import { toast } from 'sonner'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
+import { OpcionFiltroSemaforo } from '@/components/siac/opcion-filtro-semaforo'
+import { DialogoCrearPrograma } from '@/components/siac/dialogo-crear-programa'
 import { RejillaProgramas, type ProgramaRejilla } from '@/components/siac/rejilla-programas'
 import { TarjetaInstitucionPanel } from '@/components/siac/tarjeta-institucion-panel'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
@@ -28,6 +30,7 @@ import type {
   RespuestaPanelProgramas,
 } from '@/lib/servicios/panel-programas.servicio'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
+import { OPCIONES_FILTRO_SEMAFORO_PANEL } from '@/lib/utilidades/etiquetas-semaforo'
 import { construirUrlPanel, type FiltrosPanelUrl } from '@/lib/utilidades/parametros-panel-url'
 
 const CLAVE_SYNC_CARRERAS_SESION = 'siac-sync-carreras-realizado'
@@ -84,6 +87,7 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
   const [busqueda, setBusqueda] = useState(filtros.q)
   const [semestre, setSemestre] = useState(filtros.semestre)
   const [sincronizando, setSincronizando] = useState(false)
+  const [dialogoCrearAbierto, setDialogoCrearAbierto] = useState(false)
   const sincronizandoRef = useRef(false)
 
   const navegar = useCallback(
@@ -155,12 +159,38 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
         descripcion="Catálogo de carreras desde la universidad. El avance SIAC (G1–G4, semáforos y vigencia) se gestiona en cada programa."
         accion={
           puedeAdministrar ? (
-            <Button variant="outline" disabled={sincronizando} onClick={() => void sincronizarCatalogo(true)}>
-              {sincronizando ? 'Sincronizando…' : 'Actualizar catálogo'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setDialogoCrearAbierto(true)}>Crear programa</Button>
+              <Button
+                variant="outline"
+                disabled={sincronizando}
+                onClick={() => void sincronizarCatalogo(true)}
+              >
+                {sincronizando ? 'Sincronizando…' : 'Actualizar catálogo'}
+              </Button>
+            </div>
           ) : undefined
         }
       />
+      {puedeAdministrar ? (
+        <DialogoCrearPrograma
+          abierto={dialogoCrearAbierto}
+          onCerrar={() => setDialogoCrearAbierto(false)}
+          onCreado={(nombreCreado) => {
+            const tramiteActual = filtros.tramite
+            const ocultoPorTramite =
+              tramiteActual &&
+              tramiteActual !== 'todos' &&
+              tramiteActual !== 'RegistroCalificadoNuevo'
+            navegar({
+              tramite: ocultoPorTramite ? 'todos' : tramiteActual,
+              q: nombreCreado,
+              pagina: 1,
+            })
+            router.refresh()
+          }}
+        />
+      ) : null}
       {errorCarga ? <p className="text-sm text-destructive">{errorCarga}</p> : null}
 
       {institucion ? <TarjetaInstitucionPanel institucion={institucion} /> : null}
@@ -198,9 +228,11 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="Verde">Verde</SelectItem>
-              <SelectItem value="Amarillo">Amarillo</SelectItem>
-              <SelectItem value="Rojo">Rojo</SelectItem>
+              {OPCIONES_FILTRO_SEMAFORO_PANEL.map((opcion) => (
+                <SelectItem key={opcion.valor} value={opcion.valor}>
+                  <OpcionFiltroSemaforo valor={opcion.valor} contexto={opcion.contexto} />
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Input

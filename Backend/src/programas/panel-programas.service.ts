@@ -195,6 +195,7 @@ export class PanelProgramasService implements OnModuleInit {
           codigo: true,
           tipoTramiteActivo: true,
           fechaResolucion: true,
+          inicioCicloTramiteAt: true,
           activo: true,
           urlImagen: true,
         },
@@ -230,6 +231,7 @@ export class PanelProgramasService implements OnModuleInit {
           puntajeActual: true,
           totalCondicionesActual: true,
           updatedAt: true,
+          createdAt: true,
           periodo: true,
         },
         orderBy: { updatedAt: 'desc' },
@@ -237,7 +239,14 @@ export class PanelProgramasService implements OnModuleInit {
     ]);
 
     const anexosPorPrograma = this.agrupar(anexos, (a) => a.programaId);
-    const evidenciasPorPrograma = this.agrupar(evidencias, (e) => e.programaId ?? '');
+    const inicioCicloPorPrograma = new Map(programas.map((p) => [p.id, p.inicioCicloTramiteAt]));
+    const evidenciasPorPrograma = this.agrupar(
+      evidencias.filter((e) => {
+        const inicio = inicioCicloPorPrograma.get(e.programaId ?? '');
+        return inicio ? e.createdAt.getTime() >= inicio.getTime() : true;
+      }),
+      (e) => e.programaId ?? '',
+    );
 
     const filas = programas.map((programa) => {
       const tipoTramite = query.tramite ?? programa.tipoTramiteActivo;

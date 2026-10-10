@@ -48,7 +48,9 @@ describe('ResolucionMenService', () => {
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const almacenamiento = {
-    generarClaveDocumento: jest.fn().mockReturnValue('documentos/resoluciones-men/u/Resolucion-12345.pdf'),
+    generarClaveDocumento: jest
+      .fn()
+      .mockReturnValue('documentos/2026/RenovacionRegistroCalificado/resoluciones-men/u/Resolucion-12345.pdf'),
     subirArchivo: jest.fn().mockResolvedValue(undefined),
     eliminarArchivo: jest.fn().mockResolvedValue(undefined),
   };
@@ -122,7 +124,7 @@ describe('ResolucionMenService', () => {
     tx.resolucionMen.create.mockRejectedValueOnce(new Error('fallo BD'));
     await expect(servicio.cargarParaPrograma('p1', dto, archivo(), usuario)).rejects.toThrow('fallo BD');
     expect(almacenamiento.eliminarArchivo).toHaveBeenCalledWith(
-      'documentos/resoluciones-men/u/Resolucion-12345.pdf',
+      'documentos/2026/RenovacionRegistroCalificado/resoluciones-men/u/Resolucion-12345.pdf',
       'documentos',
     );
 

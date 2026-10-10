@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RolUsuario } from '@prisma/client';
 import { UsuariosService } from './usuarios.service';
@@ -8,6 +8,7 @@ describe('UsuariosService.actualizarRol', () => {
   const usuarioRepo = {
     buscarPorId: jest.fn(),
     actualizarRol: jest.fn(),
+    actualizarAlcanceInstitucional: jest.fn(),
   };
   const servicio = new UsuariosService(
     usuarioRepo as unknown as UsuarioRepositorio,
@@ -16,30 +17,18 @@ describe('UsuariosService.actualizarRol', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('impide que un administrador asigne SuperAdmin', async () => {
+  it('impide que un administrador cambie cualquier rol', async () => {
     usuarioRepo.buscarPorId.mockResolvedValue({ id: 'u1', rol: RolUsuario.Revisor });
 
     await expect(
       servicio.actualizarRol(
         { id: 'admin', rol: RolUsuario.Administrador },
         'u1',
-        RolUsuario.SuperAdmin,
+        RolUsuario.Cargador,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(usuarioRepo.actualizarRol).not.toHaveBeenCalled();
-  });
-
-  it('impide que un administrador modifique a un SuperAdmin', async () => {
-    usuarioRepo.buscarPorId.mockResolvedValue({ id: 'sa', rol: RolUsuario.SuperAdmin });
-
-    await expect(
-      servicio.actualizarRol(
-        { id: 'admin', rol: RolUsuario.Administrador },
-        'sa',
-        RolUsuario.Revisor,
-      ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('permite que el superadmin asigne SuperAdmin', async () => {
@@ -59,5 +48,43 @@ describe('UsuariosService.actualizarRol', () => {
 
     expect(resultado).toMatchObject({ id: 'u1', rol: RolUsuario.SuperAdmin });
     expect(resultado).not.toHaveProperty('contrasena');
+  });
+});
+
+describe('UsuariosService.asignarAlcanceInstitucional', () => {
+  const usuarioRepo = {
+    buscarPorId: jest.fn(),
+    actualizarAlcanceInstitucional: jest.fn(),
+  };
+  const servicio = new UsuariosService(
+    usuarioRepo as unknown as UsuarioRepositorio,
+    { get: jest.fn() } as unknown as ConfigService,
+  );
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('rechaza asignación a administrador', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'admin',
+      rol: RolUsuario.Administrador,
+    });
+
+    await expect(servicio.asignarAlcanceInstitucional('admin', true)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('permite asignar a cargador', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'car',
+      rol: RolUsuario.Cargador,
+    });
+    usuarioRepo.actualizarAlcanceInstitucional.mockResolvedValue({
+      id: 'car',
+      responsableProcesoInstitucional: true,
+    });
+
+    const resultado = await servicio.asignarAlcanceInstitucional('car', true);
+    expect(resultado.datos.responsableProcesoInstitucional).toBe(true);
   });
 });

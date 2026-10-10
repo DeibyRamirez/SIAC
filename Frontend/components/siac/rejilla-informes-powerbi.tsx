@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
 import { ContenedorInformePowerBi } from '@/components/siac/contenedor-informe-powerbi'
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { categoriasInformesPowerBi, type InformePowerBi } from '@/lib/informes-powerbi'
-import { manejarCambioSelect } from '@/lib/utilidades-siac'
+import { itemsSelectProgramas, manejarCambioSelect } from '@/lib/utilidades-siac'
 
 export function RejillaInformesPowerBi() {
   const { datos } = usarAlmacen()
@@ -28,6 +28,10 @@ export function RejillaInformesPowerBi() {
   const programaId = programaSeleccionadoId ?? programas[0]?.id ?? ''
   const programa = programas.find((p) => p.id === programaId)
   const esEstudiantes = informeActivo?.id === 'estudiantes'
+  const opcionesPrograma = useMemo(
+    () => itemsSelectProgramas(programas),
+    [programas],
+  )
 
   if (informeActivo) {
     return (
@@ -51,6 +55,7 @@ export function RejillaInformesPowerBi() {
                 <span className="font-medium">Programa</span>
                 <Select
                   value={programaId}
+                  items={opcionesPrograma}
                   onValueChange={manejarCambioSelect(setProgramaId)}
                   disabled={programas.length === 0}
                 >
@@ -58,9 +63,9 @@ export function RejillaInformesPowerBi() {
                     <SelectValue placeholder="No hay programas registrados" />
                   </SelectTrigger>
                   <SelectContent>
-                    {programas.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nombre}
+                    {opcionesPrograma.map((opcion) => (
+                      <SelectItem key={opcion.value} value={opcion.value}>
+                        {opcion.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

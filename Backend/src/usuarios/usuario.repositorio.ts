@@ -24,12 +24,50 @@ export class UsuarioRepositorio {
         cargo: true,
         dependencia: true,
         rol: true,
+        responsableProcesoInstitucional: true,
         activo: true,
         idExterno: true,
         origenDato: true,
         fechaSincronizacion: true,
         createdAt: true,
         updatedAt: true,
+      },
+    });
+  }
+
+  listarTodosConProgramas() {
+    return this.prisma.usuario.findMany({
+      select: {
+        id: true,
+        codigoInstitucional: true,
+        nombre: true,
+        correo: true,
+        cargo: true,
+        dependencia: true,
+        rol: true,
+        responsableProcesoInstitucional: true,
+        activo: true,
+        idExterno: true,
+        origenDato: true,
+        fechaSincronizacion: true,
+        createdAt: true,
+        updatedAt: true,
+        usuarioProgramas: {
+          orderBy: { programa: { nombre: 'asc' } },
+          select: {
+            programa: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+                slug: true,
+                facultad: true,
+                nivel: true,
+                activo: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -94,6 +132,7 @@ export class UsuarioRepositorio {
         cargo: true,
         dependencia: true,
         rol: true,
+        responsableProcesoInstitucional: true,
         activo: true,
         idExterno: true,
         origenDato: true,
@@ -101,6 +140,25 @@ export class UsuarioRepositorio {
         createdAt: true,
         updatedAt: true,
       },
+    });
+  }
+
+  async esResponsableProcesoInstitucional(usuarioId: string): Promise<boolean> {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { responsableProcesoInstitucional: true },
+    });
+    return usuario?.responsableProcesoInstitucional ?? false;
+  }
+
+  actualizarAlcanceInstitucional(
+    id: string,
+    responsable: boolean,
+  ): Promise<Pick<Usuario, 'id' | 'responsableProcesoInstitucional'>> {
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { responsableProcesoInstitucional: responsable },
+      select: { id: true, responsableProcesoInstitucional: true },
     });
   }
 }

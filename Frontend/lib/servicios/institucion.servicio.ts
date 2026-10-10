@@ -24,6 +24,18 @@ export interface InstitucionDetalle {
   }
 }
 
+export interface InstitucionResumen {
+  id: string
+  nombre: string
+  codigo: string
+  tipoTramiteActivo: TipoTramiteSIAC
+  nombreTramite: string
+}
+
+export async function obtenerResumenInstitucionApi(): Promise<InstitucionResumen> {
+  return peticionApi<InstitucionResumen>('/institucion/resumen')
+}
+
 export async function obtenerInstitucionApi(): Promise<InstitucionDetalle> {
   return peticionApi<InstitucionDetalle>('/institucion')
 }

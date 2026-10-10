@@ -65,7 +65,7 @@ function programa(i: number, tipo: TipoTramiteSIAC = TipoTramiteSIAC.RegistroCal
 }
 
 describe('PanelProgramasService (T-010.1)', () => {
-  it('8/9 en G1 con peso 90 da 80,0 % (sin redondeo intermedio)', async () => {
+  it('8/9 en G1 con peso 50 da 44,44 % (sin redondeo intermedio)', async () => {
     const { servicio } = crearServicio(
       [programa(1, TipoTramiteSIAC.RenovacionRegistroCalificado)],
       [
@@ -85,8 +85,8 @@ describe('PanelProgramasService (T-010.1)', () => {
     const { datos } = await servicio.listarPanel({}, ADMIN);
     const g1 = datos[0].documentos.find((d) => d.codigoGuia === 'G1')!;
 
-    expect(datos[0].avancePorcentual).toBe(80);
-    expect(g1.aportacion).toBe(80);
+    expect(datos[0].avancePorcentual).toBe(44.44);
+    expect(g1.aportacion).toBe(44.44);
     expect(g1.porcentajeInterno).toBe(88.89);
   });
 

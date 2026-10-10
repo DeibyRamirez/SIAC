@@ -28,7 +28,7 @@ export function BarraVigenciaRegistro({ fechaResolucion, nombreEntidad }: BarraV
         <p className="text-sm font-semibold text-primary">Vigencia de registro (7 años)</p>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{etiqueta}</span>
-          <Semaforo valor={semaforo} etiqueta="Vigencia" />
+          <Semaforo valor={semaforo} contexto="vigenciaRegistro" etiqueta="Vigencia" />
         </div>
       </div>
       <Progress value={porcentaje} className="h-3" />

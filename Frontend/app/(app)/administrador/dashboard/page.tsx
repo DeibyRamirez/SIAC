@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, FileText, GraduationCap, TrendingUp } from 'lucide-react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
@@ -12,9 +12,13 @@ import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { obtenerAvanceInstitucionalApi } from '@/lib/servicios/programas.servicio'
+import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
 import {
-  calcularDistribucionEstados,
+  calcularDistribucionEstadosAdministrador,
   calcularTendenciaMensual,
+  filtrarEvidenciasVisiblesAdministrador,
 } from '@/lib/utilidades/metricas-evidencias'
 
 export default function DashboardMetricasPage() {
@@ -28,17 +32,37 @@ export default function DashboardMetricasPage() {
 function ContenidoDashboard() {
   const { datos } = usarAlmacen()
   const { evidencias, programas } = datos
+  const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
-  const distribucion = useMemo(() => calcularDistribucionEstados(evidencias), [evidencias])
-  const tendencia = useMemo(() => calcularTendenciaMensual(evidencias), [evidencias])
+  useEffect(() => {
+    if (!apiDisponible()) return
+    obtenerAvanceInstitucionalApi()
+      .then((r) => setAvanceInstitucional(r.avanceInstitucional))
+      .catch(() => setAvanceInstitucional(null))
+  }, [])
+
+  const evidenciasVisibles = useMemo(
+    () => filtrarEvidenciasVisiblesAdministrador(evidencias),
+    [evidencias],
+  )
+
+  const distribucion = useMemo(
+    () => calcularDistribucionEstadosAdministrador(evidenciasVisibles),
+    [evidenciasVisibles],
+  )
+  const tendencia = useMemo(
+    () => calcularTendenciaMensual(evidenciasVisibles),
+    [evidenciasVisibles],
+  )
 
   const validadas = distribucion.find((d) => d.clave === 'validadas')?.valor ?? 0
   const cumplimiento =
-    evidencias.length > 0 ? Math.round((validadas / evidencias.length) * 1000) / 10 : null
-  const avancePromedio =
-    programas.length > 0
-      ? Math.round(programas.reduce((acc, p) => acc + p.porcentajeAvance, 0) / programas.length)
+    evidenciasVisibles.length > 0
+      ? Math.round((validadas / evidenciasVisibles.length) * 1000) / 10
       : null
+  const avancePromedio =
+    avanceInstitucional ??
+    (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : null)
   const pregrado = programas.filter((p) => p.nivel === 'Pregrado').length
   const posgrado = programas.filter((p) => p.nivel === 'Posgrado').length
 
@@ -90,9 +114,9 @@ function ContenidoDashboard() {
               icono={TrendingUp}
             />
             <TarjetaKpi
-              titulo="Evidencias registradas"
-              valor={evidencias.length}
-              descripcion={`${validadas} validadas`}
+              titulo="Evidencias en seguimiento"
+              valor={evidenciasVisibles.length}
+              descripcion={`${validadas} validadas (sin borradores)`}
               icono={FileText}
             />
             <TarjetaKpi

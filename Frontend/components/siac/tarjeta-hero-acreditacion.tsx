@@ -34,7 +34,7 @@ export function TarjetaHeroAcreditacion({
               <p className="text-2xl font-extrabold text-white">{evidenciasValidadas}</p>
             </div>
             <div className="rounded-xl bg-white/15 px-4 py-2 backdrop-blur-sm">
-              <p className="text-white/80">En proceso</p>
+              <p className="text-white/80">En revisión y corrección</p>
               <p className="text-2xl font-extrabold text-white">{evidenciasEnProceso}</p>
             </div>
           </div>

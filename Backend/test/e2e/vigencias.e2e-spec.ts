@@ -71,8 +71,11 @@ describe('Anexos de vigencia (AnexoVigencia)', () => {
   it('un nombre con tildes y raya se guarda con clave ASCII y conserva el nombre legible', async () => {
     const { body } = await cargar('Certificado de bomberos — Sede Norte.pdf').expect(201);
 
+    const anio = new Date().getFullYear();
     expect(body.rutaArchivo).toMatch(
-      /^documentos\/infraestructura-fisica\/[0-9a-f-]{36}\/Certificado-de-bomberos-Sede-Norte\.pdf$/,
+      new RegExp(
+        `^documentos/${anio}/[^/]+/infraestructura-fisica/[0-9a-f-]{36}/Certificado-de-bomberos-Sede-Norte\\.pdf$`,
+      ),
     );
     expect(body.nombreArchivo).toBe('Certificado de bomberos — Sede Norte.pdf');
     expect(ctx.almacen.archivos.get(body.rutaArchivo)?.buffer.equals(PDF)).toBe(true);

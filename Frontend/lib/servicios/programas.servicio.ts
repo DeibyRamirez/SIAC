@@ -2,8 +2,25 @@ import { peticionApi } from './cliente-api';
 import type { NivelPrograma, Programa } from '@/lib/tipos';
 import type { TipoTramiteSIAC } from '@/lib/utilidades/catalogo-tramites-siac';
 
+export interface ResumenAvanceInstitucional {
+  avanceInstitucional: number
+  programasActivos: number
+  programasCompletos: number
+}
+
 export async function listarProgramasApi(): Promise<Programa[]> {
   return peticionApi<Programa[]>('/programas');
+}
+
+export async function obtenerAvanceInstitucionalApi(): Promise<ResumenAvanceInstitucional> {
+  return peticionApi<ResumenAvanceInstitucional>('/programas/avance-institucional');
+}
+
+export async function iniciarCicloRenovacionProgramaApi(programaId: string) {
+  return peticionApi<{ mensaje: string; progreso: unknown }>(
+    `/programas/${programaId}/iniciar-ciclo-renovacion`,
+    { method: 'POST' },
+  );
 }
 
 export async function crearProgramaApi(datos: {

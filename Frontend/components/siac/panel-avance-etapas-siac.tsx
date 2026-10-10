@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { CheckCircle2, Clock, AlertTriangle, CircleDashed } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,7 @@ import {
 import type { ProgresoProcesoSIAC } from '@/lib/servicios/progreso-programa.servicio'
 import type { Programa } from '@/lib/tipos'
 import { CATALOGO_TRAMITES_SIAC } from '@/lib/utilidades/catalogo-tramites-siac'
+import { itemsSelectProgramas } from '@/lib/utilidades-siac'
 
 interface PanelAvanceEtapasSIACProps {
   programas: Programa[]
@@ -83,6 +85,11 @@ export function PanelAvanceEtapasSIAC({
     ? CATALOGO_TRAMITES_SIAC.find((t) => t.tipo === progreso.tipoTramite)?.nombre
     : null
 
+  const opcionesPrograma = useMemo(
+    () => itemsSelectProgramas(programas),
+    [programas],
+  )
+
   return (
     <Card className="tarjeta-institucional">
       <CardHeader className="pb-3">
@@ -98,6 +105,7 @@ export function PanelAvanceEtapasSIAC({
           </p>
           <Select
             value={programaId ?? ''}
+            items={opcionesPrograma}
             onValueChange={(valor) => {
               if (valor) onCambiarPrograma(valor)
             }}
@@ -106,9 +114,9 @@ export function PanelAvanceEtapasSIAC({
               <SelectValue placeholder="Seleccione un programa" />
             </SelectTrigger>
             <SelectContent>
-              {programas.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nombre}
+              {opcionesPrograma.map((opcion) => (
+                <SelectItem key={opcion.value} value={opcion.value}>
+                  {opcion.label}
                 </SelectItem>
               ))}
             </SelectContent>

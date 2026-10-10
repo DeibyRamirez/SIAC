@@ -47,6 +47,16 @@ export class ProgramasController {
     return this.programasService.listarConSemaforo(req.user);
   }
 
+  @Get('avance-institucional')
+  @Roles(
+    RolUsuario.Administrador,
+    RolUsuario.SuperAdmin,
+    RolUsuario.ParAcademico,
+  )
+  avanceInstitucional(@Request() req: { user: UsuarioAlcance }) {
+    return this.programasService.calcularAvanceInstitucional(req.user);
+  }
+
   @Get('panel')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
   listarPanel(
@@ -75,6 +85,12 @@ export class ProgramasController {
   }
 
   /** Resolución MEN (solo PDF real): reemplaza «activar vigencia». 409 si hay documentos pendientes. */
+  @Post(':id/iniciar-ciclo-renovacion')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  iniciarCicloRenovacion(@Param('id') id: string) {
+    return this.programasService.iniciarCicloRenovacion(id);
+  }
+
   @Post(':id/resolucion')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: TAMANO_MAXIMO_RESOLUCION } }))

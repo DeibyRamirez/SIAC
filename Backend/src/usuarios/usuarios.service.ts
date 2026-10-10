@@ -68,11 +68,7 @@ export class UsuariosService {
     if (!destino) throw new NotFoundException('Usuario no encontrado.');
 
     if (actor.rol !== RolUsuario.SuperAdmin) {
-      if (rol === RolUsuario.SuperAdmin || destino.rol === RolUsuario.SuperAdmin) {
-        throw new ForbiddenException(
-          'Un administrador no puede asignar ni modificar el rol SuperAdmin.',
-        );
-      }
+      throw new ForbiddenException('Solo el superadministrador puede cambiar roles.');
     }
 
     const actualizado = await this.usuarioRepo.actualizarRol(id, rol);
@@ -91,6 +87,15 @@ export class UsuariosService {
     const usuario = await this.usuarioRepo.buscarPorId(usuarioId);
     if (!usuario) throw new NotFoundException('Usuario no encontrado.');
 
+    if (
+      usuario.rol !== RolUsuario.Cargador &&
+      usuario.rol !== RolUsuario.Revisor
+    ) {
+      throw new BadRequestException(
+        'Solo se pueden asignar programas a cargadores y revisores.',
+      );
+    }
+
     const unicos = [...new Set(programaIds)];
     if (unicos.length > 0) {
       const existentes = await this.usuarioRepo.contarProgramas(unicos);
@@ -101,5 +106,25 @@ export class UsuariosService {
 
     const vinculos = await this.usuarioRepo.reemplazarProgramas(usuarioId, unicos);
     return { datos: vinculos.map((vinculo) => vinculo.programa) };
+  }
+
+  async asignarAlcanceInstitucional(usuarioId: string, responsable: boolean) {
+    const usuario = await this.usuarioRepo.buscarPorId(usuarioId);
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    if (
+      usuario.rol !== RolUsuario.Cargador &&
+      usuario.rol !== RolUsuario.Revisor
+    ) {
+      throw new BadRequestException(
+        'El proceso institucional solo se asigna a cargadores y revisores.',
+      );
+    }
+
+    const actualizado = await this.usuarioRepo.actualizarAlcanceInstitucional(
+      usuarioId,
+      responsable,
+    );
+    return { datos: actualizado };
   }
 }
