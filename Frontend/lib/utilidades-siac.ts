@@ -89,6 +89,21 @@ export function obtenerNombreProgramaEvidencia(
   return 'Programa no disponible'
 }
 
+/** Opciones `{ value, label }` para Base UI Select cuando el value es el id (o slug) del programa. */
+export function itemsSelectProgramas(
+  programas: ReadonlyArray<Pick<Programa, 'id' | 'nombre' | 'nivel' | 'slug'>>,
+  opciones?: { incluirNivel?: boolean; usarSlug?: boolean },
+): { value: string; label: string }[] {
+  const incluirNivel = opciones?.incluirNivel ?? false
+  const usarSlug = opciones?.usarSlug ?? false
+  return programas.map((programa) => ({
+    value: usarSlug ? (programa.slug ?? programa.id) : programa.id,
+    label: incluirNivel
+      ? `${programa.nombre} (${programa.nivel})`
+      : programa.nombre,
+  }))
+}
+
 export function obtenerInicialesPrograma(nombre: string): string {
   return nombre
     .split(' ')

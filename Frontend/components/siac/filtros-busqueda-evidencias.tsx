@@ -25,6 +25,8 @@ import type { CodigoDocumentoGuia } from '@/lib/tipos'
 import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import { periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { PERIODO_TODOS } from '@/lib/utilidades/parametros-busqueda-url'
+import { OpcionFiltroSemaforo } from '@/components/siac/opcion-filtro-semaforo'
+import { OPCIONES_FILTRO_SEMAFORO_BUSQUEDA } from '@/lib/utilidades/etiquetas-semaforo'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
 
 const CODIGOS_GUIA = Object.keys(ETIQUETAS_GUIA) as CodigoDocumentoGuia[]
@@ -39,12 +41,10 @@ const filtrosEstado = [
   { valor: 'Rechazado', etiqueta: 'Rechazados' },
 ]
 
-const opcionesSemaforo = [
-  { valor: 'todos', etiqueta: 'Todos' },
-  { valor: 'Verde', etiqueta: 'Verde' },
-  { valor: 'Amarillo', etiqueta: 'Amarillo' },
-  { valor: 'Rojo', etiqueta: 'Rojo' },
-  { valor: 'Gris', etiqueta: 'Sin puntaje' },
+const opcionesFormato = [
+  { valor: 'todos', etiqueta: 'Todos los formatos' },
+  { valor: 'pdf', etiqueta: 'PDF' },
+  { valor: 'xlsx', etiqueta: 'Excel (XLSX)' },
 ]
 
 export interface ValoresFiltrosBusqueda {
@@ -56,8 +56,11 @@ export interface ValoresFiltrosBusqueda {
   puntajeMin: string
   puntajeMax: string
   semaforo: string
+  formato: string
   fechaCargaDesde: string
   fechaCargaHasta: string
+  fechaVerificacionDesde: string
+  fechaVerificacionHasta: string
 }
 
 interface FiltrosBusquedaEvidenciasProps {
@@ -205,7 +208,25 @@ export function FiltrosBusquedaEvidencias({
                 <SelectValue placeholder="Semáforo" />
               </SelectTrigger>
               <SelectContent>
-                {opcionesSemaforo.map((opcion) => (
+                <SelectItem value="todos">Todos</SelectItem>
+                {OPCIONES_FILTRO_SEMAFORO_BUSQUEDA.map((opcion) => (
+                  <SelectItem key={opcion.valor} value={opcion.valor}>
+                    <OpcionFiltroSemaforo valor={opcion.valor} contexto={opcion.contexto} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CampoFiltro>
+          <CampoFiltro etiqueta="Formato">
+            <Select
+              value={valores.formato}
+              onValueChange={manejarCambioSelect((valor) => onCambiar({ formato: valor }))}
+            >
+              <SelectTrigger className="w-full" aria-label="Filtrar por formato de archivo">
+                <SelectValue placeholder="Formato" />
+              </SelectTrigger>
+              <SelectContent>
+                {opcionesFormato.map((opcion) => (
                   <SelectItem key={opcion.valor} value={opcion.valor}>
                     {opcion.etiqueta}
                   </SelectItem>
@@ -247,6 +268,22 @@ export function FiltrosBusquedaEvidencias({
               value={valores.fechaCargaHasta}
               onChange={(e) => onCambiar({ fechaCargaHasta: e.target.value })}
               aria-label="Fecha carga hasta"
+            />
+          </CampoFiltro>
+          <CampoFiltro etiqueta="Verificación desde">
+            <Input
+              type="date"
+              value={valores.fechaVerificacionDesde}
+              onChange={(e) => onCambiar({ fechaVerificacionDesde: e.target.value })}
+              aria-label="Fecha verificación desde"
+            />
+          </CampoFiltro>
+          <CampoFiltro etiqueta="Verificación hasta">
+            <Input
+              type="date"
+              value={valores.fechaVerificacionHasta}
+              onChange={(e) => onCambiar({ fechaVerificacionHasta: e.target.value })}
+              aria-label="Fecha verificación hasta"
             />
           </CampoFiltro>
         </div>

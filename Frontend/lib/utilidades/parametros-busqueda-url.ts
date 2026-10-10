@@ -9,6 +9,7 @@ export interface FiltrosBusquedaUrl {
   puntajeMin?: string
   puntajeMax?: string
   semaforo?: string
+  formato?: string
   fechaCargaDesde?: string
   fechaCargaHasta?: string
   fechaVerificacionDesde?: string
@@ -39,6 +40,7 @@ export function leerFiltrosBusquedaUrl(
     puntajeMin: valorParamUrl(params, 'puntajeMin'),
     puntajeMax: valorParamUrl(params, 'puntajeMax'),
     semaforo: valorParamUrl(params, 'semaforo'),
+    formato: valorParamUrl(params, 'formato'),
     fechaCargaDesde: valorParamUrl(params, 'fechaCargaDesde'),
     fechaCargaHasta: valorParamUrl(params, 'fechaCargaHasta'),
     fechaVerificacionDesde: valorParamUrl(params, 'fechaVerificacionDesde'),
@@ -60,6 +62,7 @@ export function filtrosBusquedaAQuery(filtros: FiltrosBusquedaUrl): Record<strin
     ['puntajeMin', filtros.puntajeMin],
     ['puntajeMax', filtros.puntajeMax],
     ['semaforo', filtros.semaforo],
+    ['formato', filtros.formato],
     ['fechaCargaDesde', filtros.fechaCargaDesde],
     ['fechaCargaHasta', filtros.fechaCargaHasta],
     ['fechaVerificacionDesde', filtros.fechaVerificacionDesde],

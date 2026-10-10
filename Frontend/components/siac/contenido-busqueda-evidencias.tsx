@@ -12,7 +12,8 @@ import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
-import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
+import type { Evidencia } from '@/lib/tipos'
+import { etiquetaEstadoEvidencia, formatearPuntaje, mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
@@ -41,9 +42,37 @@ function valoresDesdeUrl(filtros: FiltrosBusquedaUrl): ValoresFiltrosBusqueda {
     puntajeMin: filtros.puntajeMin ?? '',
     puntajeMax: filtros.puntajeMax ?? '',
     semaforo: filtros.semaforo ?? 'todos',
+    formato: filtros.formato ?? 'todos',
     fechaCargaDesde: filtros.fechaCargaDesde ?? '',
     fechaCargaHasta: filtros.fechaCargaHasta ?? '',
+    fechaVerificacionDesde: filtros.fechaVerificacionDesde ?? '',
+    fechaVerificacionHasta: filtros.fechaVerificacionHasta ?? '',
   }
+}
+
+function exportarEvidenciasCsv(filas: Evidencia[]) {
+  const encabezado = ['nombre', 'programa', 'guia', 'estado', 'puntaje', 'fechaCarga']
+  const lineas = filas.map((e) =>
+    [
+      e.nombre,
+      e.programaId ?? '',
+      e.codigoGuia ?? '',
+      etiquetaEstadoEvidencia(e.estado),
+      formatearPuntaje(e.puntajeActual, e.totalCondicionesActual) ?? '',
+      e.fechaCarga,
+    ]
+      .map((celda) => `"${String(celda).replaceAll('"', '""')}"`)
+      .join(','),
+  )
+  const blob = new Blob([[encabezado.join(','), ...lineas].join('\n')], {
+    type: 'text/csv;charset=utf-8',
+  })
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = `evidencias-siac-${new Date().toISOString().slice(0, 10)}.csv`
+  enlace.click()
+  URL.revokeObjectURL(url)
 }
 
 function urlDesdeValores(valores: ValoresFiltrosBusqueda, pagina: number): FiltrosBusquedaUrl {
@@ -56,8 +85,11 @@ function urlDesdeValores(valores: ValoresFiltrosBusqueda, pagina: number): Filtr
     puntajeMin: valores.puntajeMin || undefined,
     puntajeMax: valores.puntajeMax || undefined,
     semaforo: valores.semaforo !== 'todos' ? valores.semaforo : undefined,
+    formato: valores.formato !== 'todos' ? valores.formato : undefined,
     fechaCargaDesde: valores.fechaCargaDesde || undefined,
     fechaCargaHasta: valores.fechaCargaHasta || undefined,
+    fechaVerificacionDesde: valores.fechaVerificacionDesde || undefined,
+    fechaVerificacionHasta: valores.fechaVerificacionHasta || undefined,
     pagina: pagina > 1 ? String(pagina) : undefined,
   }
 }
@@ -127,8 +159,11 @@ export function ContenidoBusquedaEvidencias({
       puntajeMin: '',
       puntajeMax: '',
       semaforo: 'todos',
+      formato: 'todos',
       fechaCargaDesde: '',
       fechaCargaHasta: '',
+      fechaVerificacionDesde: '',
+      fechaVerificacionHasta: '',
     })
     setPagina(1)
   }, [])
@@ -142,8 +177,11 @@ export function ContenidoBusquedaEvidencias({
     valores.puntajeMin ||
     valores.puntajeMax ||
     valores.semaforo !== 'todos' ||
+    valores.formato !== 'todos' ||
     valores.fechaCargaDesde ||
-    valores.fechaCargaHasta
+    valores.fechaCargaHasta ||
+    valores.fechaVerificacionDesde ||
+    valores.fechaVerificacionHasta
 
   return (
     <div className="space-y-6">
@@ -156,7 +194,14 @@ export function ContenidoBusquedaEvidencias({
       <FiltrosBusquedaEvidencias
         valores={valores}
         onCambiar={manejarCambioFiltros}
-        onExportar={() => toast.info('Exportación disponible en backend')}
+        onExportar={() => {
+          if (evidencias.length === 0) {
+            toast.message('No hay filas para exportar en esta vista.')
+            return
+          }
+          exportarEvidenciasCsv(evidencias)
+          toast.success('CSV descargado con los resultados visibles.')
+        }}
         onLimpiar={limpiarFiltros}
         mostrarLimpiar={!!hayFiltrosActivos}
       />
@@ -177,6 +222,7 @@ export function ContenidoBusquedaEvidencias({
             evidencias={evidencias}
             enlaceDetalle={rutaDetalle}
             mostrarHora
+            mostrarSemaforoPuntaje
           />
           <ControlesPaginacion
             pagina={pagina}

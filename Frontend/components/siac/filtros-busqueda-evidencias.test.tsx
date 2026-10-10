@@ -20,8 +20,11 @@ const VALORES_BASE: ValoresFiltrosBusqueda = {
   puntajeMin: '',
   puntajeMax: '',
   semaforo: 'todos',
+  formato: 'todos',
   fechaCargaDesde: '',
   fechaCargaHasta: '',
+  fechaVerificacionDesde: '',
+  fechaVerificacionHasta: '',
 }
 
 describe('FiltrosBusquedaEvidencias (R-008.3b)', () => {
