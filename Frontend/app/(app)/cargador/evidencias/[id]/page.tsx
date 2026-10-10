@@ -43,7 +43,8 @@ import {
   admiteCorreccion,
   formatoVisorDesdeArchivo,
   formatearFecha,
-  obtenerNombrePrograma,
+  mapearEvidenciaDesdeApi,
+  obtenerNombreProgramaEvidencia,
 } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -110,12 +111,10 @@ function ContenidoDetalle() {
               () => [],
             ),
           ])
+          const desdeApi = mapearEvidenciaDesdeApi(ev)
           const mapeada: Evidencia = {
-            ...ev,
-            fechaCarga:
-              typeof ev.fechaCarga === 'string'
-                ? ev.fechaCarga.slice(0, 10)
-                : new Date().toISOString().slice(0, 10),
+            ...desdeApi,
+            fechaCarga: desdeApi.fechaCarga.slice(0, 10),
           }
           setEvidencia(mapeada)
           setNombre(mapeada.nombre)
@@ -464,7 +463,7 @@ function ContenidoDetalle() {
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
+                <p>{obtenerNombreProgramaEvidencia(evidencia, datos.programas)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>

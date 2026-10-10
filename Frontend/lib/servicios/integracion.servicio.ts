@@ -14,3 +14,23 @@ export async function sincronizarCarrerasApi(): Promise<RespuestaSincronizarCarr
     method: 'POST',
   })
 }
+
+export interface BucketStorageEstado {
+  tipo: 'evidencias' | 'plantillas' | 'documentos'
+  bucket: string
+  existe: boolean
+  error?: string
+}
+
+export interface EstadoStorageApi {
+  modo: string
+  bucketEvidencias: string
+  bucketPlantillas: string
+  bucketDocumentos: string
+  endpoint: string
+  buckets: BucketStorageEstado[]
+}
+
+export async function obtenerEstadoStorageApi(): Promise<EstadoStorageApi> {
+  return peticionApi<EstadoStorageApi>('/integracion/estado-storage')
+}

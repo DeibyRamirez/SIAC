@@ -44,7 +44,15 @@ import { sanitizarSegmentoClaveS3 } from './utilidades-nombre-archivo';
 
 export type TipoBucket = 'evidencias' | 'plantillas' | 'documentos';
 
+function segmentoTramite(tipoTramite?: string | null): string {
+  if (!tipoTramite?.trim()) return 'General';
+  const limpio = tipoTramite.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  return limpio || 'General';
+}
 
+function anioActual(): number {
+  return new Date().getFullYear();
+}
 
 @Injectable()
 
@@ -115,27 +123,27 @@ export class AlmacenamientoService {
 
 
   generarClaveEvidencia(
-
     evidenciaId: string,
-
     nombreOriginal: string,
-
     version = 1,
-
+    opciones?: { tipoTramite?: string | null; programaId?: string | null },
   ): string {
-
-    const anio = new Date().getFullYear();
-
-    return `evidencias/${anio}/${evidenciaId}/v${version}/${nombreOriginal}`;
-
+    const anio = anioActual();
+    const tramite = segmentoTramite(opciones?.tipoTramite);
+    const programa = opciones?.programaId?.trim() || 'institucion';
+    const nombre = sanitizarSegmentoClaveS3(nombreOriginal);
+    return `evidencias/${anio}/${tramite}/${programa}/${evidenciaId}/v${version}/${nombre}`;
   }
 
-
-
-  generarClavePlantilla(plantillaId: string, nombreOriginal: string): string {
-
-    return `plantillas/${plantillaId}/${nombreOriginal}`;
-
+  generarClavePlantilla(
+    plantillaId: string,
+    nombreOriginal: string,
+    opciones?: { tipoTramite?: string | null },
+  ): string {
+    const anio = anioActual();
+    const tramite = segmentoTramite(opciones?.tipoTramite);
+    const nombre = sanitizarSegmentoClaveS3(nombreOriginal);
+    return `plantillas/${anio}/${tramite}/${plantillaId}/${nombre}`;
   }
 
 
@@ -144,7 +152,13 @@ export class AlmacenamientoService {
    * Clave ASCII para Supabase Storage (R-D 3a): tildes, «ñ», rayas y espacios del nombre o
    * de la carpeta hacían fallar la subida con «Invalid key».
    */
-  generarClaveDocumento(carpeta: string, nombreOriginal: string): string {
+  generarClaveDocumento(
+    carpeta: string,
+    nombreOriginal: string,
+    opciones?: { tipoTramite?: string | null },
+  ): string {
+    const anio = anioActual();
+    const tramite = segmentoTramite(opciones?.tipoTramite);
     const carpetaNormalizada =
       carpeta
         .trim()
@@ -154,7 +168,14 @@ export class AlmacenamientoService {
         .replace(/[^a-z0-9_-]+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-+|-+$/g, '') || 'general';
-    return `documentos/${carpetaNormalizada}/${randomUUID()}/${sanitizarSegmentoClaveS3(nombreOriginal)}`;
+    return `documentos/${anio}/${tramite}/${carpetaNormalizada}/${randomUUID()}/${sanitizarSegmentoClaveS3(nombreOriginal)}`;
+  }
+
+  resolverTipoBucketDesdeClave(clave: string): TipoBucket {
+    const limpia = clave.replace(/^\/+/, '');
+    if (limpia.startsWith('plantillas/')) return 'plantillas';
+    if (limpia.startsWith('documentos/')) return 'documentos';
+    return 'evidencias';
   }
 
   /**

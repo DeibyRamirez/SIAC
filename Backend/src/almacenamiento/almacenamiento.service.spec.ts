@@ -15,8 +15,11 @@ describe('AlmacenamientoService.generarClaveDocumento (R-D 3a)', () => {
       'Certificado de bomberos — Sede Norte.pdf',
     );
 
+    const anio = new Date().getFullYear();
     expect(clave).toMatch(
-      /^documentos\/infraestructura-fisica\/[0-9a-f-]{36}\/Certificado-de-bomberos-Sede-Norte\.pdf$/,
+      new RegExp(
+        `^documentos/${anio}/General/infraestructura-fisica/[0-9a-f-]{36}/Certificado-de-bomberos-Sede-Norte\\.pdf$`,
+      ),
     );
     expect(/^[\x21-\x7e]+$/.test(clave)).toBe(true);
   });
@@ -28,7 +31,10 @@ describe('AlmacenamientoService.generarClaveDocumento (R-D 3a)', () => {
   });
 
   it('una carpeta vacía o solo con símbolos cae en «general»', () => {
-    expect(servicioLocal().generarClaveDocumento('  ¿?  ', 'a.pdf')).toMatch(/^documentos\/general\//);
+    const anio = new Date().getFullYear();
+    expect(servicioLocal().generarClaveDocumento('  ¿?  ', 'a.pdf')).toMatch(
+      new RegExp(`^documentos/${anio}/General/general/`),
+    );
   });
 
   it('en modo local los buckets se reportan como existentes', async () => {

@@ -87,6 +87,10 @@ export function tramiteDesdeSeleccion(
   )
 }
 
+export function tramiteDesdeTipo(tipoTramite: TipoTramiteSIAC) {
+  return CATALOGO_TRAMITES_SIAC.find((item) => item.tipo === tipoTramite)
+}
+
 export function documentosExigidosPorSeleccion(
   alcance: AlcanceTramiteUI,
   modalidad: ModalidadTramiteUI,
