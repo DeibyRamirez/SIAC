@@ -1,0 +1,132 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+
+import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
+import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
+import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
+import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
+import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
+import type { Evidencia } from '@/lib/tipos'
+
+const INTERVALO_ACTUALIZACION_MS = 30_000
+
+interface ContenidoBandejaRevisionProps {
+  etiqueta: string
+  titulo: string
+  descripcion: string
+  enlaceDetalle: (id: string) => string
+}
+
+function normalizarFechaCarga(e: Evidencia): Evidencia {
+  return {
+    ...e,
+    fechaCarga:
+      typeof e.fechaCarga === 'string'
+        ? e.fechaCarga
+        : new Date().toISOString(),
+  }
+}
+
+export function ContenidoBandejaRevision({
+  etiqueta,
+  titulo,
+  descripcion,
+  enlaceDetalle,
+}: ContenidoBandejaRevisionProps) {
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [evidencias, setEvidencias] = useState<Evidencia[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const cargarBandeja = useCallback(
+    async (silencioso = false) => {
+      if (!silencioso) setCargando(true)
+      try {
+        const texto = busqueda.trim()
+
+        if (!apiDisponible()) {
+          setEvidencias([])
+          setTotal(0)
+          setError('La bandeja requiere la API. No se usan datos de prueba.')
+          return
+        }
+
+        const resp = await listarEvidenciasApi({
+          estado: 'EnRevision',
+          pagina,
+          limite: LIMITE_FILAS_TABLA,
+          busqueda: texto || undefined,
+        })
+        const filas = resp.datos.map(normalizarFechaCarga)
+        if (filas.length === 0 && pagina > 1 && resp.total > 0) {
+          setPagina((p) => Math.max(1, p - 1))
+          return
+        }
+        setEvidencias(filas)
+        setTotal(resp.total)
+        setError(null)
+      } catch {
+        setEvidencias([])
+        setTotal(0)
+        setError('No se pudo cargar la bandeja.')
+      } finally {
+        if (!silencioso) setCargando(false)
+      }
+    },
+    [busqueda, pagina],
+  )
+
+  useEffect(() => {
+    cargarBandeja()
+  }, [cargarBandeja])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      cargarBandeja(true)
+    }, INTERVALO_ACTUALIZACION_MS)
+    return () => window.clearInterval(id)
+  }, [cargarBandeja])
+
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda])
+
+  return (
+    <div className="space-y-6">
+      <EncabezadoPagina etiqueta={etiqueta} titulo={titulo} descripcion={descripcion} />
+
+      <BarraHerramientasTabla
+        placeholder="Buscar en la bandeja…"
+        valorBusqueda={busqueda}
+        onBuscar={setBusqueda}
+      />
+
+      {cargando ? (
+        <p className="text-sm text-muted-foreground">Cargando bandeja…</p>
+      ) : error ? (
+        <PanelVacio mensaje={error} />
+      ) : evidencias.length === 0 ? (
+        <PanelVacio mensaje="No hay evidencias en revisión en este momento." />
+      ) : (
+        <>
+          <TablaEvidencias
+            evidencias={evidencias}
+            enlaceDetalle={enlaceDetalle}
+            mostrarHora
+          />
+          <ControlesPaginacion
+            pagina={pagina}
+            limite={LIMITE_FILAS_TABLA}
+            total={total}
+            onCambiarPagina={setPagina}
+          />
+        </>
+      )}
+    </div>
+  )
+}

@@ -33,7 +33,7 @@ Responsable de cargar y corregir evidencias documentales.
 **Capacidades**
 
 - Descargar plantillas vigentes desde la biblioteca
-- Subir evidencias con programa, periodo, factor e indicador
+- Subir evidencias indicando programa, periodo y guía del trámite (G1–G4)
 - Consultar el estado de cada documento (borrador, en revisión, aprobado, corrección)
 - Ver el documento en el visor integrado (URL firmada desde almacenamiento)
 - Recibir indicador de **novedades** (badge) cuando tiene evidencias en estado *Corrección* (rechazadas)
@@ -123,20 +123,38 @@ Administración técnica del sistema y acceso transversal a todos los módulos.
 
 1. El **cargador** descarga la plantilla desde la biblioteca
 2. Diligencia el documento externamente (Word, Excel, etc.)
-3. Sube la evidencia con metadatos (programa, periodo, factor, indicador) en **Cargar evidencia**
+3. Sube la evidencia con metadatos (programa, periodo y guía G1–G4) en **Cargar evidencia**. Las condiciones del Decreto 1330 no se diligencian al cargar: el revisor las evalúa en el checklist del dictamen (9 de programa en G1, 6 institucionales en G3)
 4. Envía a revisión; el estado pasa a *En revisión*
 5. El **revisor** abre la bandeja, visualiza el PDF/Excel y aprueba o rechaza con observaciones
 6. Si rechaza: el cargador sube una **nueva versión**, corrige según observaciones y reenvía
 7. Si aprueba: la evidencia queda *Validada* y es visible para **Administrador** y **Par académico**
 8. El **administrador** supervisa avance por programa, vigencias y métricas en el dashboard
+9. Cuando todos los documentos del trámite están aprobados, el **administrador** usa **Cargar resolución MEN** en el detalle del programa o de la institución: adjunta el PDF de la resolución (única excepción a la regla .docx; se valida que sea un PDF real) y registra su número y fecha reales. Con documentos pendientes el botón queda deshabilitado (la API responde 409)
 
-## Semáforo de vigencias
+Documentos por trámite: renovación de programa = G1 + G2 + resolución; programa nuevo = G1 + resolución; condiciones institucionales nuevas = G3 + resolución; renovación institucional = G3 + G4 + resolución.
 
-| Color | Significado |
-|-------|-------------|
-| Verde | Vigente (>30 días) |
-| Amarillo | Próximo a vencer (≤30 días) |
-| Rojo | Vencido |
+## Semáforo de vigencia del registro (resolución MEN)
+
+El fin de vigencia es la fecha de la resolución + 7 años y el color se calcula al consultar con los umbrales configurables de `ConfiguracionSIAC`.
+
+En pantalla verá **etiquetas con color** (no los nombres «Verde/Amarillo/Rojo»):
+
+| Indicador (color) | Significado en la UI |
+|-------------------|----------------------|
+| Gris — «Sin vigencia» | No hay resolución MEN cargada |
+| Esmeralda — «Vigente» | A más de 12 meses del fin de vigencia |
+| Ámbar — «Próximo a vencer» | Desde 12 meses antes del fin (año 6) |
+| Fucsia — «Vencida» | Fin de vigencia superado |
+
+## Semáforo de anexos de vigencia
+
+En **Vigencias y alertas → Cargar documento** el anexo exige: documento adjunto, programa, **evidencia que respalda** (documento guía del mismo programa), **categoría** (Infraestructura, Permiso, Convenio u Otro) y el **vencimiento del certificado** (o su fecha de expedición + años). Un anexo de categoría *Infraestructura* vencido pone en rojo el semáforo general del programa (RN-003), aunque el avance documental sea 100 %.
+
+| Indicador (color) | Significado en la UI |
+|-------------------|----------------------|
+| Esmeralda — «Vigente» | Más de 30 días para el vencimiento |
+| Ámbar — «Próximo a vencer» | 30 días o menos |
+| Fucsia — «Vencido» | Certificado vencido |
 
 ## Soporte
 

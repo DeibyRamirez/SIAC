@@ -1,7 +1,9 @@
 # Etapa 4 — Cierre y entrega
 
 > **Sprint PDF:** 4 (10/11 – 20/11/2026)  
-> **Estado:** Completada
+> **Estado:** Por hacer
+
+> El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
 
 ## Objetivo
 
@@ -35,12 +37,12 @@ S3_SECRET_KEY=...
 
 ## Criterios de aceptación final
 
-- [x] Sistema desplegable siguiendo README
-- [x] HU-001 a HU-011 implementadas en backend
-- [x] Frontend conectado a API con fallback mock
-- [x] Documentación completa en `docs/`
-- [x] Skills de proyecto en `.agents/skills/`
-- [x] CI configurado
+- [ ] Sistema desplegable siguiendo README
+- [ ] HU-001 a HU-011 aceptadas
+- [ ] Frontend conectado a API sin respaldo de datos de prueba
+- [ ] Documentación completa en `docs/`
+- [ ] Skills de proyecto en `.agents/skills/`
+- [ ] CI configurado
 
 ## Demo
 

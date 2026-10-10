@@ -19,6 +19,7 @@ export class RespuestaAuthDto {
     nombre: string;
     correo: string;
     rol: RolUsuario;
+    responsableProcesoInstitucional: boolean;
   };
 }
 

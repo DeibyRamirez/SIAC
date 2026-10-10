@@ -11,22 +11,25 @@ import {
 
 import {
   crearDatosIniciales,
-  fusionarEvidenciasConSemilla,
-  fusionarPlantillasConSemilla,
   guardarAlmacenLocal,
   leerAlmacenLocal,
   type DatosPrototipo,
 } from '@/lib/almacen-prototipo'
-import { CLAVE_SESION } from '@/lib/auth-mock'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import type { RolUsuario } from '@/lib/tipos'
 import {
   listarEvidenciasApi,
   crearEvidenciaApi,
   dictaminarEvidenciaApi,
+  type CondicionDictamenPayload,
+  type PuntajeVerificacion,
 } from '@/lib/servicios/evidencias.servicio'
-import { listarPlantillasApi } from '@/lib/servicios/plantillas.servicio'
 import {
+  crearPlantillaApi,
+  eliminarPlantillaApi,
+  listarPlantillasApi,
+} from '@/lib/servicios/plantillas.servicio'
+import {
+  listarProgramasApi,
   listarVigenciasApi,
   listarNotificacionesApi,
   marcarNotificacionLeidaApi,
@@ -40,23 +43,31 @@ import type {
   EstadoEvidencia,
   Plantilla,
 } from '@/lib/tipos'
+import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
+import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
 interface ContextoAlmacen {
   datos: DatosPrototipo
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-  ) => Promise<void>
+    opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
+  ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
-    estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+    estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
     observaciones?: string,
+    condiciones?: CondicionDictamenPayload[],
+    puntaje?: PuntajeVerificacion,
   ) => void
-  crearPlantilla: (plantilla: Omit<Plantilla, 'id'>) => void
+  crearPlantilla: (
+    plantilla: Omit<Plantilla, 'id'>,
+    archivo?: File,
+  ) => Promise<Plantilla>
   actualizarPlantilla: (id: string, cambios: Partial<Plantilla>) => void
-  eliminarPlantilla: (id: string) => void
+  eliminarPlantilla: (id: string) => Promise<void>
   crearAnexoVigencia: (anexo: Omit<AnexoVigencia, 'id'>) => void
   actualizarAnexoVigencia: (id: string, cambios: Partial<AnexoVigencia>) => void
   eliminarAnexoVigencia: (id: string) => void
@@ -78,21 +89,6 @@ function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}`
 }
 
-function leerRolSesion(): RolUsuario | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(CLAVE_SESION)
-    if (!raw) return null
-    return (JSON.parse(raw) as { rol?: RolUsuario }).rol ?? null
-  } catch {
-    return null
-  }
-}
-
-function debeFusionarSemillaEvidencias(rol: RolUsuario | null): boolean {
-  return rol !== 'Administrador' && rol !== 'SuperAdmin'
-}
-
 export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
 
@@ -101,69 +97,74 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       const local = leerAlmacenLocal() ?? crearDatosIniciales()
 
       if (apiDisponible()) {
-        try {
-          const [evResp, plantillas, anexos, alertas] = await Promise.all([
+        const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
+          await Promise.allSettled([
+            // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
             listarEvidenciasApi({ limite: 100 }),
             listarPlantillasApi(),
             listarVigenciasApi(),
-            listarNotificacionesApi().catch(() => []),
+            listarNotificacionesApi(),
+            listarProgramasApi(),
           ])
 
-          const evidencias: Evidencia[] = evResp.datos.map((e) => ({
-            id: e.id,
-            nombre: e.nombre,
-            programaId: e.programaId,
-            periodo: e.periodo,
-            factor: e.factor,
-            indicador: e.indicador,
-            estado: e.estado,
-            autorId: e.autorId,
-            nombreArchivo: e.nombreArchivo,
-            fechaCarga: typeof e.fechaCarga === 'string'
-              ? e.fechaCarga.slice(0, 10)
-              : new Date().toISOString().slice(0, 10),
-            observaciones: e.observaciones,
-            responsable: e.responsable,
-            version: e.version,
-          }))
+        const evResp =
+          evResult.status === 'fulfilled'
+            ? evResult.value
+            : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
+        const plantillas =
+          plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
+        const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
+        const alertas =
+          alertasResult.status === 'fulfilled' ? alertasResult.value : []
+        const programas =
+          programasResult.status === 'fulfilled' ? programasResult.value : []
 
-          const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
-            ...a,
-            fechaVencimiento: typeof a.fechaVencimiento === 'string'
-              ? a.fechaVencimiento.slice(0, 10)
-              : a.fechaVencimiento,
-          }))
+        const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
 
-          const alertasMapeadas = (alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]).map(
-            (a) => ({
-              id: a.id,
-              mensaje: a.mensaje,
-              leida: a.leida,
-              fecha: a.createdAt.slice(0, 10),
-            }),
-          )
+        const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
+          ...a,
+          fechaVencimiento: typeof a.fechaVencimiento === 'string'
+            ? a.fechaVencimiento.slice(0, 10)
+            : a.fechaVencimiento,
+        }))
 
-          const iniciales = crearDatosIniciales()
-          const rol = leerRolSesion()
-          setDatos({
-            ...local,
-            evidencias: debeFusionarSemillaEvidencias(rol)
-              ? fusionarEvidenciasConSemilla(evidencias, iniciales.evidencias)
-              : evidencias,
-            plantillas: fusionarPlantillasConSemilla(plantillas, iniciales.plantillas),
-            anexosVigencia: anexosMapeados,
-            alertas: alertasMapeadas.length > 0 ? alertasMapeadas : local.alertas,
-          })
-          return
-        } catch {
-          // Fallback a datos locales si la API no responde
-        }
+        const alertasMapeadas = (
+          alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]
+        ).map((a) => ({
+          id: a.id,
+          mensaje: a.mensaje,
+          leida: a.leida,
+          fecha: a.createdAt.slice(0, 10),
+        }))
+
+        setDatos({
+          ...local,
+          programas,
+          evidencias,
+          plantillas,
+          anexosVigencia: anexosMapeados,
+          alertas: alertasMapeadas,
+        })
+        return
       }
 
-      setDatos(local)
+      setDatos({
+        ...local,
+        evidencias: [],
+        plantillas: [],
+      })
     }
 
     cargarDatos()
+  }, [])
+
+  useEffect(() => {
+    return suscribirProgramasActualizados(() => {
+      if (!apiDisponible()) return
+      void listarProgramasApi().then((programas) => {
+        setDatos((prev) => ({ ...prev, programas }))
+      })
+    })
   }, [])
 
   const persistir = useCallback((actualizador: (prev: DatosPrototipo) => DatosPrototipo) => {
@@ -175,45 +176,34 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   }, [])
 
   const crearEvidencia = useCallback(
-    async (evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>, archivo?: File) => {
-      if (apiDisponible() && archivo) {
-        const formData = new FormData()
-        formData.append('nombre', evidencia.nombre)
+    async (
+      evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
+      archivo?: File,
+      opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
+    ) => {
+      if (!apiDisponible()) {
+        throw new Error('Las evidencias solo se pueden cargar con la API disponible.')
+      }
+      if (!archivo) {
+        throw new Error('Selecciona el archivo de la evidencia.')
+      }
+      const formData = new FormData()
+      formData.append('nombre', evidencia.nombre)
+      if (evidencia.programaId) {
         formData.append('programaId', evidencia.programaId)
-        formData.append('periodo', evidencia.periodo)
-        formData.append('factor', evidencia.factor)
-        formData.append('indicador', evidencia.indicador)
-        formData.append('archivo', archivo)
-
-        const creada = await crearEvidenciaApi(formData)
-        const mapeada: Evidencia = {
-          id: creada.id,
-          nombre: creada.nombre,
-          programaId: creada.programaId,
-          periodo: creada.periodo,
-          factor: creada.factor,
-          indicador: creada.indicador,
-          estado: creada.estado,
-          autorId: creada.autorId,
-          nombreArchivo: creada.nombreArchivo,
-          fechaCarga:
-            typeof creada.fechaCarga === 'string'
-              ? creada.fechaCarga.slice(0, 10)
-              : new Date().toISOString().slice(0, 10),
-          observaciones: creada.observaciones,
-          responsable: creada.responsable,
-        }
-        persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
-        return
+      }
+      formData.append('periodo', evidencia.periodo)
+      formData.append('archivo', archivo)
+      if (opciones?.codigoGuia) {
+        formData.append('codigoGuia', opciones.codigoGuia)
+      } else if (opciones?.requiereChecklistMaestro) {
+        formData.append('requiereChecklistMaestro', 'true')
       }
 
-      const nueva: Evidencia = {
-        ...evidencia,
-        id: generarId('ev'),
-        estado: 'Borrador',
-        fechaCarga: new Date().toISOString().slice(0, 10),
-      }
-      persistir((prev) => ({ ...prev, evidencias: [nueva, ...prev.evidencias] }))
+      const creada = await crearEvidenciaApi(formData)
+      const mapeada = mapearEvidenciaDesdeApi(creada)
+      persistir((prev) => ({ ...prev, evidencias: [mapeada, ...prev.evidencias] }))
+      return mapeada
     },
     [persistir],
   )
@@ -241,12 +231,21 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const dictaminarEvidencia = useCallback(
     async (
       id: string,
-      estado: Extract<EstadoEvidencia, 'Validado' | 'Rechazado'>,
+      estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
       observaciones?: string,
+      condiciones?: CondicionDictamenPayload[],
+      puntaje?: PuntajeVerificacion,
     ) => {
       if (apiDisponible()) {
         try {
-          await dictaminarEvidenciaApi(id, estado, observaciones)
+          await dictaminarEvidenciaApi(id, {
+            estado:
+              condiciones?.length || (estado !== 'Validado' && estado !== 'Rechazado')
+                ? undefined
+                : estado,
+            observaciones,
+            condiciones,
+          })
         } catch {
           // Continúa con actualización local
         }
@@ -254,7 +253,16 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       persistir((prev) => ({
         ...prev,
         evidencias: prev.evidencias.map((e) =>
-          e.id === id ? { ...e, estado, observaciones: observaciones ?? e.observaciones } : e,
+          e.id === id
+            ? {
+                ...e,
+                estado,
+                observaciones: observaciones ?? e.observaciones,
+                puntajeActual: puntaje?.puntajeActual ?? e.puntajeActual,
+                totalCondicionesActual:
+                  puntaje?.totalCondicionesActual ?? e.totalCondicionesActual,
+              }
+            : e,
         ),
       }))
     },
@@ -262,11 +270,31 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   )
 
   const crearPlantilla = useCallback(
-    (plantilla: Omit<Plantilla, 'id'>) => {
+    async (plantilla: Omit<Plantilla, 'id'>, archivo?: File) => {
+      if (!apiDisponible()) {
+        throw new Error('Las plantillas solo se pueden crear con la API disponible.')
+      }
+      if (!archivo) {
+        throw new Error('Selecciona un archivo .docx para la plantilla.')
+      }
+      const formData = new FormData()
+      formData.append('nombre', plantilla.nombre)
+      formData.append('codigoGuia', plantilla.codigoGuia)
+      formData.append('formato', 'DOCX')
+      formData.append('version', plantilla.version)
+      formData.append('categoria', plantilla.categoria)
+      if (plantilla.descripcion) formData.append('descripcion', plantilla.descripcion)
+      if (plantilla.tipoTramite) formData.append('tipoTramite', plantilla.tipoTramite)
+      if (plantilla.esGuiaDocumentoMaestro) {
+        formData.append('esGuiaDocumentoMaestro', 'true')
+      }
+      formData.append('archivo', archivo)
+      const creada = await crearPlantillaApi(formData)
       persistir((prev) => ({
         ...prev,
-        plantillas: [{ ...plantilla, id: generarId('plt') }, ...prev.plantillas],
+        plantillas: [creada, ...prev.plantillas.filter((p) => p.id !== creada.id)],
       }))
+      return creada
     },
     [persistir],
   )
@@ -282,10 +310,19 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   )
 
   const eliminarPlantilla = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      if (apiDisponible()) {
+        try {
+          await eliminarPlantillaApi(id)
+        } catch {
+          // Continúa con eliminación local
+        }
+      }
       persistir((prev) => ({
         ...prev,
-        plantillas: prev.plantillas.filter((p) => p.id !== id),
+        plantillas: prev.plantillas.map((p) =>
+          p.id === id ? { ...p, vigente: false } : p,
+        ),
       }))
     },
     [persistir],

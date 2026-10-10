@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   Select,
@@ -12,15 +12,23 @@ import {
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import type { Programa } from '@/lib/tipos'
-import { manejarCambioSelect } from '@/lib/utilidades-siac'
+import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
+import { itemsSelectProgramas, manejarCambioSelect } from '@/lib/utilidades-siac'
 
 interface FiltroProgramaProps {
   valor: string
   onCambiar: (programaId: string) => void
   className?: string
+  /** Cuando es true, el valor devuelto es el slug (para URL ?programa=derecho). */
+  usarSlug?: boolean
 }
 
-export function FiltroPrograma({ valor, onCambiar, className }: FiltroProgramaProps) {
+export function FiltroPrograma({
+  valor,
+  onCambiar,
+  className,
+  usarSlug = false,
+}: FiltroProgramaProps) {
   const [programas, setProgramas] = useState<Programa[]>([])
 
   useEffect(() => {
@@ -33,19 +41,33 @@ export function FiltroPrograma({ valor, onCambiar, className }: FiltroProgramaPr
         setProgramas([])
       }
     }
-    cargar()
+    void cargar()
+    return suscribirProgramasActualizados(() => {
+      void cargar()
+    })
   }, [])
 
+  const opcionesPrograma = useMemo(
+    () => [
+      { value: 'todos', label: 'Todas las carreras' },
+      ...itemsSelectProgramas(programas, { incluirNivel: true, usarSlug }),
+    ],
+    [programas, usarSlug],
+  )
+
   return (
-    <Select value={valor} onValueChange={manejarCambioSelect(onCambiar)}>
+    <Select
+      value={valor}
+      items={opcionesPrograma}
+      onValueChange={manejarCambioSelect(onCambiar)}
+    >
       <SelectTrigger className={className ?? 'w-[220px]'}>
         <SelectValue placeholder="Todas las carreras" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="todos">Todas las carreras</SelectItem>
-        {programas.map((programa) => (
-          <SelectItem key={programa.id} value={programa.id}>
-            {programa.nombre} ({programa.nivel})
+        {opcionesPrograma.map((opcion) => (
+          <SelectItem key={opcion.value} value={opcion.value}>
+            {opcion.label}
           </SelectItem>
         ))}
       </SelectContent>

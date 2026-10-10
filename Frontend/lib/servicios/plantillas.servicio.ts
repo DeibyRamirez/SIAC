@@ -1,8 +1,14 @@
 import { peticionApi } from './cliente-api';
-import type { Plantilla } from '@/lib/tipos';
+import type { Plantilla, TipoTramitePlantilla } from '@/lib/tipos';
 
-export async function listarPlantillasApi(): Promise<Plantilla[]> {
-  return peticionApi<Plantilla[]>('/plantillas');
+export async function listarPlantillasApi(
+  tipoTramite?: TipoTramitePlantilla,
+): Promise<Plantilla[]> {
+  const query =
+    tipoTramite && tipoTramite !== 'General'
+      ? `?tipoTramite=${encodeURIComponent(tipoTramite)}`
+      : '';
+  return peticionApi<Plantilla[]>(`/plantillas${query}`);
 }
 
 export async function crearPlantillaApi(datos: FormData): Promise<Plantilla> {
@@ -26,7 +32,15 @@ export async function eliminarPlantillaApi(id: string): Promise<void> {
   return peticionApi<void>(`/plantillas/${id}`, { method: 'DELETE' });
 }
 
-export function urlDescargaPlantilla(id: string): string {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
-  return `${base}/plantillas/${id}/descargar`;
+export async function obtenerUrlDescargaPlantillaApi(id: string) {
+  return peticionApi<{ url: string; expiraEn: number }>(`/plantillas/${id}/descargar`);
+}
+
+export async function subirArchivoPlantillaApi(id: string, archivo: File): Promise<Plantilla> {
+  const formData = new FormData();
+  formData.append('archivo', archivo);
+  return peticionApi<Plantilla>(`/plantillas/${id}/archivo`, {
+    method: 'PATCH',
+    body: formData,
+  });
 }

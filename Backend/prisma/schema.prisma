@@ -16,11 +16,29 @@ enum RolUsuario {
   SuperAdmin
 }
 
+/// HU-003 (D1): tras el checklist, n < total => ConObservaciones y n = total => Cumple.
+/// Validado y Rechazado quedan para la decisión explícita del Revisor (HU-006).
 enum EstadoEvidencia {
   Borrador
   EnRevision
   Validado
   Rechazado
+  ConObservaciones
+  Cumple
+}
+
+/// Tipo de evidencia: documento guía (G1–G4) o resolución MEN (decisión del PO, 06/10).
+enum TipoEvidencia {
+  DocumentoGuia
+  ResolucionMen
+}
+
+/// Categoría explícita del anexo (R-D): RN-003 solo mira «Infraestructura».
+enum CategoriaAnexo {
+  Infraestructura
+  Permiso
+  Convenio
+  Otro
 }
 
 enum EstadoVigencia {
@@ -41,6 +59,52 @@ enum CategoriaPlantilla {
   Autoevaluacion
 }
 
+enum TipoTramitePlantilla {
+  Renovacion
+  NuevoPrograma
+  General
+}
+
+enum CodigoDocumentoGuia {
+  G1
+  G2
+  G3
+  G4
+}
+
+enum TipoTramiteSIAC {
+  RegistroCalificadoNuevo
+  RenovacionRegistroCalificado
+  CondicionesInstitucionalesNuevas
+  RenovacionCondicionesInstitucionales
+}
+
+enum AlcanceTramiteSIAC {
+  Programa
+  Institucion
+}
+
+enum CodigoCondicionDocumentoMaestro {
+  Denominacion
+  Justificacion
+  AspectosCurriculares
+  OrganizacionActividades
+  InvestigacionInnovacion
+  RelacionSectorExterno
+  Profesores
+  MediosEducativos
+  Infraestructura
+}
+
+enum CodigoCondicionInstitucional {
+  SeleccionEvaluacionEstudiantesProfesores
+  EstructuraAdministrativaAcademica
+  CulturaAutoevaluacion
+  ProgramaEgresados
+  ModeloBienestar
+  RecursosSuficientes
+}
+
 enum OrigenDato {
   API
   CSV
@@ -50,17 +114,20 @@ enum OrigenDato {
 model Usuario {
   id                   String        @id @default(cuid())
   codigoInstitucional  String?       @db.VarChar(50)
-  nombre               String        @db.VarChar(255)
-  correo               String        @unique @db.VarChar(255)
-  contrasena           String        @db.VarChar(255)
+  nombre               String
+  correo               String        @unique
+  contrasena           String
   cargo                String?       @db.VarChar(150)
   dependencia          String?       @db.VarChar(150)
   rol                  RolUsuario
+  /// Responsable asignado del proceso institucional único (G3/G4): carga si es Cargador, revisión si es Revisor.
+  responsableProcesoInstitucional Boolean @default(false)
   activo               Boolean       @default(true)
   idExterno            String?       @unique @db.VarChar(100)
   origenDato           OrigenDato    @default(Manual)
   fechaSincronizacion  DateTime?
   evidencias           Evidencia[]
+  resolucionesMen      ResolucionMen[]
   versionesEvidencia   EvidenciaVersion[]
   alertas              AlertaInApp[]
   createdAt            DateTime      @default(now())
@@ -69,23 +136,43 @@ model Usuario {
   usuarioProgramas UsuarioPrograma[]
 }
 
+model Institucion {
+  id                String          @id @default(cuid())
+  nombre            String          @db.VarChar(200)
+  codigo            String          @unique @db.VarChar(50)
+  tipoTramiteActivo TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
+  fechaResolucion   DateTime?
+  evidencias        Evidencia[]
+  resoluciones      ResolucionMen[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
 model Programa {
   id                  String          @id @default(cuid())
-  nombre              String          @db.VarChar(200)
-  codigo              String          @unique @db.VarChar(20)
+  nombre              String
+  codigo              String          @unique
   codigoSnies         String?         @db.VarChar(20)
-  nivel               String          @db.VarChar(50)
+  nivel               String
   modalidad           String?         @db.VarChar(50)
   duracionSemestres   Int?
+  facultad            String?         @db.VarChar(200)
+  slug                String          @unique @db.VarChar(160)
+  urlImagen           String?         @db.VarChar(500)
+  tipoTramiteActivo   TipoTramiteSIAC @default(RenovacionRegistroCalificado)
+  fechaResolucion     DateTime?
+  /// Evidencias con createdAt anterior no cuentan para el avance del trámite activo (ciclos de renovación).
+  inicioCicloTramiteAt DateTime       @default(now())
   activo              Boolean         @default(true)
-  semaforo            String          @default("Verde") @db.VarChar(20)
+  semaforo            String          @default("Verde")
   porcentajeAvance    Float           @default(0)
-  estadoProceso       String          @default("En curso") @db.VarChar(50)
+  estadoProceso       String          @default("En progreso")
   idExterno           String?         @unique @db.VarChar(100)
   origenDato          OrigenDato      @default(Manual)
   fechaSincronizacion DateTime?
   evidencias          Evidencia[]
   anexos              AnexoVigencia[]
+  resoluciones        ResolucionMen[]
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -100,38 +187,65 @@ model UsuarioPrograma {
   programa   Programa @relation(fields: [programaId], references: [id])
   createdAt  DateTime @default(now())
 
-  @@index([usuarioId])
+  @@unique([usuarioId, programaId])
   @@index([programaId])
 }
 
 model Evidencia {
   id            String               @id @default(cuid())
-  nombre        String               @db.VarChar(300)
-  programaId    String
-  programa      Programa             @relation(fields: [programaId], references: [id])
-  periodo       String               @db.VarChar(100)
-  factor        String               @db.VarChar(100)
-  indicador     String               @db.VarChar(200)
+  nombre        String
+  programaId    String?
+  /// onDelete Restrict: es la regla que crean las migraciones (un programa con evidencias se desactiva, no se borra).
+  programa      Programa?            @relation(fields: [programaId], references: [id], onDelete: Restrict)
+  institucionId String?
+  institucion   Institucion?         @relation(fields: [institucionId], references: [id])
+  periodo       String
   estado        EstadoEvidencia      @default(Borrador)
   autorId       String
   autor         Usuario              @relation(fields: [autorId], references: [id])
-  nombreArchivo String               @db.VarChar(255)
-  rutaArchivo   String?              @db.VarChar(500)
-  mimeType      String?              @db.VarChar(100)
+  nombreArchivo String
+  rutaArchivo   String?
+  mimeType      String?
   tamanoBytes   Int?
   version       Int                  @default(1)
   fechaCarga    DateTime             @default(now())
   observaciones String?
-  responsable   String?              @db.VarChar(150)
-  historial     HistorialEvidencia[]
-  versiones     EvidenciaVersion[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  responsable   String?
+  documentoRequeridoId   String?
+  documentoRequerido     DocumentoRequerido? @relation(fields: [documentoRequeridoId], references: [id])
+  /// Heredado del modelo anterior (porcentaje). Ya no se escribe para documentos con checklist; se retira en T-003.3.
+  porcentajeCompletitud  Float               @default(0)
+  requiereChecklistMaestro Boolean           @default(false)
+  codigoGuia             CodigoDocumentoGuia?
+  /// «ResolucionMen»: única excepción a la regla .docx (solo PDF real); no pasa por revisión.
+  tipoEvidencia          TipoEvidencia        @default(DocumentoGuia)
+  resolucionMen          ResolucionMen?
+  anexosVigencia         AnexoVigencia[]
+  /// Puntaje entero n de la última verificación (condiciones que cumplen).
+  puntajeActual          Int?
+  /// Total de condiciones evaluadas en la última verificación (9 en G1, 6 en G3).
+  totalCondicionesActual Int?
+  historial                HistorialEvidencia[]
+  versiones                EvidenciaVersion[]
+  evaluacionesCondicion    EvaluacionCondicionEvidencia[]
+  comentarios              EvidenciaComentario[]
+  evaluacionesCondicionInstitucional EvaluacionCondicionInstitucionalEvidencia[]
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  /// HU-008 T-008.1: columna GENERATED ALWAYS ... STORED creada por la migración
+  /// 20260930120000_evidencia_fts_busqueda (tsvector 'spanish' con f_unaccent). Se declara para que
+  /// `prisma migrate dev` no la elimine; Prisma no la lee ni la escribe (solo fts-evidencias.ts con $queryRaw).
+  searchVector             Unsupported("tsvector")? @default(dbgenerated("to_tsvector('spanish'::regconfig, f_unaccent(((((COALESCE(nombre, ''::text) || ' '::text) || COALESCE(periodo, ''::text)) || ' '::text) || COALESCE(\"nombreArchivo\", ''::text))))"))
 
   @@index([programaId])
+  @@index([institucionId])
+  @@index([documentoRequeridoId])
   @@index([autorId])
   @@index([estado])
-  @@index([factor, indicador, periodo])
+  @@index([puntajeActual])
+  @@index([codigoGuia, periodo])
+  @@index([programaId, codigoGuia])
+  @@index([searchVector], type: Gin)
 }
 
 model EvidenciaVersion {
@@ -142,13 +256,31 @@ model EvidenciaVersion {
   nombreArchivo String    @db.VarChar(255)
   rutaArchivo   String    @db.VarChar(500)
   mimeType      String?   @db.VarChar(100)
-  tamanoBytes   Int?
-  subidoPorId   String
-  subidoPor     Usuario   @relation(fields: [subidoPorId], references: [id])
-  createdAt     DateTime  @default(now())
+  tamanoBytes        Int?
+  firmaDescarga      String?   @db.VarChar(500)
+  textoBaseAuditoria String?   @db.Text
+  subidoPorId        String
+  subidoPor          Usuario   @relation(fields: [subidoPorId], references: [id])
+  createdAt          DateTime  @default(now())
 
   @@unique([evidenciaId, numero])
   @@index([evidenciaId])
+}
+
+model EvidenciaComentario {
+  id            String    @id @default(cuid())
+  evidenciaId   String
+  evidencia     Evidencia @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroVersion Int
+  revisorId     String?
+  autor         String?   @db.VarChar(255)
+  hunkId        String?   @db.VarChar(100)
+  anchor        String?   @db.VarChar(100)
+  quote         String?
+  texto         String
+  createdAt     DateTime  @default(now())
+
+  @@index([evidenciaId, numeroVersion])
 }
 
 model HistorialEvidencia {
@@ -159,31 +291,74 @@ model HistorialEvidencia {
   observacion String?
   actorId     String?
   createdAt   DateTime        @default(now())
+
+  @@index([actorId, createdAt])
 }
 
 model Plantilla {
-  id            String             @id @default(cuid())
-  nombre        String             @db.VarChar(200)
-  factor        String             @db.VarChar(100)
-  formato       FormatoArchivo
-  version       String             @db.VarChar(20)
-  vigente       Boolean            @default(true)
-  categoria     CategoriaPlantilla
-  descripcion   String?
-  nombreArchivo String?            @db.VarChar(255)
-  rutaArchivo   String?            @db.VarChar(500)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id                     String               @id @default(cuid())
+  nombre                 String
+  formato                FormatoArchivo
+  version                String
+  vigente                Boolean              @default(true)
+  categoria              CategoriaPlantilla
+  tipoTramite            TipoTramitePlantilla @default(General)
+  codigoGuia             CodigoDocumentoGuia
+  esGuiaDocumentoMaestro Boolean              @default(false)
+  descripcion            String?
+  nombreArchivo          String?
+  rutaArchivo            String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
-  @@index([factor, vigente])
+  @@index([codigoGuia, tipoTramite, vigente])
+  @@index([categoria, tipoTramite])
+}
+
+model EvaluacionCondicionEvidencia {
+  id              String                        @id @default(cuid())
+  evidenciaId     String
+  evidencia       Evidencia                     @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroRevision  Int
+  codigoCondicion CodigoCondicionDocumentoMaestro
+  cumple          Boolean
+  observacion     String?
+  revisorId       String?
+  createdAt       DateTime                      @default(now())
+
+  @@unique([evidenciaId, numeroRevision, codigoCondicion], map: "EvaluacionCondicionEvidencia_evidenciaId_numeroRevision_codigoC")
+  @@index([evidenciaId])
+}
+
+model EvaluacionCondicionInstitucionalEvidencia {
+  id              String                      @id @default(cuid())
+  evidenciaId     String
+  evidencia       Evidencia                   @relation(fields: [evidenciaId], references: [id], onDelete: Cascade)
+  numeroRevision  Int
+  codigoCondicion CodigoCondicionInstitucional
+  cumple          Boolean
+  observacion     String?
+  revisorId       String?
+  createdAt       DateTime                    @default(now())
+
+  @@unique([evidenciaId, numeroRevision, codigoCondicion], map: "EvaluacionCondicionInstitucionalEvidencia_evidenciaId_numeroRev")
+  @@index([evidenciaId])
 }
 
 model AnexoVigencia {
   id               String         @id @default(cuid())
-  titulo           String         @db.VarChar(200)
+  titulo           String
   programaId       String
   programa         Programa       @relation(fields: [programaId], references: [id])
-  tipo             String         @db.VarChar(100)
+  tipo             String
+  /// R-D: categoría explícita; RN-003 marca rojo si un anexo «Infraestructura» está vencido.
+  categoria        CategoriaAnexo @default(Otro)
+  /// Evidencia (documento guía G1/G3…) que respalda el anexo. La migración exige, para filas nuevas
+  /// o modificadas, documento archivado y evidencia (CHECK … NOT VALID; ver migración 20261006040000).
+  evidenciaId      String?
+  evidencia        Evidencia?     @relation(fields: [evidenciaId], references: [id], onDelete: Restrict)
+  /// Fecha de expedición del certificado (opcional); el vencimiento sale del certificado.
+  fechaExpedicion  DateTime?      @db.Date
   carpeta          String         @default("general") @db.VarChar(150)
   nombreArchivo    String?        @db.VarChar(255)
   rutaArchivo      String?        @db.VarChar(500)
@@ -192,13 +367,15 @@ model AnexoVigencia {
   fechaCarga       DateTime       @default(now())
   fechaVencimiento DateTime
   estado           EstadoVigencia @default(Vigente)
-  responsable      String         @db.VarChar(150)
+  responsable      String
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
   @@index([programaId])
   @@index([fechaVencimiento])
   @@index([carpeta])
+  @@index([categoria, fechaVencimiento])
+  @@index([evidenciaId])
 }
 
 model AlertaInApp {
@@ -207,16 +384,78 @@ model AlertaInApp {
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
   mensaje   String
   leida     Boolean  @default(false)
-  tipo      String   @default("general") @db.VarChar(50)
+  tipo      String   @default("general")
   createdAt DateTime @default(now())
 
   @@index([usuarioId, leida])
 }
 
+/// Resolución MEN que inicia la vigencia (reemplaza «activar vigencia»). El Administrador registra la
+/// fecha y el número reales; fin de vigencia = fecha + años de ConfiguracionSIAC (7), calculado al consultar.
+/// CHECK en la migración: exactamente un propietario (programaId o institucionId).
+model ResolucionMen {
+  id              String          @id @default(cuid())
+  evidenciaId     String          @unique
+  evidencia       Evidencia       @relation(fields: [evidenciaId], references: [id], onDelete: Restrict)
+  numero          String          @db.VarChar(60)
+  fechaResolucion DateTime        @db.Date
+  tipoTramite     TipoTramiteSIAC
+  programaId      String?
+  programa        Programa?       @relation(fields: [programaId], references: [id], onDelete: Restrict)
+  institucionId   String?
+  institucion     Institucion?    @relation(fields: [institucionId], references: [id], onDelete: Restrict)
+  registradoPorId String
+  registradoPor   Usuario         @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+
+  @@index([programaId, fechaResolucion])
+  @@index([institucionId, fechaResolucion])
+}
+
+/// T-010.2: umbrales del semáforo (fila única "global"). Se leen al arrancar el backend.
+model ConfiguracionSIAC {
+  id                   String   @id @default("global")
+  /// Avance mínimo (%) para verde.
+  avanceMinimoVerde    Int      @default(100)
+  /// Avance mínimo (%) para amarillo; por debajo es rojo.
+  avanceMinimoAmarillo Int      @default(55)
+  /// Años de vigencia de la resolución MEN.
+  aniosVigencia        Int      @default(7)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo.
+  mesesAvisoVigencia   Int      @default(12)
+  updatedAt            DateTime @default(now()) @updatedAt
+}
+
+model TramiteSIAC {
+  id         String              @id @default(cuid())
+  tipo       TipoTramiteSIAC     @unique
+  alcance    AlcanceTramiteSIAC
+  nombre     String              @db.VarChar(200)
+  activo     Boolean             @default(true)
+  /// Todo trámite cierra con la resolución MEN (renovación programa = G1+G2+resolución, programa nuevo = G1+resolución,
+  /// CI nueva = G3+resolución, renovación CI = G3+G4+resolución).
+  requiereResolucionMen Boolean    @default(true)
+  documentos TramiteDocumentoGuia[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+}
+
+model TramiteDocumentoGuia {
+  id             String              @id @default(cuid())
+  tramiteId      String
+  tramite        TramiteSIAC         @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  codigoGuia     CodigoDocumentoGuia
+  orden          Int                 @default(0)
+  pesoPorcentaje Int                 @default(100)
+
+  @@unique([tramiteId, codigoGuia])
+  @@index([tramiteId])
+}
+
 model EtapaAcreditacion {
   id          String             @id @default(cuid())
-  nombre      String             @db.VarChar(200)
-  tipo        String             @db.VarChar(100)
+  nombre      String
+  tipo        String
   descripcion String
   orden       Int
   activa      Boolean            @default(true)
@@ -230,7 +469,7 @@ model CarpetaNormativa {
   etapaId     String
   etapa       EtapaAcreditacion    @relation(fields: [etapaId], references: [id])
   condicionId String?
-  nombre      String               @db.VarChar(200)
+  nombre      String
   descripcion String
   orden       Int
   activa      Boolean              @default(true)
@@ -240,14 +479,17 @@ model CarpetaNormativa {
 }
 
 model DocumentoRequerido {
-  id          String           @id @default(cuid())
-  carpetaId   String
-  carpeta     CarpetaNormativa @relation(fields: [carpetaId], references: [id])
-  nombre      String           @db.VarChar(200)
-  esPlantilla Boolean          @default(false)
-  formato     FormatoArchivo
-  obligatorio Boolean          @default(true)
-  orden       Int
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id                     String           @id @default(cuid())
+  carpetaId              String
+  carpeta                CarpetaNormativa @relation(fields: [carpetaId], references: [id])
+  nombre                 String
+  esPlantilla            Boolean          @default(false)
+  formato                FormatoArchivo
+  obligatorio            Boolean          @default(true)
+  requiereChecklistMaestro Boolean        @default(false)
+  codigoGuia             CodigoDocumentoGuia?
+  orden                  Int
+  evidencias             Evidencia[]
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 }

@@ -37,7 +37,7 @@ export function ShellAplicacion({
   }
 
   return (
-    <div className="fondo-app flex h-dvh min-h-0 overflow-hidden">
+    <div className="fondo-app flex min-h-screen">
       <BarraLateral
         className="hidden md:flex"
         plegado={plegado}
@@ -46,16 +46,16 @@ export function ShellAplicacion({
       <Sheet open={menuMovilAbierto} onOpenChange={setMenuMovilAbierto}>
         <SheetContent side="left" className="w-64 p-0 sm:max-w-xs">
           <BarraLateral
-            className="flex h-full w-full border-0"
+            className="flex h-dvh max-h-dvh w-full border-0"
             alNavegar={() => setMenuMovilAbierto(false)}
+            plegado={plegado}
+            onAlternarPlegado={alternarSidebar}
           />
         </SheetContent>
       </Sheet>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <BarraSuperior titulo={titulo} onAbrirMenu={() => setMenuMovilAbierto(true)} />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 md:px-6 md:py-8">
-          {children}
-        </main>
+        <main className="flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
         <PieInstitucional />
       </div>
     </div>

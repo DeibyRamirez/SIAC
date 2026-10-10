@@ -8,6 +8,7 @@ export const configuracionEnv = () => ({
   s3Region: process.env.S3_REGION ?? 'ca-central-1',
   s3Bucket: process.env.S3_BUCKET ?? 'evidencias',
   s3BucketPlantillas: process.env.S3_BUCKET_PLANTILLAS ?? 'plantillas',
+  s3BucketDocumentos: process.env.S3_BUCKET_DOCUMENTOS ?? 'documentos',
   tiApiUrl: process.env.TI_API_URL ?? '',
   tiApiToken: process.env.TI_API_TOKEN ?? '',
 });

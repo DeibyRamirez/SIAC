@@ -3,6 +3,7 @@ import { Montserrat } from 'next/font/google'
 
 import { ProveedorAlmacen } from '@/components/auth/proveedor-almacen'
 import { ProveedorSesion } from '@/components/auth/proveedor-sesion'
+import { ProveedorCargaGlobal } from '@/components/siac/proveedor-carga-global'
 import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
@@ -48,11 +49,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="stylesheet" href="/siac-highlight.css" />
+      </head>
       <body className={`${montserrat.variable} fondo-app font-sans antialiased`}>
         <ProveedorSesion>
           <ProveedorAlmacen>
-            {children}
-            <Toaster position="top-right" richColors closeButton />
+            <ProveedorCargaGlobal>
+              {children}
+              <Toaster position="top-right" richColors closeButton />
+            </ProveedorCargaGlobal>
           </ProveedorAlmacen>
         </ProveedorSesion>
       </body>

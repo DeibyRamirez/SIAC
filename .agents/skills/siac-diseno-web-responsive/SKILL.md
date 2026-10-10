@@ -3,21 +3,21 @@ name: siac-diseno-web-responsive
 description: >-
   Aplica diseño responsive SIAC con tokens CUAC, shadcn base-nova y layouts por rol
   (Cargador, Revisor, Administrador). Usar al crear o modificar UI, componentes de layout,
-  sidebar móvil con Sheet, breakpoints Tailwind o estilos en Frontend/.
+  sidebar móvil con Sheet, breakpoints Tailwind o estilos en Frontend/frontend/.
 ---
 
 # Diseño web responsive — SIAC
 
 ## Cuándo aplicar
 
-- Nuevas páginas en `Frontend/app/(app)/`
+- Nuevas páginas en `Frontend/frontend/app/(app)/`
 - Cambios en `components/layout/` o `components/siac/`
 - Ajustes de tokens, colores o breakpoints
 - Componentes shadcn/ui nuevos o modificados
 
 ## Tokens CUAC (fuente de verdad)
 
-Definidos en `Frontend/app/globals.css`. **No hardcodear hex distintos**; usar clases semánticas Tailwind o variables CSS.
+Definidos en `Frontend/frontend/app/globals.css`. **No hardcodear hex distintos**; usar clases semánticas Tailwind o variables CSS.
 
 | Token | Valor | Uso |
 |-------|-------|-----|
@@ -62,7 +62,7 @@ Gráficos Recharts: `--color-chart-1` (#0A3B74), `--color-chart-2` (#1CBCA6).
 | Iconos | `lucide-react` |
 | Fuentes | Montserrat vía `layout.tsx` |
 
-Instalar componentes shadcn desde `Frontend/`:
+Instalar componentes shadcn desde `Frontend/frontend/`:
 
 ```bash
 pnpm dlx shadcn@latest add <componente>
@@ -197,16 +197,16 @@ Utilidades en `lib/categorias-plantilla.ts`.
 - [ ] Probado en viewport móvil (<768px): Sheet abre/cierra y navega
 - [ ] Sin scroll horizontal en tablas (`overflow-x-auto` si aplica)
 - [ ] Componente shadcn base-nova; no mezclar primitivos Radix legacy
-- [ ] `pnpm run build` exitoso en `Frontend/`
+- [ ] `pnpm run build` exitoso en `Frontend/frontend/`
 
 ## Archivos de referencia
 
 | Archivo | Contenido |
 |---------|-----------|
-| `Frontend/app/globals.css` | Tokens y `@theme` Tailwind 4 |
-| `Frontend/components.json` | Config shadcn base-nova |
-| `Frontend/components/layout/shell-aplicacion.tsx` | Shell + plantilla + footer |
-| `Frontend/components/layout/pie-institucional.tsx` | Footer institucional |
-| `Frontend/components/layout/barra-lateral.tsx` | Nav por rol |
-| `Frontend/components/layout/barra-superior.tsx` | Topbar responsive |
-| `Frontend/components/ui/sheet.tsx` | Sheet móvil |
+| `Frontend/frontend/app/globals.css` | Tokens y `@theme` Tailwind 4 |
+| `Frontend/frontend/components.json` | Config shadcn base-nova |
+| `Frontend/frontend/components/layout/shell-aplicacion.tsx` | Shell + plantilla + footer |
+| `Frontend/frontend/components/layout/pie-institucional.tsx` | Footer institucional |
+| `Frontend/frontend/components/layout/barra-lateral.tsx` | Nav por rol |
+| `Frontend/frontend/components/layout/barra-superior.tsx` | Topbar responsive |
+| `Frontend/frontend/components/ui/sheet.tsx` | Sheet móvil |

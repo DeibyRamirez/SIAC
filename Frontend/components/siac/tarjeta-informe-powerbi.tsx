@@ -34,9 +34,6 @@ export function TarjetaInformePowerBi({ informe, onSeleccionar }: TarjetaInforme
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-primary">
-          {informe.valor} / 5
-        </div>
         <div className="absolute inset-x-0 bottom-0 flex items-end p-4">
           <div className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase backdrop-blur-sm">
             Categoría SIAC

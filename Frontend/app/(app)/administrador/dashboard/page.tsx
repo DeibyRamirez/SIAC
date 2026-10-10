@@ -1,31 +1,25 @@
 'use client'
 
-import { TrendingDown, TrendingUp } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, FileText, GraduationCap, TrendingUp } from 'lucide-react'
 
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
 import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-powerbi'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
-import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  distribucionEstadosSemilla,
-  resumenInstitucionalSemilla,
-  tarjetasResumenSemilla,
-  tendenciaMensualSemilla,
-} from '@/lib/datos-semilla'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
-import { informesPowerBiSemilla } from '@/lib/informes-powerbi'
-import Image from 'next/image'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { obtenerAvanceInstitucionalApi } from '@/lib/servicios/programas.servicio'
+import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
+import {
+  calcularDistribucionEstadosAdministrador,
+  calcularTendenciaMensual,
+  filtrarEvidenciasVisiblesAdministrador,
+} from '@/lib/utilidades/metricas-evidencias'
 
 export default function DashboardMetricasPage() {
   return (
@@ -36,25 +30,50 @@ export default function DashboardMetricasPage() {
 }
 
 function ContenidoDashboard() {
+  const { datos } = usarAlmacen()
+  const { evidencias, programas } = datos
+  const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!apiDisponible()) return
+    obtenerAvanceInstitucionalApi()
+      .then((r) => setAvanceInstitucional(r.avanceInstitucional))
+      .catch(() => setAvanceInstitucional(null))
+  }, [])
+
+  const evidenciasVisibles = useMemo(
+    () => filtrarEvidenciasVisiblesAdministrador(evidencias),
+    [evidencias],
+  )
+
+  const distribucion = useMemo(
+    () => calcularDistribucionEstadosAdministrador(evidenciasVisibles),
+    [evidenciasVisibles],
+  )
+  const tendencia = useMemo(
+    () => calcularTendenciaMensual(evidenciasVisibles),
+    [evidenciasVisibles],
+  )
+
+  const validadas = distribucion.find((d) => d.clave === 'validadas')?.valor ?? 0
+  const cumplimiento =
+    evidenciasVisibles.length > 0
+      ? Math.round((validadas / evidenciasVisibles.length) * 1000) / 10
+      : null
+  const avancePromedio =
+    avanceInstitucional ??
+    (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : null)
+  const pregrado = programas.filter((p) => p.nivel === 'Pregrado').length
+  const posgrado = programas.filter((p) => p.nivel === 'Posgrado').length
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <EncabezadoPagina
-          className="mb-0"
-          etiqueta="Inteligencia institucional"
-          titulo="Dashboard de métricas"
-          descripcion="Analiza el comportamiento de la acreditación y compara ciclos de autoevaluación."
-        />
-        <Select defaultValue="2021-2023">
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="2021-2023">2021 — 2023</SelectItem>
-            <SelectItem value="2024-2026">2024 — 2026</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <EncabezadoPagina
+        className="mb-0"
+        etiqueta="Inteligencia institucional"
+        titulo="Dashboard de métricas"
+        descripcion="Analiza el comportamiento de la acreditación a partir de las evidencias y programas registrados en SIAC."
+      />
 
       <Tabs
         defaultValue="metricas"
@@ -80,82 +99,47 @@ function ContenidoDashboard() {
         </TabsList>
 
         <TabsContent value="metricas" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {tarjetasResumenSemilla.map((tarjeta) => (
-              <Card key={tarjeta.id} className="overflow-hidden border-l-4 border-primary">
-                <div className="relative aspect-video w-full bg-accent">
-                  {tarjeta.urlImagen && (
-                    <Image
-                      src={tarjeta.urlImagen}
-                      alt={tarjeta.titulo}
-                      fill
-                      className="object-cover opacity-90"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  )}
-                </div>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground uppercase">{tarjeta.titulo}</p>
-                  <p className="mt-2 text-3xl font-bold text-primary">{tarjeta.valor}</p>
-                  {tarjeta.detalle && (
-                    <p className="text-xs text-muted-foreground">{tarjeta.detalle}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {informesPowerBiSemilla.map((cat) => (
-              <Card key={cat.id} className="overflow-hidden border-l-4 border-esmeralda">
-                <div className="relative aspect-[4/3] w-full bg-accent">
-                  {cat.urlImagen && (
-                    <Image
-                      src={cat.urlImagen}
-                      alt={cat.titulo}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                    />
-                  )}
-                </div>
-                <CardContent className="pt-4">
-                  <p className="text-sm font-medium text-primary">{cat.titulo}</p>
-                  <p className="text-xs text-muted-foreground">{cat.descripcion}</p>
-                  <p className="mt-2 text-lg font-bold text-esmeralda">{cat.valor} / 5</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div> */}
-
-          <p className="text-xs text-muted-foreground">
-            Datos consolidados de SIAC · Última sincronización: hoy, 08:42
-          </p>
+          {evidencias.length === 0 && programas.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-muted-foreground">
+              Aún no hay programas ni evidencias registrados. Las métricas se calcularán
+              automáticamente a medida que se carguen datos en SIAC.
+            </div>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <TarjetaKpi
               titulo="Cumplimiento institucional"
-              valor={`${resumenInstitucionalSemilla.cumplimientoInstitucional}%`}
-              tendencia={{ valor: '↑ 2.3% frente al ciclo anterior', positiva: true }}
+              valor={cumplimiento === null ? '—' : `${cumplimiento}%`}
+              descripcion="Evidencias validadas sobre el total"
               icono={TrendingUp}
             />
-            <TarjetaKpi titulo="Promedio de condiciones" valor="4.2 / 5" descripcion="6 condiciones evaluadas" />
             <TarjetaKpi
-              titulo="Tiempo medio de aplicación"
-              valor="3.8 días"
-              tendencia={{ valor: '↓ 1.2 días este trimestre', positiva: true }}
-              icono={TrendingDown}
+              titulo="Evidencias en seguimiento"
+              valor={evidenciasVisibles.length}
+              descripcion={`${validadas} validadas (sin borradores)`}
+              icono={FileText}
             />
-            <TarjetaKpi titulo="Programas en ruta" valor="12" descripcion="5 con visita próxima" />
+            <TarjetaKpi
+              titulo="Avance promedio"
+              valor={avancePromedio === null ? '—' : `${avancePromedio}%`}
+              descripcion="Promedio de avance de los programas"
+              icono={CheckCircle2}
+            />
+            <TarjetaKpi
+              titulo="Programas en ruta"
+              valor={programas.length || '—'}
+              descripcion={`${pregrado} pregrado · ${posgrado} posgrado`}
+              icono={GraduationCap}
+            />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <GraficoTendencia datos={tendenciaMensualSemilla} />
+            <GraficoTendencia datos={tendencia} />
             <GraficoDistribucion
-              datos={distribucionEstadosSemilla}
+              datos={distribucion}
               titulo="Resultado global"
               subtitulo="Distribución por estado"
-              totalEtiqueta="81% cumplimiento"
+              totalEtiqueta="Total evidencias"
             />
           </div>
         </TabsContent>

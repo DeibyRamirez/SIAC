@@ -6,8 +6,15 @@ dist/
 *.log
 .DS_Store
 Backend/almacen-local/
+Backend/respaldos/
 package-lock.json
-
+.cursor/memory.jsonl
 *.tsbuildinfo
 .codebase-memory/
 
+# Archivos temporales
+temp/*
+
+Frontend/.env
+Frontend/.env.local
+Backend/.env

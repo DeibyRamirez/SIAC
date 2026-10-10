@@ -14,13 +14,11 @@ import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
-import { contarNovedadesCargador } from '@/lib/utilidades-siac'
-
-const LIMITE_POR_PAGINA = 10
+import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
+import { contarNovedadesCargador, mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
 export default function MisEvidenciasPage() {
   return (
@@ -32,9 +30,7 @@ export default function MisEvidenciasPage() {
 
 function ContenidoMisEvidencias() {
   const { sesion } = usarSesion()
-  const { datos, actualizarEvidencia, eliminarEvidencia } = usarAlmacen()
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [nombreEditado, setNombreEditado] = useState('')
+  const { datos, eliminarEvidencia } = usarAlmacen()
   const [idEliminar, setIdEliminar] = useState<string | null>(null)
   const [programaId, setProgramaId] = useState('todos')
   const [pagina, setPagina] = useState(1)
@@ -53,18 +49,10 @@ function ContenidoMisEvidencias() {
       if (apiDisponible()) {
         const resp = await listarEvidenciasApi({
           pagina,
-          limite: LIMITE_POR_PAGINA,
+          limite: LIMITE_FILAS_TABLA,
           programaId: programaId === 'todos' ? undefined : programaId,
         })
-        setEvidencias(
-          resp.datos.map((e) => ({
-            ...e,
-            fechaCarga:
-              typeof e.fechaCarga === 'string'
-                ? e.fechaCarga.slice(0, 10)
-                : new Date().toISOString().slice(0, 10),
-          })),
-        )
+        setEvidencias(resp.datos.map((e) => mapearEvidenciaDesdeApi(e)))
         setTotal(resp.total)
         return
       }
@@ -74,8 +62,8 @@ function ContenidoMisEvidencias() {
         lista = lista.filter((evidencia) => evidencia.programaId === programaId)
       }
       setTotal(lista.length)
-      const inicio = (pagina - 1) * LIMITE_POR_PAGINA
-      setEvidencias(lista.slice(inicio, inicio + LIMITE_POR_PAGINA))
+      const inicio = (pagina - 1) * LIMITE_FILAS_TABLA
+      setEvidencias(lista.slice(inicio, inicio + LIMITE_FILAS_TABLA))
     } finally {
       setCargando(false)
     }
@@ -88,13 +76,6 @@ function ContenidoMisEvidencias() {
   useEffect(() => {
     setPagina(1)
   }, [programaId])
-
-  function guardarEdicion(id: string) {
-    actualizarEvidencia(id, { nombre: nombreEditado.trim() })
-    setEditandoId(null)
-    toast.success('Evidencia actualizada.')
-    cargarEvidencias()
-  }
 
   function confirmarEliminacion() {
     if (!idEliminar) return
@@ -131,38 +112,26 @@ function ContenidoMisEvidencias() {
         <FiltroPrograma valor={programaId} onCambiar={setProgramaId} />
       </div>
 
-      {editandoId && (
-        <div className="flex gap-2 rounded-xl border border-primary/15 bg-white p-4 shadow-sm">
-          <Input
-            value={nombreEditado}
-            onChange={(e) => setNombreEditado(e.target.value)}
-            className="max-w-md"
-          />
-          <Button onClick={() => guardarEdicion(editandoId)}>Guardar</Button>
-          <Button variant="outline" onClick={() => setEditandoId(null)}>
-            Cancelar
-          </Button>
-        </div>
-      )}
-
-      <ControlesPaginacion
-        pagina={pagina}
-        limite={LIMITE_POR_PAGINA}
-        total={total}
-        onCambiarPagina={setPagina}
-      />
-
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando evidencias…</p>
       ) : evidencias.length === 0 ? (
         <PanelVacio mensaje="Aún no has registrado evidencias." />
       ) : (
-        <TablaEvidencias
-          evidencias={evidencias}
-          enlaceDetalle={(id) => `/cargador/evidencias/${id}`}
-          mostrarNovedades
-          onEliminar={(id) => setIdEliminar(id)}
-        />
+        <>
+          <TablaEvidencias
+            evidencias={evidencias}
+            enlaceDetalle={(id) => `/cargador/evidencias/${id}`}
+            mostrarNovedades
+            mostrarHora
+            onEliminar={(id) => setIdEliminar(id)}
+          />
+          <ControlesPaginacion
+            pagina={pagina}
+            limite={LIMITE_FILAS_TABLA}
+            total={total}
+            onCambiarPagina={setPagina}
+          />
+        </>
       )}
 
       <DialogoConfirmacion

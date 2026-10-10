@@ -82,14 +82,18 @@ export function etiquetaRol(rol: RolUsuario): string {
 
 const RUTAS_SUPERADMIN = ['/superadmin', '/cargador', '/revisor', '/administrador'] as const
 
-/** Rutas de consulta institucional para Par académico (HU-002): sin carga ni dictamen. */
+/**
+ * Rutas de consulta institucional para Par académico (HU-002): sin carga ni dictamen.
+ * El rol está en pausa (decisión del PO, 06/10; T-006.4 pausada): ya no entra al panel de
+ * programas. Si abre esa ruta, la guardia lo devuelve a su inicio (sin página 403).
+ */
 const RUTAS_PAR_ACADEMICO = [
   '/administrador/dashboard',
-  '/administrador/programas',
-  '/administrador/evidencias',
+  '/administrador/busqueda',
 ] as const
 
 export const ROLES_CONSULTA_INSTITUCIONAL: RolUsuario[] = ['Administrador', 'ParAcademico']
+export { ROLES_PANEL_PROGRAMAS } from '@/lib/constantes/roles'
 
 export function rutaPermitidaSuperAdmin(pathname: string): boolean {
   return RUTAS_SUPERADMIN.some(

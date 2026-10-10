@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "categoriaId": "estudiantes",
+    "titulo": "Estudiantes",
+    "periodo": "2025-1",
+    "actualizadoEn": "2025-09-30T12:00:00.000Z",
+    "fuente": "Semilla"
+  },
+  "indicadores": [
+    {
+      "id": "total_matriculados",
+      "etiqueta": "Total matriculados",
+      "valor": 8420,
+      "unidad": "personas",
+      "formato": "entero"
+    },
+    {
+      "id": "nuevos_ingresos",
+      "etiqueta": "Nuevos ingresos",
+      "valor": 1245,
+      "unidad": "personas",
+      "formato": "entero"
+    },
+    {
+      "id": "tasa_permanencia",
+      "etiqueta": "Tasa de permanencia",
+      "valor": 91.4,
+      "unidad": "%",
+      "formato": "porcentaje"
+    },
+    {
+      "id": "programas_con_matricula",
+      "etiqueta": "Programas con matrícula",
+      "valor": 38,
+      "unidad": "programas",
+      "formato": "entero"
+    }
+  ],
+  "series": [
+    {
+      "id": "matricula_por_nivel",
+      "tipo": "donut",
+      "titulo": "Matrícula",
+      "subtitulo": "Distribución por nivel de formación",
+      "puntos": [
+        { "etiqueta": "Pregrado", "valor": 6120 },
+        { "etiqueta": "Posgrado", "valor": 1980 },
+        { "etiqueta": "Educación continua", "valor": 320 }
+      ]
+    },
+    {
+      "id": "matricula_por_sexo",
+      "tipo": "donut",
+      "titulo": "Composición",
+      "subtitulo": "Distribución por sexo biológico",
+      "puntos": [
+        { "etiqueta": "Femenino", "valor": 4510 },
+        { "etiqueta": "Masculino", "valor": 3820 },
+        { "etiqueta": "No reporta", "valor": 90 }
+      ]
+    },
+    {
+      "id": "tendencia_matricula",
+      "tipo": "linea",
+      "titulo": "Tendencia",
+      "subtitulo": "Matriculados por periodo académico",
+      "puntos": [
+        { "etiqueta": "2023-1", "valor": 7890 },
+        { "etiqueta": "2023-2", "valor": 8010 },
+        { "etiqueta": "2024-1", "valor": 8150 },
+        { "etiqueta": "2024-2", "valor": 8280 },
+        { "etiqueta": "2025-1", "valor": 8420 }
+      ]
+    },
+    {
+      "id": "matricula_por_facultad",
+      "tipo": "barra",
+      "titulo": "Facultades",
+      "subtitulo": "Matriculados por unidad académica (top 5)",
+      "puntos": [
+        { "etiqueta": "Ingeniería", "valor": 2140 },
+        { "etiqueta": "Ciencias de la Salud", "valor": 1680 },
+        { "etiqueta": "Educación", "valor": 1420 },
+        { "etiqueta": "Ciencias Empresariales", "valor": 1290 },
+        { "etiqueta": "Artes y Humanidades", "valor": 980 }
+      ]
+    }
+  ],
+  "filtrosDisponibles": {
+    "periodos": ["2024-2", "2025-1"]
+  }
+}

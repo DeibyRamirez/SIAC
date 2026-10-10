@@ -26,15 +26,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  distribucionEstadosSemilla,
-  periodosSemilla,
-  tendenciaMensualSemilla,
-} from '@/lib/datos-semilla'
+  calcularDistribucionEstadosAdministrador,
+  calcularTendenciaMensual,
+  filtrarEvidenciasVisiblesAdministrador,
+} from '@/lib/utilidades/metricas-evidencias'
+import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
+import {
+  listarProgramasApi,
+  obtenerAvanceInstitucionalApi,
+} from '@/lib/servicios/programas.servicio'
+import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
 import type { Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
-import { calcularAvanceEtapasSIAC } from '@/lib/utilidades/avance-etapas-siac'
+import {
+  obtenerProgresoProgramaApi,
+  type ProgresoProcesoSIAC,
+} from '@/lib/servicios/progreso-programa.servicio'
 import { contarEvidenciasPendientes, manejarCambioSelect, obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function ResumenAdministradorPage() {
@@ -48,17 +56,30 @@ export default function ResumenAdministradorPage() {
 function ContenidoResumen() {
   const { sesion } = usarSesion()
   const { datos } = usarAlmacen()
-  const [periodo, setPeriodo] = useState(periodosSemilla[0] ?? '2024-1')
+  const [periodo, setPeriodo] = useState(periodoAcademicoActual())
+  const periodosDisponibles = periodosConActual()
   const [programas, setProgramas] = useState<Programa[]>([])
+  const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
+  const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
+  const [cargandoProgreso, setCargandoProgreso] = useState(false)
+  const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
   useEffect(() => {
     async function cargar() {
       if (!apiDisponible()) return
       try {
-        const lista = await listarProgramasApi()
+        const [lista, resumen] = await Promise.all([
+          listarProgramasApi(),
+          obtenerAvanceInstitucionalApi(),
+        ])
         setProgramas(lista)
+        setAvanceInstitucional(resumen.avanceInstitucional)
+        if (lista.length > 0 && !programaProcesoId) {
+          setProgramaProcesoId(lista[0].id)
+        }
       } catch {
         setProgramas([])
+        setAvanceInstitucional(null)
       }
     }
     cargar()
@@ -69,51 +90,61 @@ function ContenidoResumen() {
     [datos.evidencias, periodo],
   )
 
-  const validadas = useMemo(
-    () => evidenciasPeriodo.filter((e) => e.estado === 'Validado').length,
+  const evidenciasPanelAdmin = useMemo(
+    () => filtrarEvidenciasVisiblesAdministrador(evidenciasPeriodo),
     [evidenciasPeriodo],
+  )
+
+  const validadas = useMemo(
+    () =>
+      evidenciasPanelAdmin.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
+    [evidenciasPanelAdmin],
   )
   const enProceso = useMemo(
     () =>
-      evidenciasPeriodo.filter((e) => e.estado === 'Borrador' || e.estado === 'EnRevision').length,
-    [evidenciasPeriodo],
+      evidenciasPanelAdmin.filter(
+        (e) =>
+          e.estado === 'EnRevision' ||
+          e.estado === 'ConObservaciones' ||
+          e.estado === 'Rechazado',
+      ).length,
+    [evidenciasPanelAdmin],
   )
   const porVencer = datos.anexosVigencia.filter((a) => a.estado === 'Proximo').length
   const pendientes = contarEvidenciasPendientes(datos.evidencias)
 
   const pregrado = programas.filter((p) => p.nivel === 'Pregrado').length
   const posgrado = programas.filter((p) => p.nivel === 'Posgrado').length
-  const avancePromedio =
-    programas.length > 0
-      ? Math.round(programas.reduce((acc, p) => acc + p.porcentajeAvance, 0) / programas.length)
-      : 0
+  const avanceHero =
+    avanceInstitucional ??
+    (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : 0)
 
-  const avanceEtapas = useMemo(
-    () =>
-      calcularAvanceEtapasSIAC({
-        etapas: datos.etapas,
-        carpetas: datos.carpetas,
-        documentosRequeridos: datos.documentosRequeridos,
-        evidencias: datos.evidencias,
-      }),
-    [datos.etapas, datos.carpetas, datos.documentosRequeridos, datos.evidencias],
-  )
+  useEffect(() => {
+    async function cargarProgreso() {
+      if (!programaProcesoId || !apiDisponible()) {
+        setProgresoProceso(null)
+        return
+      }
+      setCargandoProgreso(true)
+      try {
+        const progreso = await obtenerProgresoProgramaApi(programaProcesoId)
+        setProgresoProceso(progreso)
+      } catch {
+        setProgresoProceso(null)
+      } finally {
+        setCargandoProgreso(false)
+      }
+    }
+    cargarProgreso()
+  }, [programaProcesoId])
 
   const distribucion = useMemo(
-    () => [
-      { estado: 'Validadas', valor: validadas, clave: 'validadas' },
-      {
-        estado: 'En revisión',
-        valor: evidenciasPeriodo.filter((e) => e.estado === 'EnRevision').length,
-        clave: 'revision',
-      },
-      {
-        estado: 'Borrador',
-        valor: evidenciasPeriodo.filter((e) => e.estado === 'Borrador').length,
-        clave: 'borrador',
-      },
-    ],
-    [evidenciasPeriodo, validadas],
+    () => calcularDistribucionEstadosAdministrador(evidenciasPeriodo),
+    [evidenciasPeriodo],
+  )
+  const tendencia = useMemo(
+    () => calcularTendenciaMensual(filtrarEvidenciasVisiblesAdministrador(datos.evidencias)),
+    [datos.evidencias],
   )
 
   const primerNombre = sesion?.nombre.split(' ')[0] ?? 'Administrador'
@@ -131,7 +162,7 @@ function ContenidoResumen() {
             <SelectValue placeholder="Periodo" />
           </SelectTrigger>
           <SelectContent>
-            {periodosSemilla.map((p) => (
+            {periodosDisponibles.map((p) => (
               <SelectItem key={p} value={p}>
                 Periodo {p}
               </SelectItem>
@@ -141,7 +172,7 @@ function ContenidoResumen() {
       </div>
 
       <TarjetaHeroAcreditacion
-        avance={avancePromedio || avanceEtapas.avanceGlobal}
+        avance={avanceHero}
         evidenciasValidadas={validadas}
         evidenciasEnProceso={enProceso}
       />
@@ -178,16 +209,19 @@ function ContenidoResumen() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <GraficoTendencia datos={tendenciaMensualSemilla} />
-        <GraficoDistribucion
-          datos={distribucion.length > 0 ? distribucion : distribucionEstadosSemilla}
-          totalEtiqueta="Total evidencias"
-        />
+        <GraficoTendencia datos={tendencia} />
+        <GraficoDistribucion datos={distribucion} totalEtiqueta="Total en seguimiento" />
       </div>
 
-      <PanelAvanceEtapasSIAC resumen={avanceEtapas} />
+      <PanelAvanceEtapasSIAC
+        programas={programas}
+        programaId={programaProcesoId}
+        onCambiarPrograma={setProgramaProcesoId}
+        progreso={progresoProceso}
+        cargando={cargandoProgreso}
+      />
 
-      <EstructuraNormativaPanel />
+      {/* <EstructuraNormativaPanel /> */}
     </div>
   )
 }

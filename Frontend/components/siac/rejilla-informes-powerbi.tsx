@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
+import { ContenedorInformePowerBi } from '@/components/siac/contenedor-informe-powerbi'
 import { TarjetaInformePowerBi } from '@/components/siac/tarjeta-informe-powerbi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,16 +14,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { informesPowerBiSemilla, type InformePowerBi } from '@/lib/informes-powerbi'
-import { programasSemilla } from '@/lib/datos-semilla'
-import { manejarCambioSelect } from '@/lib/utilidades-siac'
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { categoriasInformesPowerBi, type InformePowerBi } from '@/lib/informes-powerbi'
+import { itemsSelectProgramas, manejarCambioSelect } from '@/lib/utilidades-siac'
 
 export function RejillaInformesPowerBi() {
+  const { datos } = usarAlmacen()
+  const programas = datos.programas
   const [informeActivo, setInformeActivo] = useState<InformePowerBi | null>(null)
-  const [programaId, setProgramaId] = useState(programasSemilla[0]?.id ?? '')
+  const [programaSeleccionadoId, setProgramaId] = useState<string | null>(null)
   const [tokenValido, setTokenValido] = useState(true)
 
-  const programa = programasSemilla.find((p) => p.id === programaId)
+  const programaId = programaSeleccionadoId ?? programas[0]?.id ?? ''
+  const programa = programas.find((p) => p.id === programaId)
+  const esEstudiantes = informeActivo?.id === 'estudiantes'
+  const opcionesPrograma = useMemo(
+    () => itemsSelectProgramas(programas),
+    [programas],
+  )
 
   if (informeActivo) {
     return (
@@ -36,59 +45,45 @@ export function RejillaInformesPowerBi() {
             <ArrowLeft className="size-4" />
             Volver a informes
           </Button>
-          <span className="text-sm text-muted-foreground">
-            {informeActivo.titulo}
-          </span>
+          <span className="text-sm text-muted-foreground">{informeActivo.titulo}</span>
         </div>
 
-        <Card className="tarjeta-institucional">
-          <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-end">
-            <label className="block flex-1 space-y-2 text-sm">
-              <span className="font-medium">Programa</span>
-              <Select value={programaId} onValueChange={manejarCambioSelect(setProgramaId)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {programasSemilla.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <Button variant="outline" onClick={() => setTokenValido((prev) => !prev)}>
-              Simular token {tokenValido ? 'expirado' : 'válido'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {tokenValido ? (
-          <div className="tarjeta-visual overflow-hidden bg-white">
-            <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-              Informe embebido · {programa?.nombre} · {informeActivo.titulo}
-            </div>
-            <div className="flex min-h-[420px] items-center justify-center bg-muted p-8 text-center">
-              <div>
-                <p className="text-lg font-bold text-primary">Power BI embebido</p>
-                <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-                  Placeholder del informe «{informeActivo.titulo}». Aquí se renderizará el iframe
-                  con el embed token cuando la integración con Azure esté disponible.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
+        {esEstudiantes ? (
           <Card className="tarjeta-institucional">
-            <CardContent className="space-y-4 pt-6">
-              <p className="text-sm text-destructive">
-                No fue posible cargar el informe de Power BI. El token embebido expiró.
-              </p>
-              <Button onClick={() => setTokenValido(true)}>Reintentar carga</Button>
+            <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-end">
+              <label className="block flex-1 space-y-2 text-sm">
+                <span className="font-medium">Programa</span>
+                <Select
+                  value={programaId}
+                  items={opcionesPrograma}
+                  onValueChange={manejarCambioSelect(setProgramaId)}
+                  disabled={programas.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No hay programas registrados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcionesPrograma.map((opcion) => (
+                      <SelectItem key={opcion.value} value={opcion.value}>
+                        {opcion.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <Button variant="outline" onClick={() => setTokenValido((prev) => !prev)}>
+                Simular token {tokenValido ? 'expirado' : 'válido'}
+              </Button>
             </CardContent>
           </Card>
-        )}
+        ) : null}
+
+        <ContenedorInformePowerBi
+          informe={informeActivo}
+          nombrePrograma={programa?.nombre}
+          tokenValido={tokenValido}
+          onRestablecerToken={() => setTokenValido(true)}
+        />
       </div>
     )
   }
@@ -104,7 +99,7 @@ export function RejillaInformesPowerBi() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {informesPowerBiSemilla.map((informe) => (
+        {categoriasInformesPowerBi.map((informe) => (
           <TarjetaInformePowerBi
             key={informe.id}
             informe={informe}

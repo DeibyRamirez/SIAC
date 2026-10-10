@@ -35,7 +35,7 @@ Copiar al crear `docs/etapa-N/README.md`:
 # Etapa N — [Nombre]
 
 > **Periodo:** DD/MM/AAAA – DD/MM/AAAA  
-> **Estado:** En curso | Completada  
+> **Estado:** En progreso | Completada  
 > **Referencia:** [MEMORIA_PROYECTO.md](../../Frontend/MEMORIA_PROYECTO.md)
 
 ## Objetivo
@@ -266,5 +266,5 @@ Un adapter por sistema externo; no mezclar en Service de dominio.
 | `docs/etapa-0/README.md` | Plantilla etapa completada |
 | `Documentos/Información del Proyecto.md` | Módulos y usuarios |
 | `Documentos/estructura_decreto_etapas_documentos.md` | Normativa Decreto 1330 |
-| `Frontend/lib/tipos/index.ts` | Estados evidencia |
+| `Frontend/frontend/lib/tipos/index.ts` | Estados evidencia |
 | `Documentos/Información del Proyecto.md` § Patrones | Repository, Adapter, DTO, DI |

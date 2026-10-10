@@ -4,32 +4,36 @@ import {
   IsString,
   IsEnum,
 } from 'class-validator';
-import { EstadoEvidencia } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 
 export class CrearEvidenciaDto {
   @IsString()
   @IsNotEmpty()
   nombre!: string;
 
+  /** Obligatorio para G1/G2; omitir en evidencias institucionales G3/G4. */
   @IsString()
-  @IsNotEmpty()
-  programaId!: string;
+  @IsOptional()
+  programaId?: string;
 
   @IsString()
   @IsNotEmpty()
   periodo!: string;
 
   @IsString()
-  @IsNotEmpty()
-  factor!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  indicador!: string;
+  @IsOptional()
+  responsable?: string;
 
   @IsString()
   @IsOptional()
-  responsable?: string;
+  documentoRequeridoId?: string;
+
+  @IsOptional()
+  requiereChecklistMaestro?: string;
+
+  @IsEnum(CodigoDocumentoGuia)
+  @IsOptional()
+  codigoGuia?: CodigoDocumentoGuia;
 }
 
 export class ActualizarEvidenciaDto {
@@ -40,14 +44,6 @@ export class ActualizarEvidenciaDto {
   @IsString()
   @IsOptional()
   periodo?: string;
-
-  @IsString()
-  @IsOptional()
-  factor?: string;
-
-  @IsString()
-  @IsOptional()
-  indicador?: string;
 
   @IsString()
   @IsOptional()
@@ -66,19 +62,23 @@ export class DictaminarEvidenciaDto {
 export class FiltrosEvidenciaDto {
   @IsString()
   @IsOptional()
+  q?: string;
+
+  @IsString()
+  @IsOptional()
+  programa?: string;
+
+  @IsString()
+  @IsOptional()
   programaId?: string;
 
   @IsString()
   @IsOptional()
   periodo?: string;
 
-  @IsString()
+  @IsEnum(CodigoDocumentoGuia)
   @IsOptional()
-  factor?: string;
-
-  @IsString()
-  @IsOptional()
-  indicador?: string;
+  codigoGuia?: CodigoDocumentoGuia;
 
   @IsString()
   @IsOptional()
@@ -90,9 +90,49 @@ export class FiltrosEvidenciaDto {
 
   @IsString()
   @IsOptional()
+  formato?: string;
+
+  @IsString()
+  @IsOptional()
+  puntajeMin?: string;
+
+  @IsString()
+  @IsOptional()
+  puntajeMax?: string;
+
+  @IsString()
+  @IsOptional()
+  semaforo?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaCargaDesde?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaCargaHasta?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaVerificacionDesde?: string;
+
+  @IsString()
+  @IsOptional()
+  fechaVerificacionHasta?: string;
+
+  @IsString()
+  @IsOptional()
   pagina?: string;
 
   @IsString()
   @IsOptional()
   limite?: string;
+
+  @IsString()
+  @IsOptional()
+  orden?: string;
+
+  @IsString()
+  @IsOptional()
+  direccion?: string;
 }

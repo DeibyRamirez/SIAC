@@ -6,11 +6,39 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const TABLAS_REQUERIDAS = ['EvidenciaVersion'];
+const TABLAS_REQUERIDAS = ['EvidenciaVersion', 'EvidenciaComentario'];
 
 const COLUMNAS_EVIDENCIA = ['version', 'rutaArchivo'];
 
 const COLUMNAS_ANEXO = ['carpeta', 'nombreArchivo', 'rutaArchivo', 'aniosVigencia', 'fechaCarga'];
+
+const ESTADOS_CANONICOS = new Set([
+  'Borrador',
+  'EnRevision',
+  'Validado',
+  'Rechazado',
+  'ConObservaciones',
+  'Cumple',
+]);
+
+async function estadosLegacy(): Promise<{ tabla: string; estado: string; total: number }[]> {
+  const filas: { tabla: string; estado: string; total: number }[] = [];
+  for (const tabla of ['Evidencia', 'HistorialEvidencia']) {
+    try {
+      const conteos = await prisma.$queryRawUnsafe<{ estado: string; total: number }[]>(
+        `SELECT "estado"::text AS estado, COUNT(*)::int AS total FROM "${tabla}" GROUP BY "estado"::text`,
+      );
+      for (const fila of conteos) {
+        if (!ESTADOS_CANONICOS.has(fila.estado)) {
+          filas.push({ tabla, estado: fila.estado, total: fila.total });
+        }
+      }
+    } catch {
+      // Tabla no disponible aún.
+    }
+  }
+  return filas;
+}
 
 async function existeTabla(nombre: string): Promise<boolean> {
   const filas = await prisma.$queryRaw<{ exists: boolean }[]>`
@@ -53,6 +81,17 @@ async function main() {
     const existe = colsAnexo.includes(col);
     console.log(`${existe ? '✓' : '✗'} AnexoVigencia.${col}`);
     if (!existe) ok = false;
+  }
+
+  const legacy = await estadosLegacy();
+  if (legacy.length > 0) {
+    ok = false;
+    console.log('✗ Estados legacy en EstadoEvidencia:');
+    for (const fila of legacy) {
+      console.log(`   · ${fila.tabla}.estado='${fila.estado}' (${fila.total} filas)`);
+    }
+  } else {
+    console.log('✓ Sin estados legacy en Evidencia/HistorialEvidencia');
   }
 
   console.log('');

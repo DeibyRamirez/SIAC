@@ -5,13 +5,16 @@ import type {
   Evidencia,
 } from '@/lib/tipos'
 
-export type EstadoEtapaSIAC = 'Completada' | 'EnCurso' | 'Pendiente' | 'ConObservaciones'
+export type EstadoEtapaSIAC = 'Completada' | 'EnProgreso' | 'Pendiente' | 'ConObservaciones'
 
 export interface AvanceDocumentoEtapa {
   documentoId: string
   nombre: string
   aceptado: boolean
+  /** Con observaciones (checklist n < total) o rechazado por decisión explícita. */
   rechazado: boolean
+  /** Avance derivado del puntaje n/total (no se persiste). */
+  porcentajeCompletitud: number
 }
 
 export interface AvanceEtapaSIAC {
@@ -49,6 +52,25 @@ function evidenciaPorDocumento(
   return evidencias.find((e) => e.documentoRequeridoId === documentoId)
 }
 
+/**
+ * Avance (0-100) de un documento según la regla n/9: Cumple o Validado => 100;
+ * con puntaje de una verificación => proporción n/total; sin verificación o rechazado => 0.
+ */
+export function porcentajeAvanceEvidencia(
+  evidencia: Pick<Evidencia, 'estado' | 'puntajeActual' | 'totalCondicionesActual'>,
+): number {
+  if (evidencia.estado === 'Cumple' || evidencia.estado === 'Validado') return 100
+  if (evidencia.estado === 'Rechazado') return 0
+  if (
+    evidencia.puntajeActual !== null &&
+    evidencia.puntajeActual !== undefined &&
+    evidencia.totalCondicionesActual
+  ) {
+    return Math.round((evidencia.puntajeActual / evidencia.totalCondicionesActual) * 100)
+  }
+  return 0
+}
+
 function calcularProgresoEtapa(
   etapa: EtapaAcreditacion,
   carpetas: CarpetaNormativa[],
@@ -58,18 +80,25 @@ function calcularProgresoEtapa(
   const docs = documentosDeEtapa(etapa.id, carpetas, documentosRequeridos)
   const documentos: AvanceDocumentoEtapa[] = docs.map((doc) => {
     const evidencia = evidenciaPorDocumento(doc.id, evidencias)
+    const porcentajeCompletitud = evidencia ? porcentajeAvanceEvidencia(evidencia) : 0
     return {
       documentoId: doc.id,
       nombre: doc.nombre,
-      aceptado: evidencia?.estado === 'Validado',
-      rechazado: evidencia?.estado === 'Rechazado',
+      aceptado: evidencia?.estado === 'Validado' || evidencia?.estado === 'Cumple',
+      rechazado:
+        evidencia?.estado === 'Rechazado' || evidencia?.estado === 'ConObservaciones',
+      porcentajeCompletitud,
     }
   })
 
   const totalDocumentos = documentos.length
   const documentosAceptados = documentos.filter((d) => d.aceptado).length
+  const sumaPorcentajes = documentos.reduce(
+    (acc, d) => acc + d.porcentajeCompletitud,
+    0,
+  )
   const progreso =
-    totalDocumentos === 0 ? 0 : Math.round((documentosAceptados / totalDocumentos) * 100)
+    totalDocumentos === 0 ? 0 : Math.round(sumaPorcentajes / totalDocumentos)
 
   return {
     etapa,
@@ -86,20 +115,20 @@ function etapaEstaCompletada(avance: Omit<AvanceEtapaSIAC, 'estado'>): boolean {
 }
 
 function asignarEstados(etapasBase: Omit<AvanceEtapaSIAC, 'estado'>[]): AvanceEtapaSIAC[] {
-  let indiceEnCurso = -1
+  let indiceEnProgreso = -1
 
   for (let i = 0; i < etapasBase.length; i++) {
     const anterioresCompletas = etapasBase.slice(0, i).every(etapaEstaCompletada)
     const actual = etapasBase[i]
     if (anterioresCompletas && !etapaEstaCompletada(actual)) {
-      indiceEnCurso = i
+      indiceEnProgreso = i
       break
     }
   }
 
-  if (indiceEnCurso === -1 && etapasBase.length > 0) {
+  if (indiceEnProgreso === -1 && etapasBase.length > 0) {
     const todasCompletas = etapasBase.every(etapaEstaCompletada)
-    indiceEnCurso = todasCompletas ? etapasBase.length - 1 : 0
+    indiceEnProgreso = todasCompletas ? etapasBase.length - 1 : 0
   }
 
   return etapasBase.map((base, indice) => {
@@ -110,9 +139,9 @@ function asignarEstados(etapasBase: Omit<AvanceEtapaSIAC, 'estado'>[]): AvanceEt
       estado = 'ConObservaciones'
     } else if (etapaEstaCompletada(base)) {
       estado = 'Completada'
-    } else if (indice === indiceEnCurso) {
-      estado = 'EnCurso'
-    } else if (indice < indiceEnCurso) {
+    } else if (indice === indiceEnProgreso) {
+      estado = 'EnProgreso'
+    } else if (indice < indiceEnProgreso) {
       estado = 'Completada'
     } else {
       estado = 'Pendiente'
@@ -143,13 +172,16 @@ export function calcularAvanceEtapasSIAC(input: {
 
   const etapas = asignarEstados(etapasBase)
   const etapaActual =
-    etapas.find((e) => e.estado === 'EnCurso' || e.estado === 'ConObservaciones')?.etapa ??
+    etapas.find((e) => e.estado === 'EnProgreso' || e.estado === 'ConObservaciones')?.etapa ??
     etapas.at(-1)?.etapa ??
     null
 
   const totalDocs = etapas.reduce((sum, e) => sum + e.totalDocumentos, 0)
-  const totalAceptados = etapas.reduce((sum, e) => sum + e.documentosAceptados, 0)
-  const avanceGlobal = totalDocs === 0 ? 0 : Math.round((totalAceptados / totalDocs) * 100)
+  const sumaGlobal = etapas.reduce(
+    (sum, e) => sum + e.documentos.reduce((s, d) => s + d.porcentajeCompletitud, 0),
+    0,
+  )
+  const avanceGlobal = totalDocs === 0 ? 0 : Math.round(sumaGlobal / totalDocs)
 
   return { etapas, etapaActual, avanceGlobal }
 }
@@ -157,7 +189,7 @@ export function calcularAvanceEtapasSIAC(input: {
 export function etiquetaEstadoEtapa(estado: EstadoEtapaSIAC): string {
   const mapa: Record<EstadoEtapaSIAC, string> = {
     Completada: 'Completada',
-    EnCurso: 'En curso',
+    EnProgreso: 'En progreso',
     Pendiente: 'Pendiente',
     ConObservaciones: 'Con observaciones',
   }

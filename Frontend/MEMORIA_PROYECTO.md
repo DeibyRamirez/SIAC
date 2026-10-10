@@ -157,7 +157,7 @@ Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel la
 | Ruta | Descripción |
 |------|-------------|
 | `/administrador` | Resumen: KPIs, hero acreditación, gráficos |
-| `/administrador/dashboard` | Métricas Recharts + tab Power BI (placeholder) |
+| `/administrador/dashboard` | Métricas Recharts + tab Power BI (Estudiantes: embed + fallback API cifras) |
 | `/administrador/programas` | Grid 12 programas académicos |
 | `/administrador/evidencias` | Tabla completa + CRUD mock |
 | `/administrador/vigencias` | Alertas semáforo + anexos |
@@ -190,10 +190,10 @@ Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel la
 Tipos en `Frontend/lib/tipos/index.ts`:
 
 - `EtapaAcreditacion` — Pre-radicación, Radicación, Autoevaluación, Renovación
-- `CondicionDecreto` — 6 institucionales (CI) + 9 de programa (CP)
+- `CondicionDecreto` — 6 institucionales (CI) + 9 de programa (CP). Catálogo de referencia: las condiciones se evalúan en el checklist del dictamen, no son metadato de carga.
 - `CarpetaNormativa` — Organización admin por etapa/condición
 - `DocumentoRequerido` — Documentos/plantillas dentro de cada carpeta
-- `Evidencia`, `Plantilla`, `Programa`, `AlertaVigencia`, etc.
+- `Evidencia`, `Plantilla`, `Programa`, `AlertaVigencia`, etc. `Evidencia` y `Plantilla` se clasifican por `codigoGuia` (G1–G4); `factor` e `indicador` se retiraron (T-REF-001). `Plantilla.codigoGuia` es obligatorio.
 
 Semilla normativa: `Frontend/lib/datos-semilla/estructura-decreto-1330.ts`
 
@@ -240,11 +240,11 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 11. Estado actual del repositorio
 
-- **Git:** repositorio **no inicializado** localmente (2026-09-03); remoto preparado en GitHub.
-- **Build frontend:** `pnpm run build` ✅ sin errores TypeScript (19 rutas generadas).
-- **Backend:** no iniciado.
-- **Working tree:** frontend completo + documentación + memoria; `.gitignore` raíz añadido.
-- **Foco inmediato:** primer commit/push a `main`; validación con usuarios CUAC; iniciar scaffold NestJS.
+- **Git:** repo oficial `DeibyRamirez/SIAC`, rama de trabajo `develop_v2`. El estado de sprints lo define ClickUp.
+- **Fecha de esta nota:** 2026-09-28.
+- **Flujo por programa:** el listado y alta de programas, el selector del cargador y la bandeja/inicio del revisor consumen la API. Si falla, muestran error y no rellenan con datos de prueba.
+- **Asignación:** `/administrador/usuarios` permite asignar programas (G1/G2) y el flag de proceso institucional único (G3/G4) a Cargador y Revisor. El Administrador no puede otorgar SuperAdmin.
+- **Pendiente de este frente:** paneles administrativos y búsqueda global aún pueden mostrar semillas (HU-008 / HU-010, fuera de este bloque).
 
 ### Validaciones recientes
 
@@ -283,6 +283,7 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 | [x] | B5 | Power BI Embedded | P2 | Con fallback Recharts |
 | [x] | B6 | Flujo aprobación + vigencias + cron | P0 | AprobacionModule + VigenciasModule |
 | [x] | F11 | Capa servicios HTTP frontend | P0 | `lib/servicios/` |
+| [x] | F12 | Asignación de programas y flujo sin semilla | P0 | `/administrador/usuarios`, cargador, revisor |
 | [ ] | F9 | Pruebas manuales con stakeholders CUAC | P1 | Checklist HU-003 a HU-011 |
 
 ### DevOps
@@ -310,6 +311,13 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 ---
 
 ## 14. Registro de cambios (changelog de memoria)
+
+### 2026-09-28 — Alcance por programa en la UI
+
+- [Frontend] Pantalla `/administrador/usuarios`: rol (sin SuperAdmin) y programas asignados.
+- [Frontend] Programas: alta, edición y activación/desactivación contra la API; facultad y estado inactivo visibles.
+- [Frontend] Cargador: el selector de programa sale solo de la API.
+- [Frontend] Revisor: inicio y bandeja muestran programas asignados y conteos; sin respaldo a semilla si la API falla.
 
 ### 2026-09-08 — Implementación full-stack completa (Etapas 0-4)
 

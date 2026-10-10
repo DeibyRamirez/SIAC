@@ -26,7 +26,9 @@ function ContenidoInicioCargador() {
   )
   const borradores = misEvidencias.filter((e) => e.estado === 'Borrador').length
   const enRevision = misEvidencias.filter((e) => e.estado === 'EnRevision').length
-  const validadas = misEvidencias.filter((e) => e.estado === 'Validado').length
+  const validadas = misEvidencias.filter(
+    (e) => e.estado === 'Validado' || e.estado === 'Cumple',
+  ).length
 
   return (
     <div className="space-y-6">
@@ -39,13 +41,13 @@ function ContenidoInicioCargador() {
       <div className="grid gap-4 md:grid-cols-3">
         <TarjetaKpi titulo="Mis documentos" valor={misEvidencias.length} icono={Files} acento="cyan" />
         <TarjetaKpi titulo="En borrador" valor={borradores} icono={ClipboardCheck} acento="ocre" />
-        <TarjetaKpi titulo="Aprobados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
+        <TarjetaKpi titulo="Cumplen o validados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <TarjetaAcceso
           titulo="Cargar evidencia"
-          descripcion="Sube PDF o Excel con metadatos de programa, periodo, factor e indicador."
+          descripcion="Sube el documento Word de la guía G1–G4 con programa y periodo."
           href="/cargador/evidencias/nueva"
           icono={Files}
           acento="cyan"
@@ -68,7 +70,7 @@ function ContenidoInicioCargador() {
       </div>
 
       {misEvidencias.length > 0 && (
-        <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} />
+        <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} mostrarHora />
       )}
     </div>
   )

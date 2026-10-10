@@ -6,11 +6,11 @@ import { FiltroExcepcionHttp } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  app.setGlobalPrefix('api/v1');
+  app.enableShutdownHooks(); // Permite que la aplicación escuche eventos de apagado para realizar tareas de limpieza antes de cerrar.
+  app.setGlobalPrefix("api/v1");
 
   app.enableCors({
-    origin: process.env.CORS_ORIGEN ?? 'http://localhost:3000',
+    origin: process.env.CORS_ORIGEN ?? "http://localhost:3000",
     credentials: true,
   });
 
@@ -25,14 +25,14 @@ async function bootstrap() {
   app.useGlobalFilters(new FiltroExcepcionHttp());
 
   const configSwagger = new DocumentBuilder()
-    .setTitle('SIAC API')
-    .setDescription('Sistema Interno de Aseguramiento de la Calidad — CUAC')
-    .setVersion('1.0')
+    .setTitle("SIAC API")
+    .setDescription("Sistema Interno de Aseguramiento de la Calidad — CUAC")
+    .setVersion("1.0")
     .addBearerAuth()
     .build();
 
   const documento = SwaggerModule.createDocument(app, configSwagger);
-  SwaggerModule.setup('api/docs', app, documento);
+  SwaggerModule.setup("api/docs", app, documento);
 
   const puerto = process.env.PUERTO ?? 3001;
   await app.listen(puerto);

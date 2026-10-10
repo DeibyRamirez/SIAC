@@ -15,14 +15,12 @@ export class IntegracionController {
 
   @Get('estado-storage')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  estadoStorage() {
-    return this.almacenamiento.obtenerEstadoConexion();
-  }
-
-  @Post('probar-storage')
-  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
-  probarStorage() {
-    return this.almacenamiento.probarConexion();
+  async estadoStorage() {
+    // R-D 3b: incluye si cada bucket (evidencias, plantillas, documentos) existe de verdad.
+    return {
+      ...this.almacenamiento.obtenerEstadoConexion(),
+      buckets: await this.almacenamiento.verificarBuckets(),
+    };
   }
 
   @Post('sincronizar')
@@ -35,5 +33,11 @@ export class IntegracionController {
   @Roles(RolUsuario.Administrador)
   sincronizarCsv(@Body('contenido') contenido: string) {
     return this.integracionService.sincronizarDesdeCsv(contenido);
+  }
+
+  @Post('sincronizar-carreras')
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
+  sincronizarCarreras() {
+    return this.integracionService.sincronizarDesdeCarreras();
   }
 }

@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation'
 import { FileText, Trash2 } from 'lucide-react'
 
-import { InsigniaEstado } from '@/components/siac/insignia-estado'
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { InsigniaEstado, Semaforo } from '@/components/siac/insignia-estado'
+import { colorPorPuntajeEvidencia } from '@/lib/utilidades/etiquetas-semaforo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +17,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Evidencia } from '@/lib/tipos'
-import { esNovedadCargador, formatearFecha, obtenerNombrePrograma } from '@/lib/utilidades-siac'
+import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
+import {
+  esNovedadCargador,
+  formatearFecha,
+  formatearFechaHora,
+  formatearPuntaje,
+  obtenerNombreProgramaEvidencia,
+} from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
 interface TablaEvidenciasProps {
@@ -26,6 +35,8 @@ interface TablaEvidenciasProps {
   onAprobar?: (id: string) => void
   onRechazar?: (id: string) => void
   mostrarNovedades?: boolean
+  mostrarHora?: boolean
+  mostrarSemaforoPuntaje?: boolean
 }
 
 export function TablaEvidencias({
@@ -36,8 +47,11 @@ export function TablaEvidencias({
   onAprobar,
   onRechazar,
   mostrarNovedades,
+  mostrarHora,
+  mostrarSemaforoPuntaje,
 }: TablaEvidenciasProps) {
   const router = useRouter()
+  const { datos } = usarAlmacen()
 
   if (evidencias.length === 0) {
     return null
@@ -52,9 +66,11 @@ export function TablaEvidencias({
           <TableRow className="border-primary/10 hover:bg-transparent">
             <TableHead>Documento</TableHead>
             <TableHead>Programa</TableHead>
-            <TableHead>Factor</TableHead>
+            <TableHead>Guía</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>Fecha</TableHead>
+            {mostrarSemaforoPuntaje ? <TableHead>Nivel</TableHead> : null}
+            <TableHead>Puntaje</TableHead>
+            <TableHead>{mostrarHora ? 'Fecha y hora' : 'Fecha'}</TableHead>
             {tieneAcciones && <TableHead className="text-right">Acciones</TableHead>}
           </TableRow>
         </TableHeader>
@@ -66,6 +82,7 @@ export function TablaEvidencias({
                 'border-primary/5',
                 enlaceDetalle && 'cursor-pointer',
                 evidencia.estado === 'Rechazado' && 'bg-fucsia/5',
+                evidencia.estado === 'ConObservaciones' && 'bg-coral/5',
               )}
               onClick={() => {
                 if (enlaceDetalle) {
@@ -90,9 +107,17 @@ export function TablaEvidencias({
                 </div>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {obtenerNombrePrograma(evidencia.programaId)}
+                {obtenerNombreProgramaEvidencia(evidencia, datos.programas)}
               </TableCell>
-              <TableCell className="text-sm">{evidencia.factor}</TableCell>
+              <TableCell className="text-sm">
+                {evidencia.codigoGuia ? (
+                  <Badge variant="outline" title={ETIQUETAS_GUIA[evidencia.codigoGuia]}>
+                    {evidencia.codigoGuia}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
                   <InsigniaEstado estado={evidencia.estado} />
@@ -108,8 +133,30 @@ export function TablaEvidencias({
                   )}
                 </div>
               </TableCell>
+              {mostrarSemaforoPuntaje ? (
+                <TableCell>
+                  {evidencia.puntajeActual != null &&
+                  evidencia.totalCondicionesActual != null &&
+                  evidencia.totalCondicionesActual > 0 ? (
+                    <Semaforo
+                      valor={colorPorPuntajeEvidencia(
+                        evidencia.puntajeActual,
+                        evidencia.totalCondicionesActual,
+                      )}
+                      contexto="puntajeDocumento"
+                    />
+                  ) : (
+                    <Semaforo valor="Gris" contexto="puntajeDocumento" />
+                  )}
+                </TableCell>
+              ) : null}
+              <TableCell className="text-sm font-medium">
+                {formatearPuntaje(evidencia.puntajeActual, evidencia.totalCondicionesActual) ?? '—'}
+              </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {formatearFecha(evidencia.fechaCarga)}
+                {mostrarHora
+                  ? formatearFechaHora(evidencia.fechaCarga)
+                  : formatearFecha(evidencia.fechaCarga)}
               </TableCell>
               {tieneAcciones && (
                 <TableCell className="text-right">

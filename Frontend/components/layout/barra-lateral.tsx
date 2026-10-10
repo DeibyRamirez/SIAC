@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { prefijoRol } from '@/lib/auth-mock'
 import type { RolUsuario } from '@/lib/tipos'
 import { contarEvidenciasPendientes, contarNovedadesCargador } from '@/lib/utilidades-siac'
+import { rutaBusquedaConPeriodoActual } from '@/lib/utilidades/parametros-busqueda-url'
 import { cn } from '@/lib/utils'
 
 interface ItemNavegacion {
@@ -54,6 +55,7 @@ function itemsRevisor(): ItemNavegacion[] {
   return [
     { href: '/revisor', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', icono: FileCheck2, mostrarBadge: true },
+    { href: '/revisor/revisiones', etiqueta: 'Mis revisiones', icono: ClipboardCheck },
   ]
 }
 
@@ -62,7 +64,8 @@ function itemsAdministrador(): ItemNavegacion[] {
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
-    { href: '/administrador/evidencias', etiqueta: 'Evidencias y documentos', icono: Files },
+    { href: '/administrador/usuarios', etiqueta: 'Asignación de programas', icono: Users },
+    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias y documentos', icono: Files },
     { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', icono: Bell },
     { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', icono: FileCheck2 },
     {
@@ -78,8 +81,7 @@ function itemsParAcademico(): ItemNavegacion[] {
   return [
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
-    { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
-    { href: '/administrador/evidencias', etiqueta: 'Evidencias validadas', icono: Files },
+    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
   ]
 }
 
@@ -91,6 +93,29 @@ function itemsSuperAdmin(): ItemNavegacion[] {
     { href: '/revisor/bandeja', etiqueta: 'Bandeja revisor', icono: FileCheck2, mostrarBadge: true },
     { href: '/administrador', etiqueta: 'Módulo administrador', icono: LayoutDashboard },
   ]
+}
+
+/**
+ * Solo un ítem activo: gana la ruta más específica (href más largo).
+ * Evita que /cargador/evidencias/nueva marque también "Mis evidencias".
+ */
+function hrefActivo(pathname: string, items: ItemNavegacion[], prefijoRol: string): string | null {
+  let mejorHref: string | null = null
+  let mejorLongitud = -1
+
+  for (const { href: hrefConQuery } of items) {
+    // Los enlaces de entrada pueden llevar query (p. ej. ?periodo=); se compara solo la ruta.
+    const href = hrefConQuery.split('?')[0]
+    const coincide =
+      pathname === href ||
+      (href !== prefijoRol && pathname.startsWith(`${href}/`))
+    if (coincide && href.length > mejorLongitud) {
+      mejorHref = hrefConQuery
+      mejorLongitud = href.length
+    }
+  }
+
+  return mejorHref
 }
 
 function itemsPorRol(rol: RolUsuario): ItemNavegacion[] {
@@ -122,7 +147,7 @@ export function BarraLateral({
   onAlternarPlegado?: () => void
 }) {
   const pathname = usePathname()
-  const { sesion, cerrarSesion, etiquetaRolActual } = usarSesion()
+  const { sesion, cerrarSesion } = usarSesion()
   const { datos } = usarAlmacen()
 
   if (!sesion) {
@@ -130,21 +155,16 @@ export function BarraLateral({
   }
 
   const items = itemsPorRol(sesion.rol)
+  const prefijo = prefijoRol(sesion.rol)
+  const rutaActiva = hrefActivo(pathname, items, prefijo)
   const pendientes = contarEvidenciasPendientes(datos.evidencias)
   const novedadesCargador = sesion
     ? contarNovedadesCargador(datos.evidencias, sesion.usuarioId)
     : 0
-  const iniciales = sesion.nombre
-    .split(' ')
-    .map((parte) => parte[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
   return (
     <aside
       className={cn(
-        'panel-sidebar flex shrink-0 flex-col border-r border-primary/20 shadow-lg transition-[width] duration-200',
+        'panel-sidebar sticky top-0 flex h-dvh max-h-dvh shrink-0 flex-col border-r border-primary/20 shadow-lg transition-[width] duration-200',
         plegado ? 'w-16' : 'w-64',
         className,
       )}
@@ -161,21 +181,6 @@ export function BarraLateral({
             </div>
           )}
         </div>
-        {onAlternarPlegado && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className={cn(
-              'text-white hover:bg-white/10',
-              plegado ? 'mx-auto' : 'ml-auto flex',
-            )}
-            onClick={onAlternarPlegado}
-            aria-label={plegado ? 'Expandir menú' : 'Contraer menú'}
-          >
-            {plegado ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-          </Button>
-        )}
       </div>
 
       {!plegado && (
@@ -187,16 +192,28 @@ export function BarraLateral({
         </div>
       )}
 
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-3">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden bg-white px-2 py-3">
         {!plegado && (
           <p className="etiqueta-seccion px-3 pb-2 text-[10px]">Gestión de calidad</p>
         )}
         {items.map(({ href, etiqueta, icono: Icono, mostrarBadge, mostrarBadgeNovedades }) => {
           const contadorBadge = mostrarBadgeNovedades ? novedadesCargador : pendientes
           const mostrarContador = mostrarBadge || mostrarBadgeNovedades
+          // Activo único: gana la ruta más específica (p. ej. /cargador/evidencias/nueva
+          // no debe activar también /cargador/evidencias). El ítem raíz solo activa exacto.
+          const raizRol = prefijoRol(sesion.rol)
+          const coincide = (ruta: string) =>
+            pathname === ruta || pathname.startsWith(`${ruta}/`)
           const activo =
             pathname === href ||
-            (href !== prefijoRol(sesion.rol) && pathname.startsWith(`${href}/`))
+            (href !== raizRol &&
+              coincide(href) &&
+              !items.some(
+                (otro) =>
+                  otro.href !== href &&
+                  otro.href.length > href.length &&
+                  coincide(otro.href),
+              ))
           return (
             <Link
               key={href}
@@ -235,7 +252,22 @@ export function BarraLateral({
         })}
       </nav>
 
-      <div className="space-y-2 border-t border-primary/10 bg-white px-2 py-4">
+      <div className="mt-auto shrink-0 space-y-2 border-t border-primary/10 bg-white px-2 py-3">
+        {onAlternarPlegado && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(
+              'text-primary hover:bg-secondary',
+              plegado ? 'mx-auto flex' : 'ml-auto flex',
+            )}
+            onClick={onAlternarPlegado}
+            aria-label={plegado ? 'Expandir menú' : 'Contraer menú'}
+          >
+            {plegado ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          </Button>
+        )}
         {!plegado && (
           <>
             <button
@@ -254,23 +286,6 @@ export function BarraLateral({
             </button>
           </>
         )}
-        <div
-          className={cn(
-            'flex items-center rounded-xl bg-accent/60 py-2',
-            plegado ? 'justify-center px-1' : 'gap-3 px-2',
-          )}
-          title={plegado ? `${sesion.nombre} · ${etiquetaRolActual}` : undefined}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            {iniciales}
-          </span>
-          {!plegado && (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-primary">{sesion.nombre}</p>
-              <p className="truncate text-xs text-esmeralda">{etiquetaRolActual}</p>
-            </div>
-          )}
-        </div>
         <Button
           variant="outline"
           size={plegado ? 'icon-sm' : 'default'}

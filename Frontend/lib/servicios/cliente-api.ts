@@ -1,4 +1,10 @@
-const URL_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+import {
+  debeMostrarCargaGlobal,
+  notificarFinCarga,
+  notificarInicioCarga,
+  obtenerMensajeCarga,
+} from '@/lib/servicios/control-carga-global';
+import { URL_BASE_CLIENTE, apiDisponible } from '@/lib/servicios/config-api';
 
 export class ErrorApi extends Error {
   constructor(
@@ -10,59 +16,46 @@ export class ErrorApi extends Error {
   }
 }
 
-function obtenerToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('siac-token-jwt');
-}
-
-export function guardarToken(token: string): void {
-  localStorage.setItem('siac-token-jwt', token);
-}
-
-export function eliminarToken(): void {
-  localStorage.removeItem('siac-token-jwt');
-}
-
 export async function peticionApi<T>(
   ruta: string,
   opciones: RequestInit = {},
 ): Promise<T> {
-  const token = obtenerToken();
   const headers: Record<string, string> = {
     ...(opciones.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   if (!(opciones.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
   }
 
-  const respuesta = await fetch(`${URL_BASE}${ruta}`, {
-    ...opciones,
-    headers,
-  });
-
-  if (!respuesta.ok) {
-    const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
-    const mensajeBase = Array.isArray(error.message)
-      ? error.message.join(', ')
-      : (error.message ?? `HTTP ${respuesta.status}`);
-    const detalle =
-      typeof error.detalle === 'string' && error.detalle.trim().length > 0
-        ? error.detalle.trim()
-        : '';
-    const mensaje =
-      detalle && !mensajeBase.includes(detalle) ? `${mensajeBase} (${detalle})` : mensajeBase;
-    throw new ErrorApi(mensaje, respuesta.status);
+  const metodo = (opciones.method ?? 'GET').toUpperCase();
+  const mostrarCarga = debeMostrarCargaGlobal(metodo, ruta);
+  if (mostrarCarga) {
+    notificarInicioCarga(obtenerMensajeCarga(metodo, ruta));
   }
 
-  if (respuesta.status === 204) return undefined as T;
-  return respuesta.json();
+  try {
+    const respuesta = await fetch(`${URL_BASE_CLIENTE}${ruta}`, {
+      ...opciones,
+      headers,
+      credentials: 'include',
+    });
+
+    if (!respuesta.ok) {
+      const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
+      throw new ErrorApi(
+        Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
+        respuesta.status,
+      );
+    }
+
+    if (respuesta.status === 204) return undefined as T;
+    return respuesta.json();
+  } finally {
+    if (mostrarCarga) {
+      notificarFinCarga();
+    }
+  }
 }
 
-export function apiDisponible(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1');
-}
+export { apiDisponible };

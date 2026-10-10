@@ -1,11 +1,91 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { EstadoEvidencia } from '@prisma/client';
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  CodigoCondicionDocumentoMaestro,
+  CodigoCondicionInstitucional,
+  EstadoEvidencia,
+} from '@prisma/client';
+
+export class CondicionDictamenDto {
+  @IsEnum(CodigoCondicionDocumentoMaestro)
+  codigo!: CodigoCondicionDocumentoMaestro;
+
+  @IsBoolean()
+  cumple!: boolean;
+
+  @IsString()
+  @IsOptional()
+  observacion?: string;
+}
+
+export class CondicionInstitucionalDictamenDto {
+  @IsEnum(CodigoCondicionInstitucional)
+  codigo!: CodigoCondicionInstitucional;
+
+  @IsBoolean()
+  cumple!: boolean;
+
+  @IsString()
+  @IsOptional()
+  observacion?: string;
+}
+
+export class ComentarioInlineDto {
+  @IsString()
+  @IsOptional()
+  hunkId?: string;
+
+  @IsString()
+  @IsOptional()
+  anchor?: string;
+
+  @IsString()
+  @IsOptional()
+  quote?: string;
+
+  @IsString()
+  @IsOptional()
+  cita?: string;
+
+  @IsString()
+  texto!: string;
+
+  @IsString()
+  @IsOptional()
+  createdAt?: string;
+}
 
 export class DictaminarDto {
   @IsEnum(EstadoEvidencia)
-  estado!: EstadoEvidencia;
+  @IsOptional()
+  estado?: EstadoEvidencia;
 
   @IsString()
   @IsOptional()
   observaciones?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CondicionDictamenDto)
+  @IsOptional()
+  condiciones?: CondicionDictamenDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CondicionInstitucionalDictamenDto)
+  @IsOptional()
+  condicionesInstitucionales?: CondicionInstitucionalDictamenDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ComentarioInlineDto)
+  @IsOptional()
+  comentariosInline?: ComentarioInlineDto[];
 }

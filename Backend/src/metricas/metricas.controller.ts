@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolUsuario } from '@prisma/client';
 import { PowerBiService } from '../powerbi/powerbi.service';
@@ -11,7 +11,7 @@ export class MetricasController {
   constructor(private readonly powerBiService: PowerBiService) {}
 
   @Get('token')
-  obtenerToken() {
-    return this.powerBiService.obtenerEmbedToken();
+  obtenerToken(@Query('categoriaId') categoriaId?: string) {
+    return this.powerBiService.obtenerEmbedToken(categoriaId);
   }
 }

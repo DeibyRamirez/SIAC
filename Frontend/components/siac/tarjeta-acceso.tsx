@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowRight } from 'lucide-react'
 
@@ -83,10 +84,17 @@ export function EncabezadoPagina({
   )
 }
 
-export function PanelVacio({ mensaje }: { mensaje: string }) {
+export function PanelVacio({
+  mensaje,
+  children,
+}: {
+  mensaje: string
+  children?: ReactNode
+}) {
   return (
     <div className="rounded-xl border-2 border-dashed border-primary/20 bg-white/80 p-10 text-center text-sm text-muted-foreground">
-      {mensaje}
+      <p>{mensaje}</p>
+      {children}
     </div>
   )
 }
