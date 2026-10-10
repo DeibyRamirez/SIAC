@@ -29,6 +29,7 @@ import { parsearParametrosConsultaEvidencias } from './parametros-consulta-evide
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 
 import { AvanceProgramaService } from '../programas/avance-programa.service';
+import { codigosGuiaPermitidos } from '../programas/catalogo-tramites-siac';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 
 import {
@@ -131,10 +132,34 @@ export class DocumentosService {
 
     this.validarArchivo(archivo);
 
-    await this.exigirProgramaAsignado(usuario, dto.programaId);
+    const requiereChecklistLegacy =
+      dto.requiereChecklistMaestro === 'true' ||
+      dto.requiereChecklistMaestro === '1';
 
-    const programa = await this.evidenciaRepo.buscarPrograma(dto.programaId);
-    if (!programa) {
+    const codigoGuia =
+      dto.codigoGuia ??
+      (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
+
+    const esInstitucional =
+      codigoGuia === CodigoDocumentoGuia.G3 || codigoGuia === CodigoDocumentoGuia.G4;
+
+    if (esInstitucional) {
+      await this.exigirResponsableInstitucional(usuario);
+      if (!codigoGuia) {
+        throw new BadRequestException('Debe indicar la guía del documento institucional (G3 o G4).');
+      }
+    } else {
+      if (!dto.programaId?.trim()) {
+        throw new BadRequestException('Debe seleccionar un programa para esta evidencia.');
+      }
+      await this.exigirProgramaAsignado(usuario, dto.programaId);
+    }
+
+    const programa =
+      !esInstitucional && dto.programaId
+        ? await this.evidenciaRepo.buscarPrograma(dto.programaId)
+        : null;
+    if (!esInstitucional && !programa) {
       throw new BadRequestException(
         'El programa seleccionado no existe. Actualice la lista de programas y vuelva a intentarlo.',
       );
@@ -149,30 +174,30 @@ export class DocumentosService {
       }
     }
 
-
-
-
-    const requiereChecklistLegacy =
-      dto.requiereChecklistMaestro === 'true' ||
-      dto.requiereChecklistMaestro === '1';
-
-    const codigoGuia =
-      dto.codigoGuia ??
-      (requiereChecklistLegacy ? CodigoDocumentoGuia.G1 : undefined);
-
-    const esInstitucional =
-      codigoGuia === CodigoDocumentoGuia.G3 || codigoGuia === CodigoDocumentoGuia.G4;
-
-    if (!esInstitucional) {
-      await this.exigirProgramaAsignado(usuario, dto.programaId);
-    }
-
     const institucion = esInstitucional
       ? await this.prisma.institucion.findFirst()
       : null;
 
     if (esInstitucional && !institucion) {
       throw new BadRequestException('No hay institución configurada para evidencias G3/G4.');
+    }
+
+    if (codigoGuia && esInstitucional && institucion) {
+      const permitidas = codigosGuiaPermitidos(institucion.tipoTramiteActivo);
+      if (!permitidas.includes(codigoGuia)) {
+        throw new BadRequestException(
+          `La guía ${codigoGuia} no corresponde al trámite activo de la institución (${institucion.tipoTramiteActivo}).`,
+        );
+      }
+    }
+
+    if (codigoGuia && !esInstitucional && programa?.tipoTramiteActivo) {
+      const permitidas = codigosGuiaPermitidos(programa.tipoTramiteActivo);
+      if (!permitidas.includes(codigoGuia)) {
+        throw new BadRequestException(
+          `La guía ${codigoGuia} no corresponde al trámite activo del programa (${programa.tipoTramiteActivo}).`,
+        );
+      }
     }
 
     const evidencia = await this.evidenciaRepo.crear({
@@ -212,16 +237,16 @@ export class DocumentosService {
 
 
     const clave = this.almacenamiento.generarClaveEvidencia(
-
       evidencia.id,
-
       archivo.originalname,
-
       1,
-
+      {
+        tipoTramite: esInstitucional
+          ? institucion!.tipoTramiteActivo
+          : programa!.tipoTramiteActivo,
+        programaId: esInstitucional ? undefined : dto.programaId,
+      },
     );
-
-
 
     try {
 
@@ -479,14 +504,12 @@ export class DocumentosService {
       evidencia.nombreArchivo?.trim() ||
       decodificarNombreArchivoMultipart(archivo.originalname);
 
+    const contextoClave = await this.contextoAlmacenamientoEvidencia(evidencia);
     const clave = this.almacenamiento.generarClaveEvidencia(
-
       id,
-
       nombreArchivoOriginal,
-
       nuevaVersion,
-
+      contextoClave,
     );
 
     const snapshotAnterior = {
@@ -703,7 +726,7 @@ export class DocumentosService {
 
 
 
-    await this.exigirProgramaAsignadoSiAplica(revisor, evidencia.programaId);
+    await this.exigirAlcanceSobreEvidencia(revisor, evidencia);
 
 
 
@@ -1012,13 +1035,19 @@ export class DocumentosService {
 
     }
 
-    const programaIds = this.esSuperAdmin(usuario)
+    if (this.esSuperAdmin(usuario)) {
+      return this.evidenciaRepo.listarEnviosRevisionParaRevisor(pagina, limite);
+    }
 
-      ? undefined
+    const programaIds = await this.alcance.idsProgramasAsignados(usuario.id);
+    const incluirInstitucional = await this.alcance.esResponsableProcesoInstitucional(usuario.id);
 
-      : await this.alcance.idsProgramasAsignados(usuario.id);
-
-    return this.evidenciaRepo.listarEnviosRevisionParaRevisor(pagina, limite, programaIds);
+    return this.evidenciaRepo.listarEnviosRevisionParaRevisor(
+      pagina,
+      limite,
+      programaIds,
+      incluirInstitucional,
+    );
 
   }
 
@@ -1455,7 +1484,7 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignadoSiAplica(usuario, evidencia.programaId);
+      await this.exigirAlcanceSobreEvidencia(usuario, evidencia);
 
       return;
 
@@ -1471,7 +1500,7 @@ export class DocumentosService {
 
       }
 
-      await this.exigirProgramaAsignadoSiAplica(usuario, evidencia.programaId);
+      await this.exigirAlcanceSobreEvidencia(usuario, evidencia);
 
       return;
 
@@ -1499,6 +1528,19 @@ export class DocumentosService {
 
 
 
+  private async contextoAlmacenamientoEvidencia(evidencia: {
+    programaId: string | null;
+  }): Promise<{ tipoTramite: string | null; programaId: string | null }> {
+    if (!evidencia.programaId) {
+      return { tipoTramite: null, programaId: null };
+    }
+    const programa = await this.evidenciaRepo.buscarPrograma(evidencia.programaId);
+    return {
+      tipoTramite: programa?.tipoTramiteActivo ?? null,
+      programaId: evidencia.programaId,
+    };
+  }
+
   private async exigirProgramaAsignado(usuario: UsuarioToken, programaId: string) {
 
     if (this.esSuperAdmin(usuario)) return;
@@ -1511,6 +1553,30 @@ export class DocumentosService {
 
     }
 
+  }
+
+  private async exigirResponsableInstitucional(usuario: UsuarioToken) {
+    if (this.esSuperAdmin(usuario)) return;
+    const responsable = await this.alcance.esResponsableProcesoInstitucional(usuario.id);
+    if (!responsable) {
+      throw new ForbiddenException(
+        'No está asignado como responsable del proceso institucional (G3/G4).',
+      );
+    }
+  }
+
+  private async exigirAlcanceSobreEvidencia(
+    usuario: UsuarioToken,
+    evidencia: { programaId: string | null; institucionId?: string | null },
+  ) {
+    if (this.esSuperAdmin(usuario)) return;
+    if (evidencia.programaId) {
+      await this.exigirProgramaAsignado(usuario, evidencia.programaId);
+      return;
+    }
+    if (evidencia.institucionId) {
+      await this.exigirResponsableInstitucional(usuario);
+    }
   }
 
 

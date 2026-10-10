@@ -11,9 +11,10 @@ export class CrearEvidenciaDto {
   @IsNotEmpty()
   nombre!: string;
 
+  /** Obligatorio para G1/G2; omitir en evidencias institucionales G3/G4. */
   @IsString()
-  @IsNotEmpty()
-  programaId!: string;
+  @IsOptional()
+  programaId?: string;
 
   @IsString()
   @IsNotEmpty()

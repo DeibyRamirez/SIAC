@@ -50,6 +50,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
             nombre: perfil.nombre,
             correo: perfil.correo,
             rol: perfil.rol,
+            responsableProcesoInstitucional: perfil.responsableProcesoInstitucional,
           })
         } catch {
           setSesion(leerSesionLocal())
@@ -76,6 +77,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
             nombre: respuesta.usuario.nombre,
             correo: respuesta.usuario.correo,
             rol: respuesta.usuario.rol,
+            responsableProcesoInstitucional: respuesta.usuario.responsableProcesoInstitucional,
           }
           guardarSesionLocal(nuevaSesion)
           setSesion(nuevaSesion)

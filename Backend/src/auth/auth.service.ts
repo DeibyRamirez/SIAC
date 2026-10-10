@@ -46,6 +46,7 @@ export class AuthService {
         nombre: usuario.nombre,
         correo: usuario.correo,
         rol: usuario.rol,
+        responsableProcesoInstitucional: usuario.responsableProcesoInstitucional,
       },
     };
   }

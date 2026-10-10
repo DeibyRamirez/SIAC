@@ -143,6 +143,10 @@ function crearRepositorioFake() {
     actualizarVersion: jest.fn(async () => ({})),
     registrarVersion: jest.fn(async () => ({})),
     eliminarVersion: jest.fn(async () => ({})),
+    buscarPrograma: jest.fn(async () => ({
+      id: 'prog-1',
+      tipoTramiteActivo: 'RenovacionRegistroCalificado',
+    })),
   };
 
   return repositorio;
@@ -181,6 +185,7 @@ describe('DocumentosService permisos de revisión', () => {
   const alcance = {
     estaAsignado: jest.fn(),
     idsProgramasAsignados: jest.fn(),
+    esResponsableProcesoInstitucional: jest.fn(),
     filtroVisibilidad: jest.fn(),
   };
   const servicio = new DocumentosService(
@@ -225,11 +230,17 @@ describe('DocumentosService permisos de revisión', () => {
 
   it('mis revisiones quedan acotadas a los programas del revisor', async () => {
     alcance.idsProgramasAsignados.mockResolvedValue(['prog-1']);
+    alcance.esResponsableProcesoInstitucional.mockResolvedValue(false);
     evidenciaRepo.listarEnviosRevisionParaRevisor.mockResolvedValue({ datos: [], total: 0 });
 
     await servicio.listarMisRevisionesRevisor({ id: 'rev', rol: RolUsuario.Revisor }, 1, 10);
 
-    expect(evidenciaRepo.listarEnviosRevisionParaRevisor).toHaveBeenCalledWith(1, 10, ['prog-1']);
+    expect(evidenciaRepo.listarEnviosRevisionParaRevisor).toHaveBeenCalledWith(
+      1,
+      10,
+      ['prog-1'],
+      false,
+    );
   });
 
   it('el administrador no consulta mis revisiones', async () => {
@@ -755,7 +766,10 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       { id: 'autor-1', rol: RolUsuario.Cargador },
     );
 
-    expect(generarClaveEvidencia).toHaveBeenCalledWith('ev-1', 'guia.docx', 2);
+    expect(generarClaveEvidencia).toHaveBeenCalledWith('ev-1', 'guia.docx', 2, {
+      tipoTramite: 'RenovacionRegistroCalificado',
+      programaId: 'prog-1',
+    });
     expect(repositorio.registrarVersion).toHaveBeenCalledWith(
       expect.objectContaining({ numero: 2, nombreArchivo: 'guia.docx' }),
     );

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EstadoEvidencia, Prisma, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.module';
+import { UsuarioRepositorio } from '../../usuarios/usuario.repositorio';
 
 export interface UsuarioAlcance {
   id: string;
@@ -13,7 +14,10 @@ export interface UsuarioAlcance {
  */
 @Injectable()
 export class ServicioAlcancePrograma {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usuarioRepo: UsuarioRepositorio,
+  ) {}
 
   idsProgramasAsignados(usuarioId: string): Promise<string[]> {
     return this.prisma.usuarioPrograma
@@ -46,7 +50,18 @@ export class ServicioAlcancePrograma {
     const programasAsignados = restringePorPrograma
       ? await this.idsProgramasAsignados(usuario.id)
       : [];
-    return construirFiltroVisibilidad(usuario, programasAsignados);
+    const responsableProcesoInstitucional = restringePorPrograma
+      ? await this.usuarioRepo.esResponsableProcesoInstitucional(usuario.id)
+      : false;
+    return construirFiltroVisibilidad(
+      usuario,
+      programasAsignados,
+      responsableProcesoInstitucional,
+    );
+  }
+
+  async esResponsableProcesoInstitucional(usuarioId: string): Promise<boolean> {
+    return this.usuarioRepo.esResponsableProcesoInstitucional(usuarioId);
   }
 }
 
@@ -58,6 +73,7 @@ export class ServicioAlcancePrograma {
 export function construirFiltroVisibilidad(
   usuario: UsuarioAlcance,
   programasAsignados: string[],
+  responsableProcesoInstitucional = false,
 ): Prisma.EvidenciaWhereInput {
   if (usuario.rol === RolUsuario.SuperAdmin) {
     return {};
@@ -80,25 +96,37 @@ export function construirFiltroVisibilidad(
     };
   }
 
-  // R-008.1b: las evidencias G3/G4 se asocian a la Institución (programaId NULL), así que
-  // además de los programas asignados se incluye el alcance institucional.
   if (usuario.rol === RolUsuario.Cargador) {
+    const condiciones: Prisma.EvidenciaWhereInput[] = [];
+    if (programasAsignados.length > 0) {
+      condiciones.push({ programaId: { in: programasAsignados } });
+    }
+    if (responsableProcesoInstitucional) {
+      condiciones.push({ institucionId: { not: null } });
+    }
+    if (condiciones.length === 0) {
+      return { id: { in: [] } };
+    }
     return {
       autorId: usuario.id,
-      OR: [
-        { programaId: { in: programasAsignados } },
-        { institucionId: { not: null } },
-      ],
+      OR: condiciones,
     };
   }
 
   if (usuario.rol === RolUsuario.Revisor) {
+    const condiciones: Prisma.EvidenciaWhereInput[] = [];
+    if (programasAsignados.length > 0) {
+      condiciones.push({ programaId: { in: programasAsignados } });
+    }
+    if (responsableProcesoInstitucional) {
+      condiciones.push({ institucionId: { not: null } });
+    }
+    if (condiciones.length === 0) {
+      return { id: { in: [] } };
+    }
     return {
       estado: { not: EstadoEvidencia.Borrador },
-      OR: [
-        { programaId: { in: programasAsignados } },
-        { institucionId: { not: null } },
-      ],
+      OR: condiciones,
     };
   }
 

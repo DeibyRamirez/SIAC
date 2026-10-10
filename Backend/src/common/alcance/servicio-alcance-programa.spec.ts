@@ -25,24 +25,51 @@ describe('construirFiltroVisibilidad', () => {
     });
   });
 
-  it('el cargador solo ve lo suyo: en sus programas o institucional (G3/G4)', () => {
+  it('el cargador ve sus programas asignados', () => {
     expect(
-      construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, ['prog-1']),
+      construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, ['prog-1'], false),
+    ).toEqual({
+      autorId: 'car',
+      OR: [{ programaId: { in: ['prog-1'] } }],
+    });
+  });
+
+  it('el cargador responsable institucional ve además G3/G4 propias', () => {
+    expect(
+      construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, ['prog-1'], true),
     ).toEqual({
       autorId: 'car',
       OR: [{ programaId: { in: ['prog-1'] } }, { institucionId: { not: null } }],
     });
   });
 
-  it('el cargador sin programas asignados sigue viendo sus documentos institucionales', () => {
-    const filtro = construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, []);
-    expect(filtro.autorId).toBe('car');
-    expect(filtro.OR).toContainEqual({ institucionId: { not: null } });
+  it('el cargador solo institucional sin programas', () => {
+    expect(
+      construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, [], true),
+    ).toEqual({
+      autorId: 'car',
+      OR: [{ institucionId: { not: null } }],
+    });
   });
 
-  it('el revisor ve documentos no borrador de sus programas y los institucionales', () => {
+  it('el cargador sin programas ni asignación institucional no ve nada', () => {
     expect(
-      construirFiltroVisibilidad({ id: 'rev', rol: RolUsuario.Revisor }, ['prog-2']),
+      construirFiltroVisibilidad({ id: 'car', rol: RolUsuario.Cargador }, [], false),
+    ).toEqual({ id: { in: [] } });
+  });
+
+  it('el revisor ve documentos no borrador de sus programas', () => {
+    expect(
+      construirFiltroVisibilidad({ id: 'rev', rol: RolUsuario.Revisor }, ['prog-2'], false),
+    ).toEqual({
+      estado: { not: EstadoEvidencia.Borrador },
+      OR: [{ programaId: { in: ['prog-2'] } }],
+    });
+  });
+
+  it('el revisor responsable institucional ve también evidencias G3/G4', () => {
+    expect(
+      construirFiltroVisibilidad({ id: 'rev', rol: RolUsuario.Revisor }, ['prog-2'], true),
     ).toEqual({
       estado: { not: EstadoEvidencia.Borrador },
       OR: [{ programaId: { in: ['prog-2'] } }, { institucionId: { not: null } }],

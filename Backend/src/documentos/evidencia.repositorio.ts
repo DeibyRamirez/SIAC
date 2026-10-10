@@ -502,7 +502,7 @@ export class EvidenciaRepositorio {
 
       where: { id },
 
-      select: { id: true },
+      select: { id: true, tipoTramiteActivo: true },
 
     });
 
@@ -719,7 +719,22 @@ export class EvidenciaRepositorio {
 
     programaIds?: string[],
 
+    incluirInstitucional = false,
+
   ) {
+
+    let filtroEvidencia: Prisma.EvidenciaWhereInput | undefined;
+    if (programaIds !== undefined) {
+      const condiciones: Prisma.EvidenciaWhereInput[] = [];
+      if (programaIds.length > 0) {
+        condiciones.push({ programaId: { in: programaIds } });
+      }
+      if (incluirInstitucional) {
+        condiciones.push({ institucionId: { not: null } });
+      }
+      filtroEvidencia =
+        condiciones.length > 0 ? { OR: condiciones } : { id: { in: [] } };
+    }
 
     const eventos = await this.prisma.historialEvidencia.findMany({
 
@@ -727,7 +742,7 @@ export class EvidenciaRepositorio {
 
         estado: EstadoEvidencia.EnRevision,
 
-        ...(programaIds ? { evidencia: { programaId: { in: programaIds } } } : {}),
+        ...(filtroEvidencia ? { evidencia: filtroEvidencia } : {}),
 
       },
 

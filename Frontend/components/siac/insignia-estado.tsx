@@ -1,4 +1,11 @@
 import type { EstadoEvidencia, EstadoVigencia, SemaforoVigencia } from '@/lib/tipos'
+import type { ContextoSemaforoUi, ValorSemaforoUi } from '@/lib/utilidades/etiquetas-semaforo'
+import {
+  ariaLabelSemaforo,
+  CLASES_PUNTO_SEMAFORO,
+  etiquetaVisibleSemaforo,
+} from '@/lib/utilidades/etiquetas-semaforo'
+import { etiquetaEstadoVigenciaAnexo } from '@/lib/utilidades/etiquetas-semaforo'
 import { etiquetaEstadoEvidencia } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -17,20 +24,6 @@ const estilosVigencia: Record<EstadoVigencia, string> = {
   Vencido: 'bg-fucsia/15 text-fucsia border border-fucsia/30',
 }
 
-const estilosSemaforo: Record<SemaforoVigencia, string> = {
-  Verde: 'bg-esmeralda',
-  Amarillo: 'bg-ocre',
-  Rojo: 'bg-fucsia',
-  SinVigencia: 'bg-muted-foreground/40',
-}
-
-const etiquetasSemaforo: Record<SemaforoVigencia, string> = {
-  Verde: 'Verde',
-  Amarillo: 'Amarillo',
-  Rojo: 'Rojo',
-  SinVigencia: 'Sin vigencia',
-}
-
 export function InsigniaEstado({
   estado,
   tipo = 'evidencia',
@@ -46,7 +39,7 @@ export function InsigniaEstado({
   const etiqueta =
     tipo === 'evidencia'
       ? etiquetaEstadoEvidencia(estado as EstadoEvidencia)
-      : estado
+      : etiquetaEstadoVigenciaAnexo(estado as EstadoVigencia)
 
   return (
     <span className={cn('inline-flex rounded-full px-3 py-1 text-[11px] font-bold', clases)}>
@@ -57,16 +50,27 @@ export function InsigniaEstado({
 
 export function Semaforo({
   valor,
+  contexto = 'avancePrograma',
   etiqueta,
 }: {
-  valor: SemaforoVigencia
+  valor: SemaforoVigencia | 'Gris'
+  contexto?: ContextoSemaforoUi
+  /** Prefijo de sección (p. ej. «Avance»); no muestra nombres de color. */
   etiqueta?: string
 }) {
+  const valorUi = valor as ValorSemaforoUi
+  const texto = etiquetaVisibleSemaforo(valorUi, contexto)
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
-      <span className={cn('size-2.5 rounded-full ring-2 ring-white', estilosSemaforo[valor])} />
+    <span
+      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
+      aria-label={ariaLabelSemaforo(valorUi, contexto, etiqueta)}
+    >
+      <span
+        className={cn('size-2.5 rounded-full ring-2 ring-white', CLASES_PUNTO_SEMAFORO[valorUi])}
+        aria-hidden
+      />
       {etiqueta ? <span className="text-muted-foreground">{etiqueta}:</span> : null}
-      {etiquetasSemaforo[valor]}
+      <span>{texto}</span>
     </span>
   )
 }

@@ -57,6 +57,7 @@ describe('AuthService', () => {
       cargo: null,
       dependencia: null,
       rol: RolUsuario.Cargador,
+      responsableProcesoInstitucional: false,
       activo: true,
       idExterno: null,
       origenDato: 'Manual',

@@ -66,7 +66,8 @@ import {
   formatoVisorDesdeArchivo,
   formatearFecha,
   formatearPuntaje,
-  obtenerNombrePrograma,
+  mapearEvidenciaDesdeApi,
+  obtenerNombreProgramaEvidencia,
 } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 
@@ -166,18 +167,16 @@ function ContenidoDictamen() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, evaluaciones] = await Promise.all([
+          const [evRaw, descarga, evaluaciones] = await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
           ])
           evaluacionesPreviasRef.current = evaluaciones
+          const ev = mapearEvidenciaDesdeApi(evRaw)
           setEvidencia({
             ...ev,
-            fechaCarga:
-              typeof ev.fechaCarga === 'string'
-                ? ev.fechaCarga.slice(0, 10)
-                : new Date().toISOString().slice(0, 10),
+            fechaCarga: ev.fechaCarga.slice(0, 10),
           })
           if (descarga?.url) setUrlDocumento(descarga.url)
           setCondiciones((prev) => fusionarCondiciones(prev, evaluaciones))
@@ -626,7 +625,7 @@ function ContenidoDictamen() {
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Programa</p>
-                <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
+                <p>{obtenerNombreProgramaEvidencia(evidencia, datos.programas)}</p>
               </div>
               <div>
                 <p className="text-xs uppercase text-muted-foreground">Periodo</p>
@@ -665,7 +664,7 @@ function ContenidoDictamen() {
               <>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-primary">
-                    Checklist G1 — 9 condiciones de programa
+                    Checklist Guía 1 — 9 condiciones de programa
                   </p>
                   <span className="text-sm font-medium text-esmeralda">
                     {textoPuntajePreview}

@@ -6,6 +6,7 @@ export interface RespuestaLogin {
     nombre: string;
     correo: string;
     rol: RolUsuario;
+    responsableProcesoInstitucional: boolean;
   };
 }
 
@@ -45,7 +46,13 @@ export async function obtenerPerfilApi() {
     throw new Error(mensaje);
   }
 
-  return datos as { id: string; nombre: string; correo: string; rol: RolUsuario };
+  return datos as {
+    id: string;
+    nombre: string;
+    correo: string;
+    rol: RolUsuario;
+    responsableProcesoInstitucional: boolean;
+  };
 }
 
 export async function cerrarSesionApi(): Promise<void> {

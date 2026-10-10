@@ -21,7 +21,8 @@ import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 import {
   formatoVisorDesdeArchivo,
   formatearFecha,
-  obtenerNombrePrograma,
+  mapearEvidenciaDesdeApi,
+  obtenerNombreProgramaEvidencia,
 } from '@/lib/utilidades-siac'
 
 export default function DetalleEvidenciaAdminPage() {
@@ -56,12 +57,10 @@ function ContenidoDetalleAdmin() {
           obtenerEvidenciaApi(params.id),
           obtenerUrlDescargaApi(params.id).catch(() => null),
         ])
+        const mapeada = mapearEvidenciaDesdeApi(ev)
         setEvidencia({
-          ...ev,
-          fechaCarga:
-            typeof ev.fechaCarga === 'string'
-              ? ev.fechaCarga.slice(0, 10)
-              : new Date().toISOString().slice(0, 10),
+          ...mapeada,
+          fechaCarga: mapeada.fechaCarga.slice(0, 10),
         })
         if (descarga?.url) {
           setUrlDocumento(descarga.url)
@@ -130,7 +129,7 @@ function ContenidoDetalleAdmin() {
           <CardContent className="space-y-4 pt-6 text-sm">
             <div>
               <p className="text-xs uppercase text-muted-foreground">Programa</p>
-              <p>{obtenerNombrePrograma(evidencia.programaId, datos.programas)}</p>
+              <p>{obtenerNombreProgramaEvidencia(evidencia, datos.programas)}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Periodo</p>

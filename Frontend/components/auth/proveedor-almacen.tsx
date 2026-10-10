@@ -43,6 +43,7 @@ import type {
   EstadoEvidencia,
   Plantilla,
 } from '@/lib/tipos'
+import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
 interface ContextoAlmacen {
@@ -96,51 +97,55 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       const local = leerAlmacenLocal() ?? crearDatosIniciales()
 
       if (apiDisponible()) {
-        try {
-          const [evResp, plantillas, anexos, alertas, programas] = await Promise.all([
+        const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
+          await Promise.allSettled([
             // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
             listarEvidenciasApi({ limite: 100 }),
             listarPlantillasApi(),
             listarVigenciasApi(),
-            listarNotificacionesApi().catch(() => []),
-            listarProgramasApi().catch(() => []),
+            listarNotificacionesApi(),
+            listarProgramasApi(),
           ])
 
-          const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
+        const evResp =
+          evResult.status === 'fulfilled'
+            ? evResult.value
+            : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
+        const plantillas =
+          plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
+        const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
+        const alertas =
+          alertasResult.status === 'fulfilled' ? alertasResult.value : []
+        const programas =
+          programasResult.status === 'fulfilled' ? programasResult.value : []
 
-          const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
-            ...a,
-            fechaVencimiento: typeof a.fechaVencimiento === 'string'
-              ? a.fechaVencimiento.slice(0, 10)
-              : a.fechaVencimiento,
-          }))
+        const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
 
-          const alertasMapeadas = (alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]).map(
-            (a) => ({
-              id: a.id,
-              mensaje: a.mensaje,
-              leida: a.leida,
-              fecha: a.createdAt.slice(0, 10),
-            }),
-          )
+        const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
+          ...a,
+          fechaVencimiento: typeof a.fechaVencimiento === 'string'
+            ? a.fechaVencimiento.slice(0, 10)
+            : a.fechaVencimiento,
+        }))
 
-          setDatos({
-            ...local,
-            programas,
-            evidencias,
-            plantillas,
-            anexosVigencia: anexosMapeados,
-            alertas: alertasMapeadas,
-          })
-          return
-        } catch {
-          setDatos({
-            ...crearDatosIniciales(),
-            evidencias: [],
-            plantillas: [],
-          })
-          return
-        }
+        const alertasMapeadas = (
+          alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]
+        ).map((a) => ({
+          id: a.id,
+          mensaje: a.mensaje,
+          leida: a.leida,
+          fecha: a.createdAt.slice(0, 10),
+        }))
+
+        setDatos({
+          ...local,
+          programas,
+          evidencias,
+          plantillas,
+          anexosVigencia: anexosMapeados,
+          alertas: alertasMapeadas,
+        })
+        return
       }
 
       setDatos({
@@ -151,6 +156,15 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     }
 
     cargarDatos()
+  }, [])
+
+  useEffect(() => {
+    return suscribirProgramasActualizados(() => {
+      if (!apiDisponible()) return
+      void listarProgramasApi().then((programas) => {
+        setDatos((prev) => ({ ...prev, programas }))
+      })
+    })
   }, [])
 
   const persistir = useCallback((actualizador: (prev: DatosPrototipo) => DatosPrototipo) => {
@@ -175,7 +189,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       }
       const formData = new FormData()
       formData.append('nombre', evidencia.nombre)
-      formData.append('programaId', evidencia.programaId)
+      if (evidencia.programaId) {
+        formData.append('programaId', evidencia.programaId)
+      }
       formData.append('periodo', evidencia.periodo)
       formData.append('archivo', archivo)
       if (opciones?.codigoGuia) {

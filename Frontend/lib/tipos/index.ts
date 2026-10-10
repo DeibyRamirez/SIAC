@@ -152,6 +152,7 @@ export interface SesionUsuario {
   nombre: string
   correo: string
   rol: RolUsuario
+  responsableProcesoInstitucional?: boolean
 }
 
 export interface CondicionDecreto {
