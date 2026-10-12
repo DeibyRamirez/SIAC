@@ -11,4 +11,5 @@ export const configuracionEnv = () => ({
   s3BucketDocumentos: process.env.S3_BUCKET_DOCUMENTOS ?? 'documentos',
   tiApiUrl: process.env.TI_API_URL ?? '',
   tiApiToken: process.env.TI_API_TOKEN ?? '',
+  cifrasApiKey: process.env.CIFRAS_API_KEY ?? '',
 });

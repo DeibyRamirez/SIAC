@@ -1,4 +1,4 @@
-export type FuenteCifras = 'Semilla' | 'BaseDatos' | 'ApiInstitucional'
+export type FuenteCifras = 'API' | 'EXCEL' | 'SEMILLA' | 'MIXTA'
 
 export type FormatoIndicador = 'entero' | 'porcentaje' | 'decimal' | 'texto'
 
@@ -9,12 +9,23 @@ export interface PuntoSerieCifras {
   valor: number
 }
 
+export interface DesgloseCifra {
+  dimension?: string
+  valorDimension?: string
+  facultad?: string
+  valor: number
+}
+
 export interface IndicadorCifras {
   id: string
   etiqueta: string
   valor: number | string
   unidad: string
   formato: FormatoIndicador
+  clave?: string
+  total?: number
+  fuente?: FuenteCifras
+  desglose?: DesgloseCifra[]
 }
 
 export interface SerieCifras {
@@ -42,7 +53,23 @@ export interface RespuestaCifras {
   meta: MetaCifras
   indicadores: IndicadorCifras[]
   series: SerieCifras[]
+  periodosDisponibles?: string[]
   filtrosDisponibles?: FiltrosDisponiblesCifras
+}
+
+export interface VariableCifraResumen {
+  clave: string
+  etiquetaCuac: string
+  descripcion?: string
+  unidad: string
+  dimensiones: string[]
+}
+
+export interface VariableCifra extends VariableCifraResumen {
+  id: string
+  categoriaId: string
+  activo: boolean
+  actualizadoEn: string
 }
 
 export interface CategoriaCifras {
@@ -50,6 +77,7 @@ export interface CategoriaCifras {
   titulo: string
   descripcion: string
   disponible: boolean
+  variables?: VariableCifraResumen[]
 }
 
 export interface RespuestaEmbedPowerBi {

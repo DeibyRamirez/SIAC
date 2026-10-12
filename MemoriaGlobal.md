@@ -392,7 +392,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ## 8. Estado actual (2026-10-10)
 
-El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK.
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK.
 
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
@@ -487,6 +487,18 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-12 — S3-01 / HU-009: cifras institucionales + ingesta API/Excel
+
+- [Backend] Migración `20261012120000_cifras_institucionales`: enum `FuenteCifra` (API|EXCEL|SEMILLA) y modelos `VariableCifra`, `CargaCifras`, `CifraIndicador` (upsert lógico por variable/periodo/facultad/programa/sede/dimension/valorDimension). Aplicada con `prisma migrate deploy` sin perder datos (drift varchar/text preexistente no relacionado; `prisma migrate dev` sigue bloqueado por ese drift).
+- [Backend] Seed `prisma/datos/variables-cifras.json`: 35 variables en 8 categorías; `pnpm prisma:seed` las upsertea (etiqueta CUAC editable).
+- [Backend] `CifrasPrismaService` proveedor por defecto; `CifrasSemillaService` solo respaldo (fuente SEMILLA) cuando no hay datos.
+- [Backend] Endpoints `/api/v1/cifras`: `GET /categorias`, `GET /variables`, `PATCH /variables/:id`, `GET /:categoriaId` (compatible `GET /estudiantes`), `GET /:categoriaId/plantilla` (.xlsx con hojas «datos» y «variables»), `POST /:categoriaId/ingesta` (header `x-api-key` contra `CIFRAS_API_KEY`, comparación timing-safe) y `POST /:categoriaId/importar` (exceljs, máx. 5 MB, errores por fila en español).
+- [Backend] Tests: `cifras-importacion.service.spec.ts` (fila válida, clave inexistente, periodo inválido, valor no numérico, upsert reemplaza, parcial, SNIES) y `cifras-api-key.guard.spec.ts`; Jest 204/204.
+- [Frontend] `lib/tipos/cifras.ts` alineado (`API|EXCEL|SEMILLA`, `DesgloseCifra`, `VariableCifra`, `periodosDisponibles`); sin cambios de UI.
+- [Verificación] Smoke end-to-end: plantilla de profesores + 5 filas → `GET /cifras/profesores?periodo=2025-2` fuente EXCEL y etiquetas CUAC; ingesta sin/con clave inválida 401; estudiantes sin datos → fuente SEMILLA; DOCX/comentarios/checklist cubiertos por suite Jest.
+- [Backend] Ajustes pre-commit (12/10): periodo validado con `@Matches(/^\d{4}(-[12])?$/)` en consulta e ingesta (mensaje «El periodo debe tener formato AAAA-S (ej. 2026-1) o AAAA.») y misma regla por fila en Excel; `meta.fuente` = `MIXTA` si el periodo mezcla fuentes y `fuente` por indicador; dimensión validada contra `VariableCifra.dimensiones` (nombre canónico, tolerante a mayúsculas/acentos); specs de DTO/dimensiones/fuente MIXTA (Jest 222/222).
+- [Operación] Script puntual `pnpm datos:limpiar-cifras-prueba -- --ejecutar --permitir-bd-remota`: eliminó 6 indicadores y 4 cargas de prueba de `profesores`/`2025-2` (respaldo JSON en `Backend/respaldos/`).
 
 ### 2026-10-10 — Cierre verificado Etapa 2 / Sprint 2
 

@@ -6,6 +6,8 @@
  */
 import { PrismaClient, RolUsuario, OrigenDato } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const prisma = new PrismaClient();
 
@@ -84,7 +86,40 @@ async function main() {
     },
   });
 
-  console.log('Semilla completada:', { usuarios: USUARIOS_SEMILLA.length, configuracion: 'global' });
+  // HU-009: diccionario de variables de cifras institucionales (8 categorías).
+  const rutaVariables = join(__dirname, 'datos', 'variables-cifras.json');
+  const variables = JSON.parse(readFileSync(rutaVariables, 'utf-8')) as Array<{
+    categoriaId: string;
+    clave: string;
+    etiquetaCuac: string;
+    descripcion?: string;
+    unidad: string;
+    dimensiones: string[];
+  }>;
+
+  for (const variable of variables) {
+    await prisma.variableCifra.upsert({
+      where: {
+        categoriaId_clave: {
+          categoriaId: variable.categoriaId,
+          clave: variable.clave,
+        },
+      },
+      update: {
+        etiquetaCuac: variable.etiquetaCuac,
+        descripcion: variable.descripcion,
+        unidad: variable.unidad,
+        dimensiones: variable.dimensiones,
+      },
+      create: variable,
+    });
+  }
+
+  console.log('Semilla completada:', {
+    usuarios: USUARIOS_SEMILLA.length,
+    configuracion: 'global',
+    variablesCifras: variables.length,
+  });
 }
 
 main()

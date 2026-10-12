@@ -111,6 +111,13 @@ enum OrigenDato {
   Manual
 }
 
+/// HU-009: origen de las cifras institucionales ingeridas.
+enum FuenteCifra {
+  API
+  EXCEL
+  SEMILLA
+}
+
 model Usuario {
   id                   String        @id @default(cuid())
   codigoInstitucional  String?       @db.VarChar(50)
@@ -173,6 +180,7 @@ model Programa {
   evidencias          Evidencia[]
   anexos              AnexoVigencia[]
   resoluciones        ResolucionMen[]
+  cifras              CifraIndicador[]
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -492,4 +500,68 @@ model DocumentoRequerido {
   evidencias             Evidencia[]
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
+}
+
+/// HU-009: diccionario de variables de cifras institucionales por categoría («clave» única).
+model VariableCifra {
+  id           String   @id @default(cuid())
+  categoriaId  String
+  clave        String
+  etiquetaCuac String
+  descripcion  String?
+  /// conteo | porcentaje | m2 | capacidad
+  unidad       String   @default("conteo")
+  /// Nombres de dimensión admitidos (ej. ["facultad", "vinculacion"]).
+  dimensiones  String[]
+  activo       Boolean  @default(true)
+  cifras       CifraIndicador[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([categoriaId, clave])
+  @@index([categoriaId, activo])
+}
+
+/// HU-009: auditoría de cada carga de cifras (API o Excel).
+model CargaCifras {
+  id            String          @id @default(cuid())
+  categoriaId   String
+  fuente        FuenteCifra
+  nombreArchivo String?
+  filasOk       Int
+  filasError    Int
+  errores       Json?
+  usuarioId     String?
+  cifras        CifraIndicador[]
+  createdAt     DateTime        @default(now())
+
+  @@index([categoriaId, createdAt])
+}
+
+/// HU-009: valor de una variable para un periodo con desglose opcional.
+/// Upsert lógico en el servicio: (variable, periodo, facultad, programa, sede, dimension, valorDimension) reemplaza.
+model CifraIndicador {
+  id             String        @id @default(cuid())
+  categoriaId    String
+  variableId     String
+  variable       VariableCifra @relation(fields: [variableId], references: [id])
+  /// AAAA-S (ej. 2026-1) o AAAA.
+  periodo        String
+  facultad       String?
+  programaId     String?
+  programa       Programa?     @relation(fields: [programaId], references: [id])
+  sede           String?
+  dimension      String?
+  valorDimension String?
+  valor          Decimal       @db.Decimal(14, 2)
+  fuente         FuenteCifra
+  cargaId        String?
+  carga          CargaCifras?  @relation(fields: [cargaId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([categoriaId, periodo])
+  @@index([variableId, periodo])
+  @@index([cargaId])
+  @@index([programaId])
 }
