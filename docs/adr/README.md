@@ -5,3 +5,4 @@ Las ADR-001 a ADR-006 están resumidas en [Etapa 0](../etapa-0/README.md) (tabla
 | N.º | Decisión | Estado | Fecha |
 |-----|----------|--------|-------|
 | [ADR-007](ADR-007-pilas-de-pruebas.md) | Jest + supertest en el backend y Vitest + Testing Library en el frontend | Aceptada | 06/10/2026 |
+| [ADR-008](ADR-008-correo-resend-smtp.md) | Correo Resend (dev) + SMTP (prod); espejo del mensaje in-app | Aceptada | 09/10/2026 |

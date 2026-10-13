@@ -11,4 +11,12 @@ export const configuracionEnv = () => ({
   s3BucketDocumentos: process.env.S3_BUCKET_DOCUMENTOS ?? 'documentos',
   tiApiUrl: process.env.TI_API_URL ?? '',
   tiApiToken: process.env.TI_API_TOKEN ?? '',
+  correoCanal: process.env.CORREO_CANAL ?? '',
+  resendApiKey: process.env.RESEND_API_KEY ?? '',
+  correoDesde:
+    process.env.CORREO_DESDE ??
+    process.env.CORREO_REMITENTE ??
+    process.env.SMTP_FROM ??
+    '',
+  resendCorreoSandbox: process.env.RESEND_CORREO_SANDBOX ?? '',
 });
