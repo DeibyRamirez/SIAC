@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
+import { DialogoEditarUsuario } from '@/components/siac/dialogo-editar-usuario'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -55,6 +56,8 @@ function ContenidoUsuarios() {
   const [dependencia, setDependencia] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [idDesactivar, setIdDesactivar] = useState<string | null>(null)
+  const [usuarioEditar, setUsuarioEditar] = useState<UsuarioApi | null>(null)
+  const [idReactivar, setIdReactivar] = useState<string | null>(null)
 
   async function cargarUsuarios() {
     if (!apiDisponible()) {
@@ -114,13 +117,16 @@ function ContenidoUsuarios() {
     }
   }
 
-  async function reactivar(id: string) {
+  async function confirmarReactivar() {
+    if (!idReactivar) return
     try {
-      const actualizado = await actualizarUsuarioApi(id, { activo: true })
-      setUsuarios((prev) => prev.map((u) => (u.id === id ? actualizado : u)))
+      const actualizado = await actualizarUsuarioApi(idReactivar, { activo: true })
+      setUsuarios((prev) => prev.map((u) => (u.id === idReactivar ? actualizado : u)))
       toast.success('Usuario reactivado.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo reactivar el usuario.')
+    } finally {
+      setIdReactivar(null)
     }
   }
 
@@ -129,7 +135,7 @@ function ContenidoUsuarios() {
       <EncabezadoPagina
         etiqueta="HU-011"
         titulo="Gestión de usuarios"
-        descripcion="Crea y administra perfiles con acceso al sistema SIAC."
+        descripcion="Crea y administra perfiles con acceso al sistema SIAC. Los usuarios no se eliminan de la base de datos; solo se desactivan."
       />
 
       <Card>
@@ -218,20 +224,33 @@ function ContenidoUsuarios() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {usuario.activo ? (
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-fucsia/30 text-fucsia"
-                        onClick={() => setIdDesactivar(usuario.id)}
+                        onClick={() => setUsuarioEditar(usuario)}
                       >
-                        Desactivar
+                        Editar
                       </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => reactivar(usuario.id)}>
-                        Reactivar
-                      </Button>
-                    )}
+                      {usuario.activo ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-fucsia/30 text-fucsia"
+                          onClick={() => setIdDesactivar(usuario.id)}
+                        >
+                          Desactivar
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIdReactivar(usuario.id)}
+                        >
+                          Reactivar
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -239,14 +258,30 @@ function ContenidoUsuarios() {
           </Table>
         </div>
       )}
+      <DialogoEditarUsuario
+        usuario={usuarioEditar}
+        abierto={Boolean(usuarioEditar)}
+        onCerrar={() => setUsuarioEditar(null)}
+        onGuardado={(actualizado) => {
+          setUsuarios((prev) => prev.map((u) => (u.id === actualizado.id ? actualizado : u)))
+        }}
+      />
       <DialogoConfirmacion
         abierto={Boolean(idDesactivar)}
         titulo="¿Desactivar usuario?"
-        descripcion="El usuario no podrá iniciar sesión hasta que sea reactivado."
+        descripcion="El usuario no podrá iniciar sesión hasta que sea reactivado. El registro permanece en el sistema (baja lógica)."
         etiquetaConfirmar="Sí, desactivar"
         variant="destructive"
         onConfirmar={confirmarDesactivar}
         onCancelar={() => setIdDesactivar(null)}
+      />
+      <DialogoConfirmacion
+        abierto={Boolean(idReactivar)}
+        titulo="¿Reactivar usuario?"
+        descripcion="El usuario volverá a poder iniciar sesión con sus credenciales actuales."
+        etiquetaConfirmar="Sí, reactivar"
+        onConfirmar={confirmarReactivar}
+        onCancelar={() => setIdReactivar(null)}
       />
     </div>
   )

@@ -50,14 +50,19 @@ export class UsuariosController {
 
   @Patch(':id')
   @Roles(RolUsuario.SuperAdmin)
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarUsuarioDto) {
-    return this.usuariosService.actualizar(id, dto);
+  actualizar(
+    @Param('id') id: string,
+    @Body() dto: ActualizarUsuarioDto,
+    @Request() req: { user: UsuarioAlcance },
+  ) {
+    return this.usuariosService.actualizar(req.user.id, id, dto);
   }
 
+  /** Baja lógica: activo=false. No elimina el registro en base de datos. */
   @Delete(':id')
   @Roles(RolUsuario.SuperAdmin)
-  desactivar(@Param('id') id: string) {
-    return this.usuariosService.desactivar(id);
+  desactivar(@Param('id') id: string, @Request() req: { user: UsuarioAlcance }) {
+    return this.usuariosService.desactivar(req.user.id, id);
   }
 
   @Get(':id/programas')
