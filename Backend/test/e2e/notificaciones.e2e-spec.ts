@@ -9,6 +9,7 @@ import {
 import { asignarPrograma, crearPrograma } from '../utilidades/datos-e2e';
 import { MIME_DOCX, crearDocxE2E } from '../utilidades/docx-e2e';
 import type { ContextoE2E } from '../utilidades/app-e2e';
+import { diaCalendarioLocal } from '../../src/vigencias/vigencias.service';
 
 const CONDICIONES_G1 = [
   'Denominacion',
@@ -22,10 +23,9 @@ const CONDICIONES_G1 = [
   'Infraestructura',
 ] as const;
 
+/** Mañana en la zona del servidor (no en UTC), igual que el cron de vigencias. */
 function fechaIsoManana(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return diaCalendarioLocal(1);
 }
 
 /**

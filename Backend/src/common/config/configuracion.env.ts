@@ -1,3 +1,23 @@
+const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r=';
+
+/**
+ * Valida una URL opcional de «Publicar en la web» de Power BI (HU-009).
+ * Devuelve la URL limpia si empieza por https://app.powerbi.com/view?r= y trae `r`;
+ * en otro caso devuelve '' (sin configurar o inválida → se usa el respaldo Recharts).
+ */
+export function normalizarUrlPublicaPowerBi(valor: string | undefined | null): string {
+  const limpia = valor?.trim() ?? '';
+  if (!limpia.startsWith(PREFIJO_URL_PUBLICA_POWERBI)) return '';
+  try {
+    const url = new URL(limpia);
+    return url.hostname === 'app.powerbi.com' && url.pathname === '/view' && url.searchParams.get('r')
+      ? limpia
+      : '';
+  } catch {
+    return '';
+  }
+}
+
 export const configuracionEnv = () => ({
   puerto: parseInt(process.env.PUERTO ?? '3001', 10),
   jwtSecreto: process.env.JWT_SECRETO ?? 'dev-secreto-siac',
@@ -20,4 +40,8 @@ export const configuracionEnv = () => ({
     '',
   resendCorreoSandbox: process.env.RESEND_CORREO_SANDBOX ?? '',
   cifrasApiKey: process.env.CIFRAS_API_KEY ?? '',
+  /** Opcional: URL pública (Publicar en la web) del informe de Estudiantes. */
+  /** Opcional: ID del informe de Estudiantes para App Owns Data (T-009.2). */
+  powerbiReportIdEstudiantes: process.env.POWERBI_REPORT_ID_ESTUDIANTES?.trim() ?? '',
+  powerbiUrlPublicaEstudiantes: normalizarUrlPublicaPowerBi(process.env.POWERBI_URL_PUBLICA_ESTUDIANTES),
 });

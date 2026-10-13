@@ -118,6 +118,7 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-005 | Copia local maestros + adapter integracion |
 | ADR-006 | Alertas in-app obligatorias; correo espejo del mensaje |
 | ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
+| ADR-009 | Power BI «Publicar en la web» (`POWERBI_MODO=publico`); App Owns Data (`embebido`) bloqueado hasta credenciales Azure. **Informes públicos sin autenticación** |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
@@ -484,6 +485,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-13 — HU-009 (T-009.3): 6 dashboards Power BI «Publicar en la web»
+
+- [Frontend] Catálogo tipado `lib/informes-powerbi.ts` con 6 categorías (aseguramiento, infraestructura, egresados, investigación, profesores, estudiantes) y su variable `NEXT_PUBLIC_POWERBI_URL_*` (lectura estática en `lib/powerbi/configuracion-powerbi.ts`; solo se aceptan URL `https://app.powerbi.com/view?r=`).
+- [Frontend] Iframe accesible (`loading="lazy"`, `allowFullScreen`, responsive); «Informe aún no publicado», respaldo Recharts (Estudiantes) y «Reintentar» si falla o tarda.
+- [Frontend] Pestaña Power BI solo para Administrador y SuperAdmin (`lib/powerbi/acceso-powerbi.ts`); `POWERBI_MODO=publico|embebido` (embebido conserva la ruta simulada).
+- [Frontend] `next.config.mjs`: CSP solo con `frame-src 'self' https://app.powerbi.com`.
+- [Docs] ADR-009 (Publicar en la web vs App Owns Data, advertencia de exposición pública).
 
 ### 2026-10-12 — Fix S3-03: filtros del panel de cifras (periodo, facultad, programa, sede)
 

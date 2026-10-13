@@ -82,7 +82,6 @@ function itemsAdministrador(): ItemNavegacion[] {
 function itemsParAcademico(): ItemNavegacion[] {
   return [
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
-    { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
   ]
 }

@@ -50,12 +50,17 @@ describe('parametros-panel-url (R-010.3a)', () => {
 })
 
 describe('acceso del Par académico (pausado)', () => {
-  it('ya no puede entrar al panel de programas, pero conserva búsqueda y dashboard', async () => {
+  it('ya no puede entrar al panel de programas ni al dashboard, pero conserva búsqueda', async () => {
     const { rutaPermitidaParAcademico } = await import('@/lib/auth-mock')
-    const { ROLES_PANEL_PROGRAMAS } = await import('@/lib/constantes/roles')
+    const { ROLES_DASHBOARD_METRICAS, ROLES_PANEL_PROGRAMAS } = await import(
+      '@/lib/constantes/roles'
+    )
     expect(rutaPermitidaParAcademico('/administrador/programas')).toBe(false)
     expect(rutaPermitidaParAcademico('/administrador/programas/p1')).toBe(false)
+    expect(rutaPermitidaParAcademico('/administrador/dashboard')).toBe(false)
     expect(rutaPermitidaParAcademico('/administrador/busqueda')).toBe(true)
+    expect(rutaPermitidaParAcademico('/administrador')).toBe(true)
     expect(ROLES_PANEL_PROGRAMAS).toEqual(['Administrador'])
+    expect(ROLES_DASHBOARD_METRICAS).toEqual(['Administrador'])
   })
 })
