@@ -116,7 +116,8 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-003 | JWT MVP; OAuth Google stub |
 | ADR-004 | `periodo` como String; factor/indicador retirados (T-REF-001), clasificación por `codigoGuia` G1–G4 |
 | ADR-005 | Copia local maestros + adapter integracion |
-| ADR-006 | Alertas in-app; SMTP opcional |
+| ADR-006 | Alertas in-app obligatorias; correo espejo del mensaje |
+| ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
@@ -125,8 +126,8 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 |----|--------|-----------|
 | B-B1 | OAuth Google real | P2 |
 | B-B2 | API TI institucional conectada | P1 |
-| B-B3 | Buckets Storage creados en Supabase Dashboard | P0 |
-| B-B4 | Semilla ejecutada en Supabase remoto | P0 |
+| ~~B-B3~~ | ~~Buckets Supabase~~ — cancelado (almacen local / servidor univ.) | — |
+| ~~B-B4~~ | ~~Semilla remota Supabase~~ — cancelado; `prisma:seed` en Postgres local | — |
 | B-B5 | Tests E2E / CI backend | P2 |
 
 ---
@@ -410,10 +411,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
 - [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
 - [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
-- [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
-- [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
-- [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
-- [ ] Semilla remota completa tras baseline (`pnpm prisma:seed`)
+- [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
+- [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
 
 ### Estado anterior (2026-09-17)
 
@@ -440,10 +439,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Modelo `EvidenciaVersion` + columnas `AnexoVigencia` (migración `20260916180000`)
 - [x] Filtro HTTP con mensajes legibles Prisma/S3 + log stack en 500
 - [x] Bandeja Revisor: API + fallback semilla; semilla backend con `EnRevision`
-- [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
-- [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
-- [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
-- [ ] Semilla remota completa tras baseline (`pnpm prisma:seed`)
+- [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
+- [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
 
 ---
 
@@ -456,8 +453,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | Schema + migración Supabase | Backend |
 | [x] | API v1 + endpoints F-03 | Backend |
 | [x] | MemoriaGlobal + docs etapa 0-1 | Docs |
-| [ ] | Crear buckets Storage Supabase | Supabase |
-| [ ] | Configurar `.env` y ejecutar semilla | Backend |
+| [x] | ~~INF-01 buckets Supabase~~ — cancelado (disco local) | — |
+| [x] | `.env` local + `prisma:seed` usuarios | Backend |
 
 ### P1 — Sprint 2 (completada en repo, 09/10/2026)
 
@@ -536,6 +533,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [CI] La CI corre `jest`, `test:e2e` (supertest sobre `postgres:16`) y `pnpm test` (Vitest). E2E del flujo CP-E2E-01 a CP-E2E-05 en `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`.
 - [Docs] T-DOC.1: jerarquía real de ClickUp (workspace `90171502668`, lista `901717352937`), HU-008 y HU-010 en curso, DoD de la Etapa 2 sin marcar hasta el cierre en ClickUp, RN-003 corregida en la Etapa 1 y se elimina el volcado de texto del backend que estaba en la raíz del repositorio.
 
+### 2026-10-09 — Notificaciones in-app + correo (Resend/SMTP)
+
+- [Backend] Módulo `correo/` (DIP): Resend en desarrollo, SMTP en producción (`CORREO_CANAL`, ADR-008). `NotificacionesDespachoService` replica cada alerta in-app por correo.
+- [Backend] Eventos: dictamen, envío a revisión (revisores con alcance), cron vigencia D-1, umbrales de avance programa (admin/par). `AlertaInApp.metadata` (JSON).
+- [Frontend] `CampanaNotificaciones`: badge (`99+`), acciones por `tipo`/`metadata`/rol (`accion-notificacion.ts`), polling 60s y recarga al abrir campana / tras dictamen.
+- [Docs/INF] Cancelados INF-01..03 Supabase remoto; arranque oficial Postgres Docker + almacen local (`docs/etapa-3`).
+
 ### 2026-09-30 — Arquitectura catálogo API + dominio SIAC
 
 - [Backend] Migración `20260930140000_corregir_pesos_tramite_guia`: corrige `pesoPorcentaje` en `TramiteDocumentoGuia` (trámites de 2 guías sumaban 200 % por el default de la migración de relleno).
@@ -573,6 +577,15 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Frontend] Biblioteca plantillas: dos accesos (Renovación / Nuevos). HU-008: página evidencias con Server Component y filtros en URL.
 - [Backend] `urlImagen` en `Programa`; enums G1–G4, `TipoTramiteSIAC`, catálogo trámites; `AvanceProcesoSIACService` con peso igual por documento guía; semáforo/estadoProceso derivados en listado programas (RN-003 + rechazos).
 - [Backend] `GET /evidencias/:id/evaluaciones-condicion?numeroRevision=N`; mis revisiones enriquecidas con puntaje y observaciones por ciclo.
+
+### 2026-10-13 — Correo Resend (dev)
+
+- [Backend] `CORREO_REMITENTE` como alias de `CORREO_DESDE`; `RESEND_CORREO_SANDBOX` redirige envíos en desarrollo (modo prueba Resend). Producción CUAC: `CORREO_CANAL=smtp`.
+
+### 2026-10-12 — HU-011 SuperAdmin: edición de usuarios
+
+- [Frontend] `/superadmin/usuarios`: diálogo **Editar** (nombre, cargo, dependencia, rol, contraseña opcional; correo solo lectura) con `DialogoConfirmacion` antes de guardar; reactivar con confirmación; copy de baja lógica (no borrado en BD).
+- [Backend] `POST`/`PATCH` usuarios devuelven el registro sin `contrasena`; `DELETE` sigue siendo desactivación (`activo: false`). No auto-desactivación; al menos un SuperAdmin activo al desactivar o bajar rol.
 
 ### 2026-09-28 — Alcance por programa (inicio Sprint 2)
 

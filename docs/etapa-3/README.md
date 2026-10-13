@@ -34,11 +34,22 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | POST | `/api/aprobacion/:id/dictaminar` | HU-006 |
 | GET/POST/PATCH/DELETE | `/api/vigencias` | HU-007 |
 | POST | `/api/vigencias/ejecutar-cron` | HU-007 |
-| GET | `/api/notificaciones` | HU-006/007 |
+| GET | `/api/v1/notificaciones` | HU-006/007 |
+| PATCH | `/api/v1/notificaciones/:id/leida` | Alertas in-app |
+| PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
 | GET | `/api/v1/cifras/categorias` | HU-009 (cifras) |
 | GET | `/api/v1/cifras/estudiantes?periodo=` | HU-009 (cifras estudiantes) |
 | GET | `/api/v1/powerbi/embed-token?categoriaId=estudiantes` | HU-009 |
 | CRUD | `/api/estructura/*` | Estructura normativa |
+
+### Entorno de desarrollo (Postgres + correo)
+
+1. `docker compose up -d` (Postgres en `localhost:5433`).
+2. `cd Backend` → copiar `.env.example` → `.env`.
+3. `pnpm prisma:deploy` → `pnpm prisma:seed` (usuarios por rol).
+4. Correo en dev: `CORREO_CANAL=resend` + `RESEND_API_KEY`. Producción: `CORREO_CANAL=smtp` y variables SMTP institucionales (ADR-008).
+
+Tareas de infra **canceladas** respecto a Supabase remoto: INF-01 (buckets), INF-02 (baseline remoto), INF-03 (semilla remota de negocio).
 
 ### Variables de entorno — Power BI / cifras (HU-009)
 

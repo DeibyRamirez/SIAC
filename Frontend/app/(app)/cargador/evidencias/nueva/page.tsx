@@ -85,7 +85,7 @@ function inferirSeleccionDesdeNombre(
 function ContenidoNuevaEvidencia() {
   const router = useRouter()
   const { sesion } = usarSesion()
-  const { crearEvidencia, actualizarEvidencia } = usarAlmacen()
+  const { crearEvidencia, actualizarEvidencia, recargarAlertas } = usarAlmacen()
   const [programas, setProgramas] = useState<Programa[]>([])
   const [modalidad, setModalidad] = useState<ModalidadTramiteUI | null>(null)
   const [alcance, setAlcance] = useState<AlcanceTramiteUI | null>(null)
@@ -288,6 +288,7 @@ function ContenidoNuevaEvidencia() {
       if (enviarARevision) {
         if (apiDisponible()) {
           await enviarRevisionApi(creada.id)
+          await recargarAlertas()
         } else {
           actualizarEvidencia(creada.id, { estado: 'EnRevision' })
         }

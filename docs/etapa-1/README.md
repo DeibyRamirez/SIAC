@@ -21,11 +21,10 @@ Establecer infraestructura backend real sobre **Supabase** (PostgreSQL + Storage
 ### Checklist de configuración
 
 - [x] Migración inicial aplicada (12 tablas + enums F-03)
-- [ ] Crear buckets Storage: `evidencias`, `plantillas`, `documentos` (Dashboard → Storage)
+- [x] ~~INF-01 Buckets Supabase~~ — **cancelado**: desarrollo usa `S3_USAR_ALMACEN_LOCAL=true` (`Backend/almacen-local`); producción en ruta/S3 universidad
 - [ ] Verificar esquema: `pnpm prisma:verify` (tabla `EvidenciaVersion`)
-- [ ] Configurar S3 Access Keys (Dashboard → Storage → S3 Connection)
-- [ ] Copiar `Backend/.env.example` → `Backend/.env` con credenciales reales
-- [ ] Ejecutar semilla: `pnpm prisma:seed`
+- [x] Copiar `Backend/.env.example` → `Backend/.env` (Postgres Docker `localhost:5433`)
+- [x] Semilla usuarios: `pnpm prisma:seed` (un usuario por rol; sin datos de negocio)
 
 ### Variables de entorno backend
 

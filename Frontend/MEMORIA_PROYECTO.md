@@ -209,6 +209,12 @@ GET/POST/PATCH/DELETE /api/plantillas
 
 En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backend solo se reemplaza la capa de persistencia.
 
+### Notificaciones in-app (campana superior)
+
+- `GET /notificaciones` alimenta `datos.alertas` en `ProveedorAlmacen` (polling 60s + recarga al abrir la campana).
+- [`CampanaNotificaciones`](components/layout/campana-notificaciones.tsx): badge numérico (`99+`), `aria-label`, lista de pendientes.
+- Navegación por [`resolverAccionNotificacion`](lib/utilidades/accion-notificacion.ts) según `tipo`, `metadata` (evidencia/programa/anexo) y rol del JWT.
+
 ---
 
 ## 9. Brechas conocidas (fuera del prototipo actual)
@@ -219,7 +225,7 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 | B2 | Subida real S3 / parseo PDF-Excel | P0 | HU ingesta de datos |
 | B3 | Power BI Embedded (Azure tokens) | P1 | Tab placeholder existe |
 | B4 | OAuth / Google login real | P1 | Botón mock en login |
-| B5 | Notificaciones email + cron vigencias | P1 | Alertas solo in-app mock |
+| B5 | Notificaciones email + cron vigencias | P1 | Backend + Resend; campana superior (`CampanaNotificaciones`) con badge y navegación por `tipo`/`metadata`/`rol` |
 | B6 | Middleware server-side de auth | P1 | Guardia solo en cliente |
 | B7 | Full-text search + filtros URL | P2 | Búsqueda global mock |
 | B8 | Tests automatizados / CI | P2 | Sin pipeline GitHub Actions |

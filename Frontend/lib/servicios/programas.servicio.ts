@@ -92,9 +92,20 @@ export async function obtenerUrlDescargaVigenciaApi(id: string) {
 }
 
 export async function listarNotificacionesApi() {
-  return peticionApi<{ id: string; mensaje: string; leida: boolean; createdAt: string }[]>(
-    '/notificaciones',
-  );
+  return peticionApi<
+    {
+      id: string
+      mensaje: string
+      leida: boolean
+      createdAt: string
+      tipo?: string
+      metadata?: Record<string, unknown> | null
+    }[]
+  >('/notificaciones');
+}
+
+export async function marcarTodasNotificacionesLeidasApi() {
+  return peticionApi('/notificaciones/marcar-todas-leidas', { method: 'PATCH' });
 }
 
 export async function marcarNotificacionLeidaApi(id: string) {

@@ -106,7 +106,7 @@ flowchart TB
 - Sin aplicación móvil nativa (web responsive)
 - Sin microservicios
 - Sin encuestas institucionales
-- Sin Docker/MinIO en desarrollo (Supabase es el entorno dev)
+- Desarrollo: Postgres Docker + almacenamiento en disco (`Backend/almacen-local`); Supabase remoto queda como legado histórico
 
 ## Convención API adoptada
 
