@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { normalizarUrlPublicaPowerBi } from '../common/config/configuracion.env';
+
 export interface EmbedTokenRespuesta {
   embedUrl: string;
   embedToken: string | null;
@@ -9,9 +11,6 @@ export interface EmbedTokenRespuesta {
   fallback: boolean;
   mensaje?: string;
 }
-
-const VISTA_PUBLICA_ESTUDIANTES_DEFECTO =
-  'https://app.powerbi.com/view?r=eyJrIjoiZWUzZTdjOTEtNzZkZi00ZjM1LTkwYjYtMmU0ZjY3ZWQ2NTdiIiwidCI6ImU4MjE0OTM3LTIzM2ItNGIzNi04NmJmLTBiNWYzMzM3YmVlMSIsImMiOjF9';
 
 const REPORT_ID_ESTUDIANTES_DEFECTO = 'ee3e7c91-76df-4f35-90b6-2e4f67ed6567';
 
@@ -64,9 +63,22 @@ export class PowerBiService {
       REPORT_ID_ESTUDIANTES_DEFECTO;
     const workspaceId = this.config.get('POWERBI_WORKSPACE_ID') ?? 'demo-workspace';
     const clientId = this.config.get('POWERBI_CLIENT_ID');
-    const vistaPublica =
-      this.config.get<string>('POWERBI_VISTA_PUBLICA_ESTUDIANTES')?.trim() ||
-      VISTA_PUBLICA_ESTUDIANTES_DEFECTO;
+    // URL de «Publicar en la web» solo desde el entorno; sin valor por defecto en el código.
+    const vistaPublica = normalizarUrlPublicaPowerBi(
+      this.config.get<string>('POWERBI_URL_PUBLICA_ESTUDIANTES'),
+    );
+
+    if (!clientId && !vistaPublica) {
+      return {
+        embedUrl: '',
+        embedToken: null,
+        reportId,
+        categoriaId: 'estudiantes',
+        fallback: true,
+        mensaje:
+          'Informe público de Estudiantes no configurado (POWERBI_URL_PUBLICA_ESTUDIANTES). Usar gráficos nativos Recharts.',
+      };
+    }
 
     if (!clientId) {
       return {
