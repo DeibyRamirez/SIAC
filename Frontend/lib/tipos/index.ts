@@ -140,11 +140,22 @@ export interface AnexoVigencia {
   porcentajeTranscurrido?: number
 }
 
+export interface MetadataNotificacion {
+  evidenciaId?: string
+  programaId?: string
+  anexoId?: string
+  umbral?: string
+  avance?: number
+}
+
 export interface AlertaInApp {
   id: string
   mensaje: string
   fecha: string
   leida: boolean
+  tipo?: string
+  metadata?: MetadataNotificacion | null
+  createdAt?: string
 }
 
 export interface SesionUsuario {

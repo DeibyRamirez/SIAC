@@ -33,8 +33,10 @@ import {
   listarVigenciasApi,
   listarNotificacionesApi,
   marcarNotificacionLeidaApi,
+  marcarTodasNotificacionesLeidasApi,
 } from '@/lib/servicios/programas.servicio'
 import type {
+  AlertaInApp,
   AnexoVigencia,
   CarpetaNormativa,
   DocumentoRequerido,
@@ -43,6 +45,7 @@ import type {
   EstadoEvidencia,
   Plantilla,
 } from '@/lib/tipos'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
@@ -72,6 +75,8 @@ interface ContextoAlmacen {
   actualizarAnexoVigencia: (id: string, cambios: Partial<AnexoVigencia>) => void
   eliminarAnexoVigencia: (id: string) => void
   marcarAlertaLeida: (id: string) => void
+  marcarTodasAlertasLeidas: () => void
+  recargarAlertas: () => Promise<void>
   crearEtapa: (etapa: Omit<EtapaAcreditacion, 'id'>) => void
   actualizarEtapa: (id: string, cambios: Partial<EtapaAcreditacion>) => void
   eliminarEtapa: (id: string) => void
@@ -85,11 +90,46 @@ interface ContextoAlmacen {
 
 const ContextoAlmacenSiac = createContext<ContextoAlmacen | null>(null)
 
+function mapearMetadataNotificacion(
+  crudo: Record<string, unknown> | null | undefined,
+): AlertaInApp['metadata'] {
+  if (!crudo || typeof crudo !== 'object') return null
+  const meta: AlertaInApp['metadata'] = {}
+  if (typeof crudo.evidenciaId === 'string') meta.evidenciaId = crudo.evidenciaId
+  if (typeof crudo.programaId === 'string') meta.programaId = crudo.programaId
+  if (typeof crudo.anexoId === 'string') meta.anexoId = crudo.anexoId
+  if (typeof crudo.umbral === 'string') meta.umbral = crudo.umbral
+  if (typeof crudo.avance === 'number') meta.avance = crudo.avance
+  return Object.keys(meta).length > 0 ? meta : null
+}
+
+function mapearAlertasDesdeApi(
+  alertas: {
+    id: string
+    mensaje: string
+    leida: boolean
+    createdAt: string
+    tipo?: string
+    metadata?: Record<string, unknown> | null
+  }[],
+) {
+  return alertas.map((a) => ({
+    id: a.id,
+    mensaje: a.mensaje,
+    leida: a.leida,
+    tipo: a.tipo,
+    fecha: a.createdAt.slice(0, 10),
+    createdAt: a.createdAt,
+    metadata: mapearMetadataNotificacion(a.metadata),
+  }))
+}
+
 function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}`
 }
 
 export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
+  const { sesion } = usarSesion()
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
 
   useEffect(() => {
@@ -128,14 +168,15 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             : a.fechaVencimiento,
         }))
 
-        const alertasMapeadas = (
-          alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]
-        ).map((a) => ({
-          id: a.id,
-          mensaje: a.mensaje,
-          leida: a.leida,
-          fecha: a.createdAt.slice(0, 10),
-        }))
+        const alertasMapeadas = mapearAlertasDesdeApi(
+          alertas as {
+            id: string
+            mensaje: string
+            leida: boolean
+            createdAt: string
+            tipo?: string
+          }[],
+        )
 
         setDatos({
           ...local,
@@ -157,6 +198,33 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
 
     cargarDatos()
   }, [])
+
+  const recargarAlertas = useCallback(async () => {
+    if (!apiDisponible()) return
+    try {
+      const alertas = await listarNotificacionesApi()
+      const alertasMapeadas = mapearAlertasDesdeApi(alertas)
+      setDatos((prev) => ({ ...prev, alertas: alertasMapeadas }))
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[SIAC] No se pudieron cargar notificaciones:', error)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!apiDisponible() || !sesion?.usuarioId) return
+    void recargarAlertas()
+  }, [sesion?.usuarioId, recargarAlertas])
+
+  useEffect(() => {
+    if (!apiDisponible()) return
+    const intervalo = window.setInterval(() => {
+      if (!sesion?.usuarioId) return
+      void recargarAlertas()
+    }, 60_000)
+    return () => window.clearInterval(intervalo)
+  }, [recargarAlertas, sesion?.usuarioId])
 
   useEffect(() => {
     return suscribirProgramasActualizados(() => {
@@ -246,6 +314,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
             observaciones,
             condiciones,
           })
+          await recargarAlertas()
         } catch {
           // Continúa con actualización local
         }
@@ -266,7 +335,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         ),
       }))
     },
-    [persistir],
+    [persistir, recargarAlertas],
   )
 
   const crearPlantilla = useCallback(
@@ -374,6 +443,16 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     },
     [persistir],
   )
+
+  const marcarTodasAlertasLeidas = useCallback(() => {
+    persistir((prev) => ({
+      ...prev,
+      alertas: prev.alertas.map((a) => ({ ...a, leida: true })),
+    }))
+    if (apiDisponible()) {
+      marcarTodasNotificacionesLeidasApi().catch(() => {})
+    }
+  }, [persistir])
 
   const crearEtapa = useCallback(
     (etapa: Omit<EtapaAcreditacion, 'id'>) => {
@@ -490,6 +569,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       actualizarAnexoVigencia,
       eliminarAnexoVigencia,
       marcarAlertaLeida,
+      marcarTodasAlertasLeidas,
+      recargarAlertas,
       crearEtapa,
       actualizarEtapa,
       eliminarEtapa,
@@ -513,6 +594,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       actualizarAnexoVigencia,
       eliminarAnexoVigencia,
       marcarAlertaLeida,
+      marcarTodasAlertasLeidas,
+      recargarAlertas,
       crearEtapa,
       actualizarEtapa,
       eliminarEtapa,
