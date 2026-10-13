@@ -59,7 +59,7 @@ POWERBI_CLIENT_ID=
 POWERBI_CLIENT_SECRET=
 POWERBI_TENANT_ID=
 POWERBI_WORKSPACE_ID=
-POWERBI_REPORT_ID_ESTUDIANTES=ee3e7c91-76df-4f35-90b6-2e4f67ed6567
+POWERBI_REPORT_ID_ESTUDIANTES=<id-del-informe>   # opcional
 
 # Demo sin Azure: iframe con informe publicado
 POWERBI_URL_PUBLICA_ESTUDIANTES=   # opcional, https://app.powerbi.com/view?r=...

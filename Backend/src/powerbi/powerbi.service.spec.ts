@@ -52,6 +52,41 @@ describe('PowerBiService · estudiantes', () => {
     expect(respuesta.fallback).toBe(true);
   });
 
+  it('sin POWERBI_REPORT_ID_ESTUDIANTES no inventa un ID (no hay valor por defecto)', async () => {
+    const respuesta = await crearServicio({
+      POWERBI_URL_PUBLICA_ESTUDIANTES: URL_PRUEBA,
+    }).obtenerEmbedToken('estudiantes');
+    expect(respuesta.reportId).toBe('');
+  });
+
+  it('usa el ID del informe configurado y arma la URL de embed con Azure', async () => {
+    const respuesta = await crearServicio({
+      POWERBI_CLIENT_ID: 'cliente-prueba',
+      POWERBI_WORKSPACE_ID: 'workspace-prueba',
+      POWERBI_REPORT_ID_ESTUDIANTES: ' informe-prueba ',
+    }).obtenerEmbedToken('estudiantes');
+    expect(respuesta.reportId).toBe('informe-prueba');
+    expect(respuesta.embedUrl).toBe(
+      'https://app.powerbi.com/reportEmbed?reportId=informe-prueba&groupId=workspace-prueba',
+    );
+    expect(respuesta.fallback).toBe(false);
+  });
+
+  it('con Azure pero sin ID del informe cae a la vista pública o al respaldo', async () => {
+    const conVista = await crearServicio({
+      POWERBI_CLIENT_ID: 'cliente-prueba',
+      POWERBI_URL_PUBLICA_ESTUDIANTES: URL_PRUEBA,
+    }).obtenerEmbedToken('estudiantes');
+    expect(conVista.embedUrl).toBe(URL_PRUEBA);
+    expect(conVista.fallback).toBe(true);
+
+    const sinVista = await crearServicio({ POWERBI_CLIENT_ID: 'cliente-prueba' }).obtenerEmbedToken(
+      'estudiantes',
+    );
+    expect(sinVista.embedUrl).toBe('');
+    expect(sinVista.mensaje).toMatch(/POWERBI_REPORT_ID_ESTUDIANTES/);
+  });
+
   it('rechaza categorías sin informe configurado', async () => {
     await expect(crearServicio({}).obtenerEmbedToken('bienestar')).rejects.toBeInstanceOf(
       BadRequestException,

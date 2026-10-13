@@ -12,8 +12,6 @@ export interface EmbedTokenRespuesta {
   mensaje?: string;
 }
 
-const REPORT_ID_ESTUDIANTES_DEFECTO = 'ee3e7c91-76df-4f35-90b6-2e4f67ed6567';
-
 const CATEGORIAS_EMBED = new Set(['estudiantes']);
 
 @Injectable()
@@ -58,9 +56,8 @@ export class PowerBiService {
   }
 
   private obtenerEmbedEstudiantes(): EmbedTokenRespuesta {
-    const reportId =
-      this.config.get<string>('POWERBI_REPORT_ID_ESTUDIANTES')?.trim() ||
-      REPORT_ID_ESTUDIANTES_DEFECTO;
+    // ID del informe solo desde el entorno; sin valor por defecto en el código.
+    const reportId = this.config.get<string>('POWERBI_REPORT_ID_ESTUDIANTES')?.trim() ?? '';
     const workspaceId = this.config.get('POWERBI_WORKSPACE_ID') ?? 'demo-workspace';
     const clientId = this.config.get('POWERBI_CLIENT_ID');
     // URL de «Publicar en la web» solo desde el entorno; sin valor por defecto en el código.
@@ -80,7 +77,18 @@ export class PowerBiService {
       };
     }
 
-    if (!clientId) {
+    if (!clientId || !reportId) {
+      if (!vistaPublica) {
+        return {
+          embedUrl: '',
+          embedToken: null,
+          reportId,
+          categoriaId: 'estudiantes',
+          fallback: true,
+          mensaje:
+            'Informe embebido de Estudiantes sin POWERBI_REPORT_ID_ESTUDIANTES. Usar gráficos nativos Recharts.',
+        };
+      }
       return {
         embedUrl: vistaPublica,
         embedToken: null,

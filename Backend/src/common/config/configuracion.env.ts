@@ -41,5 +41,7 @@ export const configuracionEnv = () => ({
   resendCorreoSandbox: process.env.RESEND_CORREO_SANDBOX ?? '',
   cifrasApiKey: process.env.CIFRAS_API_KEY ?? '',
   /** Opcional: URL pública (Publicar en la web) del informe de Estudiantes. */
+  /** Opcional: ID del informe de Estudiantes para App Owns Data (T-009.2). */
+  powerbiReportIdEstudiantes: process.env.POWERBI_REPORT_ID_ESTUDIANTES?.trim() ?? '',
   powerbiUrlPublicaEstudiantes: normalizarUrlPublicaPowerBi(process.env.POWERBI_URL_PUBLICA_ESTUDIANTES),
 });
