@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { PanelCifrasEstudiantes } from '@/components/siac/panel-cifras-estudiantes'
+import { PanelCifrasCategoria } from '@/components/siac/panel-cifras-categoria'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
@@ -16,6 +16,10 @@ interface ContenedorInformePowerBiProps {
   onRestablecerToken: () => void
 }
 
+/**
+ * Intenta el informe embebido de Power BI para cualquier categoría; si no hay
+ * informe disponible (400/sin embed/falla) muestra el panel de cifras de la categoría.
+ */
 export function ContenedorInformePowerBi({
   informe,
   nombrePrograma,
@@ -23,22 +27,16 @@ export function ContenedorInformePowerBi({
   onRestablecerToken,
 }: ContenedorInformePowerBiProps) {
   const [embed, setEmbed] = useState<RespuestaEmbedPowerBi | null>(null)
-  const [errorEmbed, setErrorEmbed] = useState<string | null>(null)
   const [cargandoEmbed, setCargandoEmbed] = useState(true)
 
   const cargarEmbed = useCallback(() => {
-    if (informe.id !== 'estudiantes') {
-      setCargandoEmbed(false)
-      return
-    }
-
     setCargandoEmbed(true)
-    setErrorEmbed(null)
     obtenerEmbedPowerBiApi(informe.id)
-      .then(setEmbed)
-      .catch((err: Error) => {
+      .then((respuesta) => {
+        setEmbed(respuesta?.embedUrl ? respuesta : null)
+      })
+      .catch(() => {
         setEmbed(null)
-        setErrorEmbed(err.message ?? 'No fue posible obtener el embed de Power BI.')
       })
       .finally(() => setCargandoEmbed(false))
   }, [informe.id])
@@ -47,22 +45,8 @@ export function ContenedorInformePowerBi({
     cargarEmbed()
   }, [cargarEmbed])
 
-  if (informe.id !== 'estudiantes') {
-    return (
-      <Card className="tarjeta-institucional">
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          El informe «{informe.titulo}» estará disponible en un sprint posterior.
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const mostrarIframe =
-    tokenValido && !cargandoEmbed && Boolean(embed?.embedUrl?.length)
-
-  const mostrarFallbackNativo =
-    !mostrarIframe &&
-    (!tokenValido || Boolean(errorEmbed) || (!cargandoEmbed && !embed?.embedUrl?.length))
+  const mostrarIframe = tokenValido && !cargandoEmbed && Boolean(embed?.embedUrl?.length)
+  const mostrarPanelCifras = !mostrarIframe && !cargandoEmbed
 
   return (
     <div className="space-y-4">
@@ -92,7 +76,7 @@ export function ContenedorInformePowerBi({
         </div>
       ) : null}
 
-      {mostrarFallbackNativo ? (
+      {mostrarPanelCifras ? (
         <div className="space-y-4">
           {!tokenValido ? (
             <Card className="tarjeta-institucional">
@@ -106,11 +90,11 @@ export function ContenedorInformePowerBi({
                 </Button>
               </CardContent>
             </Card>
-          ) : errorEmbed ? (
-            <p className="text-sm text-destructive">{errorEmbed}</p>
           ) : null}
 
-          <PanelCifrasEstudiantes
+          <PanelCifrasCategoria
+            categoriaId={informe.id}
+            categoriaTitulo={informe.titulo}
             mensajeEncabezado={
               !tokenValido
                 ? 'Vista alternativa con métricas SIAC mientras se restablece el informe embebido.'

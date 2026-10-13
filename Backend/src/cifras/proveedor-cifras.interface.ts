@@ -1,7 +1,21 @@
-import { RespuestaCifrasDto } from './dto/cifras.dto';
+import { CategoriaCifrasDto, RespuestaCifrasDto } from './dto/cifras.dto';
+
+export interface FiltrosConsultaCifras {
+  facultad?: string;
+  programaId?: string;
+  /** Nombre del programa tal como vive en los registros de la categoría. */
+  programa?: string;
+  sede?: string;
+}
 
 export interface ProveedorCifras {
-  obtenerPorCategoria(categoriaId: string, periodo?: string): Promise<RespuestaCifrasDto>;
+  listarCategorias(): CategoriaCifrasDto[] | Promise<CategoriaCifrasDto[]>;
+
+  obtenerPorCategoria(
+    categoriaId: string,
+    periodo?: string,
+    filtros?: FiltrosConsultaCifras,
+  ): Promise<RespuestaCifrasDto>;
 }
 
 export const PROVEEDOR_CIFRAS = Symbol('PROVEEDOR_CIFRAS');

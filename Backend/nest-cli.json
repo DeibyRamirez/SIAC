@@ -8,6 +8,10 @@
       {
         "include": "cifras/datos/**/*.json",
         "outDir": "dist"
+      },
+      {
+        "include": "cifras/datos/**/*.json",
+        "outDir": "dist/src"
       }
     ]
   }

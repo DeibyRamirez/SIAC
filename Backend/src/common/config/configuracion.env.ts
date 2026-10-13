@@ -19,4 +19,5 @@ export const configuracionEnv = () => ({
     process.env.SMTP_FROM ??
     '',
   resendCorreoSandbox: process.env.RESEND_CORREO_SANDBOX ?? '',
+  cifrasApiKey: process.env.CIFRAS_API_KEY ?? '',
 });

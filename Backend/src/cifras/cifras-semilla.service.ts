@@ -1,41 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { CATEGORIAS_CIFRAS } from './catalogo-categorias';
 import {
   CategoriaCifrasDto,
   FuenteCifras,
   RespuestaCifrasDto,
 } from './dto/cifras.dto';
-import { ProveedorCifras } from './proveedor-cifras.interface';
+import { FiltrosConsultaCifras, ProveedorCifras } from './proveedor-cifras.interface';
 
-const CATALOGO_CATEGORIAS: Omit<CategoriaCifrasDto, 'disponible'>[] = [
-  { id: 'estudiantes', titulo: 'Estudiantes', descripcion: 'Selección y permanencia' },
-  { id: 'profesores', titulo: 'Profesores', descripcion: 'Formación y experiencia' },
-  { id: 'investigacion', titulo: 'Investigación', descripcion: 'Grupos y productos' },
-  {
-    id: 'relaciones-entorno',
-    titulo: 'Relaciones entorno',
-    descripcion: 'Vinculación externa',
-  },
-  { id: 'bienestar', titulo: 'Bienestar', descripcion: 'Modelo institucional' },
-  { id: 'egresados', titulo: 'Egresados', descripcion: 'Seguimiento y empleabilidad' },
-  { id: 'infraestructura', titulo: 'Infraestructura', descripcion: 'Medios educativos' },
-  { id: 'aseguramiento', titulo: 'Aseguramiento', descripcion: 'SIAC y autoevaluación' },
-];
-
-const CATEGORIAS_DISPONIBLES = new Set(['estudiantes']);
+/** Categorías con archivo de respaldo (`datos/<categoriaId>.semilla.json`). */
+const CATEGORIAS_CON_SEMILLA = new Set(['estudiantes']);
 
 @Injectable()
 export class CifrasSemillaService implements ProveedorCifras {
   listarCategorias(): CategoriaCifrasDto[] {
-    return CATALOGO_CATEGORIAS.map((categoria) => ({
+    return CATEGORIAS_CIFRAS.map((categoria) => ({
       ...categoria,
-      disponible: CATEGORIAS_DISPONIBLES.has(categoria.id),
+      disponible: CATEGORIAS_CON_SEMILLA.has(categoria.id),
     }));
   }
 
-  async obtenerPorCategoria(categoriaId: string, periodo?: string): Promise<RespuestaCifrasDto> {
-    if (!CATEGORIAS_DISPONIBLES.has(categoriaId)) {
+  tieneDatos(categoriaId: string): boolean {
+    return CATEGORIAS_CON_SEMILLA.has(categoriaId);
+  }
+
+  async obtenerPorCategoria(
+    categoriaId: string,
+    periodo?: string,
+    _filtros?: FiltrosConsultaCifras,
+  ): Promise<RespuestaCifrasDto> {
+    if (!CATEGORIAS_CON_SEMILLA.has(categoriaId)) {
       throw new NotFoundException(`La categoría «${categoriaId}» aún no tiene datos disponibles.`);
     }
 
@@ -49,11 +44,14 @@ export class CifrasSemillaService implements ProveedorCifras {
         meta: {
           ...datos.meta,
           periodo,
-          fuente: FuenteCifras.Semilla,
+          fuente: FuenteCifras.SEMILLA,
         },
       };
     }
 
-    return datos;
+    return {
+      ...datos,
+      meta: { ...datos.meta, fuente: FuenteCifras.SEMILLA },
+    };
   }
 }
