@@ -62,14 +62,14 @@ POWERBI_WORKSPACE_ID=
 POWERBI_REPORT_ID_ESTUDIANTES=ee3e7c91-76df-4f35-90b6-2e4f67ed6567
 
 # Demo sin Azure: iframe con informe publicado
-POWERBI_VISTA_PUBLICA_ESTUDIANTES=https://app.powerbi.com/view?r=eyJrIjoi...
+POWERBI_URL_PUBLICA_ESTUDIANTES=   # opcional, https://app.powerbi.com/view?r=...
 ```
 
 Sin `POWERBI_CLIENT_ID`, el backend devuelve `embedUrl` de vista pública y `fallback: true`. El frontend muestra el iframe; si el token falla o no hay URL, consume `GET /cifras/estudiantes` y renderiza Recharts.
 
 ### Checklist manual — Dashboard Estudiantes
 
-1. Iniciar sesión como **Administrador** o **Par académico**.
+1. Iniciar sesión como **Administrador** o **SuperAdmin** (el Par académico está en pausa y el Revisor no tiene acceso).
 2. Ir a **Dashboard de métricas** → pestaña **Power BI** → tarjeta **Estudiantes**.
 3. Verificar iframe del informe (vista publicada en desarrollo).
 4. Pulsar **Simular token expirado** → deben aparecer KPIs y gráficos desde la API.

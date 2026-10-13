@@ -30,9 +30,6 @@ export function resolverAccionNotificacion(
       return { href: `/cargador/evidencias/${evidenciaId}`, etiqueta: 'Ver mi evidencia' }
     }
     case 'avance': {
-      if (rol === 'ParAcademico') {
-        return { href: '/administrador/dashboard', etiqueta: 'Ver métricas' }
-      }
       if (rol === 'Administrador' || rol === 'SuperAdmin') {
         const programaId = idValido(meta.programaId)
         if (!programaId) return null

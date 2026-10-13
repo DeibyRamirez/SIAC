@@ -12,7 +12,7 @@ import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-power
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { ROLES_DASHBOARD_METRICAS } from '@/lib/constantes/roles'
 import { puedeVerInformesPowerBi } from '@/lib/powerbi/acceso-powerbi'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerAvanceInstitucionalApi } from '@/lib/servicios/programas.servicio'
@@ -25,7 +25,7 @@ import {
 
 export default function DashboardMetricasPage() {
   return (
-    <PlantillaPaginaApp titulo="Dashboard de métricas" roles={ROLES_CONSULTA_INSTITUCIONAL}>
+    <PlantillaPaginaApp titulo="Dashboard de métricas" roles={ROLES_DASHBOARD_METRICAS}>
       <ContenidoDashboard />
     </PlantillaPaginaApp>
   )
