@@ -160,7 +160,8 @@ function crearServicio(repositorio: ReturnType<typeof crearRepositorioFake>) {
   return new DocumentosService(
     repositorio as never,
     {} as never,
-    { crear: jest.fn() } as never,
+    { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+    { idsRevisoresParaPrograma: jest.fn() } as never,
     { recalcularPorcentajeAvance: jest.fn() } as never,
     {
       validarFirmaSubida: jest.fn(),
@@ -190,6 +191,7 @@ describe('DocumentosService permisos de revisión', () => {
   };
   const servicio = new DocumentosService(
     evidenciaRepo as unknown as EvidenciaRepositorio,
+    {} as never,
     {} as never,
     {} as never,
     {} as never,
@@ -258,13 +260,15 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     guardarEvaluacionesCondicion: jest.fn(),
     guardarEvaluacionesCondicionInstitucional: jest.fn(),
   };
-  const notificaciones = { crear: jest.fn() };
+  const notificacionesDespacho = { notificar: jest.fn(), notificarVarios: jest.fn() };
+  const notificacionesDestinatarios = { idsRevisoresParaPrograma: jest.fn() };
   const avancePrograma = { recalcularPorcentajeAvance: jest.fn() };
   const alcance = { estaAsignado: jest.fn() };
   const servicio = new DocumentosService(
     evidenciaRepo as unknown as EvidenciaRepositorio,
     {} as never,
-    notificaciones as never,
+    notificacionesDespacho as never,
+    notificacionesDestinatarios as never,
     avancePrograma as never,
     {} as never,
     alcance as unknown as ServicioAlcancePrograma,
@@ -324,10 +328,12 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
       expect.any(String),
       'rev',
     );
-    expect(notificaciones.crear).toHaveBeenCalledWith(
-      'car',
-      expect.stringContaining('(5/9)'),
-      'observaciones',
+    expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: 'car',
+        tipo: 'observaciones',
+        mensaje: expect.stringContaining('(5/9)'),
+      }),
     );
   });
 
@@ -361,7 +367,13 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
       const datos = evidenciaRepo.actualizar.mock.calls[0][1];
       expect(datos).toMatchObject({ estado: EstadoEvidencia.ConObservaciones });
       expect(datos).not.toHaveProperty('puntajeActual');
-      expect(notificaciones.crear).toHaveBeenCalledWith('car', expect.stringContaining('plan de mejoramiento'), 'observaciones');
+      expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuarioId: 'car',
+          tipo: 'observaciones',
+          mensaje: expect.stringContaining('plan de mejoramiento'),
+        }),
+      );
     });
 
     it('aprobar deja el G2 «Validado»; «Rechazado» ya no aplica', async () => {
@@ -545,7 +557,8 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     const servicio = new DocumentosService(
       repositorio as never,
       { obtenerBuffer: jest.fn(async () => bufferBase) } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
       {
@@ -643,7 +656,8 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     const servicio = new DocumentosService(
       repositorio as never,
       { obtenerBuffer: jest.fn(async () => bufferBase) } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       docx as never,
       {
@@ -739,7 +753,8 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
         subirArchivo: jest.fn(),
         generarClaveEvidencia,
       } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
       {
         validarFirmaSubida: jest.fn(),

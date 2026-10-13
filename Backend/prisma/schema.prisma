@@ -385,6 +385,7 @@ model AlertaInApp {
   mensaje   String
   leida     Boolean  @default(false)
   tipo      String   @default("general")
+  metadata  Json?
   createdAt DateTime @default(now())
 
   @@index([usuarioId, leida])

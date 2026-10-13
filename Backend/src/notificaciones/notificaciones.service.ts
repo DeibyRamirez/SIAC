@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
 
 @Injectable()
 export class NotificacionesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  crear(usuarioId: string, mensaje: string, tipo = 'general') {
+  crear(
+    usuarioId: string,
+    mensaje: string,
+    tipo = 'general',
+    metadata?: Prisma.InputJsonValue,
+  ) {
     return this.prisma.alertaInApp.create({
-      data: { usuarioId, mensaje, tipo },
+      data: { usuarioId, mensaje, tipo, metadata },
     });
   }
 
@@ -22,6 +28,13 @@ export class NotificacionesService {
   marcarLeida(id: string, usuarioId: string) {
     return this.prisma.alertaInApp.updateMany({
       where: { id, usuarioId },
+      data: { leida: true },
+    });
+  }
+
+  marcarTodasLeidas(usuarioId: string) {
+    return this.prisma.alertaInApp.updateMany({
+      where: { usuarioId, leida: false },
       data: { leida: true },
     });
   }

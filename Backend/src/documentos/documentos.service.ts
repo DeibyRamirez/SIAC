@@ -17,7 +17,8 @@ import { PrismaService } from '../prisma/prisma.module';
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
+import { NotificacionesDestinatariosService } from '../notificaciones/notificaciones-destinatarios.service';
 
 import {
   CrearEvidenciaDto,
@@ -106,7 +107,9 @@ export class DocumentosService {
 
     private readonly almacenamiento: AlmacenamientoService,
 
-    private readonly notificaciones: NotificacionesService,
+    private readonly notificacionesDespacho: NotificacionesDespachoService,
+
+    private readonly notificacionesDestinatarios: NotificacionesDestinatariosService,
 
     private readonly avancePrograma: AvanceProgramaService,
 
@@ -698,7 +701,14 @@ export class DocumentosService {
 
     );
 
-
+    const revisores = await this.notificacionesDestinatarios.idsRevisoresParaPrograma(
+      evidencia.programaId,
+    );
+    const mensajeRevision = `Nueva evidencia en revisión: "${evidencia.nombre}".`;
+    await this.notificacionesDespacho.notificarVarios(revisores, mensajeRevision, 'revision_pendiente', {
+      asuntoCorreo: '[SIAC] Evidencia pendiente de revisión',
+      metadata: { evidenciaId: id, programaId: evidencia.programaId },
+    });
 
     return actualizada;
 
@@ -962,7 +972,13 @@ export class DocumentosService {
       totalCondicionesActual,
     );
 
-    await this.notificaciones.crear(evidencia.autorId, mensaje, tipo);
+    await this.notificacionesDespacho.notificar({
+      usuarioId: evidencia.autorId,
+      mensaje,
+      tipo,
+      asuntoCorreo: '[SIAC] Actualización de evidencia',
+      metadata: { evidenciaId: id },
+    });
 
     if (
       estadoFinal === EstadoEvidencia.ConObservaciones &&

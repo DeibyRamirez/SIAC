@@ -12,13 +12,9 @@ import {
 
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { ConfigService } from '@nestjs/config';
-
-import * as nodemailer from 'nodemailer';
-
 import { PrismaService } from '../prisma/prisma.module';
 
-import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
@@ -40,45 +36,15 @@ export class VigenciasService implements OnModuleInit {
 
   private readonly logger = new Logger(VigenciasService.name);
 
-  private transporter: nodemailer.Transporter | null = null;
-
-
-
   constructor(
 
     private readonly prisma: PrismaService,
 
-    private readonly notificaciones: NotificacionesService,
-
-    private readonly config: ConfigService,
+    private readonly notificacionesDespacho: NotificacionesDespachoService,
 
     private readonly almacenamiento: AlmacenamientoService,
 
-  ) {
-
-    const host = config.get('SMTP_HOST');
-
-    if (host) {
-
-      this.transporter = nodemailer.createTransport({
-
-        host,
-
-        port: parseInt(config.get('SMTP_PORT') ?? '587', 10),
-
-        auth: {
-
-          user: config.get('SMTP_USUARIO'),
-
-          pass: config.get('SMTP_CONTRASENA'),
-
-        },
-
-      });
-
-    }
-
-  }
+  ) {}
 
 
 
@@ -393,47 +359,7 @@ export class VigenciasService implements OnModuleInit {
 
 
   private async enviarAlerta(responsable: string, mensaje: string, anexoId: string) {
-
-    const usuario = await this.prisma.usuario.findFirst({
-
-      where: { correo: { contains: responsable.split('@')[0] ?? responsable } },
-
-    });
-
-
-
-    if (usuario) {
-
-      await this.notificaciones.crear(usuario.id, mensaje, 'vigencia');
-
-    }
-
-
-
-    if (this.transporter && responsable.includes('@')) {
-
-      try {
-
-        await this.transporter.sendMail({
-
-          from: this.config.get('SMTP_FROM') ?? 'planeacion@uniautonoma.edu.co',
-
-          to: responsable.includes('@') ? responsable : undefined,
-
-          subject: '[SIAC] Alerta de vencimiento',
-
-          text: mensaje,
-
-        });
-
-      } catch (error) {
-
-        this.logger.error(`Fallo SMTP para anexo ${anexoId}: ${error}`);
-
-      }
-
-    }
-
+    await this.notificacionesDespacho.notificarVigencia(responsable, mensaje, { anexoId });
   }
 
 }

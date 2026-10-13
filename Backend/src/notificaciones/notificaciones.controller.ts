@@ -12,6 +12,11 @@ export class NotificacionesController {
     return this.notificacionesService.listarPorUsuario(req.user.id);
   }
 
+  @Patch('marcar-todas-leidas')
+  marcarTodasLeidas(@Request() req: { user: { id: string } }) {
+    return this.notificacionesService.marcarTodasLeidas(req.user.id);
+  }
+
   @Patch(':id/leida')
   marcarLeida(
     @Param('id') id: string,

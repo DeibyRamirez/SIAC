@@ -6,6 +6,8 @@ import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.s
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
 import { PrismaService } from '../../src/prisma/prisma.module';
 import { AlmacenamientoMemoria } from './almacenamiento-memoria';
+import { CorreoNuloProveedor } from '../../src/correo/correo-nulo.proveedor';
+import { PROVEEDOR_CORREO } from '../../src/correo/proveedor-correo.port';
 
 /** Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). */
 export const USUARIOS_SEMILLA = {
@@ -41,14 +43,22 @@ export function verificarBaseDeDatosDesechable(): void {
   }
 }
 
+export interface OpcionesAppE2E {
+  /** Evita llamadas a Resend/SMTP en pruebas que solo validan AlertaInApp. */
+  correoNulo?: boolean;
+}
+
 /** Levanta la API completa (mismo prefijo, pipes y filtro que main.ts) con Storage en memoria. */
-export async function crearAppE2E(): Promise<ContextoE2E> {
+export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<ContextoE2E> {
   verificarBaseDeDatosDesechable();
   const almacen = new AlmacenamientoMemoria();
-  const modulo = await Test.createTestingModule({ imports: [AppModule] })
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(AlmacenamientoService)
-    .useValue(almacen)
-    .compile();
+    .useValue(almacen);
+  if (opciones.correoNulo) {
+    builder = builder.overrideProvider(PROVEEDOR_CORREO).useClass(CorreoNuloProveedor);
+  }
+  const modulo = await builder.compile();
 
   const app = modulo.createNestApplication();
   app.setGlobalPrefix('api/v1');
