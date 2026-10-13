@@ -3,6 +3,7 @@
 import Image from 'next/image'
 
 import type { InformePowerBi } from '@/lib/informes-powerbi'
+import { resolverUrlPowerBi } from '@/lib/powerbi/configuracion-powerbi'
 
 interface TarjetaInformePowerBiProps {
   informe: InformePowerBi
@@ -10,9 +11,11 @@ interface TarjetaInformePowerBiProps {
 }
 
 export function TarjetaInformePowerBi({ informe, onSeleccionar }: TarjetaInformePowerBiProps) {
+  const publicado = resolverUrlPowerBi(informe.id).estado === 'publicada'
   return (
     <button
       type="button"
+      data-categoria-id={informe.id}
       onClick={() => onSeleccionar(informe)}
       className="tarjeta-visual group w-full cursor-pointer overflow-hidden text-left"
     >
@@ -43,6 +46,9 @@ export function TarjetaInformePowerBi({ informe, onSeleccionar }: TarjetaInforme
       <div className="px-5 py-4">
         <h3 className="text-base font-bold text-primary">{informe.titulo}</h3>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{informe.descripcion}</p>
+        {!publicado ? (
+          <p className="mt-2 text-xs font-medium text-ocre">Informe aún no publicado</p>
+        ) : null}
       </div>
     </button>
   )

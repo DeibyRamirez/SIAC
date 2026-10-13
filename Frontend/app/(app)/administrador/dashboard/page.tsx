@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, FileText, GraduationCap, TrendingUp } from 'lucide-react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
@@ -12,6 +13,7 @@ import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
+import { puedeVerInformesPowerBi } from '@/lib/powerbi/acceso-powerbi'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerAvanceInstitucionalApi } from '@/lib/servicios/programas.servicio'
 import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
@@ -31,6 +33,8 @@ export default function DashboardMetricasPage() {
 
 function ContenidoDashboard() {
   const { datos } = usarAlmacen()
+  const { sesion } = usarSesion()
+  const verPowerBi = puedeVerInformesPowerBi(sesion?.rol)
   const { evidencias, programas } = datos
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
@@ -90,12 +94,14 @@ function ContenidoDashboard() {
           >
             Métricas SIAC
           </TabsTrigger>
-          <TabsTrigger
-            value="powerbi"
-            className="h-auto flex-none px-3 py-2 after:bg-esmeralda data-active:text-primary"
-          >
-            Power BI
-          </TabsTrigger>
+          {verPowerBi ? (
+            <TabsTrigger
+              value="powerbi"
+              className="h-auto flex-none px-3 py-2 after:bg-esmeralda data-active:text-primary"
+            >
+              Power BI
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="metricas" className="space-y-6">
@@ -144,9 +150,11 @@ function ContenidoDashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="powerbi">
-          <RejillaInformesPowerBi />
-        </TabsContent>
+        {verPowerBi ? (
+          <TabsContent value="powerbi">
+            <RejillaInformesPowerBi />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   )
