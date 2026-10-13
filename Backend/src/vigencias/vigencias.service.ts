@@ -322,11 +322,9 @@ export class VigenciasService implements OnModuleInit {
 
     const anexos = await this.prisma.anexoVigencia.findMany();
 
-    const manana = new Date();
-
-    manana.setDate(manana.getDate() + 1);
-
-    manana.setHours(0, 0, 0, 0);
+    // fechaVencimiento se guarda como fecha a medianoche UTC (fechaUtc); se compara el día
+    // calendario de mañana en la zona del servidor con ese día UTC, sin mezclar zonas horarias.
+    const manana = diaCalendarioLocal(1);
 
 
 
@@ -334,13 +332,9 @@ export class VigenciasService implements OnModuleInit {
 
       // El estado se calcula al consultar (R-D 3e); el cron ya no reescribe la columna, así no choca
       // con el CHECK de documento y evidencia en los anexos históricos.
-      const vencimiento = new Date(anexo.fechaVencimiento);
+      const vencimiento = new Date(anexo.fechaVencimiento).toISOString().slice(0, 10);
 
-      vencimiento.setHours(0, 0, 0, 0);
-
-
-
-      if (vencimiento.getTime() === manana.getTime()) {
+      if (vencimiento === manana) {
 
         const mensaje = `El documento "${anexo.titulo}" vence mañana. Responsable: ${anexo.responsable}.`;
 
@@ -362,6 +356,15 @@ export class VigenciasService implements OnModuleInit {
     await this.notificacionesDespacho.notificarVigencia(responsable, mensaje, { anexoId });
   }
 
+}
+
+/** Día calendario AAAA-MM-DD en la zona del servidor, desplazado desplazamientoDias. */
+export function diaCalendarioLocal(desplazamientoDias = 0, base = new Date()): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + desplazamientoDias);
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
 /** Fecha AAAA-MM-DD a medianoche UTC. */
