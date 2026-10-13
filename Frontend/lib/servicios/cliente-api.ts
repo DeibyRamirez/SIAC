@@ -58,4 +58,42 @@ export async function peticionApi<T>(
   }
 }
 
+export interface ArchivoDescargado {
+  blob: Blob
+  nombreArchivo: string
+}
+
+function nombreDesdeContentDisposition(cabecera: string | null, alterno: string): string {
+  if (!cabecera) return alterno
+  const coincidencia = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cabecera)
+  return coincidencia?.[1] ? decodeURIComponent(coincidencia[1]) : alterno
+}
+
+/** Descarga binaria vía BFF (misma cookie de sesión); errores del backend en español. */
+export async function peticionApiArchivo(
+  ruta: string,
+  alterno = 'archivo',
+  opciones: RequestInit = {},
+): Promise<ArchivoDescargado> {
+  const respuesta = await fetch(`${URL_BASE_CLIENTE}${ruta}`, {
+    ...opciones,
+    credentials: 'include',
+  })
+
+  if (!respuesta.ok) {
+    const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }))
+    throw new ErrorApi(
+      Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
+      respuesta.status,
+    )
+  }
+
+  const blob = await respuesta.blob()
+  const nombreArchivo = nombreDesdeContentDisposition(
+    respuesta.headers.get('content-disposition'),
+    alterno,
+  )
+  return { blob, nombreArchivo }
+}
+
 export { apiDisponible };

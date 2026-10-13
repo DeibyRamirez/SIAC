@@ -42,6 +42,8 @@ export interface MetaCifras {
   periodo: string
   actualizadoEn: string
   fuente: FuenteCifras
+  /** true cuando la categoría tiene datos en el periodo pero los filtros dejan 0. */
+  sinCoincidencias?: boolean
 }
 
 export interface FiltrosDisponiblesCifras {
@@ -72,12 +74,68 @@ export interface VariableCifra extends VariableCifraResumen {
   actualizadoEn: string
 }
 
+export type TipoColumnaEsquemaCifras =
+  | 'texto'
+  | 'periodo'
+  | 'codigo'
+  | 'fecha'
+  | 'entero'
+  | 'decimal'
+  | 'enum'
+
+export interface ColumnaEsquemaCifras {
+  encabezado: string
+  clave: string
+  tipo: TipoColumnaEsquemaCifras
+  obligatoria: boolean
+  enum?: string[]
+  descripcion?: string
+}
+
 export interface CategoriaCifras {
   id: string
   titulo: string
   descripcion: string
   disponible: boolean
   variables?: VariableCifraResumen[]
+  /** Columnas del esquema tipado para las categorías cargadas por registros (S3-03). */
+  esquema?: ColumnaEsquemaCifras[]
+}
+
+export interface FiltrosCifrasCategoria {
+  periodo?: string
+  facultad?: string
+  programaId?: string
+  /** Nombre del programa en los registros (opciones reales del panel). */
+  programa?: string
+  sede?: string
+}
+
+export interface RespuestaFiltrosCifras {
+  periodos: string[]
+  facultades: string[]
+  programas: string[]
+  sedes: string[]
+}
+
+export interface ErrorFilaImportacionCifras {
+  fila: number
+  columna?: string
+  mensaje: string
+}
+
+export interface ResultadoImportacionCifras {
+  filasOk: number
+  filasError: number
+  errores: ErrorFilaImportacionCifras[]
+  fuente: FuenteCifras
+  periodosReemplazados?: string[]
+}
+
+export interface PlantillaJsonCifras {
+  categoriaId: string
+  titulo?: string
+  registros: Array<Record<string, unknown>>
 }
 
 export interface RespuestaEmbedPowerBi {

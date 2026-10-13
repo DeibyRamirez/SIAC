@@ -177,9 +177,17 @@ export class CifrasRepositorio {
     });
   }
 
+  /** Última carga de la categoría (para meta.fuente y actualizadoEn). */
+  async ultimaCarga(categoriaId: string): Promise<CargaCifras | null> {
+    return this.prisma.cargaCifras.findFirst({
+      where: { categoriaId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async ejecutarTransaccion<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.prisma.$transaction(fn, { timeout: 30000 });
+    return this.prisma.$transaction(fn, { timeout: 120000, maxWait: 10000 });
   }
 }

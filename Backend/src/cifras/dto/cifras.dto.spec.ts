@@ -56,16 +56,30 @@ describe('Validación de periodo en DTOs de cifras', () => {
       expect(errores).toHaveLength(0);
     });
 
-    it('exige valor en cada registro', () => {
+    it('exige al menos un registro', () => {
       const errores = validar(IngestaCifrasDto, {
         periodo: '2025-2',
-        registros: [{ clave: 'por_vinculacion' }],
+        registros: [],
       });
       expect(errores).toHaveLength(1);
-      expect(errores[0].property).toBe('registros');
-      expect(errores[0].children?.[0].children?.[0].constraints).toMatchObject({
-        isDefined: 'Cada registro debe indicar el valor.',
+      expect(erroresDe(errores, 'registros')).toContain('Debe enviar al menos un registro.');
+    });
+
+    it('acepta registros genéricos del esquema sin exigir clave/valor', () => {
+      const errores = validar(IngestaCifrasDto, {
+        registros: [
+          {
+            programa: 'Ingeniería Agropecuaria',
+            genero: 'Femenino',
+            facultad: 'Facultad de Ciencias Agrarias',
+            semestre: 5,
+            estrato: 2,
+            codigo_estudiante: '001',
+            periodo_academico: '2023-2',
+          },
+        ],
       });
+      expect(errores).toHaveLength(0);
     });
   });
 });

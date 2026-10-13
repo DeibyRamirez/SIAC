@@ -6,13 +6,16 @@ import {
 } from '@nestjs/common';
 import { VariableCifra } from '@prisma/client';
 import { CATEGORIAS_CIFRAS, esCategoriaCifrasValida } from './catalogo-categorias';
+import { CifrasAgregacionService } from './cifras-agregacion.service';
 import { CifrasImportacionService } from './cifras-importacion.service';
 import { CifrasRepositorio } from './cifras.repositorio';
 import {
   ActualizarVariableCifraDto,
   CategoriaCifrasDto,
   ConsultaCifrasQueryDto,
+  ConsultaFiltrosCifrasQueryDto,
   RespuestaCifrasDto,
+  RespuestaFiltrosCifrasDto,
   RespuestaVariablesCifrasDto,
   VariableCifraDto,
 } from './dto/cifras.dto';
@@ -25,6 +28,7 @@ export class CifrasService {
     @Inject(PROVEEDOR_CIFRAS) private readonly proveedor: ProveedorCifras,
     private readonly repositorio: CifrasRepositorio,
     private readonly importacion: CifrasImportacionService,
+    private readonly agregacion: CifrasAgregacionService,
   ) {}
 
   async listarCategorias(): Promise<{ categorias: CategoriaCifrasDto[] }> {
@@ -74,8 +78,18 @@ export class CifrasService {
     return this.proveedor.obtenerPorCategoria(categoriaId, consulta.periodo, {
       facultad: consulta.facultad,
       programaId: consulta.programaId,
+      programa: consulta.programa,
       sede: consulta.sede,
     });
+  }
+
+  /** Opciones reales de filtros (periodos, facultades, programas, sedes) de la categoría. */
+  obtenerFiltros(
+    categoriaId: string,
+    consulta: ConsultaFiltrosCifrasQueryDto = {},
+  ): Promise<RespuestaFiltrosCifrasDto> {
+    this.validarCategoria(categoriaId, 'consulta');
+    return this.agregacion.obtenerFiltros(categoriaId, consulta);
   }
 
   /** Compatibilidad con el endpoint heredado GET /cifras/estudiantes?periodo= */
@@ -97,6 +111,10 @@ export class CifrasService {
 
   generarPlantilla(categoriaId: string) {
     return this.importacion.generarPlantilla(categoriaId);
+  }
+
+  generarPlantillaJson(categoriaId: string) {
+    return this.importacion.generarPlantillaJson(categoriaId);
   }
 
   private validarCategoria(categoriaId: string, origen: 'consulta' | 'escritura'): void {

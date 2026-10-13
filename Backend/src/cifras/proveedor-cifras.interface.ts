@@ -3,6 +3,8 @@ import { CategoriaCifrasDto, RespuestaCifrasDto } from './dto/cifras.dto';
 export interface FiltrosConsultaCifras {
   facultad?: string;
   programaId?: string;
+  /** Nombre del programa tal como vive en los registros de la categoría. */
+  programa?: string;
   sede?: string;
 }
 

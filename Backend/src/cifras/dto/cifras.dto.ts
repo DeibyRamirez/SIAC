@@ -1,10 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
+  Max,
+  Min,
 } from 'class-validator';
 import {
   MENSAJE_PERIODO_INVALIDO,
@@ -116,6 +120,10 @@ export class MetaCifrasDto {
 
   @ApiProperty({ enum: FuenteCifras, example: FuenteCifras.EXCEL })
   fuente!: FuenteCifras;
+
+  /** true cuando la categoría tiene datos en el periodo pero los filtros dejan 0 registros. */
+  @ApiPropertyOptional({ example: false })
+  sinCoincidencias?: boolean;
 }
 
 export class FiltrosDisponiblesCifrasDto {
@@ -160,6 +168,26 @@ export class VariableCifraResumenDto {
   dimensiones!: string[];
 }
 
+export class EsquemaColumnaCifrasDto {
+  @ApiProperty({ example: 'facultad' })
+  encabezado!: string;
+
+  @ApiProperty({ example: 'facultad' })
+  clave!: string;
+
+  @ApiProperty({ enum: ['texto', 'periodo', 'codigo', 'fecha', 'entero', 'decimal', 'enum'] })
+  tipo!: string;
+
+  @ApiProperty({ example: true })
+  obligatoria!: boolean;
+
+  @ApiPropertyOptional({ type: [String], example: ['Femenino', 'Masculino'] })
+  enum?: string[];
+
+  @ApiPropertyOptional({ example: 'Planta docente según vinculación.' })
+  descripcion?: string;
+}
+
 export class CategoriaCifrasDto {
   @ApiProperty({ example: 'estudiantes' })
   id!: string;
@@ -175,6 +203,10 @@ export class CategoriaCifrasDto {
 
   @ApiPropertyOptional({ type: [VariableCifraResumenDto] })
   variables?: VariableCifraResumenDto[];
+
+  /** Columnas del esquema tipado (S3-03) para las categorías cargadas por registros. */
+  @ApiPropertyOptional({ type: [EsquemaColumnaCifrasDto] })
+  esquema?: EsquemaColumnaCifrasDto[];
 }
 
 export class RespuestaCategoriasCifrasDto {
@@ -218,10 +250,52 @@ export class ConsultaCifrasQueryDto {
   @IsString()
   programaId?: string;
 
+  @ApiPropertyOptional({
+    example: 'Ingeniería Agropecuaria',
+    description: 'Nombre del programa en los registros (alternativa a programaId).',
+  })
+  @IsOptional()
+  @IsString()
+  programa?: string;
+
   @ApiPropertyOptional({ example: 'Popayán' })
   @IsOptional()
   @IsString()
   sede?: string;
+}
+
+export class ConsultaFiltrosCifrasQueryDto {
+  @ApiPropertyOptional({ example: '2023-2', description: 'AAAA o AAAA-S (ej. 2023-2).' })
+  @IsOptional()
+  @IsString()
+  @Matches(REGEX_PERIODO_CIFRAS, { message: MENSAJE_PERIODO_INVALIDO })
+  periodo?: string;
+
+  @ApiPropertyOptional({
+    example: 'Facultad de Ciencias Agrarias',
+    description: 'Filtra los programas disponibles a esa facultad.',
+  })
+  @IsOptional()
+  @IsString()
+  facultad?: string;
+}
+
+export class RespuestaFiltrosCifrasDto {
+  @ApiProperty({ type: [String], example: ['2023-2'] })
+  periodos!: string[];
+
+  @ApiProperty({ type: [String], example: ['Facultad de Ciencias Agrarias'] })
+  facultades!: string[];
+
+  @ApiProperty({ type: [String], example: ['Ingeniería Agropecuaria'] })
+  programas!: string[];
+
+  @ApiProperty({
+    type: [String],
+    example: ['Claustro El Carmen'],
+    description: 'Solo infraestructura (sede en lugar de facultad/programa).',
+  })
+  sedes!: string[];
 }
 
 export class ConsultaVariablesCifrasQueryDto {
@@ -253,11 +327,11 @@ export class ErrorFilaIngestaDto {
   @ApiProperty({ example: 7 })
   fila!: number;
 
-  @ApiPropertyOptional({ example: 'xyz' })
-  clave?: string;
+  @ApiPropertyOptional({ example: 'estrato' })
+  columna?: string;
 
-  @ApiProperty({ example: "Fila 7: la clave 'xyz' no existe en Profesores" })
-  motivo!: string;
+  @ApiProperty({ example: 'Fila 7, columna estrato: debe ser un entero entre 1 y 6' })
+  mensaje!: string;
 }
 
 export class RespuestaIngestaCifrasDto {
@@ -272,6 +346,76 @@ export class RespuestaIngestaCifrasDto {
 
   @ApiProperty({ enum: FuenteCifras, example: FuenteCifras.EXCEL })
   fuente!: FuenteCifras;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['2023-2'],
+    description: 'Periodos (o sedes) reemplazados por la carga.',
+  })
+  periodosReemplazados?: string[];
+}
+
+export class PlantillaJsonCifrasDto {
+  @ApiProperty({ example: 'estudiantes' })
+  categoriaId!: string;
+
+  @ApiPropertyOptional({ example: 'Estudiantes' })
+  titulo?: string;
+
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    example: [{ programa: 'Ingeniería Agropecuaria', periodo_academico: '2023-2' }],
+  })
+  registros!: Array<Record<string, unknown>>;
+}
+
+export class FiltrosFeedCifrasQueryDto {
+  @ApiPropertyOptional({ example: '2023-2', description: 'AAAA o AAAA-S (ej. 2023-2).' })
+  @IsOptional()
+  @IsString()
+  @Matches(REGEX_PERIODO_CIFRAS, { message: MENSAJE_PERIODO_INVALIDO })
+  periodo?: string;
+
+  @ApiPropertyOptional({ example: 1, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pagina?: number;
+
+  @ApiPropertyOptional({ example: 1000, default: 1000, maximum: 5000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5000)
+  tamano?: number;
+
+  @ApiPropertyOptional({ example: 'Claustro El Carmen' })
+  @IsOptional()
+  @IsString()
+  sede?: string;
+}
+
+export class RespuestaFeedCifrasDto {
+  @ApiProperty({ example: 'estudiantes' })
+  categoriaId!: string;
+
+  @ApiPropertyOptional({ example: '2023-2', nullable: true })
+  periodo?: string | null;
+
+  @ApiProperty({ example: 1 })
+  pagina!: number;
+
+  @ApiProperty({ example: 1000 })
+  tamano!: number;
+
+  @ApiProperty({ example: 15804 })
+  totalRegistros!: number;
+
+  @ApiProperty({ type: 'array', items: { type: 'object', additionalProperties: true } })
+  registros!: Array<Record<string, unknown>>;
 }
 
 export enum CategoriaCifrasId {

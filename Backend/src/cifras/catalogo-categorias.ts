@@ -4,7 +4,7 @@
  * y quedan configurables por variable desde el diccionario (VariableCifra.etiquetaCuac).
  */
 import { FuenteCifra } from '@prisma/client';
-import { FuenteCifras } from './dto/cifras.dto';
+import { FormatoIndicador, FuenteCifras } from './dto/cifras.dto';
 
 export interface CategoriaCatalogoCifras {
   id: string;
@@ -44,5 +44,17 @@ export function fuenteCifrasDto(fuente: FuenteCifra): FuenteCifras {
       return FuenteCifras.EXCEL;
     default:
       return FuenteCifras.SEMILLA;
+  }
+}
+
+/** Formato de presentación según la unidad de la variable. */
+export function formatoDesdeUnidadCifras(unidad: string): FormatoIndicador {
+  switch (unidad) {
+    case 'porcentaje':
+      return FormatoIndicador.porcentaje;
+    case 'm2':
+      return FormatoIndicador.decimal;
+    default:
+      return FormatoIndicador.entero;
   }
 }

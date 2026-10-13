@@ -1,64 +1,37 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsDefined,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Matches,
-  ValidateNested,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsOptional, IsString, Matches } from 'class-validator';
 import {
   MENSAJE_PERIODO_INVALIDO,
   REGEX_PERIODO_CIFRAS,
 } from '../periodo-cifras';
 
-export class RegistroIngestaCifrasDto {
-  @ApiProperty({ example: 'total_matriculados' })
-  @IsString()
-  @IsNotEmpty({ message: 'Cada registro debe indicar la clave de la variable.' })
-  clave!: string;
-
-  @ApiProperty({ example: 8420, oneOf: [{ type: 'number' }, { type: 'string' }] })
-  @IsDefined({ message: 'Cada registro debe indicar el valor.' })
-  valor!: number | string;
-
-  @ApiPropertyOptional({ example: 'Ingeniería' })
-  @IsOptional()
-  @IsString()
-  facultad?: string;
-
-  @ApiPropertyOptional({ example: '1101' })
-  @IsOptional()
-  @IsString()
-  programaCodigoSnies?: string;
-
-  @ApiPropertyOptional({ example: 'Popayán' })
-  @IsOptional()
-  @IsString()
-  sede?: string;
-
-  @ApiPropertyOptional({ example: 'vinculacion' })
-  @IsOptional()
-  @IsString()
-  dimension?: string;
-
-  @ApiPropertyOptional({ example: 'Tiempo completo' })
-  @IsOptional()
-  @IsString()
-  valorDimension?: string;
-}
-
 export class IngestaCifrasDto {
-  @ApiProperty({ example: '2025-2', description: 'AAAA o AAAA-S (ej. 2025-2).' })
+  @ApiPropertyOptional({
+    example: '2025-2',
+    description:
+      'Requerido para bienestar y relaciones-entorno (formato clave/valor). En categorías por registros el periodo va en cada registro.',
+  })
+  @IsOptional()
   @IsString()
   @Matches(REGEX_PERIODO_CIFRAS, { message: MENSAJE_PERIODO_INVALIDO })
-  periodo!: string;
+  periodo?: string;
 
-  @ApiProperty({ type: [RegistroIngestaCifrasDto] })
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    example: [
+      {
+        programa: 'Ingeniería Agropecuaria',
+        genero: 'Femenino',
+        facultad: 'Facultad de Ciencias Agrarias',
+        semestre: 5,
+        estrato: 2,
+        codigo_estudiante: '2020002350129',
+        periodo_academico: '2023-2',
+      },
+    ],
+  })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => RegistroIngestaCifrasDto)
-  registros!: RegistroIngestaCifrasDto[];
+  @ArrayMinSize(1, { message: 'Debe enviar al menos un registro.' })
+  registros!: Array<Record<string, unknown>>;
 }

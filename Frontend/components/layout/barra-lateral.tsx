@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  BarChart3,
   Bell,
   BookOpen,
   ChevronLeft,
@@ -63,6 +64,7 @@ function itemsAdministrador(): ItemNavegacion[] {
   return [
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
     { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
+    { href: '/administrador/cifras', etiqueta: 'Cifras institucionales', icono: BarChart3 },
     { href: '/administrador/programas', etiqueta: 'Programas académicos', icono: BookOpen },
     { href: '/administrador/usuarios', etiqueta: 'Asignación de programas', icono: Users },
     { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias y documentos', icono: Files },

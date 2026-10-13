@@ -533,6 +533,12 @@ model CargaCifras {
   errores       Json?
   usuarioId     String?
   cifras        CifraIndicador[]
+  estudiantes   RegistroEstudiante[]
+  profesores    RegistroProfesor[]
+  egresados     RegistroEgresado[]
+  semilleros    RegistroSemillero[]
+  aseguramiento ProgramaAseguramiento[]
+  sedes         SedeInfraestructura[]
   createdAt     DateTime        @default(now())
 
   @@index([categoriaId, createdAt])
@@ -564,4 +570,140 @@ model CifraIndicador {
   @@index([variableId, periodo])
   @@index([cargaId])
   @@index([programaId])
+}
+
+/// S3-03: registros por estudiante (el nombre es dato personal: nunca se expone en lecturas agregadas).
+model RegistroEstudiante {
+  id               String       @id @default(cuid())
+  nombreEstudiante String?
+  programa         String
+  genero           String
+  facultad         String
+  semestre         Int
+  estrato          Int
+  codigoEstudiante String
+  periodoAcademico String
+  cargaId          String?
+  carga            CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([cargaId])
+}
+
+/// S3-03: registros por profesor (una fila por docente y periodo).
+model RegistroProfesor {
+  id               String       @id @default(cuid())
+  nombreProfesor   String?
+  programa         String
+  genero           String
+  facultad         String
+  periodoInicio    String
+  /// Nulo = profesor vigente/planta (sin periodo final).
+  periodoFinal     String?
+  periodoAcademico String
+  estrato          Int
+  cargaId          String?
+  carga            CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([cargaId])
+}
+
+/// S3-03: registros por egresado; el periodo de reemplazo es «graduadosPeriodo».
+model RegistroEgresado {
+  id               String       @id @default(cuid())
+  nombreEgresado   String?
+  programa         String
+  genero           String
+  facultad         String
+  graduadosPeriodo String
+  estrato          Int
+  grado            String
+  nivel            String
+  cargaId          String?
+  carga            CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([graduadosPeriodo, facultad, programa])
+  @@index([cargaId])
+}
+
+/// S3-03: registros de investigación por grupo/semillero/programa/género y periodo.
+model RegistroSemillero {
+  id                   String       @id @default(cuid())
+  facultad             String
+  grupoInvestigacion   String
+  semillero            String
+  periodoAcademico     String
+  cantidadEstudiantes  Int
+  genero               String
+  programa             String
+  cargaId              String?
+  carga                CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([cargaId])
+}
+
+/// S3-03: aseguramiento por programa y periodo (banderas excluyentes).
+model ProgramaAseguramiento {
+  id                    String       @id @default(cuid())
+  periodoAcademico      String
+  programas             String
+  facultad              String
+  grado                 String
+  nivel                 String
+  acreditados           Int          @default(0)
+  acreditables          Int          @default(0)
+  registrosCalificables Int          @default(0)
+  inicioSiac            DateTime
+  finalizacionSiac      DateTime
+  snies                 String
+  cargaId               String?
+  carga                 CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad])
+  @@index([cargaId])
+}
+
+/// S3-03: infraestructura por sede (reemplazo por sede, sin periodo).
+model SedeInfraestructura {
+  id                        String       @id @default(cuid())
+  sede                      String
+  direccion                 String
+  numeroPisos               Int
+  estado                    String
+  totalM2AreaConstruida     Decimal      @db.Decimal(12, 2)
+  totalM2AreaTerreno        Decimal      @db.Decimal(12, 2)
+  cantidadSalonesClase      Int
+  areaM2SalonClase          Decimal      @db.Decimal(12, 2)
+  cantidadSalasSistemas     Int
+  areaM2SalasSistemas       Decimal      @db.Decimal(12, 2)
+  cantidadLaboratorios      Int
+  areaM2Laboratorios        Decimal      @db.Decimal(12, 2)
+  cantidadAuditorios        Int
+  areaM2Auditorios          Decimal      @db.Decimal(12, 2)
+  cantidadSalasLectura      Int
+  areaM2SalasLectura        Decimal      @db.Decimal(12, 2)
+  cantidadZonasDeportivas   Int
+  areaM2ZonasDeportivas     Decimal      @db.Decimal(12, 2)
+  cantidadCafeterias        Int
+  cantidadZonasEstudio      Int
+  cantidadZonasRecreativas  Int
+  cargaId                   String?
+  carga                     CargaCifras? @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  @@index([sede])
+  @@index([cargaId])
 }

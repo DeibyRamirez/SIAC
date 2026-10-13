@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { claveApiValida } from './cifras-datos.guard';
 
 /**
  * HU-009: clave de integración para la ingesta de cifras por API.
@@ -20,7 +20,6 @@ export class CifrasApiKeyGuard implements CanActivate {
       headers: Record<string, string | string[] | undefined>;
     }>();
     const encabezado = solicitud.headers['x-api-key'];
-    const recibida = (Array.isArray(encabezado) ? encabezado[0] : encabezado) ?? '';
     const esperada =
       this.configuracion.get<string>('cifrasApiKey') ??
       this.configuracion.get<string>('CIFRAS_API_KEY') ??
@@ -32,13 +31,7 @@ export class CifrasApiKeyGuard implements CanActivate {
       );
     }
 
-    if (!recibida) {
-      throw new UnauthorizedException('Clave de integración inválida o ausente.');
-    }
-
-    const hashRecibida = createHash('sha256').update(recibida).digest();
-    const hashEsperada = createHash('sha256').update(esperada).digest();
-    if (!timingSafeEqual(hashRecibida, hashEsperada)) {
+    if (!claveApiValida(this.configuracion, encabezado)) {
       throw new UnauthorizedException('Clave de integración inválida o ausente.');
     }
 

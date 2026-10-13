@@ -2,15 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   CATEGORIAS_CIFRAS,
   esCategoriaCifrasValida,
+  formatoDesdeUnidadCifras,
   fuenteCifrasDto,
   tituloCategoriaCifras,
 } from './catalogo-categorias';
+import { CifrasAgregacionService } from './cifras-agregacion.service';
 import { CifrasRepositorio, CifraConVariable } from './cifras.repositorio';
 import { CifrasSemillaService } from './cifras-semilla.service';
+import { obtenerEsquemaCategoria } from './esquemas/indice';
 import {
   CategoriaCifrasDto,
   DesgloseCifraDto,
-  FormatoIndicador,
   FuenteCifras,
   IndicadorCifrasDto,
   RespuestaCifrasDto,
@@ -29,6 +31,7 @@ export class CifrasPrismaService implements ProveedorCifras {
   constructor(
     private readonly repositorio: CifrasRepositorio,
     private readonly semilla: CifrasSemillaService,
+    private readonly agregacion: CifrasAgregacionService,
   ) {}
 
   async listarCategorias(): Promise<CategoriaCifrasDto[]> {
@@ -38,10 +41,12 @@ export class CifrasPrismaService implements ProveedorCifras {
       const propias = variables.filter(
         (variable) => variable.categoriaId === categoria.id && variable.activo,
       );
+      const esquema = obtenerEsquemaCategoria(categoria.id);
 
       return {
         ...categoria,
-        disponible: propias.length > 0 || this.semilla.tieneDatos(categoria.id),
+        disponible:
+          propias.length > 0 || this.semilla.tieneDatos(categoria.id) || esquema !== null,
         variables: propias.map((variable) => ({
           clave: variable.clave,
           etiquetaCuac: variable.etiquetaCuac,
@@ -49,6 +54,16 @@ export class CifrasPrismaService implements ProveedorCifras {
           unidad: variable.unidad,
           dimensiones: variable.dimensiones,
         })),
+        esquema: esquema?.columnas
+          .filter((columna) => !columna.deprecada && !columna.personal)
+          .map((columna) => ({
+            encabezado: columna.encabezado,
+            clave: columna.clave,
+            tipo: columna.tipo,
+            obligatoria: columna.obligatoria,
+            enum: columna.enum ? [...columna.enum] : undefined,
+            descripcion: columna.descripcion,
+          })),
       };
     });
   }
@@ -60,6 +75,12 @@ export class CifrasPrismaService implements ProveedorCifras {
   ): Promise<RespuestaCifrasDto> {
     if (!esCategoriaCifrasValida(categoriaId)) {
       throw new NotFoundException(`La categoría «${categoriaId}» no existe.`);
+    }
+
+    if (this.agregacion.esCategoriaDeRegistros(categoriaId)) {
+      const respuesta = await this.agregacion.obtenerCategoria(categoriaId, periodo, filtros);
+      if (respuesta) return respuesta;
+      return this.respuestaSemilla(categoriaId, periodo);
     }
 
     const periodosDisponibles = await this.repositorio.listarPeriodos(categoriaId, filtros);
@@ -129,7 +150,7 @@ export class CifrasPrismaService implements ProveedorCifras {
         id: variable.clave,
         etiqueta: variable.etiquetaCuac,
         unidad: variable.unidad,
-        formato: this.formatoDesdeUnidad(variable.unidad),
+        formato: formatoDesdeUnidadCifras(variable.unidad),
         total,
         valor: total,
         fuente: this.resolverFuente(filasVariable),
@@ -217,17 +238,6 @@ export class CifrasPrismaService implements ProveedorCifras {
         series: [],
         periodosDisponibles: [],
       };
-    }
-  }
-
-  private formatoDesdeUnidad(unidad: string): FormatoIndicador {
-    switch (unidad) {
-      case 'porcentaje':
-        return FormatoIndicador.porcentaje;
-      case 'm2':
-        return FormatoIndicador.decimal;
-      default:
-        return FormatoIndicador.entero;
     }
   }
 }

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PuntoSerieCifras } from '@/lib/tipos/cifras'
 
 const configuracion: ChartConfig = {
-  valor: { label: 'Valor', color: '#0a3b74' },
+  valor: { label: 'Valor', color: 'var(--color-chart-1)' },
 }
 
 interface GraficoBarrasCifrasProps {

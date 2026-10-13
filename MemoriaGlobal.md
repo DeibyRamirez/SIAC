@@ -392,7 +392,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ## 8. Estado actual (2026-10-10)
 
-El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK.
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK. **S3-02:** frontend de cifras (panel por categoría, importación Excel, diccionario de variables, página `/administrador/cifras`); Vitest 62 tests, `tsc` 0 y `next build` OK. **S3-03:** registros por categoría según `docs/plantillas-siac.xlsx` (6 modelos + esquemas tipados, reemplazo por periodo/sede, plantilla/JSON, feed Power BI); import real 15804/1351/1338/80/71/12 con 0 errores, Jest 228, Vitest 63 y builds OK.
 
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
@@ -487,6 +487,30 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-12 — Fix S3-03: filtros del panel de cifras (periodo, facultad, programa, sede)
+
+- [Backend] Nuevo `GET /cifras/:categoriaId/filtros?periodo=&facultad=`: valores DISTINCT reales de los registros (`periodos` desc, `facultades`, `programas` dependientes de la facultad, `sedes` para infraestructura); devuelve `[]` donde no exista la columna.
+- [Backend] `GET /cifras/:categoriaId`: `periodosDisponibles` y `meta.periodo/fuente` se calculan sin aplicar facultad/programa/sede (los filtros solo reducen indicadores); `meta.sinCoincidencias=true` cuando hay datos en el periodo pero el filtro deja 0 (un filtro sin coincidencias ya no cae a semilla). Comparación de facultad/programa/sede normalizada (trim, sin mayúsculas/tildes). Nuevo query `programa` (nombre) manteniendo `programaId` heredado.
+- [Frontend] Panel de cifras: los 3 selects (y «Sede» en infraestructura) se pueblan desde `/filtros`; cambiar facultad recarga programas y resetea la selección; los valores de URL inválidos se ignoran y se limpian; estado «No hay datos para los filtros seleccionados» + «Limpiar filtros» (sin importar) vs «Aún no hay cifras cargadas» + Importar.
+- [Tests] Jest 30 suites / 237 tests (filtros distinct, facultad inexistente → sinCoincidencias con periodos poblados, programa dependiente de facultad) y Vitest 16 archivos / 68 tests (selects poblados, reset de programa, limpiar filtros); builds OK.
+
+### 2026-10-12 — S3-03 / HU-009: datasets por categoría según docs/plantillas-siac.xlsx
+
+- [Backend] Migración `20261012200000_cifras_registros`: `RegistroEstudiante`, `RegistroProfesor`, `RegistroEgresado`, `RegistroSemillero`, `ProgramaAseguramiento`, `SedeInfraestructura` (+ carga y timestamps, índices por periodo/facultad/programa). Aplicada con `migrate deploy`.
+- [Backend] Catálogo tipado `src/cifras/esquemas/*` (6 categorías, encabezados reales con alias `falcultad` y `cantidad estudianes`, enums reales de grado, banderas excluyentes, fechas, monto m2) que genera validación, plantillas, ejemplo JSON, Swagger y diccionario. `valor_dimension` queda deprecada (se ignora).
+- [Backend] Importación estricta por registros (reemplazo transaccional por periodo; infraestructura por sede; lotes de 1000; máx. 20 MB) y misma validación para ingesta JSON (`GET/POST` mantienen clave/valor solo para bienestar y relaciones-entorno). Errores `Fila N, columna X`.
+- [Backend] `GET /cifras/:categoriaId` agrega desde registros (estudiantes 15804 en 2023-2, 9 facultades); `GET /cifras/:categoriaId/plantilla` (hoja de la categoría + instrucciones); `GET /cifras/:categoriaId/plantilla.json`; feed `GET /cifras/:categoriaId/datos` (x-api-key o JWT Admin, máx. 5000, sin nombres). Docs: `docs/powerbi-conexion-cifras.md`.
+- [Tests] Fixture reducido en `Backend/test/fixtures/plantillas-siac-reducido.xlsx`; specs de validador, importación/reemplazo, privacidad y feed. Jest 228/228 y Vitest 63/63, `tsc` 0, builds OK.
+- [Operación] Verificación con el Excel real completo (15804/1351/1338/80/71/12, filasError=0; reimport sin duplicar; feed sin nombres) y limpieza total de datos de prueba (0 registros restantes).
+- [Backend] Ajuste de ortografía de encabezados visibles (`Período académico`, `Género`, `Código del estudiante`, `Código SNIES`, `Acreditado/Acreditable/Registro calificado`, `Área construida total (m²)`, etc.): el texto anterior queda como alias (`falcultad`, `cantidad estudianes`, `total m2 area construida`) para seguir importando archivos viejos; la normalización mapea `²`→`2`. Claves JSON/Prisma sin cambios. `Valor de la dimensión` sale de la plantilla, el ejemplo JSON, instrucciones y diccionario, pero se sigue aceptando e ignorando al importar. Jest 231/231, Vitest 63/63 y builds OK.
+
+### 2026-10-12 — S3-02 / HU-009: importación de cifras y gráficas por categoría (frontend)
+
+- [Frontend] Panel genérico `panel-cifras-categoria.tsx` con filtros periodo/facultad/programa en URL, KPIs, gráficos (línea por dimensión temporal, dona para conteos ≤6, barras), badge de fuente API/Excel/Semilla/Mixta y estado vacío con «Importar Excel» (solo Administrador); `panel-cifras-estudiantes` queda como wrapper.
+- [Frontend] `dialogo-importar-cifras.tsx` (plantilla, validación cliente .xlsx ≤5 MB, errores por fila) y `ContenedorInformePowerBi` generalizado: sin embed/400/falla → panel de cifras de la categoría.
+- [Frontend] Nueva página `/administrador/cifras` (categorías con última carga + importación; diccionario con PATCH de etiquetas CUAC) y ítem de sidebar.
+- [Verificación] Vitest 62/62, `tsc --noEmit` 0 y `next build` OK; sin datos de prueba nuevos en BD (specs con servicios mockeados).
 
 ### 2026-10-12 — S3-01 / HU-009: cifras institucionales + ingesta API/Excel
 

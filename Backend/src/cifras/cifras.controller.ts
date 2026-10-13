@@ -34,9 +34,12 @@ import { CifrasService } from './cifras.service';
 import {
   ActualizarVariableCifraDto,
   ConsultaCifrasQueryDto,
+  ConsultaFiltrosCifrasQueryDto,
   ConsultaVariablesCifrasQueryDto,
+  PlantillaJsonCifrasDto,
   RespuestaCategoriasCifrasDto,
   RespuestaCifrasDto,
+  RespuestaFiltrosCifrasDto,
   RespuestaIngestaCifrasDto,
   RespuestaVariablesCifrasDto,
   VariableCifraDto,
@@ -105,6 +108,23 @@ export class CifrasController {
     respuesta.setHeader('Content-Type', mimeType);
     respuesta.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
     return new StreamableFile(buffer);
+  }
+
+  @Get(':categoriaId/plantilla.json')
+  @Roles(...ROLES_LECTURA)
+  @ApiOkResponse({ type: PlantillaJsonCifrasDto })
+  descargarPlantillaJson(@Param('categoriaId') categoriaId: string) {
+    return this.cifrasService.generarPlantillaJson(categoriaId);
+  }
+
+  @Get(':categoriaId/filtros')
+  @Roles(...ROLES_LECTURA)
+  @ApiOkResponse({ type: RespuestaFiltrosCifrasDto })
+  obtenerFiltros(
+    @Param('categoriaId') categoriaId: string,
+    @Query() consulta: ConsultaFiltrosCifrasQueryDto,
+  ) {
+    return this.cifrasService.obtenerFiltros(categoriaId, consulta);
   }
 
   @Post(':categoriaId/ingesta')

@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { FuenteCifra, VariableCifra, Prisma } from '@prisma/client';
+import { CifrasAgregacionService } from './cifras-agregacion.service';
 import { CifrasPrismaService } from './cifras-prisma.service';
 import { CifrasRepositorio, CifraConVariable } from './cifras.repositorio';
 import { CifrasSemillaService } from './cifras-semilla.service';
@@ -80,10 +81,32 @@ function crearServicio(
       },
       ...semilla,
     } as unknown as CifrasSemillaService,
+    {
+      esCategoriaDeRegistros: () => false,
+      obtenerCategoria: async () => null,
+    } as unknown as CifrasAgregacionService,
   );
 }
 
 describe('CifrasPrismaService — fuente por indicador y MIXTA', () => {
+  it('lista categorías con esquema tipado sin columnas obsoletas ni personales', async () => {
+    const servicio = crearServicio(new RepositorioFalso());
+
+    const categorias = await servicio.listarCategorias();
+    const estudiantes = categorias.find((categoria) => categoria.id === 'estudiantes');
+
+    expect(estudiantes?.esquema?.map((columna) => columna.encabezado)).toEqual([
+      'Programa',
+      'Género',
+      'Facultad',
+      'Semestre',
+      'Estrato',
+      'Código del estudiante',
+      'Período académico',
+    ]);
+    expect(JSON.stringify(estudiantes?.esquema)).not.toMatch(/valor_dimension|nombre/i);
+  });
+
   it('con una sola fuente, meta e indicadores la reportan', async () => {
     const repositorio = new RepositorioFalso();
     repositorio.filas = [fila(VARIABLE_VINCULACION, FuenteCifra.EXCEL, 130)];
