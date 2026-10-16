@@ -181,7 +181,7 @@ export function PanelAvanceEtapasSIAC({
                         <Badge variant={varianteBadge(estado)}>{etiquetaEstado(estado)}</Badge>
                       </div>
                     </div>
-                    <Progress value={doc.aportacion}>
+                    <Progress value={doc.porcentajeInterno}>
                       <ProgressLabel className="text-xs text-muted-foreground">
                         Aportación al proceso ({doc.peso}% peso · {doc.porcentajeInterno}%
                         interno)

@@ -20,6 +20,7 @@ import {
   crearEstadosCondicionInstitucionalIniciales,
   type EstadoCondicionInstitucionalDictamen,
 } from '@/components/siac/checklist-condiciones-institucionales'
+import { BarraAccionesDictamenRevisor } from '@/components/siac/barra-acciones-dictamen-revisor'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -314,6 +315,46 @@ function ContenidoDictamen() {
       ? condicionesInstitucionales.some((c) => c.observacion.trim().length > 0)
       : condiciones.some((c) => c.observacion.trim().length > 0)
     : observacionesGenerales.trim().length > 0
+
+  const deshabilitarCumple =
+    !puedeDictaminar ||
+    procesando ||
+    (usaChecklist && !todasCumplen) ||
+    observacionesBloqueanAprobar
+
+  const deshabilitarObservaciones =
+    !puedeDictaminar ||
+    procesando ||
+    (!usaChecklist && comentariosInline.filter((c) => c.body.trim()).length === 0)
+
+  const pistaDeshabilitado =
+    mensaje || !puedeDictaminar || procesando
+      ? undefined
+      : observacionesBloqueanAprobar
+        ? usaChecklist
+          ? 'Para registrar «Cumple», quite las observaciones en condiciones marcadas como Corregir o en el texto general.'
+          : 'Para aprobar, el campo de observaciones debe estar vacío.'
+        : usaChecklist && !todasCumplen
+          ? 'Para registrar «Cumple», todas las condiciones deben estar marcadas como Correcto.'
+          : undefined
+
+  function solicitarCorreccion() {
+    if (usaChecklist) {
+      const err = validarCondiciones()
+      const listaActual = usaChecklistInstitucional
+        ? condicionesInstitucionales
+        : condiciones
+      if (err && listaActual.every((c) => c.decision === 'correcto')) {
+        setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
+        return
+      }
+      if (err) {
+        setMensaje(err)
+        return
+      }
+    }
+    setConfirmarCorreccion(true)
+  }
 
   function validarCondiciones(): string | null {
     const lista = usaChecklistInstitucional
@@ -820,52 +861,23 @@ function ContenidoDictamen() {
               </p>
             )}
 
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={() => setConfirmarAprobar(true)}
-                disabled={
-                  !puedeDictaminar ||
-                  procesando ||
-                  (usaChecklist && !todasCumplen) ||
-                  observacionesBloqueanAprobar
-                }
-              >
-                {usaChecklist ? `Registrar «Cumple» (${textoPuntajePreview})` : 'Aprobar documento'}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (usaChecklist) {
-                    const err = validarCondiciones()
-                    const listaActual = usaChecklistInstitucional
-                      ? condicionesInstitucionales
-                      : condiciones
-                    if (err && listaActual.every((c) => c.decision === 'correcto')) {
-                      setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
-                      return
-                    }
-                    if (err) {
-                      setMensaje(err)
-                      return
-                    }
-                  }
-                  setConfirmarCorreccion(true)
-                }}
-                disabled={
-                  !puedeDictaminar ||
-                  procesando ||
-                  (!usaChecklist &&
-                    comentariosInline.filter((c) => c.body.trim()).length === 0)
-                }
-              >
-                {usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'}
-              </Button>
-              <Link href="/revisor/bandeja">
-                <Button variant="outline" className="w-full">
-                  Volver
-                </Button>
-              </Link>
-            </div>
+            <BarraAccionesDictamenRevisor
+              etiquetaCumple={
+                usaChecklist
+                  ? `Registrar «Cumple» (${textoPuntajePreview})`
+                  : 'Aprobar documento'
+              }
+              etiquetaObservaciones={
+                usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'
+              }
+              onCumple={() => setConfirmarAprobar(true)}
+              onObservaciones={solicitarCorreccion}
+              deshabilitarCumple={deshabilitarCumple}
+              deshabilitarObservaciones={deshabilitarObservaciones}
+              procesando={procesando}
+              puedeDictaminar={puedeDictaminar}
+              pistaDeshabilitado={pistaDeshabilitado}
+            />
           </CardContent>
         </Card>
       </div>

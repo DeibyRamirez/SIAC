@@ -1,5 +1,8 @@
 import { peticionApi } from './cliente-api'
-import type { CodigoDocumentoGuia, TipoTramiteSIAC } from '@/lib/utilidades/catalogo-tramites-siac'
+import type {
+  CodigoDocumentoGuia,
+  TipoTramiteSIAC,
+} from '@/lib/utilidades/catalogo-tramites-siac'
 import type { EstadoEvidencia } from '@/lib/tipos'
 
 export interface DocumentoProgresoSIAC {
@@ -31,6 +34,8 @@ export interface ProgresoProcesoSIAC {
   documentosPendientes?: CodigoDocumentoGuia[]
   /** «Cargar resolución MEN» solo con todos los documentos aprobados. */
   puedeCargarResolucion?: boolean
+  guiasDisponiblesCarga?: CodigoDocumentoGuia[]
+  bloqueosCarga?: { codigoGuia: CodigoDocumentoGuia; motivo: string }[]
 }
 
 export async function obtenerProgresoProgramaApi(

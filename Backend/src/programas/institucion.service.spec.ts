@@ -1,11 +1,13 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   CodigoDocumentoGuia,
   EstadoEvidencia,
+  RolUsuario,
   TipoTramiteSIAC,
 } from '@prisma/client';
 import { InstitucionService } from './institucion.service';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
+import { ServicioAlcancePrograma } from '../common/alcance/servicio-alcance-programa';
 
 describe('InstitucionService', () => {
   const institucion = {
@@ -33,7 +35,11 @@ describe('InstitucionService', () => {
     calcularProgresoInstitucion: jest.fn(),
   } as unknown as AvanceProcesoSIACService;
 
-  const servicio = new InstitucionService(prisma as never, avanceProceso);
+  const alcance = {
+    esResponsableProcesoInstitucional: jest.fn(),
+  } as unknown as ServicioAlcancePrograma;
+
+  const servicio = new InstitucionService(prisma as never, avanceProceso, alcance);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -57,6 +63,24 @@ describe('InstitucionService', () => {
   it('obtener lanza 404 si no hay institución', async () => {
     prisma.institucion.findFirst.mockResolvedValue(null);
     await expect(servicio.obtener()).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('obtenerProgreso permite Cargador responsable institucional', async () => {
+    (alcance.esResponsableProcesoInstitucional as jest.Mock).mockResolvedValue(true);
+    const progreso = await servicio.obtenerProgreso({
+      id: 'cargador-1',
+      rol: RolUsuario.Cargador,
+    });
+    expect(progreso.avanceGlobal).toBe(100);
+    expect(avanceProceso.calcularProgresoInstitucion).toHaveBeenCalledWith(institucion.id);
+  });
+
+  it('obtenerProgreso rechaza Cargador sin responsable institucional', async () => {
+    (alcance.esResponsableProcesoInstitucional as jest.Mock).mockResolvedValue(false);
+    await expect(
+      servicio.obtenerProgreso({ id: 'cargador-1', rol: RolUsuario.Cargador }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(avanceProceso.calcularProgresoInstitucion).not.toHaveBeenCalled();
   });
 });
 

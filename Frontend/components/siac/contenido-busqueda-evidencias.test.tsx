@@ -120,4 +120,39 @@ describe('ContenidoBusquedaEvidencias', () => {
     expect(screen.getByText(/01 de oct de 2026/i)).toBeInTheDocument()
     expect(screen.getByText(/p\. m\./i)).toBeInTheDocument()
   })
+
+  it('permite encabezado y ruta de detalle de la bandeja revisor', () => {
+    render(
+      <ContenidoBusquedaEvidencias
+        filtrosIniciales={{ estado: 'EnRevision' }}
+        datosIniciales={{
+          resultados: [
+            {
+              id: 'ev-revisor',
+              nombre: 'G1 Documento Maestro',
+              programaId: 'prog-1',
+              programa: { id: 'prog-1', nombre: 'Contaduría Pública' },
+              periodo: '2026-2',
+              estado: 'EnRevision',
+              autorId: 'user-1',
+              nombreArchivo: 'g1.docx',
+              fechaCarga: '2026-10-15T16:00:00.000Z',
+              codigoGuia: 'G1',
+            },
+          ],
+          total: 1,
+          pagina: 1,
+          limite: 20,
+        }}
+        etiqueta="Dictamen documental"
+        titulo="Bandeja de revisión"
+        descripcion="Filtros combinables para localizar evidencias de sus programas."
+        rutaDetalle={(id) => `/revisor/bandeja/${id}`}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Bandeja de revisión' })).toBeInTheDocument()
+    expect(screen.getByText(/Dictamen documental/i)).toBeInTheDocument()
+    expect(screen.getByText('G1 Documento Maestro').closest('tr')).toBeTruthy()
+  })
 })

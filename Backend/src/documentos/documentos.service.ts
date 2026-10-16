@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 
@@ -30,7 +31,9 @@ import { parsearParametrosConsultaEvidencias } from './parametros-consulta-evide
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 
 import { AvanceProgramaService } from '../programas/avance-programa.service';
+import { AvanceProcesoSIACService } from '../programas/avance-proceso-siac.service';
 import { codigosGuiaPermitidos } from '../programas/catalogo-tramites-siac';
+import { validarNuevaCargaEvidencia } from '../dominio/reglas-carga-evidencia';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 
 import {
@@ -112,6 +115,8 @@ export class DocumentosService {
     private readonly notificacionesDestinatarios: NotificacionesDestinatariosService,
 
     private readonly avancePrograma: AvanceProgramaService,
+
+    private readonly avanceProceso: AvanceProcesoSIACService,
 
     private readonly docx: ServicioManipulacionDocx,
 
@@ -200,6 +205,17 @@ export class DocumentosService {
         throw new BadRequestException(
           `La guía ${codigoGuia} no corresponde al trámite activo del programa (${programa.tipoTramiteActivo}).`,
         );
+      }
+    }
+
+    if (codigoGuia) {
+      const progreso =
+        esInstitucional && institucion
+          ? await this.avanceProceso.calcularProgresoInstitucion(institucion.id)
+          : await this.avanceProceso.calcularProgresoPrograma(dto.programaId!);
+      const mensajeBloqueo = validarNuevaCargaEvidencia(codigoGuia, progreso);
+      if (mensajeBloqueo) {
+        throw new ConflictException(mensajeBloqueo);
       }
     }
 

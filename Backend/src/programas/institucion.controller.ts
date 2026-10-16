@@ -24,8 +24,14 @@ export class InstitucionController {
   }
 
   @Get('progreso')
-  progreso() {
-    return this.institucionService.obtenerProgreso();
+  @Roles(
+    RolUsuario.Administrador,
+    RolUsuario.SuperAdmin,
+    RolUsuario.Cargador,
+    RolUsuario.Revisor,
+  )
+  progreso(@Req() req: { user: { id: string; rol: RolUsuario } }) {
+    return this.institucionService.obtenerProgreso(req.user);
   }
 
   @Get('resumen')

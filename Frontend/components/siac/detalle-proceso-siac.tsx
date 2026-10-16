@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
+import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { BarraVigenciaRegistro } from '@/components/siac/barra-vigencia-registro'
+import { BarraVigenciaRegistroDemo } from '@/components/siac/barra-vigencia-registro-demo'
 import { ProcesoProgramaDetalle } from '@/components/siac/proceso-programa-detalle'
 import { Semaforo } from '@/components/siac/insignia-estado'
 import { TarjetaCargarResolucion } from '@/components/siac/tarjeta-cargar-resolucion'
@@ -29,12 +31,27 @@ import {
   obtenerProgramaApi,
 } from '@/lib/servicios/programas.servicio'
 import { obtenerProgresoProgramaApi } from '@/lib/servicios/progreso-programa.servicio'
+import { apiDisponible } from '@/lib/servicios/cliente-api'
+import {
+  detenerDemoVigenciaApi,
+  iniciarDemoVigenciaApi,
+  obtenerEstadoDemoVigenciaApi,
+} from '@/lib/servicios/vigencias.servicio'
+import type { AlcancePaqueteVigencia } from '@/lib/tipos'
 import type { NivelPrograma, Programa, SemaforoPrograma } from '@/lib/tipos'
 import {
   CATALOGO_TRAMITES_SIAC,
   type TipoTramiteSIAC,
 } from '@/lib/utilidades/catalogo-tramites-siac'
-import { calcularSemaforoVigencia, mensajeAlertaVigencia } from '@/lib/utilidades/vigencia-registro'
+import {
+  claveSessionDemoVigencia,
+  calcularSemaforoVigencia,
+  mensajeAlertaVigencia,
+} from '@/lib/utilidades/vigencia-registro'
+
+const demoVigenciaAuto =
+  process.env.NEXT_PUBLIC_DEMO_VIGENCIA_7MIN === 'true' ||
+  process.env.NEXT_PUBLIC_DEMO_VIGENCIA_7MIN === '1'
 
 type ProgramaDetalle = Programa & {
   fechaResolucion?: string | null
@@ -97,6 +114,7 @@ function mapearInstitucionADetalle(data: {
 
 export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: DetalleProcesoSIACProps) {
   const { sesion } = usarSesion()
+  const { recargarAlertas } = usarAlmacen()
   const puedeAdministrar = sesion?.rol === 'Administrador' || sesion?.rol === 'SuperAdmin'
   const [programa, setPrograma] = useState<ProgramaDetalle | null>(null)
   const [progreso, setProgreso] = useState<ProgresoProcesoSIAC | null>(null)
@@ -108,6 +126,8 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   const [tipoTramiteActivo, setTipoTramiteActivo] =
     useState<TipoTramiteSIAC>('RenovacionRegistroCalificado')
   const [guardando, setGuardando] = useState(false)
+  const [demoVigenciaActiva, setDemoVigenciaActiva] = useState(false)
+  const [inicioDemoVigenciaMs, setInicioDemoVigenciaMs] = useState<number | null>(null)
 
   const tramitesPrograma = CATALOGO_TRAMITES_SIAC.filter((item) => item.alcance === 'Programa')
   const tramitesInstitucion = CATALOGO_TRAMITES_SIAC.filter(
@@ -168,6 +188,87 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
       toast.warning(alerta, { id: `vigencia-${idResolucion}` })
     }
   }, [programa?.fechaResolucion, programa?.nombre, idResolucion])
+
+  const alcanceDemo: AlcancePaqueteVigencia = esInstitucion ? 'Institucion' : 'Programa'
+  const idEntidadDemo = programa?.id ?? entidadId
+
+  const iniciarDemoVigencia = useCallback(async () => {
+    const ahora = Date.now()
+    try {
+      sessionStorage.setItem(claveSessionDemoVigencia(idResolucion), String(ahora))
+    } catch {
+      /* privado / sin storage */
+    }
+    setInicioDemoVigenciaMs(ahora)
+    setDemoVigenciaActiva(true)
+    if (apiDisponible() && idEntidadDemo) {
+      try {
+        const respuesta = await iniciarDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+        setInicioDemoVigenciaMs(respuesta.inicioAtMs)
+        await recargarAlertas()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'No se pudo iniciar la prueba en el servidor.')
+      }
+    }
+  }, [alcanceDemo, idEntidadDemo, idResolucion, recargarAlertas])
+
+  const detenerDemoVigencia = useCallback(async () => {
+    try {
+      sessionStorage.removeItem(claveSessionDemoVigencia(idResolucion))
+    } catch {
+      /* privado / sin storage */
+    }
+    setDemoVigenciaActiva(false)
+    setInicioDemoVigenciaMs(null)
+    if (apiDisponible() && idEntidadDemo) {
+      try {
+        await detenerDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+      } catch {
+        /* la UI local ya se detuvo */
+      }
+    }
+  }, [alcanceDemo, entidadId, idResolucion])
+
+  useEffect(() => {
+    if (!programa?.fechaResolucion) {
+      setDemoVigenciaActiva(false)
+      setInicioDemoVigenciaMs(null)
+      return
+    }
+    const key = claveSessionDemoVigencia(idResolucion)
+    try {
+      const guardado = sessionStorage.getItem(key)
+      if (guardado) {
+        const inicio = parseInt(guardado, 10)
+        if (!Number.isNaN(inicio)) {
+          setInicioDemoVigenciaMs(inicio)
+          setDemoVigenciaActiva(true)
+          return
+        }
+      }
+      if (demoVigenciaAuto) {
+        const ahora = Date.now()
+        sessionStorage.setItem(key, String(ahora))
+        setInicioDemoVigenciaMs(ahora)
+        setDemoVigenciaActiva(true)
+      }
+    } catch {
+      if (demoVigenciaAuto) {
+        setInicioDemoVigenciaMs(Date.now())
+        setDemoVigenciaActiva(true)
+      }
+    }
+  }, [programa?.fechaResolucion, idResolucion])
+
+  useEffect(() => {
+    if (!demoVigenciaActiva || !idEntidadDemo || !apiDisponible()) return
+    const id = window.setInterval(() => {
+      void obtenerEstadoDemoVigenciaApi(idEntidadDemo, alcanceDemo).then(() => {
+        void recargarAlertas()
+      })
+    }, 10_000)
+    return () => window.clearInterval(id)
+  }, [alcanceDemo, demoVigenciaActiva, idEntidadDemo, recargarAlertas])
 
   const conteos = programa?.conteosEstado
     ? {
@@ -243,6 +344,31 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         />
       ) : null}
 
+      {vigenciaActiva && programa.fechaResolucion && puedeAdministrar ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {!demoVigenciaActiva ? (
+            <Button type="button" variant="outline" size="sm" onClick={iniciarDemoVigencia}>
+              Iniciar prueba de vigencia (7 min)
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={detenerDemoVigencia}>
+              Detener prueba de vigencia
+            </Button>
+          )}
+        </div>
+      ) : null}
+
+      {vigenciaActiva &&
+      programa.fechaResolucion &&
+      demoVigenciaActiva &&
+      inicioDemoVigenciaMs !== null ? (
+        <BarraVigenciaRegistroDemo
+          fechaResolucion={programa.fechaResolucion}
+          nombreEntidad={programa.nombre}
+          inicioDemoMs={inicioDemoVigenciaMs}
+        />
+      ) : null}
+
       {puedeIniciarCicloRenovacion && entidadId ? (
         <Card>
           <CardContent className="space-y-3 pt-6">
@@ -287,10 +413,10 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
             <span className="font-semibold text-esmeralda">{avanceMostrado}%</span>
           </div>
           <Progress value={avanceMostrado} className="h-3" />
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Semáforo institucional (RN-003)</span>
             <Semaforo valor={programa.semaforo} contexto="avancePrograma" />
-          </div>
+          </div> */}
         </CardContent>
       </Card>
 

@@ -98,10 +98,16 @@ export function ContenidoBusquedaEvidencias({
   filtrosIniciales,
   datosIniciales,
   rutaDetalle = (id) => `/administrador/evidencias/${id}`,
+  etiqueta = 'Gestión documental',
+  titulo = 'Búsqueda de evidencias',
+  descripcion = 'Filtros combinables sincronizados con la URL. Comparte el enlace para reproducir la misma vista (según tu rol).',
 }: {
   filtrosIniciales: FiltrosBusquedaUrl
   datosIniciales: RespuestaBusquedaEvidencias
   rutaDetalle?: (id: string) => string
+  etiqueta?: string
+  titulo?: string
+  descripcion?: string
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -185,11 +191,7 @@ export function ContenidoBusquedaEvidencias({
 
   return (
     <div className="space-y-6">
-      <EncabezadoPagina
-        etiqueta="Gestión documental"
-        titulo="Búsqueda de evidencias"
-        descripcion="Filtros combinables sincronizados con la URL. Comparte el enlace para reproducir la misma vista (según tu rol)."
-      />
+      <EncabezadoPagina etiqueta={etiqueta} titulo={titulo} descripcion={descripcion} />
 
       <FiltrosBusquedaEvidencias
         valores={valores}

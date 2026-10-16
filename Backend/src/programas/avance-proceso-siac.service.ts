@@ -3,7 +3,18 @@ import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/c
 import { PrismaService } from '../prisma/prisma.module';
 import { calcularAvancePonderado, esEstadoRevisado, redondear2 } from '../dominio/panel-siac';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
+import {
+  ESTADOS_BLOQUEAN_NUEVA_EVIDENCIA_MISMA_GUIA,
+  ESTADOS_REQUIEREN_CORRECCION_EN_LUGAR,
+  type BloqueoCargaGuia,
+  calcularReglasCargaGuias,
+} from '../dominio/reglas-carga-evidencia';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
+
+const ESTADOS_EVIDENCIA_ABIERTA_CARGA = [
+  ...ESTADOS_BLOQUEAN_NUEVA_EVIDENCIA_MISMA_GUIA,
+  ...ESTADOS_REQUIEREN_CORRECCION_EN_LUGAR,
+];
 
 export interface DocumentoProgresoSIAC {
   codigoGuia: CodigoDocumentoGuia;
@@ -35,6 +46,9 @@ export interface ProgresoProcesoSIAC {
   documentosPendientes: CodigoDocumentoGuia[];
   /** Se habilita «Cargar resolución» solo cuando todos los documentos del trámite están aprobados. */
   puedeCargarResolucion: boolean;
+  /** Guías que el Cargador puede crear como nueva evidencia en el ciclo actual. */
+  guiasDisponiblesCarga: CodigoDocumentoGuia[];
+  bloqueosCarga: BloqueoCargaGuia[];
 }
 
 @Injectable()
@@ -120,6 +134,25 @@ export class AvanceProcesoSIACService {
       documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
     );
     const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
+    const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+
+    const evidenciasAbiertas = await this.prisma.evidencia.findMany({
+      where: {
+        programaId,
+        codigoGuia: { in: codigosGuia },
+        createdAt: { gte: programa.inicioCicloTramiteAt },
+        estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
+      },
+      select: { codigoGuia: true, estado: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const reglasCarga = calcularReglasCargaGuias(
+      codigosGuia,
+      documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
+      evidenciasAbiertas
+        .filter((ev) => ev.codigoGuia)
+        .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
+    );
 
     return {
       programaId,
@@ -127,8 +160,9 @@ export class AvanceProcesoSIACService {
       avanceGlobal,
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
-      documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
+      documentos: documentosPublicos,
       ...estadoResolucion(documentos),
+      ...reglasCarga,
     };
   }
 
@@ -210,6 +244,24 @@ export class AvanceProcesoSIACService {
       documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
     );
     const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
+    const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+
+    const evidenciasAbiertas = await this.prisma.evidencia.findMany({
+      where: {
+        institucionId,
+        codigoGuia: { in: codigosGuia },
+        estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
+      },
+      select: { codigoGuia: true, estado: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const reglasCarga = calcularReglasCargaGuias(
+      codigosGuia,
+      documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
+      evidenciasAbiertas
+        .filter((ev) => ev.codigoGuia)
+        .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
+    );
 
     return {
       programaId: institucionId,
@@ -217,8 +269,9 @@ export class AvanceProcesoSIACService {
       avanceGlobal,
       documentosAceptados,
       documentosTotal: tramite.documentosGuia.length,
-      documentos: documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc),
+      documentos: documentosPublicos,
       ...estadoResolucion(documentos),
+      ...reglasCarga,
     };
   }
 }

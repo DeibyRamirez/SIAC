@@ -17,6 +17,10 @@ import {
   construirOrdenConsultaEvidencias,
 } from './constructor-consulta-evidencias';
 import { buscarIdsEvidenciasFts } from './fts-evidencias';
+import {
+  combinarCondicionTextoLibre,
+  construirFiltroTextoLibre,
+} from './texto-libre-evidencias';
 
 
 
@@ -245,16 +249,20 @@ export class EvidenciaRepositorio {
 
 
   async listar(filtros: FiltrosEvidencia) {
-    let idsFts: string[] | undefined;
-    if (filtros.usarFts && filtros.busqueda?.trim()) {
-      idsFts = await buscarIdsEvidenciasFts(this.prisma, filtros.busqueda);
-      if (idsFts.length === 0) {
-        return [[], 0] as const;
+    let condicionTextoLibre: Prisma.EvidenciaWhereInput | undefined;
+    const textoBusqueda = filtros.busqueda?.trim();
+    if (textoBusqueda) {
+      const textoLibre = construirFiltroTextoLibre(textoBusqueda);
+      if (filtros.usarFts) {
+        const idsFts = await buscarIdsEvidenciasFts(this.prisma, textoBusqueda);
+        condicionTextoLibre = combinarCondicionTextoLibre(idsFts, textoLibre);
+      } else {
+        condicionTextoLibre = textoLibre;
       }
     }
 
     const facetas = construirFiltrosConsultaEvidencias({
-      busqueda: filtros.busqueda,
+      condicionTextoLibre,
       programaId: filtros.programaId,
       programaSlug: filtros.programaSlug,
       codigoGuia: filtros.codigoGuia,
@@ -268,7 +276,6 @@ export class EvidenciaRepositorio {
       fechaCargaHasta: filtros.fechaCargaHasta,
       fechaVerificacionDesde: filtros.fechaVerificacionDesde,
       fechaVerificacionHasta: filtros.fechaVerificacionHasta,
-      idsFts,
       rolUsuario: filtros.rolUsuario,
     });
 

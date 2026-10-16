@@ -118,6 +118,38 @@ export interface Plantilla {
   nombreArchivo?: string | null
 }
 
+export type AlcancePaqueteVigencia = 'Programa' | 'Institucion'
+
+export interface DocumentoPaqueteVigencia {
+  tipo: 'Guia' | 'ResolucionMen'
+  codigoGuia?: string
+  evidenciaId: string
+  nombre: string
+  nombreArchivo: string | null
+  estado: string
+}
+
+export interface PaqueteVigenciaRegistro {
+  alcance: AlcancePaqueteVigencia
+  entidadId: string
+  nombre: string
+  codigo: string
+  tipoTramite: string
+  fechaResolucion: string
+  fechaFinVigencia: string
+  semaforoVigencia: SemaforoVigencia
+  porcentajeVigencia: number
+  documentos: DocumentoPaqueteVigencia[]
+}
+
+export interface EstadoDemoVigencia {
+  modoPrueba: boolean
+  activa: boolean
+  semaforoVigencia: SemaforoVigencia
+  segundosRestantes: number
+  fraccion: number
+}
+
 /** Categoría explícita del anexo; RN-003 solo considera «Infraestructura». */
 export type CategoriaAnexo = 'Infraestructura' | 'Permiso' | 'Convenio' | 'Otro'
 

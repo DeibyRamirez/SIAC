@@ -1,4 +1,4 @@
-import { CodigoDocumentoGuia, EstadoEvidencia, RolUsuario } from '@prisma/client';
+import { EstadoEvidencia, RolUsuario } from '@prisma/client';
 import {
   combinarConAlcance,
   construirFiltrosConsultaEvidencias,
@@ -25,17 +25,12 @@ describe('ConstructorConsultaEvidencias', () => {
     expect(where).toEqual({ puntajeActual: null });
   });
 
-  it('el texto libre incluye guía G3', () => {
-    const where = construirFiltrosConsultaEvidencias({ busqueda: 'g3' });
-    expect(where.OR).toContainEqual({ codigoGuia: CodigoDocumentoGuia.G3 });
-  });
-
-  it('usa ids FTS cuando se proveen', () => {
+  it('aplica condicionTextoLibre cuando se provee', () => {
+    const condicion = { OR: [{ id: { in: ['ev-1', 'ev-2'] } }] };
     const where = construirFiltrosConsultaEvidencias({
-      idsFts: ['ev-1', 'ev-2'],
-      busqueda: 'currículo',
+      condicionTextoLibre: condicion,
     });
-    expect(where).toEqual({ id: { in: ['ev-1', 'ev-2'] } });
+    expect(where).toEqual(condicion);
   });
 
   it('ignora estado explícito para par académico', () => {

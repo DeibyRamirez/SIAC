@@ -9,8 +9,6 @@ import {
   escalarUmbralBusqueda,
 } from '../dominio/puntaje-condiciones';
 
-const CODIGOS_GUIA = Object.values(CodigoDocumentoGuia) as string[];
-
 const TOTALES_CONDICIONES = [6, 9];
 
 export type CampoOrdenEvidencia = 'fechaCarga' | 'puntajeActual' | 'nombre';
@@ -18,7 +16,6 @@ export type DireccionOrden = 'asc' | 'desc';
 export type ColorSemaforoBusqueda = 'Verde' | 'Amarillo' | 'Rojo' | 'Gris';
 
 export interface FiltrosConsultaEvidencias {
-  busqueda?: string;
   programaId?: string;
   programaSlug?: string;
   codigoGuia?: CodigoDocumentoGuia;
@@ -32,7 +29,8 @@ export interface FiltrosConsultaEvidencias {
   fechaCargaHasta?: Date;
   fechaVerificacionDesde?: Date;
   fechaVerificacionHasta?: Date;
-  idsFts?: string[];
+  /** Texto libre ya resuelto (FTS ∪ ILIKE ampliado) en el repositorio. */
+  condicionTextoLibre?: Prisma.EvidenciaWhereInput;
   /** Par académico ignora filtro estado explícito. */
   rolUsuario?: RolUsuario;
 }
@@ -51,13 +49,6 @@ const ESTADOS_VERIFICACION: EstadoEvidencia[] = [
   EstadoEvidencia.Rechazado,
 ];
 
-function guiaDesdeTexto(texto: string): CodigoDocumentoGuia | undefined {
-  const normalizado = texto.trim().toUpperCase();
-  return CODIGOS_GUIA.includes(normalizado)
-    ? (normalizado as CodigoDocumentoGuia)
-    : undefined;
-}
-
 function filtroFormato(formato: 'pdf' | 'xlsx'): Prisma.EvidenciaWhereInput {
   if (formato === 'pdf') {
     return {
@@ -75,18 +66,7 @@ function filtroFormato(formato: 'pdf' | 'xlsx'): Prisma.EvidenciaWhereInput {
   };
 }
 
-function filtroTextoIlike(busqueda: string): Prisma.EvidenciaWhereInput {
-  const guiaEnTexto = guiaDesdeTexto(busqueda);
-  const condicionesTexto: Prisma.EvidenciaWhereInput[] = [
-    { nombre: { contains: busqueda, mode: 'insensitive' } },
-    { periodo: { contains: busqueda, mode: 'insensitive' } },
-    { nombreArchivo: { contains: busqueda, mode: 'insensitive' } },
-    ...(guiaEnTexto ? [{ codigoGuia: guiaEnTexto }] : []),
-  ];
-  return { OR: condicionesTexto };
-}
-
-function filtroSemaforo(color: ColorSemaforoBusqueda): Prisma.EvidenciaWhereInput {
+export function filtroSemaforo(color: ColorSemaforoBusqueda): Prisma.EvidenciaWhereInput {
   if (color === 'Gris') {
     return { puntajeActual: null };
   }
@@ -158,7 +138,7 @@ function filtroRangoFechas(
 
 /**
  * Constructor único de filtros facetados para GET /busqueda y GET /evidencias.
- * El texto libre usa FTS cuando hay idsFts; si no, ILIKE como respaldo.
+ * El texto libre llega como condicionTextoLibre (FTS ∪ ILIKE ampliado).
  */
 export function construirFiltrosConsultaEvidencias(
   filtros: FiltrosConsultaEvidencias,
@@ -204,10 +184,8 @@ export function construirFiltrosConsultaEvidencias(
   );
   if (rangoVerificacion) partes.push(rangoVerificacion);
 
-  if (filtros.idsFts?.length) {
-    partes.push({ id: { in: filtros.idsFts } });
-  } else if (filtros.busqueda?.trim()) {
-    partes.push(filtroTextoIlike(filtros.busqueda.trim()));
+  if (filtros.condicionTextoLibre) {
+    partes.push(filtros.condicionTextoLibre);
   }
 
   if (partes.length === 0) return {};
