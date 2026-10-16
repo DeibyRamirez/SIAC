@@ -51,7 +51,11 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
 1. Render → **New → Blueprint** → conectar el repositorio y elegir la rama a desplegar.
 2. El Blueprint crea el servicio web `siac-api`:
    - `rootDir: Backend`, `runtime: node`, Node **24.x** (por `engines.node` de `Backend/package.json`).
-   - `plan: starter` (0.5 CPU / 512 MB, **USD 7/mes**). **No usar `free`**: se duerme tras 15 min sin tráfico y el cron de vigencias (06:00) y el modo prueba de 5 min dejan de ejecutarse.
+   - `plan: free` (0.1 CPU / 512 MB, **USD 0**). Limitaciones del plan gratuito:
+     - El servicio **se duerme tras ~15 min sin tráfico** y la siguiente petición tarda ~1 min en despertarlo (arranque en frío, incluye `prisma migrate deploy`).
+     - **Dormido no ejecuta nada**: ni el cron de vigencias (06:00) ni el evaluador del modo prueba; las sesiones demo en memoria se pierden al dormirse o reiniciarse.
+     - 750 horas de instancia gratis al mes por workspace: alcanzan para **un** servicio encendido todo el mes (~744 h), no para dos.
+     - **Mitigación: keep-alive** (sección 2.1). Para producción real cambiar a `starter` (0.5 CPU / 512 MB, USD 7/mes, siempre encendido) editando `plan` en `render.yaml`.
    - `region: virginia` (no se puede cambiar después de crear el servicio).
    - `numInstances: 1`: el cron y las sesiones del modo prueba viven en la memoria del proceso; con dos instancias el cron correría dos veces.
    - Build: `corepack` + `pnpm install --frozen-lockfile --prod=false` + `pnpm build` (`prisma generate && nest build`). Se instalan las devDependencies aunque `NODE_ENV=production`, porque el build y las migraciones usan `@nestjs/cli`, `typescript` y `prisma`.
@@ -61,6 +65,18 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
 3. Diligenciar las variables que pide el Blueprint (todas vienen con `sync: false`, sin valores). Ver la tabla de la sección 5.
 4. Primer despliegue: revisar en **Logs** las líneas `prisma migrate deploy` (31 migraciones), `SIAC API escuchando en el puerto …` y las advertencias `[configuración]`.
 5. Probar: `https://<servicio>.onrender.com/api/v1/salud` y `https://<servicio>.onrender.com/api/docs`.
+
+### 2.1 Keep-alive (mitiga el sueño del plan free)
+
+El workflow `.github/workflows/keep-alive.yml` hace `GET <BACKEND_URL>/api/v1/salud` cada 10 minutos (`cron: '*/10 * * * *'`, además de ejecución manual con *Run workflow*). Como el health check hace `SELECT 1`, también mantiene activa la base de Supabase y evita que el proyecto gratuito se pause.
+
+1. GitHub → repositorio → **Settings → Secrets and variables → Actions → Variables** → crear la variable de repositorio `BACKEND_URL` = `https://<servicio>.onrender.com` (sin `/api/v1`; la barra final se ignora).
+2. Si `BACKEND_URL` está vacía el workflow solo imprime un aviso y termina en verde.
+3. Limitaciones de GitHub Actions:
+   - Los workflows programados **solo corren desde la rama por defecto del repositorio** (hoy `main`): el keep-alive empieza a funcionar cuando el archivo llegue a esa rama.
+   - La programación es «best effort»: GitHub puede retrasar o saltarse ejecuciones en horas de carga, así que puede haber huecos y algún arranque en frío.
+   - En repositorios públicos GitHub desactiva los workflows programados tras 60 días sin actividad en el repositorio; reactivarlo desde la pestaña **Actions**.
+4. Para que el cron de las 06:00 corra, el servicio debe estar despierto a esa hora; con el keep-alive activo lo normal es que lo esté, pero no está garantizado como en `starter`.
 
 > Con `NODE_ENV=production` el backend **no arranca** si falta `JWT_SECRETO` o `DATABASE_URL`, y advierte (sin detenerse) si falta `FRONTEND_URL`, si `CORS_ORIGENES` queda vacío, si `S3_USAR_ALMACEN_LOCAL=true` (disco efímero) o si `TZ` no es `America/Bogota`.
 
@@ -148,7 +164,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 
 ## 6. Cron de vigencias y modo prueba
 
-- `@nestjs/schedule` (`ScheduleModule.forRoot()` en `AppModule`) corre **dentro del proceso web** persistente de Render; no hace falta un Cron Job aparte. Por eso el plan debe ser `starter` (siempre encendido) y con **una** instancia.
+- `@nestjs/schedule` (`ScheduleModule.forRoot()` en `AppModule`) corre **dentro del proceso web** de Render; no hace falta un Cron Job aparte. Solo se ejecuta mientras el servicio está despierto: en el plan `free` depende del keep-alive (sección 2.1); en `starter` está siempre encendido. Debe haber **una** sola instancia.
 - `VigenciasService.actualizarVigenciasDiarias` corre a las **06:00 America/Bogota** (`@Cron(..., { timeZone: 'America/Bogota' })`), independientemente de la zona del servidor. `diaCalendarioLocal` usa la zona del proceso; con `TZ=America/Bogota` coincide con Colombia (y aun sin TZ, a las 06:00 Bogotá = 11:00 UTC el «mañana» es el mismo día).
 - Modo prueba (`VIGENCIA_MODO_PRUEBA=true`): un evaluador cada 10 s recorre las sesiones demo activas (en memoria) y genera alertas `vigencia_amarilla` / `vigencia_vencida` + correo. Las sesiones se pierden al reiniciar o redeplegar.
 - Con `NODE_ENV=production` el modo prueba está **bloqueado por diseño** (el arranque falla). Para verificarlo en un despliegue de staging se añadió una bandera explícita: `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true` (con un aviso en el log). Sin la bandera el comportamiento es el de siempre. **Decisión del PO**: habilitarla en el despliegue de verificación o mantener el bloqueo.
@@ -174,7 +190,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 
 - Modo prueba de vigencias en el despliegue de verificación (bandera `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION`) o mantenerlo bloqueado.
 - Dominios: usar `*.vercel.app` / `*.onrender.com` o dominio propio (afecta `CORS_ORIGENES`, `FRONTEND_URL` y los enlaces de correo).
-- Costo: Render `starter` USD 7/mes (el `free` no sirve para el cron). Supabase y Vercel en plan gratuito para verificación.
+- Costo: se despliega en planes gratuitos (Render `free` + keep-alive, Vercel Hobby, Supabase Free, Resend Free). Si el cron o la prueba de 5 min fallan por el sueño del plan free, pasar Render a `starter` (USD 7/mes).
 - Proyecto Supabase: reutilizar el actual o crear uno nuevo y vacío para el despliegue; buckets privados.
 - Resend: verificar un dominio remitente o usar `RESEND_CORREO_SANDBOX` (sin dominio verificado solo se puede enviar a la cuenta propia).
 - Límite de 4,5 MB de Vercel en cargas (aceptado para esta verificación).
