@@ -1,3 +1,5 @@
+import { resolverPuerto } from './servidor';
+
 const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r=';
 
 /**
@@ -19,7 +21,7 @@ export function normalizarUrlPublicaPowerBi(valor: string | undefined | null): s
 }
 
 export const configuracionEnv = () => ({
-  puerto: parseInt(process.env.PUERTO ?? '3001', 10),
+  puerto: resolverPuerto(),
   jwtSecreto: process.env.JWT_SECRETO ?? 'dev-secreto-siac',
   jwtExpiracion: process.env.JWT_EXPIRACION ?? '8h',
   dominioInstitucional: process.env.DOMINIO_INSTITUCIONAL ?? 'uniautonoma.edu.co',
