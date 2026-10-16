@@ -47,6 +47,12 @@ export const configuracionEnv = () => ({
   powerbiUrlPublicaEstudiantes: normalizarUrlPublicaPowerBi(process.env.POWERBI_URL_PUBLICA_ESTUDIANTES),
   vigenciaModoPrueba:
     process.env.VIGENCIA_MODO_PRUEBA === 'true' || process.env.VIGENCIA_MODO_PRUEBA === '1',
+  /**
+   * Bandera explícita para permitir el modo prueba con NODE_ENV=production (solo un despliegue
+   * de staging/verificación). Sin ella, el arranque falla si VIGENCIA_MODO_PRUEBA está activo.
+   */
+  vigenciaModoPruebaPermitirProduccion:
+    process.env.VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION === 'true',
   vigenciaDuracionPruebaSeg: parseInt(process.env.VIGENCIA_DURACION_PRUEBA_SEG ?? '420', 10),
   vigenciaIntervaloPruebaSeg: parseInt(process.env.VIGENCIA_INTERVALO_PRUEBA_SEG ?? '10', 10),
 });

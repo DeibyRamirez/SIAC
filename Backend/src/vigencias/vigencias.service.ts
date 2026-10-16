@@ -24,6 +24,9 @@ import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigenc
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 
+/** Zona horaria institucional (CUAC Popayán) para el cron diario de vigencias. */
+export const ZONA_HORARIA_SIAC = 'America/Bogota';
+
 
 
 // Los formatos admitidos en anexos (PDF/DOC/DOCX) siguen pendientes de decisión del PO; no se cambian aquí.
@@ -315,7 +318,8 @@ export class VigenciasService implements OnModuleInit {
 
 
 
-  @Cron(CronExpression.EVERY_DAY_AT_6AM)
+  // 06:00 en Colombia sin depender de la zona del servidor (Render corre en UTC si no se define TZ).
+  @Cron(CronExpression.EVERY_DAY_AT_6AM, { name: 'vigencias-diarias', timeZone: ZONA_HORARIA_SIAC })
 
   async actualizarVigenciasDiarias() {
 

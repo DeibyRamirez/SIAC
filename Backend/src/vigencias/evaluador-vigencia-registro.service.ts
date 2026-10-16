@@ -26,13 +26,23 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     private readonly config: ConfigService,
   ) { }
 
+  /** Evita que dos ticks del modo prueba se solapen y dupliquen alertas o correos. */
+  private evaluacionPruebaEnCurso = false;
+
   onModuleInit(): void {
     const modoPrueba = this.config.get<boolean>('vigenciaModoPrueba') === true;
-    if (process.env.NODE_ENV === 'production' && modoPrueba) {
+    if (process.env.NODE_ENV !== 'production' || !modoPrueba) return;
+    const permitido = this.config.get<boolean>('vigenciaModoPruebaPermitirProduccion') === true;
+    if (!permitido) {
       throw new Error(
-        'VIGENCIA_MODO_PRUEBA no puede estar activo en producción. Desactive la variable de entorno.',
+        'VIGENCIA_MODO_PRUEBA no puede estar activo en producción. Desactive la variable de entorno ' +
+          'o, solo en un despliegue de staging, defina VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true.',
       );
     }
+    this.logger.warn(
+      'Modo prueba de vigencias ACTIVO con NODE_ENV=production (VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true). ' +
+        'Usar solo en staging: las notificaciones y correos de vigencia se generan con fechas simuladas.',
+    );
   }
 
   /** Evalúa vigencia de registro MEN (programas e institución) en la fecha de referencia. */
@@ -199,10 +209,16 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     if (!this.demo.modoPruebaActivo()) return;
     const sesiones = this.demo.listarSesionesActivas();
     if (sesiones.length === 0) return;
+    // Con una BD remota (Supabase, connection_limit=1) una evaluación puede tardar más que el
+    // intervalo; si se solapan, ambas verían "no notificado" y se duplicarían alertas y correos.
+    if (this.evaluacionPruebaEnCurso) return;
+    this.evaluacionPruebaEnCurso = true;
     try {
       await this.evaluarTodasLasEntidades();
     } catch (error) {
       this.logger.error(`Error en evaluador de vigencia (modo prueba): ${error}`);
+    } finally {
+      this.evaluacionPruebaEnCurso = false;
     }
   }
 }
