@@ -130,18 +130,6 @@ a {
   padding-left: 1rem;
 }
 
-.badge-categoria {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  padding: 0.5rem 1.25rem;
-  font-weight: 700;
-  font-size: 0.75rem;
-  color: #ffffff;
-  white-space: nowrap;
-}
-
 .tarjeta-institucional {
   border-radius: 12px;
   background-color: #ffffff;

@@ -132,72 +132,80 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const { sesion } = usarSesion()
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
 
-  useEffect(() => {
-    async function cargarDatos() {
-      const local = leerAlmacenLocal() ?? crearDatosIniciales()
+  const cargarDatos = useCallback(async () => {
+    const local = leerAlmacenLocal() ?? crearDatosIniciales()
 
-      if (apiDisponible()) {
-        const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
-          await Promise.allSettled([
-            // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
-            listarEvidenciasApi({ limite: 100 }),
-            listarPlantillasApi(),
-            listarVigenciasApi(),
-            listarNotificacionesApi(),
-            listarProgramasApi(),
-          ])
-
-        const evResp =
-          evResult.status === 'fulfilled'
-            ? evResult.value
-            : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
-        const plantillas =
-          plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
-        const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
-        const alertas =
-          alertasResult.status === 'fulfilled' ? alertasResult.value : []
-        const programas =
-          programasResult.status === 'fulfilled' ? programasResult.value : []
-
-        const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
-
-        const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
-          ...a,
-          fechaVencimiento: typeof a.fechaVencimiento === 'string'
-            ? a.fechaVencimiento.slice(0, 10)
-            : a.fechaVencimiento,
-        }))
-
-        const alertasMapeadas = mapearAlertasDesdeApi(
-          alertas as {
-            id: string
-            mensaje: string
-            leida: boolean
-            createdAt: string
-            tipo?: string
-          }[],
-        )
-
-        setDatos({
-          ...local,
-          programas,
-          evidencias,
-          plantillas,
-          anexosVigencia: anexosMapeados,
-          alertas: alertasMapeadas,
-        })
-        return
-      }
-
+    if (!apiDisponible()) {
       setDatos({
         ...local,
         evidencias: [],
         plantillas: [],
       })
+      return
     }
 
-    cargarDatos()
-  }, [])
+    if (!sesion?.usuarioId) {
+      return
+    }
+
+    const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
+      await Promise.allSettled([
+        // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
+        listarEvidenciasApi({ limite: 100 }),
+        listarPlantillasApi(),
+        listarVigenciasApi(),
+        listarNotificacionesApi(),
+        listarProgramasApi(),
+      ])
+
+    const evResp =
+      evResult.status === 'fulfilled'
+        ? evResult.value
+        : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
+    const plantillas = plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
+    const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
+    const alertas = alertasResult.status === 'fulfilled' ? alertasResult.value : []
+    const programas = programasResult.status === 'fulfilled' ? programasResult.value : []
+
+    const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
+
+    const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
+      ...a,
+      fechaVencimiento:
+        typeof a.fechaVencimiento === 'string'
+          ? a.fechaVencimiento.slice(0, 10)
+          : a.fechaVencimiento,
+    }))
+
+    const alertasMapeadas = mapearAlertasDesdeApi(
+      alertas as {
+        id: string
+        mensaje: string
+        leida: boolean
+        createdAt: string
+        tipo?: string
+      }[],
+    )
+
+    setDatos({
+      ...local,
+      programas,
+      evidencias,
+      plantillas,
+      anexosVigencia: anexosMapeados,
+      alertas: alertasMapeadas,
+    })
+  }, [sesion?.usuarioId])
+
+  useEffect(() => {
+    if (!sesion?.usuarioId) {
+      if (!apiDisponible()) {
+        setDatos(leerAlmacenLocal() ?? crearDatosIniciales())
+      }
+      return
+    }
+    void cargarDatos()
+  }, [sesion?.usuarioId, cargarDatos])
 
   const recargarAlertas = useCallback(async () => {
     if (!apiDisponible()) return

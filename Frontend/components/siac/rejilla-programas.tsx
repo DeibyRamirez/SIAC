@@ -8,7 +8,7 @@ import { ArrowRight, MoreHorizontal } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -37,7 +37,16 @@ import { obtenerInicialesPrograma } from '@/lib/utilidades-siac'
 import { cn } from '@/lib/utils'
 import { etiquetaDocumentoPanel, formatearFechaResolucion } from '@/lib/utilidades/parametros-panel-url'
 
-
+/** CTA tarjeta: fondo claro (legible); hover cyan con texto blanco. */
+const clasesBotonAccionTarjeta = cn(
+  buttonVariants({ size: 'sm' }),
+  'h-8 gap-1.5 px-3 font-semibold',
+  'border border-primary/20 bg-secondary text-secondary-foreground shadow-sm',
+  'hover:border-cyan-tecnico hover:bg-cyan-tecnico hover:text-white hover:shadow-md',
+  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+  'active:scale-[0.98] motion-reduce:active:scale-100',
+  '[&_svg]:transition-transform hover:[&_svg]:translate-x-0.5 motion-reduce:hover:[&_svg]:translate-x-0',
+)
 
 export type ProgramaRejilla = Programa | (FilaPanelPrograma & {
 
@@ -309,29 +318,21 @@ export function RejillaProgramas({
 
                 {enlaceDetalle ? (
 
-                  <Link href={enlaceDetalle(programa.id)}>
+                  <Link href={enlaceDetalle(programa.id)} className={cn(clasesBotonAccionTarjeta, 'shrink-0')}>
 
-                    <Button size="sm" variant="ghost" className="h-8 gap-1 text-cyan-tecnico">
+                    Ver resumen
 
-                      Ver resumen
-
-                      <ArrowRight className="size-3" />
-
-                    </Button>
+                    <ArrowRight className="size-3.5" aria-hidden />
 
                   </Link>
 
                 ) : enlaceEvidencias ? (
 
-                  <Link href={enlaceEvidencias}>
+                  <Link href={enlaceEvidencias} className={cn(clasesBotonAccionTarjeta, 'shrink-0')}>
 
-                    <Button size="sm" variant="ghost" className="h-8 gap-1 text-cyan-tecnico">
+                    Evidencias
 
-                      Evidencias
-
-                      <ArrowRight className="size-3" />
-
-                    </Button>
+                    <ArrowRight className="size-3.5" aria-hidden />
 
                   </Link>
 

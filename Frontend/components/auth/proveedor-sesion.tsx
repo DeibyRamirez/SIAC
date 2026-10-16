@@ -28,7 +28,7 @@ interface ContextoSesion {
   cargando: boolean
   usarApi: boolean
   iniciarSesion: (correo: string, contrasena: string) => Promise<string | null>
-  cerrarSesion: () => void
+  cerrarSesion: () => Promise<void>
   etiquetaRolActual: string
 }
 
@@ -109,12 +109,14 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
     [router, usarApi],
   )
 
-  const cerrarSesion = useCallback(() => {
-    if (usarApi) void cerrarSesionApi()
+  const cerrarSesion = useCallback(async () => {
+    if (usarApi) {
+      await cerrarSesionApi()
+    }
     cerrarSesionLocal()
     setSesion(null)
-    router.replace('/login')
-  }, [router, usarApi])
+    window.location.assign('/login')
+  }, [usarApi])
 
   const valor = useMemo(
     () => ({

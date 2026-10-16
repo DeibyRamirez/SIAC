@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { GuardiaSesion } from '@/components/auth/guardia-sesion'
+import { AsistenteAyudaFlotante } from '@/components/layout/asistente-ayuda-flotante'
 import { BarraLateral } from '@/components/layout/barra-lateral'
 import { BarraSuperior } from '@/components/layout/barra-superior'
 import { PieInstitucional } from '@/components/layout/pie-institucional'
@@ -58,6 +59,7 @@ export function ShellAplicacion({
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
         <PieInstitucional />
       </div>
+      <AsistenteAyudaFlotante />
     </div>
   )
 }

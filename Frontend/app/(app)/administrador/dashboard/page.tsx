@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { CheckCircle2, FileText, GraduationCap, TrendingUp } from 'lucide-react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
@@ -8,6 +8,7 @@ import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
+import { PanelConfiguracionInformesPowerBi } from '@/components/siac/panel-configuracion-informes-powerbi'
 import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-powerbi'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
@@ -17,6 +18,7 @@ import { puedeVerInformesPowerBi } from '@/lib/powerbi/acceso-powerbi'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerAvanceInstitucionalApi } from '@/lib/servicios/programas.servicio'
 import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
+import { usarCargaConSesion } from '@/lib/hooks/usar-carga-con-sesion'
 import {
   calcularDistribucionEstadosAdministrador,
   calcularTendenciaMensual,
@@ -38,12 +40,17 @@ function ContenidoDashboard() {
   const { evidencias, programas } = datos
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
-  useEffect(() => {
+  const cargarAvance = useCallback(async () => {
     if (!apiDisponible()) return
-    obtenerAvanceInstitucionalApi()
-      .then((r) => setAvanceInstitucional(r.avanceInstitucional))
-      .catch(() => setAvanceInstitucional(null))
+    try {
+      const r = await obtenerAvanceInstitucionalApi()
+      setAvanceInstitucional(r.avanceInstitucional)
+    } catch {
+      setAvanceInstitucional(null)
+    }
   }, [])
+
+  usarCargaConSesion(cargarAvance)
 
   const evidenciasVisibles = useMemo(
     () => filtrarEvidenciasVisiblesAdministrador(evidencias),
@@ -151,8 +158,9 @@ function ContenidoDashboard() {
         </TabsContent>
 
         {verPowerBi ? (
-          <TabsContent value="powerbi">
+          <TabsContent value="powerbi" className="space-y-6">
             <RejillaInformesPowerBi />
+            <PanelConfiguracionInformesPowerBi />
           </TabsContent>
         ) : null}
       </Tabs>
