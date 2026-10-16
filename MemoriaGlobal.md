@@ -4,14 +4,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-30 |
+| **Última actualización** | 2026-10-16 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
 | **Ruta local** | `D:\Proyectos\Simulacion_SIAC` |
 | **Institución** | Corporación Universitaria Autónoma del Cauca (CUAC) — Planeación / SIAC |
 | **Marco normativo** | Decreto 1330 de 2021 (6 CI + 9 CP) |
-| **Fase actual** | Sprint 2 en progreso (ClickUp es la fuente de verdad; este repo no declara sprints completados) |
+| **Fase actual** | Sprint 3 en curso (HU-006 y HU-007 implementadas en repo; ClickUp es la fuente de verdad) |
 | **Convención API** | F-03 en español — prefijo `/api/v1/` |
 
 ---
@@ -63,7 +63,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Auth | JWT + Passport, dominio `@uniautonoma.edu.co` |
 | Storage | Por defecto en dev: disco `Backend/almacen-local` (`S3_USAR_ALMACEN_LOCAL=true`); producción opcional Supabase S3 |
 | Docs API | Swagger en `/api/docs` |
-| Cron | `@nestjs/schedule` — vigencias 00:00 |
+| Cron | `@nestjs/schedule` — vigencias 06:00 America/Bogota |
 
 ### Módulos implementados
 
@@ -301,8 +301,8 @@ pnpm prisma:deploy
 
 ```powershell
 cd Backend
-pnpm prisma:repair-schema   # Crea EvidenciaVersion y columnas si faltan
-pnpm prisma:verify          # Comprueba esquema antes del seed
+pnpm prisma:deploy          # Única vía de esquema: aplica las migraciones pendientes
+pnpm prisma:verify          # Comprueba esquema antes del seed (solo lectura)
 pnpm prisma:seed
 pnpm prisma:backfill-versiones   # v1 para evidencias legacy
 ```
@@ -314,7 +314,7 @@ SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'Evidenc
 SELECT column_name FROM information_schema.columns WHERE table_name = 'Evidencia' AND column_name = 'version';
 ```
 
-Si `repair-schema` no basta, ejecutar SQL de `Backend/prisma/migrations/` en SQL Editor de Supabase.
+El antiguo `prisma:repair-schema` se retiró (S3-CIERRE): alteraba el esquema fuera de migraciones. Si falta un objeto, aplique la migración correspondiente de `Backend/prisma/migrations/` con `pnpm prisma:deploy`; nunca vía SQL manual ni `db push`.
 
 ---
 
@@ -384,7 +384,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 |------|------------------|
 | 1 | Supabase Dashboard: proyecto **Active** (no Paused) |
 | 2 | `Test-NetConnection aws-0-ca-central-1.pooler.supabase.com -Port 5432` |
-| 3 | `pnpm prisma:repair-schema` + `pnpm prisma:verify` (o baseline § 7.3) |
+| 3 | `pnpm prisma:deploy` + `pnpm prisma:verify` (o baseline § 7.3) |
 | 4 | `pnpm prisma:seed` + `pnpm prisma:backfill-versiones` |
 | 5 | Reiniciar backend; reproducir carga; leer log consola (filtro HTTP loguea stack en 500) |
 | 6 | `GET /integracion/estado-storage` — diagnóstico buckets S3 |
@@ -393,7 +393,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ## 8. Estado actual (2026-10-10)
 
-El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK. **S3-02:** frontend de cifras (panel por categoría, importación Excel, diccionario de variables, página `/administrador/cifras`); Vitest 62 tests, `tsc` 0 y `next build` OK. **S3-03:** registros por categoría según `docs/plantillas-siac.xlsx` (6 modelos + esquemas tipados, reemplazo por periodo/sede, plantilla/JSON, feed Power BI); import real 15804/1351/1338/80/71/12 con 0 errores, Jest 228, Vitest 63 y builds OK. **16/10/2026 — S3-HU006 (cierre HU-006):** máquina de estados, observación obligatoria por condición, notificación al Cargador con correo escapado, una sola petición de dictamen, CP-E2E-04 reescrito y E2E nuevo G2/G4; Jest 305 y Vitest 102, builds OK (E2E pendientes de CI: sin BD de pruebas local). **16/10/2026 — S3-HU007 (cierre HU-007):** umbrales PO (aviso 24 / rojo 18) con `Vencido` distinto de `Rojo` y relectura sin redeploy; opción B del semáforo general (30 casos); outbox `NotificacionSalida` + `AlertaInApp.claveEvento` con procesador de reintentos y bitácora `GET /notificaciones/salida`; cron 6:00 America/Bogota idempotente (D-1 + transiciones de vigencia); plantillas de correo puras con snapshots; demo acelerada 300 s con `GET /programas/:id/vigencia` y polling 5 s; Jest 42 suites / 372 tests, Vitest 24 / 107, `tsc`, `next build` y `pnpm build` OK (E2E no ejecutados: sin BD de pruebas; migración `20261016120000` creada y pendiente de `prisma migrate deploy`).
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK. **S3-02:** frontend de cifras (panel por categoría, importación Excel, diccionario de variables, página `/administrador/cifras`); Vitest 62 tests, `tsc` 0 y `next build` OK. **S3-03:** registros por categoría según `docs/plantillas-siac.xlsx` (6 modelos + esquemas tipados, reemplazo por periodo/sede, plantilla/JSON, feed Power BI); import real 15804/1351/1338/80/71/12 con 0 errores, Jest 228, Vitest 63 y builds OK. **16/10/2026 — S3-HU006 (cierre HU-006):** máquina de estados, observación obligatoria por condición, notificación al Cargador con correo escapado, una sola petición de dictamen, CP-E2E-04 reescrito y E2E nuevo G2/G4; Jest 305 y Vitest 102, builds OK (E2E pendientes de CI: sin BD de pruebas local). **16/10/2026 — S3-HU007 (cierre HU-007):** umbrales PO (aviso 24 / rojo 18) con `Vencido` distinto de `Rojo` y relectura sin redeploy; opción B del semáforo general (30 casos); outbox `NotificacionSalida` + `AlertaInApp.claveEvento` con procesador de reintentos y bitácora `GET /notificaciones/salida`; cron 6:00 America/Bogota idempotente (D-1 + transiciones de vigencia); plantillas de correo puras con snapshots; demo acelerada 300 s con `GET /programas/:id/vigencia` y polling 5 s; Jest 42 suites / 372 tests, Vitest 24 / 107, `tsc`, `next build` y `pnpm build` OK (E2E no ejecutados: sin BD de pruebas; migración `20261016120000` creada y pendiente de `prisma migrate deploy`). **16/10/2026 — S3-CIERRE (HU-007 + limpieza de datos):** umbrales editables vía `GET/PATCH /api/v1/configuracion/vigencia` (SuperAdmin/Administrador; DTO 1..84, aviso > rojo, Swagger) con tarjeta «Umbrales del semáforo» en `/administrador/vigencias`; E2E nuevos `umbrales-vigencia` y `alertas-vigencia` (CA3 con referencias inyectadas, outbox `Enviado`/`Fallido` y bitácora); `EvidenciaComentario` pasó de SQL crudo a Prisma tipado; retirados `prisma/aplicar-esquema-versionado.ts` y `prisma:repair-schema`; migración `20261016120000` ya aplicada; Jest 48 suites / 413, Vitest 29 / 129, `tsc`, `next build` y `pnpm build` OK (E2E se validan en CI).
 
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
@@ -484,6 +484,15 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
+
+- [Backend] T-007.3a: `GET/PATCH /api/v1/configuracion/vigencia` (`ConfiguracionController`, SuperAdmin/Administrador, Swagger). `ActualizarUmbralesVigenciaDto` exige enteros 1..84 y `mesesAvisoVigencia > mesesRojoVigencia` (400 con mensaje claro); `ConfiguracionSiacService.cargar()` relee la BD, así el siguiente cálculo del semáforo aplica el cambio sin redeploy. No existe módulo de auditoría en el repo: no se registró auditoría adicional.
+- [Backend] `EvidenciaComentario` dejó de usar SQL crudo (`$executeRawUnsafe`/`$queryRawUnsafe`) en `evidencia.repositorio.ts`: `deleteMany` + `createMany` en `$transaction` y `findMany` tipado con el mismo contrato y orden. Retirados `prisma/aplicar-esquema-versionado.ts` y el script `prisma:repair-schema`; `prisma:setup` ahora encadena `prisma:deploy`. `prisma/verificar-esquema.ts` queda como verificación de solo lectura. Todo lo que aplicaba repair-schema ya existe en migraciones (EvidenciaVersion, Evidencia.version, columnas de AnexoVigencia, EvidenciaComentario, enums); el remapeo de estados legacy y el catálogo mínimo de programas eran datos operativos (el catálogo se crea desde la app/semilla).
+- [Backend/E2E] Nuevos `test/e2e/umbrales-vigencia.e2e-spec.ts` (verde→amarillo al subir el aviso, 400/403) y `test/e2e/alertas-vigencia.e2e-spec.ts` (CA3 sin sleeps: 3 eventos por destinatario sin duplicados, outbox con transporte en memoria `Enviado`, transporte que falla → `Fallido` con `ultimoError` tras `CORREO_MAX_INTENTOS`, bitácora `GET /notificaciones/salida`). Se ejecutan en CI.
+- [Frontend] Tarjeta «Umbrales del semáforo» en `/administrador/vigencias` (solo SuperAdmin/Administrador) con validación espejo del DTO, `ConfiguracionServicio` (`/configuracion/vigencia`) y toast de éxito/error.
+- [Tests] Backend: Jest 48 suites / 413 tests (404 + 9 nuevos), `tsc --noEmit` y `pnpm build` OK. Frontend: Vitest 29 archivos / 129 tests (117 + 12 nuevos: tarjeta y campana), `tsc --noEmit` y `next build` OK. `rg '\$queryRaw|\$executeRaw' Backend/src` solo devuelve `salud.service.ts` (`SELECT 1`, justificado) y `fts-evidencias.ts` (`Prisma.sql` parametrizado sobre `searchVector Unsupported("tsvector")`, no expresable con el cliente tipado).
+- [Docs] `docs/etapa-3/README.md` (endpoints nuevos, migración outbox aplicada, pruebas del cierre), `docs/sprint-reviews/sprint-3.md` (estado real de HU-006/007/009) y `docs/estandar-base-siac.md` (scripts oficiales sin `prisma:repair-schema`).
 
 ### 2026-10-16 - Sprint 3: preparación de despliegue (Supabase + Render + Vercel)
 

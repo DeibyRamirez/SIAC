@@ -2,7 +2,7 @@
 
 > **Sprint PDF:** 3 (08/10 – 18/11/2026)  
 > **Historias:** HU-006, HU-007, HU-009  
-> **Estado:** En curso — arranque Sprint 3 (HU-009: dashboard Power BI, categoría Estudiantes en `/administrador/dashboard`)
+> **Estado:** Cierre de Sprint 3 en repositorio (S3-CIERRE, 16/10) — HU-006 y HU-007 implementadas con E2E en CI; HU-009 con dashboards públicos configurados. La validación oficial vive en ClickUp.
 
 > El estado oficial vive en ClickUp; este repositorio documenta el inicio de la Etapa 3 en código y docs.
 
@@ -39,6 +39,8 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | GET | `/api/v1/programas/:id/vigencia` | HU-007 (§0: `{semaforo, segundosRestantes, modoPrueba}`) |
 | GET | `/api/v1/notificaciones` | HU-006/007 |
 | GET | `/api/v1/notificaciones/salida?estado=&page=&limit=` | HU-007 (C-8: bitácora del outbox; Administrador/SuperAdmin) |
+| GET | `/api/v1/configuracion/vigencia` | HU-007 (T-007.3a: umbrales del semáforo; SuperAdmin/Administrador) |
+| PATCH | `/api/v1/configuracion/vigencia` | HU-007 (T-007.3a: `mesesAvisoVigencia`/`mesesRojoVigencia`, 1..84 y aviso > rojo) |
 | PATCH | `/api/v1/notificaciones/:id/leida` | Alertas in-app |
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
 | GET/PUT | `/api/v1/powerbi/informes` | HU-009 (URLs públicas por categoría) |
@@ -123,6 +125,20 @@ vigencia era «Rojo»).
   fuera de la lista → fila `Descartado` con motivo; lista vacía = no se envía nada.
   En producción se usa SMTP universitario (ADR-008).
 
+### Pruebas del cierre S3-CIERRE
+
+- `Backend/test/e2e/umbrales-vigencia.e2e-spec.ts`: PATCH cambia los umbrales y el siguiente
+  cálculo del semáforo los usa (un programa pasa de Verde a Amarillo al subir el aviso), con
+  400 de validación y 403 para roles no autorizados.
+- `Backend/test/e2e/alertas-vigencia.e2e-spec.ts` (CA3, sin sleeps): referencias inyectadas al
+  evaluador, un programa que cruza amarillo/rojo/vencido → 3 eventos por destinatario activo sin
+  duplicados al repetir el cálculo; outbox procesado con transporte en memoria (`Enviado`) y
+  transporte que falla siempre (`Fallido` con `ultimoError` tras `CORREO_MAX_INTENTOS`) visible
+  en `GET /notificaciones/salida`.
+- Frontend (Vitest): `components/siac/tarjeta-umbrales-semaforo.test.tsx` (render, validación,
+  envío, rol sin permiso) y `components/layout/campana-notificaciones.test.tsx` (contador, lista,
+  marcado con API, polling 5 s con fake timers, vacío y error de red).
+
 ### Cron diario (T-007.2)
 
 `@Cron('0 6 * * *', { timeZone: VIGENCIAS_CRON_ZONA ?? 'America/Bogota' })` evalúa los anexos que
@@ -146,12 +162,25 @@ VIGENCIA_DURACION_PRUEBA_SEG=300
 3. La barra y la campana refrescan cada 5 s (`GET /programas/:id/vigencia`), y el evaluador
    (intervalo de 10 s) emite las alertas de cada transición con claves aisladas de la demo.
 
+### Umbrales editables (T-007.3a, cierre 16/10/2026)
+
+`GET/PATCH /api/v1/configuracion/vigencia` (SuperAdmin/Administrador) lee y actualiza
+`mesesAvisoVigencia`/`mesesRojoVigencia` en `ConfiguracionSIAC`. El DTO exige enteros 1..84 y
+`mesesAvisoVigencia > mesesRojoVigencia` (400 con mensaje claro); el DTO se documenta en Swagger.
+Ambos campos son obligatorios (reemplazo completo aunque el verbo sea PATCH). Decisión 16/10/2026:
+`mesesRojoVigencia ≥ 1` en todas las capas (DTO, `validarUmbralesSemaforo` al arrancar y la tarjeta
+del frontend). Sin módulo de auditoría: cada cambio queda en el log con el id del usuario y los
+valores anterior/nuevo.
+La tarjeta «Umbrales del semáforo» de `/administrador/vigencias` usa la misma validación y hace
+`PATCH` con toast de éxito/error (visible solo para SuperAdmin/Administrador). GET y el evaluador
+releen la BD en cada corrida: el cambio aplica al siguiente cálculo sin redeploy.
+
 ### Migración
 
 `Backend/prisma/migrations/20261016120000_t007_3_umbrales_outbox/migration.sql` — creada con
 `prisma migrate diff` (SQL aditivo: `CREATE TYPE/TABLE/INDEX`, `ADD COLUMN` nullable/con default y
-un `UPDATE` condicionado de la fila `global` si conservaba 12 meses). Pendiente de aplicar por el
-líder técnico con `pnpm prisma deploy`.
+un `UPDATE` condicionado de la fila `global` si conservaba 12 meses). **Aplicada el 16/10/2026**
+(S3-CIERRE); `prisma migrate deploy` la registra en el historial sin cambios pendientes.
 
 ## Casos de prueba (CP-01 a CP-04)
 
