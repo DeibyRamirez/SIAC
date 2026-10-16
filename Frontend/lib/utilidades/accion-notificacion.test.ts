@@ -37,6 +37,12 @@ describe('resolverAccionNotificacion', () => {
       href: '/administrador/vigencias',
       etiqueta: 'Ver vigencias',
     })
+    expect(
+      resolverAccionNotificacion('vigencia_amarilla', { programaId: 'prog-1' }, 'Revisor'),
+    ).toEqual({
+      href: '/administrador/vigencias?programaId=prog-1',
+      etiqueta: 'Ver vigencias',
+    })
     expect(resolverAccionNotificacion('vigencia', { anexoId: 'an-1' }, 'Cargador')).toBeNull()
   })
 

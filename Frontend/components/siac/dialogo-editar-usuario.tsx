@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+import { CampoContrasena } from '@/components/siac/campo-contrasena'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +20,10 @@ import {
   type UsuarioApi,
 } from '@/lib/servicios/usuarios.servicio'
 import type { RolUsuario } from '@/lib/tipos'
+import {
+  cumplePoliticaContrasena,
+  MENSAJE_POLITICA_CONTRASENA,
+} from '@/lib/utilidades/politica-contrasena'
 
 const ROLES: RolUsuario[] = [
   'Cargador',
@@ -79,8 +84,8 @@ export function DialogoEditarUsuario({
       toast.error('El nombre es obligatorio.')
       return
     }
-    if (contrasena.trim().length > 0 && contrasena.trim().length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres.')
+    if (contrasena.trim().length > 0 && !cumplePoliticaContrasena(contrasena)) {
+      toast.error(MENSAJE_POLITICA_CONTRASENA)
       return
     }
     setConfirmarAbierto(true)
@@ -159,17 +164,14 @@ export function DialogoEditarUsuario({
                 <span className="font-medium">Dependencia</span>
                 <Input value={dependencia} onChange={(e) => setDependencia(e.target.value)} />
               </label>
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Nueva contraseña (opcional)</span>
-                <Input
-                  type="password"
-                  value={contrasena}
-                  onChange={(e) => setContrasena(e.target.value)}
-                  minLength={6}
-                  placeholder="Dejar vacío para no cambiar"
-                  autoComplete="new-password"
-                />
-              </label>
+              <CampoContrasena
+                id="contrasena-editar-usuario"
+                label="Nueva contraseña (opcional)"
+                value={contrasena}
+                onChange={setContrasena}
+                placeholder="Dejar vacío para no cambiar"
+                autoComplete="new-password"
+              />
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button type="button" variant="outline" onClick={onCerrar}>
                   Cancelar

@@ -33,11 +33,14 @@ describe('NotificacionesDespachoService', () => {
     });
 
     expect(notificaciones.crear).toHaveBeenCalledWith('u1', 'Hola', 'general', undefined);
-    expect(correo.enviar).toHaveBeenCalledWith({
-      destinatario: 'maria@uniautonoma.edu.co',
-      asunto: '[SIAC] Prueba',
-      textoPlano: 'Hola',
-    });
+    expect(correo.enviar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinatario: 'maria@uniautonoma.edu.co',
+        asunto: '[SIAC] Prueba',
+        textoPlano: 'Hola',
+        textoHtml: expect.stringContaining('Hola'),
+      }),
+    );
   });
 
   it('no lanza si el correo falla', async () => {

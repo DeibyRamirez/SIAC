@@ -1,5 +1,16 @@
-import { IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { RolUsuario } from '@prisma/client';
+import { MENSAJE_POLITICA_CONTRASENA, REGEX_POLITICA_CONTRASENA } from '../politica-contrasena';
 
 export class IniciarSesionDto {
   @IsEmail()
@@ -39,7 +50,8 @@ export class CrearUsuarioDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
+  @MinLength(8, { message: MENSAJE_POLITICA_CONTRASENA })
+  @Matches(REGEX_POLITICA_CONTRASENA, { message: MENSAJE_POLITICA_CONTRASENA })
   contrasena!: string;
 
   @IsEnum(RolUsuario)
@@ -71,8 +83,10 @@ export class ActualizarUsuarioDto {
   @IsOptional()
   activo?: boolean;
 
-  @IsString()
   @IsOptional()
-  @MinLength(6)
+  @ValidateIf((o) => o.contrasena !== undefined && o.contrasena !== '')
+  @IsString()
+  @MinLength(8, { message: MENSAJE_POLITICA_CONTRASENA })
+  @Matches(REGEX_POLITICA_CONTRASENA, { message: MENSAJE_POLITICA_CONTRASENA })
   contrasena?: string;
 }

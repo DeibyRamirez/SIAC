@@ -38,8 +38,14 @@ export function resolverAccionNotificacion(
       return null
     }
     case 'vigencia':
-      if (rol === 'Administrador' || rol === 'SuperAdmin') {
-        return { href: '/administrador/vigencias', etiqueta: 'Ver vigencias' }
+    case 'vigencia_amarilla':
+    case 'vigencia_vencida':
+      if (rol === 'Administrador' || rol === 'SuperAdmin' || rol === 'Revisor') {
+        const programaId = idValido(meta.programaId)
+        return {
+          href: programaId ? `/administrador/vigencias?programaId=${programaId}` : '/administrador/vigencias',
+          etiqueta: 'Ver vigencias',
+        }
       }
       return null
     default:

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CorreoService } from '../correo/correo.service';
+import { construirPlantillaCorreoNotificacion } from '../correo/plantillas-notificacion';
 import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
 import { NotificacionesService } from './notificaciones.service';
 
@@ -33,12 +34,18 @@ export class NotificacionesDespachoService {
     const usuario = await this.usuarios.buscarPorId(payload.usuarioId);
     if (!usuario?.correo) return;
 
-    const asunto = payload.asuntoCorreo ?? `[SIAC] ${payload.tipo}`;
+    const plantilla = construirPlantillaCorreoNotificacion(
+      payload.tipo,
+      payload.mensaje,
+      payload.asuntoCorreo,
+      payload.metadata as Record<string, unknown> | undefined,
+    );
     try {
       await this.correo.enviar({
         destinatario: usuario.correo,
-        asunto,
-        textoPlano: payload.mensaje,
+        asunto: plantilla.asunto,
+        textoPlano: plantilla.textoPlano,
+        textoHtml: plantilla.textoHtml,
       });
     } catch (error) {
       this.logger.error(
@@ -89,10 +96,17 @@ export class NotificacionesDespachoService {
       }
 
       try {
+        const plantilla = construirPlantillaCorreoNotificacion(
+          'vigencia',
+          mensaje,
+          '[SIAC] Alerta de vencimiento',
+          metadata as Record<string, unknown> | undefined,
+        );
         await this.correo.enviar({
           destinatario: correo,
-          asunto: '[SIAC] Alerta de vencimiento',
-          textoPlano: mensaje,
+          asunto: plantilla.asunto,
+          textoPlano: plantilla.textoPlano,
+          textoHtml: plantilla.textoHtml,
         });
       } catch (error) {
         this.logger.error(`Correo vigencia a ${correo}: ${error}`);

@@ -7,6 +7,7 @@ import { ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { TarjetaCredencialesDemo } from '@/components/auth/tarjeta-credenciales-demo'
+import { InputContrasenaConOjo } from '@/components/ui/input-contrasena'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { rutaInicioPorRol } from '@/lib/auth-mock'
 
@@ -100,16 +101,17 @@ export default function PaginaLogin() {
               className="mb-3 w-full rounded-lg border border-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               required
             />
-            <input
-              id="contrasena"
-              type="password"
-              value={contrasena}
-              onChange={(evento) => setContrasena(evento.target.value)}
-              placeholder="Contraseña"
-              autoComplete="current-password"
-              className="mb-4 w-full rounded-lg border border-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-              required
-            />
+            <div className="mb-4">
+              <InputContrasenaConOjo
+                id="contrasena"
+                value={contrasena}
+                onChange={setContrasena}
+                placeholder="Contraseña"
+                autoComplete="current-password"
+                required
+                className="h-auto py-2.5 text-sm"
+              />
+            </div>
 
             {error && (
               <p className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

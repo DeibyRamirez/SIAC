@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { DialogoEditarUsuario } from '@/components/siac/dialogo-editar-usuario'
+import { CampoContrasena } from '@/components/siac/campo-contrasena'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,11 @@ import {
   type UsuarioApi,
 } from '@/lib/servicios/usuarios.servicio'
 import type { RolUsuario } from '@/lib/tipos'
+import { usarCargaConSesion } from '@/lib/hooks/usar-carga-con-sesion'
+import {
+  cumplePoliticaContrasena,
+  MENSAJE_POLITICA_CONTRASENA,
+} from '@/lib/utilidades/politica-contrasena'
 
 const ROLES: RolUsuario[] = [
   'Cargador',
@@ -59,11 +65,12 @@ function ContenidoUsuarios() {
   const [usuarioEditar, setUsuarioEditar] = useState<UsuarioApi | null>(null)
   const [idReactivar, setIdReactivar] = useState<string | null>(null)
 
-  async function cargarUsuarios() {
+  const cargarUsuarios = useCallback(async () => {
     if (!apiDisponible()) {
       setCargando(false)
       return
     }
+    setCargando(true)
     try {
       const lista = await listarUsuariosApi()
       setUsuarios(lista)
@@ -72,14 +79,16 @@ function ContenidoUsuarios() {
     } finally {
       setCargando(false)
     }
-  }
-
-  useEffect(() => {
-    cargarUsuarios()
   }, [])
+
+  usarCargaConSesion(cargarUsuarios)
 
   async function crearUsuario(evento: React.FormEvent) {
     evento.preventDefault()
+    if (!cumplePoliticaContrasena(contrasena)) {
+      toast.error(MENSAJE_POLITICA_CONTRASENA)
+      return
+    }
     setGuardando(true)
     try {
       const creado = await crearUsuarioApi({
@@ -155,16 +164,13 @@ function ContenidoUsuarios() {
                 required
               />
             </label>
-            <label className="block space-y-2 text-sm">
-              <span className="font-medium">Contraseña</span>
-              <Input
-                type="password"
-                value={contrasena}
-                onChange={(e) => setContrasena(e.target.value)}
-                minLength={6}
-                required
-              />
-            </label>
+            <CampoContrasena
+              id="contrasena-nuevo-usuario"
+              label="Contraseña"
+              value={contrasena}
+              onChange={setContrasena}
+              required
+            />
             <label className="block space-y-2 text-sm">
               <span className="font-medium">Rol</span>
               <select
