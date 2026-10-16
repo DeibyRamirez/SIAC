@@ -9,6 +9,7 @@ describe('UsuariosService.actualizarRol', () => {
     buscarPorId: jest.fn(),
     actualizarRol: jest.fn(),
     actualizarAlcanceInstitucional: jest.fn(),
+    contarActivosPorRol: jest.fn(),
   };
   const servicio = new UsuariosService(
     usuarioRepo as unknown as UsuarioRepositorio,
@@ -31,8 +32,27 @@ describe('UsuariosService.actualizarRol', () => {
     expect(usuarioRepo.actualizarRol).not.toHaveBeenCalled();
   });
 
+  it('impide bajar el rol del último SuperAdmin activo', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'u1',
+      rol: RolUsuario.SuperAdmin,
+      activo: true,
+    });
+    usuarioRepo.contarActivosPorRol.mockResolvedValue(1);
+
+    await expect(
+      servicio.actualizarRol(
+        { id: 'sa', rol: RolUsuario.SuperAdmin },
+        'u1',
+        RolUsuario.Administrador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(usuarioRepo.actualizarRol).not.toHaveBeenCalled();
+  });
+
   it('permite que el superadmin asigne SuperAdmin', async () => {
-    usuarioRepo.buscarPorId.mockResolvedValue({ id: 'u1', rol: RolUsuario.Administrador });
+    usuarioRepo.buscarPorId.mockResolvedValue({ id: 'u1', rol: RolUsuario.Administrador, activo: true });
     usuarioRepo.actualizarRol.mockResolvedValue({
       id: 'u1',
       rol: RolUsuario.SuperAdmin,
@@ -48,6 +68,69 @@ describe('UsuariosService.actualizarRol', () => {
 
     expect(resultado).toMatchObject({ id: 'u1', rol: RolUsuario.SuperAdmin });
     expect(resultado).not.toHaveProperty('contrasena');
+  });
+});
+
+describe('UsuariosService.actualizar y desactivar', () => {
+  const usuarioRepo = {
+    buscarPorId: jest.fn(),
+    actualizar: jest.fn(),
+    contarActivosPorRol: jest.fn(),
+  };
+  const servicio = new UsuariosService(
+    usuarioRepo as unknown as UsuarioRepositorio,
+    { get: jest.fn() } as unknown as ConfigService,
+  );
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('no devuelve contrasena al actualizar', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'u1',
+      rol: RolUsuario.Cargador,
+      activo: true,
+    });
+    usuarioRepo.actualizar.mockResolvedValue({
+      id: 'u1',
+      nombre: 'Nuevo',
+      contrasena: 'hash',
+      rol: RolUsuario.Cargador,
+      activo: true,
+    });
+
+    const resultado = await servicio.actualizar('actor', 'u1', { nombre: 'Nuevo' });
+    expect(resultado).toMatchObject({ id: 'u1', nombre: 'Nuevo' });
+    expect(resultado).not.toHaveProperty('contrasena');
+    expect(usuarioRepo.actualizar).toHaveBeenCalled();
+  });
+
+  it('desactivar usa actualizar con activo false y no borra', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'u2',
+      rol: RolUsuario.Cargador,
+      activo: true,
+    });
+    usuarioRepo.actualizar.mockResolvedValue({
+      id: 'u2',
+      activo: false,
+      contrasena: 'hash',
+      rol: RolUsuario.Cargador,
+    });
+
+    await servicio.desactivar('actor', 'u2');
+
+    expect(usuarioRepo.actualizar).toHaveBeenCalledWith('u2', { activo: false });
+  });
+
+  it('rechaza auto-desactivación', async () => {
+    usuarioRepo.buscarPorId.mockResolvedValue({
+      id: 'yo',
+      rol: RolUsuario.SuperAdmin,
+      activo: true,
+    });
+
+    await expect(servicio.desactivar('yo', 'yo')).rejects.toBeInstanceOf(BadRequestException);
+    expect(usuarioRepo.actualizar).not.toHaveBeenCalled();
   });
 });
 

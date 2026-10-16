@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { FileCheck2 } from 'lucide-react'
 
 import { usarSesion } from '@/components/auth/proveedor-sesion'
@@ -13,6 +13,7 @@ import { apiDisponible } from '@/lib/servicios/cliente-api'
 import { obtenerConteosEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import type { Programa } from '@/lib/tipos'
+import { usarCargaConSesion } from '@/lib/hooks/usar-carga-con-sesion'
 import { obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function InicioRevisorPage() {
@@ -29,26 +30,30 @@ function ContenidoInicioRevisor() {
   const [conteos, setConteos] = useState({ enRevision: 0, cumple: 0, conObservaciones: 0 })
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const cargarInicio = useCallback(async () => {
     if (!apiDisponible()) {
       setError('El inicio del revisor requiere la API. No se usan datos de prueba.')
       return
     }
-    Promise.all([listarProgramasApi(), obtenerConteosEvidenciasApi()])
-      .then(([lista, resumen]) => {
-        setProgramas(lista)
-        setConteos({
-          enRevision: resumen.enRevision,
-          // Cumple (checklist completo) y Validado (decisión explícita) cuentan como aprobados.
-          cumple: (resumen.cumple ?? 0) + resumen.validado,
-          conObservaciones: (resumen.conObservaciones ?? 0) + resumen.rechazado,
-        })
+    try {
+      const [lista, resumen] = await Promise.all([
+        listarProgramasApi(),
+        obtenerConteosEvidenciasApi(),
+      ])
+      setProgramas(lista)
+      setConteos({
+        enRevision: resumen.enRevision,
+        cumple: (resumen.cumple ?? 0) + resumen.validado,
+        conObservaciones: (resumen.conObservaciones ?? 0) + resumen.rechazado,
       })
-      .catch(() => {
-        setProgramas([])
-        setError('No se pudo cargar la bandeja de sus programas.')
-      })
+      setError(null)
+    } catch {
+      setProgramas([])
+      setError('No se pudo cargar la bandeja de sus programas.')
+    }
   }, [])
+
+  usarCargaConSesion(cargarInicio)
 
   return (
     <div className="space-y-6">

@@ -72,7 +72,7 @@ SIAC/
 │       ├── constantes/
 │       └── utilidades/
 ├── Backend/
-│   ├── prisma/               # schema, migraciones, semilla, repair
+│   ├── prisma/               # schema, migraciones, semilla, verificación
 │   └── src/
 │       ├── documentos/       # evidencias, dictamen, versiones
 │       ├── docx/             # firma, comentarios Word, diff
@@ -141,7 +141,14 @@ Errores hacia el usuario:
 - Conflicto de unicidad: **409**.
 - No devolver al navegador un `P2025` o un stack de Prisma.
 
-Prisma se mantiene. No se introduce un segundo ORM. Los scripts oficiales están en `Backend/package.json`: `prisma:generate`, `prisma:migrate`, `prisma:deploy`, `prisma:repair-schema`, `prisma:verify`, `prisma:seed`.
+Prisma se mantiene. No se introduce un segundo ORM. Prisma es la única capa de acceso a datos: sin SQL crudo fuera de `prisma/migrations` (y sin scripts que alteren el esquema al margen de las migraciones). Los scripts oficiales están en `Backend/package.json`: `prisma:generate`, `prisma:migrate`, `prisma:deploy`, `prisma:verify`, `prisma:seed` y `prisma:setup` (solo BD local: aborta ante un host remoto salvo `SIAC_PERMITIR_SETUP_REMOTO=true`).
+
+**Únicas excepciones de SQL crudo permitidas** (decisión del líder técnico, 16/10/2026), ambas con la plantilla parametrizada de Prisma (`$queryRaw` con tagged template / `Prisma.sql`, nunca `$queryRawUnsafe`/`$executeRawUnsafe`):
+
+1. `Backend/src/salud/salud.service.ts`: `SELECT 1` del endpoint `GET /api/v1/salud` (ping a la BD).
+2. `Backend/src/documentos/fts-evidencias.ts`: búsqueda de texto completo sobre la columna `tsvector` (`searchVector`, `ts_rank`), que Prisma no puede expresar con su API tipada.
+
+Cualquier otro SQL crudo fuera de `prisma/migrations` se rechaza en revisión.
 
 ## 7. Frontend (Next.js)
 

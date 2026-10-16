@@ -1,0 +1,43 @@
+name: Keep-alive backend
+
+# Mantiene despierto el backend en el plan free de Render (se duerme tras ~15 min sin tráfico)
+# y, de paso, la base de Supabase (el health check hace SELECT 1).
+# Requiere la variable de repositorio BACKEND_URL (p. ej. https://siac-api.onrender.com).
+# Nota: GitHub solo ejecuta workflows programados desde la rama por defecto del repositorio.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: GET /api/v1/salud
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BACKEND_URL: ${{ vars.BACKEND_URL }}
+    steps:
+      - name: Despertar el backend
+        shell: bash
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "::notice::La variable de repositorio BACKEND_URL está vacía; no se hace ping."
+            exit 0
+          fi
+          base="${BACKEND_URL%/}"
+          url="${base}/api/v1/salud"
+          echo "Ping a ${url}"
+          # Un arranque en frío del plan free puede tardar ~1 min: reintentos con espera y timeout por intento.
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 15 --retry-all-errors \
+            --connect-timeout 20 --max-time 90 \
+            "${url}"
+          echo

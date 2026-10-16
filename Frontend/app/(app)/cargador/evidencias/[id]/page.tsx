@@ -59,7 +59,7 @@ export default function DetalleEvidenciaCargadorPage() {
 function ContenidoDetalle() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const { datos, actualizarEvidencia } = usarAlmacen()
+  const { datos, actualizarEvidencia, recargarAlertas } = usarAlmacen()
   const [evidencia, setEvidencia] = useState<Evidencia | null>(null)
   const [urlDocumento, setUrlDocumento] = useState<string | undefined>()
   const [observacionHistorial, setObservacionHistorial] = useState<string | null>(null)
@@ -297,6 +297,7 @@ function ContenidoDetalle() {
           await refrescarDocumento(params.id)
         }
         const actualizada = await enviarRevisionApi(params.id)
+        await recargarAlertas()
         setEvidencia((prev) => (prev ? { ...prev, estado: actualizada.estado } : prev))
       }
       actualizarEvidencia(params.id, {

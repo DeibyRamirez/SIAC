@@ -24,4 +24,12 @@ describe('Humo E2E de la API (R-010.5)', () => {
       .expect(200);
     expect(perfil.body.rol).toBe('Administrador');
   });
+
+  it('GET /api/v1/metricas/token responde 403 al Revisor (decisión del PO, 13/10)', async () => {
+    const { token } = await iniciarSesion(ctx.app, 'Revisor');
+    await request(ctx.app.getHttpServer())
+      .get('/api/v1/metricas/token')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
 });

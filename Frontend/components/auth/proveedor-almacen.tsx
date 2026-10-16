@@ -19,9 +19,6 @@ import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   listarEvidenciasApi,
   crearEvidenciaApi,
-  dictaminarEvidenciaApi,
-  type CondicionDictamenPayload,
-  type PuntajeVerificacion,
 } from '@/lib/servicios/evidencias.servicio'
 import {
   crearPlantillaApi,
@@ -33,8 +30,10 @@ import {
   listarVigenciasApi,
   listarNotificacionesApi,
   marcarNotificacionLeidaApi,
+  marcarTodasNotificacionesLeidasApi,
 } from '@/lib/servicios/programas.servicio'
 import type {
+  AlertaInApp,
   AnexoVigencia,
   CarpetaNormativa,
   DocumentoRequerido,
@@ -43,6 +42,7 @@ import type {
   EstadoEvidencia,
   Plantilla,
 } from '@/lib/tipos'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
@@ -57,10 +57,12 @@ interface ContextoAlmacen {
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
-    estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
-    observaciones?: string,
-    condiciones?: CondicionDictamenPayload[],
-    puntaje?: PuntajeVerificacion,
+    resultado: {
+      estado: Extract<EstadoEvidencia, 'Cumple' | 'ConObservaciones' | 'Validado' | 'Rechazado'>
+      observaciones?: string
+      puntajeActual?: number | null
+      totalCondicionesActual?: number | null
+    },
   ) => void
   crearPlantilla: (
     plantilla: Omit<Plantilla, 'id'>,
@@ -72,6 +74,8 @@ interface ContextoAlmacen {
   actualizarAnexoVigencia: (id: string, cambios: Partial<AnexoVigencia>) => void
   eliminarAnexoVigencia: (id: string) => void
   marcarAlertaLeida: (id: string) => void
+  marcarTodasAlertasLeidas: () => void
+  recargarAlertas: () => Promise<void>
   crearEtapa: (etapa: Omit<EtapaAcreditacion, 'id'>) => void
   actualizarEtapa: (id: string, cambios: Partial<EtapaAcreditacion>) => void
   eliminarEtapa: (id: string) => void
@@ -85,78 +89,149 @@ interface ContextoAlmacen {
 
 const ContextoAlmacenSiac = createContext<ContextoAlmacen | null>(null)
 
+function mapearMetadataNotificacion(
+  crudo: Record<string, unknown> | null | undefined,
+): AlertaInApp['metadata'] {
+  if (!crudo || typeof crudo !== 'object') return null
+  const meta: AlertaInApp['metadata'] = {}
+  if (typeof crudo.evidenciaId === 'string') meta.evidenciaId = crudo.evidenciaId
+  if (typeof crudo.programaId === 'string') meta.programaId = crudo.programaId
+  if (typeof crudo.anexoId === 'string') meta.anexoId = crudo.anexoId
+  if (typeof crudo.umbral === 'string') meta.umbral = crudo.umbral
+  if (typeof crudo.avance === 'number') meta.avance = crudo.avance
+  return Object.keys(meta).length > 0 ? meta : null
+}
+
+function mapearAlertasDesdeApi(
+  alertas: {
+    id: string
+    mensaje: string
+    leida: boolean
+    createdAt: string
+    tipo?: string
+    metadata?: Record<string, unknown> | null
+  }[],
+) {
+  return alertas.map((a) => ({
+    id: a.id,
+    mensaje: a.mensaje,
+    leida: a.leida,
+    tipo: a.tipo,
+    fecha: a.createdAt.slice(0, 10),
+    createdAt: a.createdAt,
+    metadata: mapearMetadataNotificacion(a.metadata),
+  }))
+}
+
 function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}`
 }
 
 export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
+  const { sesion } = usarSesion()
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
 
-  useEffect(() => {
-    async function cargarDatos() {
-      const local = leerAlmacenLocal() ?? crearDatosIniciales()
+  const cargarDatos = useCallback(async () => {
+    const local = leerAlmacenLocal() ?? crearDatosIniciales()
 
-      if (apiDisponible()) {
-        const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
-          await Promise.allSettled([
-            // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
-            listarEvidenciasApi({ limite: 100 }),
-            listarPlantillasApi(),
-            listarVigenciasApi(),
-            listarNotificacionesApi(),
-            listarProgramasApi(),
-          ])
-
-        const evResp =
-          evResult.status === 'fulfilled'
-            ? evResult.value
-            : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
-        const plantillas =
-          plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
-        const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
-        const alertas =
-          alertasResult.status === 'fulfilled' ? alertasResult.value : []
-        const programas =
-          programasResult.status === 'fulfilled' ? programasResult.value : []
-
-        const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
-
-        const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
-          ...a,
-          fechaVencimiento: typeof a.fechaVencimiento === 'string'
-            ? a.fechaVencimiento.slice(0, 10)
-            : a.fechaVencimiento,
-        }))
-
-        const alertasMapeadas = (
-          alertas as { id: string; mensaje: string; leida: boolean; createdAt: string }[]
-        ).map((a) => ({
-          id: a.id,
-          mensaje: a.mensaje,
-          leida: a.leida,
-          fecha: a.createdAt.slice(0, 10),
-        }))
-
-        setDatos({
-          ...local,
-          programas,
-          evidencias,
-          plantillas,
-          anexosVigencia: anexosMapeados,
-          alertas: alertasMapeadas,
-        })
-        return
-      }
-
+    if (!apiDisponible()) {
       setDatos({
         ...local,
         evidencias: [],
         plantillas: [],
       })
+      return
     }
 
-    cargarDatos()
+    if (!sesion?.usuarioId) {
+      return
+    }
+
+    const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
+      await Promise.allSettled([
+        // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
+        listarEvidenciasApi({ limite: 100 }),
+        listarPlantillasApi(),
+        listarVigenciasApi(),
+        listarNotificacionesApi(),
+        listarProgramasApi(),
+      ])
+
+    const evResp =
+      evResult.status === 'fulfilled'
+        ? evResult.value
+        : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
+    const plantillas = plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
+    const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
+    const alertas = alertasResult.status === 'fulfilled' ? alertasResult.value : []
+    const programas = programasResult.status === 'fulfilled' ? programasResult.value : []
+
+    const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
+
+    const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
+      ...a,
+      fechaVencimiento:
+        typeof a.fechaVencimiento === 'string'
+          ? a.fechaVencimiento.slice(0, 10)
+          : a.fechaVencimiento,
+    }))
+
+    const alertasMapeadas = mapearAlertasDesdeApi(
+      alertas as {
+        id: string
+        mensaje: string
+        leida: boolean
+        createdAt: string
+        tipo?: string
+      }[],
+    )
+
+    setDatos({
+      ...local,
+      programas,
+      evidencias,
+      plantillas,
+      anexosVigencia: anexosMapeados,
+      alertas: alertasMapeadas,
+    })
+  }, [sesion?.usuarioId])
+
+  useEffect(() => {
+    if (!sesion?.usuarioId) {
+      if (!apiDisponible()) {
+        setDatos(leerAlmacenLocal() ?? crearDatosIniciales())
+      }
+      return
+    }
+    void cargarDatos()
+  }, [sesion?.usuarioId, cargarDatos])
+
+  const recargarAlertas = useCallback(async () => {
+    if (!apiDisponible()) return
+    try {
+      const alertas = await listarNotificacionesApi()
+      const alertasMapeadas = mapearAlertasDesdeApi(alertas)
+      setDatos((prev) => ({ ...prev, alertas: alertasMapeadas }))
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[SIAC] No se pudieron cargar notificaciones:', error)
+      }
+    }
   }, [])
+
+  useEffect(() => {
+    if (!apiDisponible() || !sesion?.usuarioId) return
+    void recargarAlertas()
+  }, [sesion?.usuarioId, recargarAlertas])
+
+  useEffect(() => {
+    if (!apiDisponible()) return
+    const intervalo = window.setInterval(() => {
+      if (!sesion?.usuarioId) return
+      void recargarAlertas()
+    }, 60_000)
+    return () => window.clearInterval(intervalo)
+  }, [recargarAlertas, sesion?.usuarioId])
 
   useEffect(() => {
     return suscribirProgramasActualizados(() => {
@@ -228,39 +303,31 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     [persistir],
   )
 
+  /**
+   * §5.4: solo actualiza el estado local. La petición POST /evidencias/:id/dictamen
+   * la hace la página del revisor (`dictaminarEvidenciaApi`) una sola vez.
+   */
   const dictaminarEvidencia = useCallback(
-    async (
+    (
       id: string,
-      estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
-      observaciones?: string,
-      condiciones?: CondicionDictamenPayload[],
-      puntaje?: PuntajeVerificacion,
+      resultado: {
+        estado: Extract<EstadoEvidencia, 'Cumple' | 'ConObservaciones' | 'Validado' | 'Rechazado'>
+        observaciones?: string
+        puntajeActual?: number | null
+        totalCondicionesActual?: number | null
+      },
     ) => {
-      if (apiDisponible()) {
-        try {
-          await dictaminarEvidenciaApi(id, {
-            estado:
-              condiciones?.length || (estado !== 'Validado' && estado !== 'Rechazado')
-                ? undefined
-                : estado,
-            observaciones,
-            condiciones,
-          })
-        } catch {
-          // Continúa con actualización local
-        }
-      }
       persistir((prev) => ({
         ...prev,
         evidencias: prev.evidencias.map((e) =>
           e.id === id
             ? {
                 ...e,
-                estado,
-                observaciones: observaciones ?? e.observaciones,
-                puntajeActual: puntaje?.puntajeActual ?? e.puntajeActual,
+                estado: resultado.estado,
+                observaciones: resultado.observaciones ?? e.observaciones,
+                puntajeActual: resultado.puntajeActual ?? e.puntajeActual,
                 totalCondicionesActual:
-                  puntaje?.totalCondicionesActual ?? e.totalCondicionesActual,
+                  resultado.totalCondicionesActual ?? e.totalCondicionesActual,
               }
             : e,
         ),
@@ -374,6 +441,16 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     },
     [persistir],
   )
+
+  const marcarTodasAlertasLeidas = useCallback(() => {
+    persistir((prev) => ({
+      ...prev,
+      alertas: prev.alertas.map((a) => ({ ...a, leida: true })),
+    }))
+    if (apiDisponible()) {
+      marcarTodasNotificacionesLeidasApi().catch(() => {})
+    }
+  }, [persistir])
 
   const crearEtapa = useCallback(
     (etapa: Omit<EtapaAcreditacion, 'id'>) => {
@@ -490,6 +567,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       actualizarAnexoVigencia,
       eliminarAnexoVigencia,
       marcarAlertaLeida,
+      marcarTodasAlertasLeidas,
+      recargarAlertas,
       crearEtapa,
       actualizarEtapa,
       eliminarEtapa,
@@ -513,6 +592,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       actualizarAnexoVigencia,
       eliminarAnexoVigencia,
       marcarAlertaLeida,
+      marcarTodasAlertasLeidas,
+      recargarAlertas,
       crearEtapa,
       actualizarEtapa,
       eliminarEtapa,

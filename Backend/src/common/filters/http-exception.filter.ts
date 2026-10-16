@@ -57,7 +57,7 @@ function mapearErrorInterno(
     if (texto.includes('not found in enum')) {
       return {
         mensaje:
-          'Datos con estados legacy en la base de datos. Ejecute pnpm prisma:repair-schema en el backend.',
+          'Datos con estados legacy en la base de datos. Ejecute pnpm prisma:verify y normalice los datos con una migración en prisma/migrations.',
       };
     }
   }

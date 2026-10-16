@@ -4,6 +4,9 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  ValidateBy,
+  ValidationArguments,
+  ValidationOptions,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -12,6 +15,45 @@ import {
   CodigoCondicionInstitucional,
   EstadoEvidencia,
 } from '@prisma/client';
+import { etiquetaCondicion } from '../../dominio/condiciones-documento-maestro';
+import { etiquetaCondicionInstitucional } from '../../dominio/condiciones-institucionales';
+
+type CodigoCondicion =
+  | CodigoCondicionDocumentoMaestro
+  | CodigoCondicionInstitucional;
+
+/**
+ * T-006.1: toda condición con `cumple=false` exige una observación no vacía (trim).
+ * Con `cumple=true` la observación es opcional (si se envía, debe ser texto).
+ * El mensaje usa la etiqueta de la condición para que el revisor sepa cuál corregir.
+ */
+function ObservacionObligatoriaSiNoCumple(
+  etiqueta: (codigo: CodigoCondicion) => string,
+  opciones?: ValidationOptions,
+) {
+  return ValidateBy(
+    {
+      name: 'observacionObligatoriaSiNoCumple',
+      validator: {
+        validate(valor: unknown, args: ValidationArguments): boolean {
+          const objeto = args.object as { cumple?: boolean };
+          if (valor === undefined || valor === null) {
+            return objeto.cumple !== false;
+          }
+          if (typeof valor !== 'string') return false;
+          if (objeto.cumple === false) return valor.trim().length > 0;
+          return true;
+        },
+        defaultMessage(args: ValidationArguments): string {
+          const objeto = args.object as { codigo?: CodigoCondicion };
+          const nombre = objeto.codigo ? etiqueta(objeto.codigo) : 'evaluada';
+          return `La condición ${nombre} requiere una observación.`;
+        },
+      },
+    },
+    opciones,
+  );
+}
 
 export class CondicionDictamenDto {
   @IsEnum(CodigoCondicionDocumentoMaestro)
@@ -20,8 +62,9 @@ export class CondicionDictamenDto {
   @IsBoolean()
   cumple!: boolean;
 
-  @IsString()
-  @IsOptional()
+  @ObservacionObligatoriaSiNoCumple((codigo) =>
+    etiquetaCondicion(codigo as CodigoCondicionDocumentoMaestro),
+  )
   observacion?: string;
 }
 
@@ -32,8 +75,9 @@ export class CondicionInstitucionalDictamenDto {
   @IsBoolean()
   cumple!: boolean;
 
-  @IsString()
-  @IsOptional()
+  @ObservacionObligatoriaSiNoCumple((codigo) =>
+    etiquetaCondicionInstitucional(codigo as CodigoCondicionInstitucional),
+  )
   observacion?: string;
 }
 

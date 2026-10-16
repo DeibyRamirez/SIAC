@@ -125,7 +125,7 @@ export function BusquedaInline({ inputRef }: BusquedaInlineProps) {
       </div>
 
       {abierta && hayResultados && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(420px,70vh)] overflow-y-auto rounded-xl border bg-white p-2 shadow-lg">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[110] max-h-[min(420px,70vh)] overflow-y-auto rounded-xl border border-border/80 bg-popover p-2 text-popover-foreground shadow-xl ring-1 ring-foreground/10 backdrop-blur-0">
           {buscando && (
             <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
           )}

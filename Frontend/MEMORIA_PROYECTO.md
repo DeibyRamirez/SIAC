@@ -209,6 +209,12 @@ GET/POST/PATCH/DELETE /api/plantillas
 
 En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backend solo se reemplaza la capa de persistencia.
 
+### Notificaciones in-app (campana superior)
+
+- `GET /notificaciones` alimenta `datos.alertas` en `ProveedorAlmacen` (polling 60s + recarga al abrir la campana).
+- [`CampanaNotificaciones`](components/layout/campana-notificaciones.tsx): badge numérico (`99+`), `aria-label`, lista de pendientes.
+- Navegación por [`resolverAccionNotificacion`](lib/utilidades/accion-notificacion.ts) según `tipo`, `metadata` (evidencia/programa/anexo) y rol del JWT.
+
 ---
 
 ## 9. Brechas conocidas (fuera del prototipo actual)
@@ -219,7 +225,7 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 | B2 | Subida real S3 / parseo PDF-Excel | P0 | HU ingesta de datos |
 | B3 | Power BI Embedded (Azure tokens) | P1 | Tab placeholder existe |
 | B4 | OAuth / Google login real | P1 | Botón mock en login |
-| B5 | Notificaciones email + cron vigencias | P1 | Alertas solo in-app mock |
+| B5 | Notificaciones email + cron vigencias | P1 | Backend + Resend; campana superior (`CampanaNotificaciones`) con badge y navegación por `tipo`/`metadata`/`rol` |
 | B6 | Middleware server-side de auth | P1 | Guardia solo en cliente |
 | B7 | Full-text search + filtros URL | P2 | Búsqueda global mock |
 | B8 | Tests automatizados / CI | P2 | Sin pipeline GitHub Actions |
@@ -311,6 +317,44 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 ---
 
 ## 14. Registro de cambios (changelog de memoria)
+
+### 2026-10-16 — S3-HU007: vigencias y alertas al 100 % (frontend)
+
+- [Frontend] `lib/utilidades/vigencia-registro.ts`: umbrales PO (aviso 24 / rojo 18), `Vencido` distinto de `Rojo`, demo de 5 min (`DURACION_DEMO_VIGENCIA_MS=300_000`) y `hayDemoVigenciaEnCurso()` para el polling.
+- [Frontend] Etiquetas: «Vencido» y «Por vencer» en `etiquetas-semaforo.ts`; `SemaforoVigencia` incluye `Vencido`; barra, celda y panel de paquetes muestran el estado vencido por separado.
+- [Frontend] Demo acelerada: botón «Iniciar prueba de vigencia (5 min)», barra con semáforo del servidor (`GET /programas/:id/vigencia` → `obtenerVigenciaProgramaApi`) y polling de 5 s en barra y campana; `accion-notificacion`/`etiqueta-notificacion` reconocen `vigencia_roja` y `anexo_vence_manana`.
+- [Tests] Vitest 24 archivos / 107 tests; `tsc --noEmit` 0 y `next build` OK.
+
+### 2026-10-15 — Bandeja revisor con búsqueda HU-008
+
+- [Frontend] `/revisor/bandeja` reutiliza `ContenidoBusquedaEvidencias` (mismos filtros que administrador); alcance por programas asignados vía `GET /busqueda`; por defecto `estado=EnRevision`; detalle sigue en `/revisor/bandeja/:id`.
+
+### 2026-10-15 — Flujo Cargador: programa primero y anti-duplicado de guías
+
+- [Frontend] `/cargador/evidencias/nueva`: paso 1 elige programa o trámite institucional; modalidad y alcance se fijan desde el progreso del trámite activo; el paso de guía solo muestra `guiasDisponiblesCarga` del API (bloqueos con motivo si G1 en revisión o falta predecesora G1→G2 / G3→G4).
+- [Backend] Reglas en `reglas-carga-evidencia` + `crearConArchivo` responde 409 si la guía no está disponible para nueva carga.
+
+### 2026-10-12 — Fix S3-03: filtros reales del panel de cifras
+
+- [Frontend] `panel-cifras-categoria`: selects de Periodo/Facultad/Programa (y Sede en infraestructura) poblados desde `GET /cifras/:categoriaId/filtros` (datos persistidos, no catálogo); cambiar Facultad recarga programas y los resetea; valores de URL sin coincidencia se ignoran y limpian; estados «No hay datos para los filtros seleccionados» + «Limpiar filtros» vs «Aún no hay cifras cargadas» + Importar; tras importar se refrescan filtros y datos conservando la selección válida.
+- [Servicios/Tipos] `obtenerFiltrosCifrasApi`, `RespuestaFiltrosCifras`, `meta.sinCoincidencias`, filtros con `programa` (nombre) y `sede`; util `coincidirOpcionFiltro` (normaliza mayúsculas/tildes).
+- [Tests] Vitest 68/68; `tsc` 0 y `next build` OK.
+
+### 2026-10-12 — S3-03 / HU-009: datasets por categoría y feed Power BI
+
+- [Frontend] Diálogo de importación: errores por fila/columna con `mensaje`, botón «Descargar ejemplo JSON» (`/cifras/:categoriaId/plantilla.json`) y límite de 20 MB.
+- [Frontend] Diccionario: muestra las columnas del esquema tipado de la categoría seleccionada (tipo, obligatoriedad, valores permitidos) tomadas de `GET /cifras/categorias`.
+- [Tipos] `ErrorFilaImportacionCifras` ahora `{fila, columna?, mensaje}`; `ResultadoImportacionCifras.periodosReemplazados`; `ColumnaEsquemaCifras` en `CategoriaCifras.esquema`.
+- [Tests] Vitest 63/63 (incluye descarga de ejemplo JSON y errores por columna); `tsc` 0 y `next build` OK.
+
+### 2026-10-12 — S3-02 / HU-009: importación de cifras y gráficas por categoría
+
+- [Frontend] Servicios `cifras.servicio.ts`: `listarCategoriasCifrasApi`, `obtenerCifrasCategoriaApi`, `descargarPlantillaCifrasApi` (binario vía `peticionApiArchivo`), `importarCifrasExcelApi`, `listarVariablesCifrasApi`, `actualizarVariableCifraApi`; `obtenerCifrasEstudiantesApi` delega.
+- [Frontend] `panel-cifras-categoria.tsx` genérico (KPIs, línea/dona/barras según dimensión y unidad, badge de fuente API/Excel/Semilla/Mixta, fecha Bogotá, estado vacío con Importar Excel, filtros periodo/facultad/programa en URL); `panel-cifras-estudiantes.tsx` queda como wrapper.
+- [Frontend] `dialogo-importar-cifras.tsx`: plantilla .xlsx, validación cliente (.xlsx y ≤5 MB), resultado filasOk/filasError con tabla de errores por fila y refresco del panel.
+- [Frontend] `contenedor-informe-powerbi.tsx` generalizado: intenta embed para cualquier categoría; sin informe/400/error muestra el panel de cifras.
+- [Frontend] Página `/administrador/cifras` (categorías con última carga + importar; pestaña Diccionario con PATCH de etiquetaCuac/descripción/activo) y entrada en sidebar; botón de importar solo Administrador.
+- [Tests] Vitest 62/62 (panel estado vacío + KPI/barras, diálogo extensión/tamaño/errores por fila, util de URL); `tsc --noEmit` 0; `next build` OK.
 
 ### 2026-09-28 — Alcance por programa en la UI
 

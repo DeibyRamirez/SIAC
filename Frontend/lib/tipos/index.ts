@@ -22,8 +22,8 @@ export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 export type NivelPrograma = 'Pregrado' | 'Posgrado'
 
 export type SemaforoPrograma = 'Verde' | 'Amarillo' | 'Rojo'
-/** Semáforo de vigencia: «SinVigencia» (gris) cuando no hay resolución MEN registrada. */
-export type SemaforoVigencia = SemaforoPrograma | 'SinVigencia'
+/** Semáforo de vigencia: «SinVigencia» (gris) sin resolución MEN; «Vencido» es distinto de «Rojo». */
+export type SemaforoVigencia = SemaforoPrograma | 'Vencido' | 'SinVigencia'
 
 export type TipoEtapaAcreditacion =
   | 'PreRadicacion'
@@ -118,6 +118,45 @@ export interface Plantilla {
   nombreArchivo?: string | null
 }
 
+export type AlcancePaqueteVigencia = 'Programa' | 'Institucion'
+
+export interface DocumentoPaqueteVigencia {
+  tipo: 'Guia' | 'ResolucionMen'
+  codigoGuia?: string
+  evidenciaId: string
+  nombre: string
+  nombreArchivo: string | null
+  estado: string
+}
+
+export interface PaqueteVigenciaRegistro {
+  alcance: AlcancePaqueteVigencia
+  entidadId: string
+  nombre: string
+  codigo: string
+  tipoTramite: string
+  fechaResolucion: string
+  fechaFinVigencia: string
+  semaforoVigencia: SemaforoVigencia
+  porcentajeVigencia: number
+  documentos: DocumentoPaqueteVigencia[]
+}
+
+export interface EstadoDemoVigencia {
+  modoPrueba: boolean
+  activa: boolean
+  semaforoVigencia: SemaforoVigencia
+  segundosRestantes: number
+  fraccion: number
+}
+
+/** §0: respuesta de GET /programas/:id/vigencia (modo prueba con escala acelerada). */
+export interface VigenciaPrograma {
+  semaforo: SemaforoVigencia
+  segundosRestantes: number
+  modoPrueba: boolean
+}
+
 /** Categoría explícita del anexo; RN-003 solo considera «Infraestructura». */
 export type CategoriaAnexo = 'Infraestructura' | 'Permiso' | 'Convenio' | 'Otro'
 
@@ -140,11 +179,22 @@ export interface AnexoVigencia {
   porcentajeTranscurrido?: number
 }
 
+export interface MetadataNotificacion {
+  evidenciaId?: string
+  programaId?: string
+  anexoId?: string
+  umbral?: string
+  avance?: number
+}
+
 export interface AlertaInApp {
   id: string
   mensaje: string
   fecha: string
   leida: boolean
+  tipo?: string
+  metadata?: MetadataNotificacion | null
+  createdAt?: string
 }
 
 export interface SesionUsuario {

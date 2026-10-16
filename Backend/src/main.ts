@@ -3,14 +3,30 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { FiltroExcepcionHttp } from './common/filters/http-exception.filter';
+import {
+  resolverOrigenesCors,
+  resolverPuerto,
+  validarEntornoProduccion,
+} from './common/config/servidor';
 
 async function bootstrap() {
+  // En producción (Render) se detiene el arranque si falta configuración crítica.
+  const { errores, advertencias } = validarEntornoProduccion();
+  advertencias.forEach((mensaje) => console.warn(`[configuración] ${mensaje}`));
+  if (errores.length > 0) {
+    throw new Error(`Configuración de producción incompleta: ${errores.join(' ')}`);
+  }
+
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks(); // Permite que la aplicación escuche eventos de apagado para realizar tareas de limpieza antes de cerrar.
   app.setGlobalPrefix("api/v1");
 
+  // CORS_ORIGENES (lista separada por comas), CORS_ORIGEN (nombre anterior) y FRONTEND_URL.
+  // El navegador usa el BFF de Next (/api/v1 en el mismo dominio de Vercel); CORS solo aplica
+  // si algún cliente llama al backend de Render directamente.
+  const origenesCors = resolverOrigenesCors();
   app.enableCors({
-    origin: process.env.CORS_ORIGEN ?? "http://localhost:3000",
+    origin: origenesCors,
     credentials: true,
   });
 
@@ -34,10 +50,11 @@ async function bootstrap() {
   const documento = SwaggerModule.createDocument(app, configSwagger);
   SwaggerModule.setup("api/docs", app, documento);
 
-  const puerto = process.env.PUERTO ?? 3001;
-  await app.listen(puerto);
-  console.log(`SIAC API escuchando en http://localhost:${puerto}/api/v1`);
-  console.log(`Swagger disponible en http://localhost:${puerto}/api/docs`);
+  // Render inyecta PORT y exige escuchar en 0.0.0.0; en local se usa PUERTO (3001).
+  const puerto = resolverPuerto();
+  await app.listen(puerto, '0.0.0.0');
+  console.log(`SIAC API escuchando en el puerto ${puerto} (prefijo /api/v1, Swagger en /api/docs)`);
+  console.log(`CORS permitido para: ${origenesCors.join(', ') || '(ningún origen)'}`);
 }
 
 bootstrap();

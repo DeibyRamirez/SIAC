@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   construirQueryBusqueda,
+  filtrosBandejaRevisorDesdeUrl,
   leerFiltrosBusquedaUrl,
   rutaBusquedaConPeriodoActual,
 } from '@/lib/utilidades/parametros-busqueda-url'
@@ -27,6 +28,11 @@ describe('parametros-busqueda-url', () => {
 
     expect(qs).toContain('programa=derecho')
     expect(qs).toContain('puntajeMin=5')
+  })
+
+  it('bandeja revisor: sin estado en URL usa EnRevision por defecto', () => {
+    expect(filtrosBandejaRevisorDesdeUrl({ programa: 'derecho' }).estado).toBe('EnRevision')
+    expect(filtrosBandejaRevisorDesdeUrl({ estado: 'Cumple' }).estado).toBe('Cumple')
   })
 
   it('el enlace de entrada fija el periodo actual en la URL', () => {

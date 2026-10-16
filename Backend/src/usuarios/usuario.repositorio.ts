@@ -161,4 +161,10 @@ export class UsuarioRepositorio {
       select: { id: true, responsableProcesoInstitucional: true },
     });
   }
+
+  contarActivosPorRol(rol: RolUsuario): Promise<number> {
+    return this.prisma.usuario.count({
+      where: { rol, activo: true },
+    });
+  }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { CodigoDocumentoGuia, EstadoEvidencia, RolUsuario } from '@prisma/client';
 import { DocumentosService } from './documentos.service';
 import { EvidenciaRepositorio } from './evidencia.repositorio';
@@ -147,6 +147,11 @@ function crearRepositorioFake() {
       id: 'prog-1',
       tipoTramiteActivo: 'RenovacionRegistroCalificado',
     })),
+    crear: jest.fn(async (datos: Record<string, unknown>) => ({
+      id: 'ev-nueva',
+      version: 1,
+      ...datos,
+    })),
   };
 
   return repositorio;
@@ -156,14 +161,33 @@ const prismaFake = {
   institucion: { findFirst: jest.fn() },
 } as never;
 
-function crearServicio(repositorio: ReturnType<typeof crearRepositorioFake>) {
+function crearServicio(
+  repositorio: ReturnType<typeof crearRepositorioFake>,
+  avanceProcesoOverride?: {
+    calcularProgresoPrograma: jest.Mock;
+    calcularProgresoInstitucion: jest.Mock;
+  },
+) {
+  const avanceProceso =
+    avanceProcesoOverride ??
+    ({
+      calcularProgresoPrograma: jest.fn().mockResolvedValue({
+        guiasDisponiblesCarga: [CodigoDocumentoGuia.G1],
+        bloqueosCarga: [],
+      }),
+      calcularProgresoInstitucion: jest.fn(),
+    } as const);
+
   return new DocumentosService(
     repositorio as never,
     {} as never,
-    { crear: jest.fn() } as never,
+    { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+    { idsRevisoresParaPrograma: jest.fn() } as never,
     { recalcularPorcentajeAvance: jest.fn() } as never,
+    avanceProceso as never,
     {
       validarFirmaSubida: jest.fn(),
+      validarEsDocxZip: jest.fn(),
       procesarDocxPostDictamen: jest.fn(),
     } as never,
     {
@@ -193,6 +217,11 @@ describe('DocumentosService permisos de revisión', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
+    {
+      calcularProgresoPrograma: jest.fn(),
+      calcularProgresoInstitucion: jest.fn(),
+    } as never,
     {} as never,
     alcance as unknown as ServicioAlcancePrograma,
     { institucion: { findFirst: jest.fn() } } as never,
@@ -258,14 +287,23 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     guardarEvaluacionesCondicion: jest.fn(),
     guardarEvaluacionesCondicionInstitucional: jest.fn(),
   };
-  const notificaciones = { crear: jest.fn() };
+  const notificacionesDespacho = { notificar: jest.fn(), notificarVarios: jest.fn() };
+  const notificacionesDestinatarios = { idsRevisoresParaPrograma: jest.fn() };
   const avancePrograma = { recalcularPorcentajeAvance: jest.fn() };
   const alcance = { estaAsignado: jest.fn() };
   const servicio = new DocumentosService(
     evidenciaRepo as unknown as EvidenciaRepositorio,
     {} as never,
-    notificaciones as never,
+    notificacionesDespacho as never,
+    notificacionesDestinatarios as never,
     avancePrograma as never,
+    {
+      calcularProgresoPrograma: jest.fn().mockResolvedValue({
+        guiasDisponiblesCarga: [CodigoDocumentoGuia.G1],
+        bloqueosCarga: [],
+      }),
+      calcularProgresoInstitucion: jest.fn(),
+    } as never,
     {} as never,
     alcance as unknown as ServicioAlcancePrograma,
     { institucion: { findFirst: jest.fn() } } as never,
@@ -324,10 +362,12 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
       expect.any(String),
       'rev',
     );
-    expect(notificaciones.crear).toHaveBeenCalledWith(
-      'car',
-      expect.stringContaining('(5/9)'),
-      'observaciones',
+    expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: 'car',
+        tipo: 'dictamen_con_observaciones',
+        mensaje: expect.stringContaining('(5/9)'),
+      }),
     );
   });
 
@@ -361,7 +401,13 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
       const datos = evidenciaRepo.actualizar.mock.calls[0][1];
       expect(datos).toMatchObject({ estado: EstadoEvidencia.ConObservaciones });
       expect(datos).not.toHaveProperty('puntajeActual');
-      expect(notificaciones.crear).toHaveBeenCalledWith('car', expect.stringContaining('plan de mejoramiento'), 'observaciones');
+      expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuarioId: 'car',
+          tipo: 'dictamen_con_observaciones',
+          mensaje: expect.stringContaining('plan de mejoramiento'),
+        }),
+      );
     });
 
     it('aprobar deja el G2 «Validado»; «Rechazado» ya no aplica', async () => {
@@ -444,7 +490,29 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
 
     await expect(
       servicio.dictaminar('ev-1', { condiciones }, revisor),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toThrow(/La condición .* requiere una observación\./);
+    expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('exige observación también en las condiciones institucionales (G3)', async () => {
+    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G3));
+    const condiciones = condicionesInstitucionales(5).map((c) => ({
+      ...c,
+      observacion: undefined,
+    }));
+
+    await expect(
+      servicio.dictaminar('ev-1', { condicionesInstitucionales: condiciones }, revisor),
+    ).rejects.toThrow(/La condición .* requiere una observación\./);
+    expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('una evidencia legada sin guía no acepta condiciones', async () => {
+    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(null));
+
+    await expect(
+      servicio.dictaminar('ev-1', { condiciones: condicionesPrograma(9) }, revisor),
+    ).rejects.toThrow(/no se evalúa por condiciones/);
     expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
   });
 
@@ -545,8 +613,16 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     const servicio = new DocumentosService(
       repositorio as never,
       { obtenerBuffer: jest.fn(async () => bufferBase) } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
+      {
+        calcularProgresoPrograma: jest.fn().mockResolvedValue({
+          guiasDisponiblesCarga: [CodigoDocumentoGuia.G1],
+          bloqueosCarga: [],
+        }),
+        calcularProgresoInstitucion: jest.fn(),
+      } as never,
       docx as never,
       {
         filtroVisibilidad: jest.fn(),
@@ -643,8 +719,16 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
     const servicio = new DocumentosService(
       repositorio as never,
       { obtenerBuffer: jest.fn(async () => bufferBase) } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
+      {
+        calcularProgresoPrograma: jest.fn().mockResolvedValue({
+          guiasDisponiblesCarga: [CodigoDocumentoGuia.G1],
+          bloqueosCarga: [],
+        }),
+        calcularProgresoInstitucion: jest.fn(),
+      } as never,
       docx as never,
       {
         filtroVisibilidad: jest.fn(),
@@ -739,8 +823,16 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
         subirArchivo: jest.fn(),
         generarClaveEvidencia,
       } as never,
-      { crear: jest.fn() } as never,
+      { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
       { recalcularPorcentajeAvance: jest.fn() } as never,
+      {
+        calcularProgresoPrograma: jest.fn().mockResolvedValue({
+          guiasDisponiblesCarga: [CodigoDocumentoGuia.G1],
+          bloqueosCarga: [],
+        }),
+        calcularProgresoInstitucion: jest.fn(),
+      } as never,
       {
         validarFirmaSubida: jest.fn(),
         validarEsDocxZip: jest.fn(),
@@ -777,5 +869,51 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       'ev-1',
       expect.objectContaining({ nombreArchivo: 'guia.docx' }),
     );
+  });
+});
+
+describe('DocumentosService · reglas de nueva carga', () => {
+  const cargador = { id: 'cargador-1', rol: RolUsuario.Cargador };
+
+  it('crearConArchivo devuelve 409 si G1 está en revisión', async () => {
+    const repositorio = crearRepositorioFake();
+    const avanceProceso = {
+      calcularProgresoPrograma: jest.fn().mockResolvedValue({
+        guiasDisponiblesCarga: [],
+        bloqueosCarga: [
+          {
+            codigoGuia: CodigoDocumentoGuia.G1,
+            motivo:
+              'El documento G1 está pendiente de verificación por el revisor. Espere el dictamen antes de cargar otro del mismo tipo.',
+          },
+        ],
+      }),
+      calcularProgresoInstitucion: jest.fn(),
+    };
+    const servicio = crearServicio(repositorio, avanceProceso);
+
+    const archivo = {
+      originalname: 'maestro.docx',
+      mimetype:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 64,
+      buffer: Buffer.from(''),
+    } as Express.Multer.File;
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2025-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+        },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(repositorio.crear).not.toHaveBeenCalled();
+    expect(avanceProceso.calcularProgresoPrograma).toHaveBeenCalledWith('prog-1');
   });
 });

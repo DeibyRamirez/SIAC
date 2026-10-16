@@ -30,6 +30,10 @@ export function GuardiaSesion({
       return
     }
 
+    if (pathname === '/login') {
+      return
+    }
+
     if (!sesion) {
       router.replace('/login')
       return

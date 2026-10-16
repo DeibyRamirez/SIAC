@@ -28,6 +28,17 @@ export function valorParamUrl(
   return valor
 }
 
+/** Bandeja revisor: sin `estado` en URL → pendientes de verificación (comportamiento bandeja clásica). */
+export function filtrosBandejaRevisorDesdeUrl(
+  params: Record<string, string | string[] | undefined>,
+): FiltrosBusquedaUrl {
+  const filtros = leerFiltrosBusquedaUrl(params)
+  if (!filtros.estado) {
+    return { ...filtros, estado: 'EnRevision' }
+  }
+  return filtros
+}
+
 export function leerFiltrosBusquedaUrl(
   params: Record<string, string | string[] | undefined>,
 ): FiltrosBusquedaUrl {

@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Bell, Menu } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { ChevronDown, LogOut, Menu } from 'lucide-react'
 
-import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { BusquedaInline } from '@/components/layout/busqueda-global'
+import { CampanaNotificaciones } from '@/components/layout/campana-notificaciones'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -24,11 +25,9 @@ export function BarraSuperior({
   titulo: string
   onAbrirMenu?: () => void
 }) {
-  const { sesion, etiquetaRolActual } = usarSesion()
-  const { datos, marcarAlertaLeida } = usarAlmacen()
+  const { sesion, etiquetaRolActual, cerrarSesion } = usarSesion()
   const inputBusquedaRef = useRef<HTMLInputElement>(null)
 
-  const alertasPendientes = datos.alertas.filter((alerta) => !alerta.leida)
   const iniciales = sesion?.nombre
     .split(' ')
     .map((parte) => parte[0])
@@ -51,7 +50,7 @@ export function BarraSuperior({
   }, [])
 
   return (
-    <header className="panel-topbar flex h-[4.5rem] items-center gap-4 px-4 md:px-6">
+    <header className="panel-topbar relative z-[100] flex h-[4.5rem] items-center gap-4 px-4 md:px-6">
       <Button
         type="button"
         variant="outline"
@@ -70,51 +69,56 @@ export function BarraSuperior({
 
       <BusquedaInline inputRef={inputBusquedaRef} />
 
-      <div className="flex min-w-[180px] items-center justify-end gap-3">
+      <div className="flex min-w-0 shrink-0 items-center justify-end gap-3 sm:min-w-[180px]">
+        <CampanaNotificaciones />
+
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" size="icon" className="relative shrink-0 border-primary/20">
-                <Bell className="size-4 text-primary" />
-                {alertasPendientes.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-coral text-[10px] font-bold text-white">
-                    {alertasPendientes.length}
-                  </span>
-                )}
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-auto gap-2 px-2 py-1.5"
+                aria-label="Menú de usuario"
+              >
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-bold text-primary">{sesion?.nombre}</p>
+                  <p className="text-xs font-medium text-esmeralda">{etiquetaRolActual}</p>
+                </div>
+                <Avatar className="size-9 ring-2 ring-esmeralda/30">
+                  <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
+                    {iniciales}
+                  </AvatarFallback>
+                </Avatar>
+                <ChevronDown
+                  className="hidden size-4 shrink-0 text-muted-foreground sm:block"
+                  aria-hidden
+                />
               </Button>
             }
           />
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel className="text-primary">Alertas del sistema</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {alertasPendientes.length === 0 ? (
-              <DropdownMenuItem disabled>No hay alertas pendientes</DropdownMenuItem>
-            ) : (
-              alertasPendientes.map((alerta) => (
-                <DropdownMenuItem
-                  key={alerta.id}
-                  onClick={() => marcarAlertaLeida(alerta.id)}
-                  className="flex flex-col items-start gap-1 py-2"
-                >
-                  <span className="text-sm">{alerta.mensaje}</span>
-                  <span className="text-xs text-muted-foreground">{alerta.fecha}</span>
-                </DropdownMenuItem>
-              ))
-            )}
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="z-[200] w-56 min-w-56"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <p className="text-sm font-bold text-primary">{sesion?.nombre}</p>
+                <p className="text-xs font-medium text-esmeralda">{etiquetaRolActual}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                className="cursor-pointer"
+                onClick={() => void cerrarSesion()}
+              >
+                <LogOut className="size-4" aria-hidden />
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <div className="hidden items-center gap-3 sm:flex">
-          <div className="text-right">
-            <p className="text-sm font-bold text-primary">{sesion?.nombre}</p>
-            <p className="text-xs font-medium text-esmeralda">{etiquetaRolActual}</p>
-          </div>
-          <Avatar className="size-9 ring-2 ring-esmeralda/30">
-            <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
-              {iniciales}
-            </AvatarFallback>
-          </Avatar>
-        </div>
       </div>
     </header>
   )

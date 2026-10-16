@@ -6,7 +6,7 @@ import { Roles, RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('metricas')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles(RolUsuario.Revisor, RolUsuario.Administrador)
+@Roles(RolUsuario.Administrador)
 export class MetricasController {
   constructor(private readonly powerBiService: PowerBiService) {}
 

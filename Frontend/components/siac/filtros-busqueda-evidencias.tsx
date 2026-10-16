@@ -38,7 +38,6 @@ const filtrosEstado = [
   { valor: 'ConObservaciones', etiqueta: 'Con observaciones' },
   { valor: 'Cumple', etiqueta: 'Cumple' },
   { valor: 'Validado', etiqueta: 'Validados' },
-  { valor: 'Rechazado', etiqueta: 'Rechazados' },
 ]
 
 const opcionesFormato = [
@@ -123,7 +122,7 @@ export function FiltrosBusquedaEvidencias({
             aria-hidden
           />
           <Input
-            placeholder="Buscar por nombre, archivo o guía…"
+            placeholder="Buscar por programa, documento, guía, estado, nivel, puntaje o fecha…"
             value={valores.busqueda}
             onChange={(e) => onCambiar({ busqueda: e.target.value })}
             className="pl-9"

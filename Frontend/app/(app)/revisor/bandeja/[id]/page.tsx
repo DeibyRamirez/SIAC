@@ -20,6 +20,7 @@ import {
   crearEstadosCondicionInstitucionalIniciales,
   type EstadoCondicionInstitucionalDictamen,
 } from '@/components/siac/checklist-condiciones-institucionales'
+import { BarraAccionesDictamenRevisor } from '@/components/siac/barra-acciones-dictamen-revisor'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -43,7 +44,7 @@ import {
   guiaUsaChecklistInstitucional,
   guiaUsaChecklistPrograma,
 } from '@/lib/utilidades/catalogo-tramites-siac'
-import type { CodigoDocumentoGuia } from '@/lib/tipos'
+import type { CodigoDocumentoGuia, EstadoEvidencia, Evidencia } from '@/lib/tipos'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   dictaminarEvidenciaApi,
@@ -54,7 +55,6 @@ import {
   type ComentarioInlinePayload,
   type DiffVersionesApi,
 } from '@/lib/servicios/evidencias.servicio'
-import type { Evidencia } from '@/lib/tipos'
 import {
   limpiarBorradorRevision,
   usarBorradorRevisionDocx,
@@ -139,6 +139,7 @@ function ContenidoDictamen() {
     EstadoCondicionInstitucionalDictamen[]
   >(crearEstadosCondicionInstitucionalIniciales())
   const [mensaje, setMensaje] = useState<string | null>(null)
+  const [condicionesConError, setCondicionesConError] = useState<string[]>([])
   const [procesando, setProcesando] = useState(false)
   const [confirmarAprobar, setConfirmarAprobar] = useState(false)
   const [confirmarCorreccion, setConfirmarCorreccion] = useState(false)
@@ -315,6 +316,58 @@ function ContenidoDictamen() {
       : condiciones.some((c) => c.observacion.trim().length > 0)
     : observacionesGenerales.trim().length > 0
 
+  const deshabilitarCumple =
+    !puedeDictaminar ||
+    procesando ||
+    (usaChecklist && !todasCumplen) ||
+    observacionesBloqueanAprobar
+
+  const deshabilitarObservaciones =
+    !puedeDictaminar ||
+    procesando ||
+    (!usaChecklist && comentariosInline.filter((c) => c.body.trim()).length === 0)
+
+  const pistaDeshabilitado =
+    mensaje || !puedeDictaminar || procesando
+      ? undefined
+      : observacionesBloqueanAprobar
+        ? usaChecklist
+          ? 'Para registrar «Cumple», quite las observaciones en condiciones marcadas como Corregir o en el texto general.'
+          : 'Para aprobar, el campo de observaciones debe estar vacío.'
+        : usaChecklist && !todasCumplen
+          ? 'Para registrar «Cumple», todas las condiciones deben estar marcadas como Correcto.'
+          : undefined
+
+  function solicitarCorreccion() {
+    if (usaChecklist) {
+      const err = validarCondiciones()
+      const listaActual = usaChecklistInstitucional
+        ? condicionesInstitucionales
+        : condiciones
+      if (err && listaActual.every((c) => c.decision === 'correcto')) {
+        setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
+        return
+      }
+      if (err) {
+        setMensaje(err)
+        return
+      }
+    }
+    setConfirmarCorreccion(true)
+  }
+
+  function manejarCambioCondiciones(nuevas: EstadoCondicionDictamen[]) {
+    setCondiciones(nuevas)
+    if (condicionesConError.length > 0) setCondicionesConError([])
+  }
+
+  function manejarCambioCondicionesInstitucionales(
+    nuevas: EstadoCondicionInstitucionalDictamen[],
+  ) {
+    setCondicionesInstitucionales(nuevas)
+    if (condicionesConError.length > 0) setCondicionesConError([])
+  }
+
   function validarCondiciones(): string | null {
     const lista = usaChecklistInstitucional
       ? condicionesInstitucionales
@@ -329,11 +382,17 @@ function ContenidoDictamen() {
     }
     for (const c of lista) {
       if (c.decision === null) {
+        setCondicionesConError([])
         return 'Marque Correcto o Corregir en cada condición.'
       }
-      if (c.decision === 'corregir' && !c.observacion.trim()) {
-        return 'Registra observaciones en cada condición marcada como Corregir.'
-      }
+    }
+    // T-006.1: toda condición «Corregir» exige observación; se marca el campo.
+    const sinObservacion = lista
+      .filter((c) => c.decision === 'corregir' && !c.observacion.trim())
+      .map((c) => c.codigo)
+    setCondicionesConError(sinObservacion)
+    if (sinObservacion.length > 0) {
+      return 'Registra una observación en cada condición marcada como Corregir.'
     }
     return null
   }
@@ -483,32 +542,33 @@ function ContenidoDictamen() {
 
     setProcesando(true)
     try {
-      if (apiDisponible()) {
-        await dictaminarEvidenciaApi(evidencia.id, {
-          condiciones: usaChecklistPrograma ? payloadCondiciones : undefined,
-          condicionesInstitucionales: usaChecklistInstitucional
-            ? payloadCondicionesInstitucionales
-            : undefined,
-          estado: usaChecklist ? undefined : estadoDecision,
-          observaciones: usaChecklist
-            ? undefined
-            : observacionesGenerales.trim() || observacionesLocal || undefined,
-          comentariosInline:
-            comentariosPayload.length > 0 ? comentariosPayload : undefined,
-        })
-      }
-      await dictaminarEvidencia(
-        evidencia.id,
-        estado,
-        observacionesLocal,
-        usaChecklist ? payloadCondiciones : undefined,
-        usaChecklist
-          ? {
-              puntajeActual: puntajePreview.puntaje,
-              totalCondicionesActual: puntajePreview.total,
-            }
-          : undefined,
-      )
+      // §5.4: una sola petición de dictamen; el almacén solo refleja la respuesta en local.
+      const respuesta = apiDisponible()
+        ? await dictaminarEvidenciaApi(evidencia.id, {
+            condiciones: usaChecklistPrograma ? payloadCondiciones : undefined,
+            condicionesInstitucionales: usaChecklistInstitucional
+              ? payloadCondicionesInstitucionales
+              : undefined,
+            estado: usaChecklist ? undefined : estadoDecision,
+            observaciones: usaChecklist
+              ? undefined
+              : observacionesGenerales.trim() || observacionesLocal || undefined,
+            comentariosInline:
+              comentariosPayload.length > 0 ? comentariosPayload : undefined,
+          })
+        : null
+      dictaminarEvidencia(evidencia.id, {
+        estado: (respuesta?.estado ?? estado) as Extract<
+          EstadoEvidencia,
+          'Cumple' | 'ConObservaciones' | 'Validado' | 'Rechazado'
+        >,
+        observaciones: respuesta?.observaciones ?? observacionesLocal,
+        puntajeActual:
+          respuesta?.puntajeActual ?? (usaChecklist ? puntajePreview.puntaje : undefined),
+        totalCondicionesActual:
+          respuesta?.totalCondicionesActual ??
+          (usaChecklist ? puntajePreview.total : undefined),
+      })
       limpiarBorradorRevision(evidencia.id, versionActual, sesion?.usuarioId ?? null)
       router.push('/revisor/bandeja')
     } catch (err) {
@@ -672,8 +732,9 @@ function ContenidoDictamen() {
                 </div>
                 <ChecklistCondicionesDocumentoMaestro
                   estados={condiciones}
-                  onChange={setCondiciones}
+                  onChange={manejarCambioCondiciones}
                   deshabilitado={!puedeDictaminar}
+                  codigosConError={usaChecklistPrograma ? condicionesConError : []}
                 />
               </>
             ) : usaChecklistInstitucional ? (
@@ -688,8 +749,9 @@ function ContenidoDictamen() {
                 </div>
                 <ChecklistCondicionesInstitucionales
                   estados={condicionesInstitucionales}
-                  onChange={setCondicionesInstitucionales}
+                  onChange={manejarCambioCondicionesInstitucionales}
                   deshabilitado={!puedeDictaminar}
+                  codigosConError={usaChecklistInstitucional ? condicionesConError : []}
                 />
               </>
             ) : (
@@ -820,52 +882,23 @@ function ContenidoDictamen() {
               </p>
             )}
 
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={() => setConfirmarAprobar(true)}
-                disabled={
-                  !puedeDictaminar ||
-                  procesando ||
-                  (usaChecklist && !todasCumplen) ||
-                  observacionesBloqueanAprobar
-                }
-              >
-                {usaChecklist ? `Registrar «Cumple» (${textoPuntajePreview})` : 'Aprobar documento'}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (usaChecklist) {
-                    const err = validarCondiciones()
-                    const listaActual = usaChecklistInstitucional
-                      ? condicionesInstitucionales
-                      : condiciones
-                    if (err && listaActual.every((c) => c.decision === 'correcto')) {
-                      setMensaje('Marque al menos una condición pendiente o apruebe el documento.')
-                      return
-                    }
-                    if (err) {
-                      setMensaje(err)
-                      return
-                    }
-                  }
-                  setConfirmarCorreccion(true)
-                }}
-                disabled={
-                  !puedeDictaminar ||
-                  procesando ||
-                  (!usaChecklist &&
-                    comentariosInline.filter((c) => c.body.trim()).length === 0)
-                }
-              >
-                {usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'}
-              </Button>
-              <Link href="/revisor/bandeja">
-                <Button variant="outline" className="w-full">
-                  Volver
-                </Button>
-              </Link>
-            </div>
+            <BarraAccionesDictamenRevisor
+              etiquetaCumple={
+                usaChecklist
+                  ? `Registrar «Cumple» (${textoPuntajePreview})`
+                  : 'Aprobar documento'
+              }
+              etiquetaObservaciones={
+                usaChecklist ? 'Registrar «Con observaciones»' : 'Enviar a corrección'
+              }
+              onCumple={() => setConfirmarAprobar(true)}
+              onObservaciones={solicitarCorreccion}
+              deshabilitarCumple={deshabilitarCumple}
+              deshabilitarObservaciones={deshabilitarObservaciones}
+              procesando={procesando}
+              puedeDictaminar={puedeDictaminar}
+              pistaDeshabilitado={pistaDeshabilitado}
+            />
           </CardContent>
         </Card>
       </div>

@@ -33,7 +33,6 @@ interface TablaEvidenciasProps {
   onEliminar?: (id: string) => void
   mostrarAccionesRapidas?: boolean
   onAprobar?: (id: string) => void
-  onRechazar?: (id: string) => void
   mostrarNovedades?: boolean
   mostrarHora?: boolean
   mostrarSemaforoPuntaje?: boolean
@@ -45,7 +44,6 @@ export function TablaEvidencias({
   onEliminar,
   mostrarAccionesRapidas,
   onAprobar,
-  onRechazar,
   mostrarNovedades,
   mostrarHora,
   mostrarSemaforoPuntaje,
@@ -165,24 +163,14 @@ export function TablaEvidencias({
                     onClick={(evento) => evento.stopPropagation()}
                   >
                     {mostrarAccionesRapidas && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-esmeralda/30 text-esmeralda hover:bg-esmeralda/10"
-                          onClick={() => onAprobar?.(evidencia.id)}
-                        >
-                          Aprobar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-fucsia/30 text-fucsia hover:bg-fucsia/10"
-                          onClick={() => onRechazar?.(evidencia.id)}
-                        >
-                          Rechazar
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-esmeralda/30 text-esmeralda hover:bg-esmeralda/10"
+                        onClick={() => onAprobar?.(evidencia.id)}
+                      >
+                        Aprobar
+                      </Button>
                     )}
                     {onEliminar && (
                       <Button

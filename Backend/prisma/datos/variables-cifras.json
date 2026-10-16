@@ -1,0 +1,44 @@
+[
+  { "categoriaId": "estudiantes", "clave": "total_matriculados", "etiquetaCuac": "Total matriculados", "descripcion": "Estudiantes con matrícula vigente en el periodo.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "estudiantes", "clave": "nuevos_regulares", "etiquetaCuac": "Nuevos regulares", "descripcion": "Estudiantes que ingresan por primera vez al programa.", "unidad": "conteo", "dimensiones": ["tipo"] },
+  { "categoriaId": "estudiantes", "clave": "por_genero", "etiquetaCuac": "Matriculados por género", "descripcion": "Distribución de la matrícula por género.", "unidad": "conteo", "dimensiones": ["genero"] },
+  { "categoriaId": "estudiantes", "clave": "por_estrato", "etiquetaCuac": "Matriculados por estrato", "descripcion": "Distribución de la matrícula por estrato socioeconómico.", "unidad": "conteo", "dimensiones": ["estrato"] },
+  { "categoriaId": "estudiantes", "clave": "por_procedencia", "etiquetaCuac": "Matriculados por procedencia", "descripcion": "Distribución de la matrícula por departamento de procedencia.", "unidad": "conteo", "dimensiones": ["departamento"] },
+  { "categoriaId": "estudiantes", "clave": "con_discapacidad", "etiquetaCuac": "Estudiantes con discapacidad", "descripcion": "Estudiantes con discapacidad reportada por tipo.", "unidad": "conteo", "dimensiones": ["tipo"] },
+  { "categoriaId": "estudiantes", "clave": "grupo_etnico", "etiquetaCuac": "Estudiantes de grupos étnicos", "descripcion": "Estudiantes pertenecientes a grupos étnicos.", "unidad": "conteo", "dimensiones": ["grupo"] },
+
+  { "categoriaId": "profesores", "clave": "por_vinculacion", "etiquetaCuac": "Profesores por vinculación", "descripcion": "Planta docente según tipo de vinculación.", "unidad": "conteo", "dimensiones": ["vinculacion"] },
+  { "categoriaId": "profesores", "clave": "por_dedicacion", "etiquetaCuac": "Profesores por dedicación", "descripcion": "Planta docente según dedicación horaria.", "unidad": "conteo", "dimensiones": ["dedicacion"] },
+  { "categoriaId": "profesores", "clave": "por_escalafon", "etiquetaCuac": "Profesores por escalafón", "descripcion": "Planta docente según escalafón docente.", "unidad": "conteo", "dimensiones": ["escalafon"] },
+  { "categoriaId": "profesores", "clave": "por_nivel_estudio", "etiquetaCuac": "Profesores por nivel de estudio", "descripcion": "Planta docente según máximo nivel de formación.", "unidad": "conteo", "dimensiones": ["nivel"] },
+
+  { "categoriaId": "investigacion", "clave": "grupos_por_clasificacion", "etiquetaCuac": "Grupos por clasificación", "descripcion": "Grupos de investigación según clasificación Minciencias.", "unidad": "conteo", "dimensiones": ["clasificacion"] },
+  { "categoriaId": "investigacion", "clave": "investigadores_por_clasificacion", "etiquetaCuac": "Investigadores por clasificación", "descripcion": "Investigadores reconocidos según clasificación.", "unidad": "conteo", "dimensiones": ["clasificacion"] },
+  { "categoriaId": "investigacion", "clave": "semilleros", "etiquetaCuac": "Semilleros de investigación", "descripcion": "Semilleros activos de investigación formativa.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "investigacion", "clave": "patentes_concedidas", "etiquetaCuac": "Patentes concedidas", "descripcion": "Patentes concedidas en el periodo.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "investigacion", "clave": "productos_cienciometria", "etiquetaCuac": "Productos de ciencia y tecnología", "descripcion": "Productos de nuevo conocimiento, desarrollo tecnológico y apropiación social.", "unidad": "conteo", "dimensiones": [] },
+
+  { "categoriaId": "egresados", "clave": "graduados", "etiquetaCuac": "Graduados", "descripcion": "Egresados graduados en el periodo.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "egresados", "clave": "graduados_por_nivel", "etiquetaCuac": "Graduados por nivel", "descripcion": "Graduados según nivel de formación.", "unidad": "conteo", "dimensiones": ["nivel"] },
+  { "categoriaId": "egresados", "clave": "graduados_por_genero", "etiquetaCuac": "Graduados por género", "descripcion": "Graduados según género.", "unidad": "conteo", "dimensiones": ["genero"] },
+
+  { "categoriaId": "infraestructura", "clave": "espacios_por_tipo", "etiquetaCuac": "Espacios por tipo", "descripcion": "Salones, laboratorios, auditorios, bibliotecas y salas de sistemas.", "unidad": "conteo", "dimensiones": ["tipo"] },
+  { "categoriaId": "infraestructura", "clave": "area_m2_por_tipo", "etiquetaCuac": "Área por tipo de espacio", "descripcion": "Área construida en metros cuadrados por tipo de espacio.", "unidad": "m2", "dimensiones": ["tipo"] },
+  { "categoriaId": "infraestructura", "clave": "capacidad_por_tipo", "etiquetaCuac": "Capacidad por tipo de espacio", "descripcion": "Puestos disponibles por tipo de espacio.", "unidad": "capacidad", "dimensiones": ["tipo"] },
+
+  { "categoriaId": "aseguramiento", "clave": "registros_calificados", "etiquetaCuac": "Registros calificados", "descripcion": "Programas con registro calificado vigente.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "aseguramiento", "clave": "programas_acreditados", "etiquetaCuac": "Programas acreditados", "descripcion": "Programas con acreditación de alta calidad vigente.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "aseguramiento", "clave": "programas_acreditables", "etiquetaCuac": "Programas acreditables", "descripcion": "Programas que cumplen condiciones para acreditación.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "aseguramiento", "clave": "vencimientos_por_anio", "etiquetaCuac": "Vencimientos por año", "descripcion": "Vencimientos de registros calificados por año y tipo.", "unidad": "conteo", "dimensiones": ["anio", "tipo"] },
+
+  { "categoriaId": "bienestar", "clave": "participantes_por_servicio", "etiquetaCuac": "Participantes por servicio", "descripcion": "Participantes de los servicios de bienestar universitario.", "unidad": "conteo", "dimensiones": ["servicio"] },
+  { "categoriaId": "bienestar", "clave": "apoyos_socioeconomicos", "etiquetaCuac": "Apoyos socioeconómicos", "descripcion": "Apoyos otorgados por tipo.", "unidad": "conteo", "dimensiones": ["tipo"] },
+  { "categoriaId": "bienestar", "clave": "tasa_desercion", "etiquetaCuac": "Tasa de deserción", "descripcion": "Tasa de deserción estudiantil del periodo.", "unidad": "porcentaje", "dimensiones": [] },
+  { "categoriaId": "bienestar", "clave": "tasa_permanencia", "etiquetaCuac": "Tasa de permanencia", "descripcion": "Tasa de permanencia estudiantil del periodo.", "unidad": "porcentaje", "dimensiones": [] },
+
+  { "categoriaId": "relaciones-entorno", "clave": "convenios_activos", "etiquetaCuac": "Convenios activos", "descripcion": "Convenios vigentes por tipo de aliado.", "unidad": "conteo", "dimensiones": ["tipo"] },
+  { "categoriaId": "relaciones-entorno", "clave": "proyectos_extension", "etiquetaCuac": "Proyectos de extensión", "descripcion": "Proyectos de extensión y proyección social.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "relaciones-entorno", "clave": "estudiantes_en_practica", "etiquetaCuac": "Estudiantes en práctica", "descripcion": "Estudiantes en práctica profesional y pasantías.", "unidad": "conteo", "dimensiones": [] },
+  { "categoriaId": "relaciones-entorno", "clave": "movilidad", "etiquetaCuac": "Movilidad estudiantil", "descripcion": "Movilidad entrante y saliente.", "unidad": "conteo", "dimensiones": ["sentido"] },
+  { "categoriaId": "relaciones-entorno", "clave": "educacion_continua_participantes", "etiquetaCuac": "Participantes de educación continua", "descripcion": "Participantes de cursos y programas de educación continua.", "unidad": "conteo", "dimensiones": [] }
+]

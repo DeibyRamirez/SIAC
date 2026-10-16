@@ -2,11 +2,15 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import {
+  PasoSeleccionContextoCarga,
+  type ContextoCargaEvidencia,
+} from '@/components/siac/paso-seleccion-contexto-carga'
 import { SelectorTramiteCargaEvidencia } from '@/components/siac/selector-tramite-carga-evidencia'
 import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
@@ -14,24 +18,28 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
-import {
-  obtenerResumenInstitucionApi,
-  type InstitucionResumen,
-} from '@/lib/servicios/institucion.servicio'
+import { obtenerProgresoInstitucionApi } from '@/lib/servicios/institucion.servicio'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
-import { apiDisponible } from '@/lib/servicios/cliente-api'
+import {
+  obtenerProgresoProgramaApi,
+  type ProgresoProcesoSIAC,
+} from '@/lib/servicios/progreso-programa.servicio'
+import { ErrorApi, apiDisponible } from '@/lib/servicios/cliente-api'
 import { enviarRevisionApi } from '@/lib/servicios/evidencias.servicio'
+import {
+  TAMANO_MAXIMO_EVIDENCIA_MB,
+  validarTamanoEvidencia,
+} from '@/lib/constantes/documentos'
 import type { CodigoDocumentoGuia, Programa } from '@/lib/tipos'
+import { programasElegiblesParaCargaEvidencia } from '@/lib/utilidades/filtro-programas-vigencias'
 import { extraerMetadatosDocx } from '@/lib/utilidades/extraer-metadatos-docx'
 import {
   ETIQUETAS_GUIA,
-  documentosExigidosPorSeleccion,
   guiasPermitidasPorTramite,
   tramiteDesdeSeleccion,
   tramiteDesdeTipo,
   type AlcanceTramiteUI,
   type ModalidadTramiteUI,
-  type TipoTramiteSIAC,
 } from '@/lib/utilidades/catalogo-tramites-siac'
 
 export default function NuevaEvidenciaPage() {
@@ -85,8 +93,11 @@ function inferirSeleccionDesdeNombre(
 function ContenidoNuevaEvidencia() {
   const router = useRouter()
   const { sesion } = usarSesion()
-  const { crearEvidencia, actualizarEvidencia } = usarAlmacen()
+  const { crearEvidencia, actualizarEvidencia, recargarAlertas } = usarAlmacen()
   const [programas, setProgramas] = useState<Programa[]>([])
+  const [contextoCarga, setContextoCarga] = useState<ContextoCargaEvidencia | null>(null)
+  const [progreso, setProgreso] = useState<ProgresoProcesoSIAC | null>(null)
+  const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [modalidad, setModalidad] = useState<ModalidadTramiteUI | null>(null)
   const [alcance, setAlcance] = useState<AlcanceTramiteUI | null>(null)
   const [codigoGuia, setCodigoGuia] = useState<CodigoDocumentoGuia | null>(null)
@@ -97,16 +108,11 @@ function ContenidoNuevaEvidencia() {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [extrayendo, setExtrayendo] = useState(false)
-  const [resumenInstitucion, setResumenInstitucion] = useState<InstitucionResumen | null>(null)
+  const [intentoCargaProgreso, setIntentoCargaProgreso] = useState(0)
+  const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
+  const contextoInicializado = useRef(false)
 
   const puedeCargarInstitucion = sesion?.responsableProcesoInstitucional === true
-
-  const tramiteInstitucionalActivo = useMemo(() => {
-    const tipo = resumenInstitucion?.tipoTramiteActivo
-    if (!tipo) return null
-    return tramiteDesdeTipo(tipo)
-  }, [resumenInstitucion])
-
   const soloProcesoInstitucional = puedeCargarInstitucion && programas.length === 0
 
   const programaActivo = useMemo(
@@ -119,29 +125,39 @@ function ContenidoNuevaEvidencia() {
     return tramiteDesdeSeleccion(alcance, modalidad)
   }, [modalidad, alcance])
 
-  const tramiteDesdePrograma = useMemo(() => {
-    const tipo = programaActivo?.tipoTramiteActivo as TipoTramiteSIAC | undefined
-    if (!tipo) return null
-    return tramiteDesdeTipo(tipo)
-  }, [programaActivo])
+  const tramiteDesdeProgreso = useMemo(() => {
+    if (!progreso?.tipoTramite) return null
+    return tramiteDesdeTipo(progreso.tipoTramite)
+  }, [progreso])
 
-  const configuracionCompleta = Boolean(modalidad && alcance && codigoGuia)
+  const bloquearPasosTramite = Boolean(
+    contextoCarga && progreso && tramiteDesdeProgreso && !cargandoProgreso,
+  )
+
+  const guiasDisponibles = progreso?.guiasDisponiblesCarga
+  const bloqueosCarga = progreso?.bloqueosCarga ?? []
+
+  const contextoListo =
+    contextoCarga === 'institucion' ||
+    (contextoCarga === 'programa' && Boolean(programaId))
+
+  const configuracionCompleta = Boolean(
+    contextoListo && modalidad && alcance && codigoGuia && bloquearPasosTramite,
+  )
+
+  const pasoArchivo = 4
 
   useEffect(() => {
     if (!apiDisponible()) {
       setError('No hay conexión con la API. No se usan programas de prueba.')
       return
     }
-    const cargarResumen =
-      sesion?.responsableProcesoInstitucional === true
-        ? obtenerResumenInstitucionApi().then(setResumenInstitucion).catch(() => setResumenInstitucion(null))
-        : Promise.resolve()
-
-    Promise.all([listarProgramasApi(), cargarResumen])
-      .then(([lista]) => {
-        setProgramas(lista)
-        setProgramaId(lista[0]?.id ?? '')
-        const sinAlcance = lista.length === 0 && !sesion?.responsableProcesoInstitucional
+    Promise.all([listarProgramasApi()])
+      .then(async ([lista]) => {
+        const elegibles = await programasElegiblesParaCargaEvidencia(lista)
+        setProgramas(elegibles)
+        setProgramaId(elegibles[0]?.id ?? '')
+        const sinAlcance = elegibles.length === 0 && !sesion?.responsableProcesoInstitucional
         if (sinAlcance) {
           setError('No tiene programas ni proceso institucional asignado. Solicite asignación al administrador.')
         } else {
@@ -156,32 +172,105 @@ function ContenidoNuevaEvidencia() {
   }, [sesion?.responsableProcesoInstitucional])
 
   useEffect(() => {
-    if (!soloProcesoInstitucional || !tramiteInstitucionalActivo) return
-    setModalidad(tramiteInstitucionalActivo.modalidad)
-    setAlcance(tramiteInstitucionalActivo.alcance)
-    const permitidas = guiasPermitidasPorTramite(tramiteInstitucionalActivo.tipo)
-    setCodigoGuia((actual) => (actual && permitidas.includes(actual) ? actual : null))
-  }, [soloProcesoInstitucional, tramiteInstitucionalActivo])
+    if (contextoInicializado.current) return
+    if (programas.length === 0 && !puedeCargarInstitucion) return
+    contextoInicializado.current = true
+    if (programas.length > 0 && !puedeCargarInstitucion) {
+      setContextoCarga('programa')
+    }
+  }, [programas.length, puedeCargarInstitucion])
+
+  function mensajeErrorProgreso(err: unknown): string {
+    if (err instanceof ErrorApi) {
+      if (err.codigoEstado === 403) {
+        return 'No tiene permiso para el trámite institucional. Solicite asignación como responsable G3/G4 al administrador.'
+      }
+      if (err.codigoEstado === 404) {
+        return 'La institución no está configurada en el sistema. Contacte al administrador.'
+      }
+    }
+    return 'No se pudo cargar el progreso del trámite. Intente de nuevo.'
+  }
 
   useEffect(() => {
-    if (alcance !== 'Institucion' || !tramiteInstitucionalActivo || tramiteDesdePrograma) return
-    setModalidad(tramiteInstitucionalActivo.modalidad)
-    const documentos = guiasPermitidasPorTramite(tramiteInstitucionalActivo.tipo)
+    if (!apiDisponible() || !contextoCarga) {
+      setProgreso(null)
+      setErrorProgreso(null)
+      return
+    }
+    if (contextoCarga === 'programa' && !programaId) {
+      setProgreso(null)
+      setErrorProgreso(null)
+      return
+    }
+
+    let cancelado = false
+    setCargandoProgreso(true)
+    setErrorProgreso(null)
+    const promesa =
+      contextoCarga === 'institucion'
+        ? obtenerProgresoInstitucionApi()
+        : obtenerProgresoProgramaApi(programaId)
+
+    promesa
+      .then((datos) => {
+        if (!cancelado) {
+          setProgreso(datos)
+          setErrorProgreso(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelado) {
+          setProgreso(null)
+          setErrorProgreso(mensajeErrorProgreso(err))
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoProgreso(false)
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [contextoCarga, programaId, intentoCargaProgreso])
+
+  useEffect(() => {
+    if (!tramiteDesdeProgreso || !contextoListo) return
+    setModalidad(tramiteDesdeProgreso.modalidad)
+    setAlcance(tramiteDesdeProgreso.alcance)
+  }, [tramiteDesdeProgreso, contextoListo])
+
+  useEffect(() => {
+    if (!guiasDisponibles) return
     setCodigoGuia((actual) =>
-      actual && documentos.includes(actual) ? actual : documentos.length === 1 ? documentos[0] : null,
+      actual && guiasDisponibles.includes(actual) ? actual : null,
     )
-  }, [alcance, tramiteInstitucionalActivo, tramiteDesdePrograma])
+  }, [guiasDisponibles])
 
-  useEffect(() => {
-    if (!tramiteDesdePrograma) return
-    setModalidad(tramiteDesdePrograma.modalidad)
-    setAlcance(tramiteDesdePrograma.alcance)
-    const permitidas = guiasPermitidasPorTramite(tramiteDesdePrograma.tipo)
-    setCodigoGuia((actual) => (actual && permitidas.includes(actual) ? actual : null))
-  }, [tramiteDesdePrograma])
+  function manejarContextoChange(valor: ContextoCargaEvidencia) {
+    setContextoCarga(valor)
+    setCodigoGuia(null)
+    setArchivo(null)
+    setNombre('')
+    setError(null)
+    setErrorProgreso(null)
+    setProgreso(null)
+    if (valor === 'institucion') {
+      setModalidad(null)
+      setAlcance(null)
+    }
+  }
+
+  function manejarProgramaChange(id: string) {
+    setProgramaId(id)
+    setCodigoGuia(null)
+    setArchivo(null)
+    setNombre('')
+    setError(null)
+  }
 
   function manejarModalidadChange(valor: ModalidadTramiteUI) {
-    if (tramiteDesdePrograma || soloProcesoInstitucional) return
+    if (bloquearPasosTramite) return
     setModalidad(valor)
     setAlcance(null)
     setCodigoGuia(null)
@@ -191,11 +280,9 @@ function ContenidoNuevaEvidencia() {
   }
 
   function manejarAlcanceChange(valor: AlcanceTramiteUI) {
-    if (tramiteDesdePrograma || soloProcesoInstitucional) return
+    if (bloquearPasosTramite) return
     setAlcance(valor)
-    if (!modalidad) return
-    const documentos = documentosExigidosPorSeleccion(valor, modalidad)
-    setCodigoGuia(documentos.length === 1 ? documentos[0] : null)
+    setCodigoGuia(null)
     setArchivo(null)
     setNombre('')
     setError(null)
@@ -213,15 +300,25 @@ function ContenidoNuevaEvidencia() {
     if (!file) return
     setExtrayendo(true)
     try {
-      const inferido = inferirSeleccionDesdeNombre(file.name)
-      if (inferido.modalidad) setModalidad(inferido.modalidad)
-      if (inferido.alcance) setAlcance(inferido.alcance)
-      if (inferido.codigoGuia) setCodigoGuia(inferido.codigoGuia)
+      if (!bloquearPasosTramite) {
+        const inferido = inferirSeleccionDesdeNombre(file.name)
+        if (inferido.modalidad) setModalidad(inferido.modalidad)
+        if (inferido.alcance) setAlcance(inferido.alcance)
+        if (inferido.codigoGuia) setCodigoGuia(inferido.codigoGuia)
+      } else if (guiasDisponibles?.length) {
+        const inferido = inferirSeleccionDesdeNombre(file.name)
+        if (inferido.codigoGuia && guiasDisponibles.includes(inferido.codigoGuia)) {
+          setCodigoGuia(inferido.codigoGuia)
+        }
+      }
 
       const meta = await extraerMetadatosDocx(file, programas)
       if (meta.nombreSugerido) setNombre(meta.nombreSugerido)
-      if (meta.programaId) setProgramaId(meta.programaId)
       if (meta.periodo) setPeriodo(meta.periodo)
+      if (meta.programaId && contextoCarga === 'programa' && meta.programaId !== programaId) {
+        const coincide = programas.some((p) => p.id === meta.programaId)
+        if (coincide) setProgramaId(meta.programaId)
+      }
     } catch {
       setError('No se pudo leer el contenido del .docx; complete el formulario manualmente.')
     } finally {
@@ -231,11 +328,19 @@ function ContenidoNuevaEvidencia() {
 
   function validarFormulario(): boolean {
     setError(null)
-    if (!configuracionCompleta || !codigoGuia) {
-      setError('Complete los pasos 1 a 3 para definir el documento a cargar.')
+    if (!contextoListo) {
+      setError('Seleccione el programa o el trámite institucional para continuar.')
       return false
     }
-    const esInstitucional = codigoGuia === 'G3' || codigoGuia === 'G4'
+    if (!configuracionCompleta || !codigoGuia) {
+      setError('Seleccione un documento guía disponible para cargar.')
+      return false
+    }
+    if (guiasDisponibles && !guiasDisponibles.includes(codigoGuia)) {
+      setError('El documento seleccionado no está disponible para nueva carga en este trámite.')
+      return false
+    }
+    const esInstitucional = contextoCarga === 'institucion'
     if (!esInstitucional && !programaId) {
       setError('Seleccione un programa asignado.')
       return false
@@ -244,11 +349,9 @@ function ContenidoNuevaEvidencia() {
       setError('Completa todos los campos y selecciona un archivo.')
       return false
     }
-    const documentosPermitidos = tramiteDesdePrograma
-      ? guiasPermitidasPorTramite(tramiteDesdePrograma.tipo)
-      : esInstitucional && resumenInstitucion
-        ? guiasPermitidasPorTramite(resumenInstitucion.tipoTramiteActivo)
-        : (tramiteSeleccionado?.documentosGuia ?? [])
+    const documentosPermitidos = progreso
+      ? guiasPermitidasPorTramite(progreso.tipoTramite)
+      : (tramiteSeleccionado?.documentosGuia ?? [])
     if (!documentosPermitidos.includes(codigoGuia)) {
       setError('El documento seleccionado no corresponde al trámite activo.')
       return false
@@ -258,8 +361,9 @@ function ContenidoNuevaEvidencia() {
       setError('Solo se permiten documentos Word (.docx).')
       return false
     }
-    if (archivo.size > 25 * 1024 * 1024) {
-      setError('El archivo supera el tamaño máximo permitido (25 MB).')
+    const errorTamano = validarTamanoEvidencia(archivo.size)
+    if (errorTamano) {
+      setError(errorTamano)
       return false
     }
     return true
@@ -270,7 +374,7 @@ function ContenidoNuevaEvidencia() {
 
     setEnviando(true)
     try {
-      const esInstitucional = codigoGuia === 'G3' || codigoGuia === 'G4'
+      const esInstitucional = contextoCarga === 'institucion'
       const creada = await crearEvidencia(
         {
           nombre: nombre.trim(),
@@ -288,6 +392,7 @@ function ContenidoNuevaEvidencia() {
       if (enviarARevision) {
         if (apiDisponible()) {
           await enviarRevisionApi(creada.id)
+          await recargarAlertas()
         } else {
           actualizarEvidencia(creada.id, { estado: 'EnRevision' })
         }
@@ -308,22 +413,57 @@ function ContenidoNuevaEvidencia() {
       <EncabezadoPagina
         etiqueta="Gestión documental"
         titulo="Cargar evidencia"
-        descripcion="Indique primero el trámite y el tipo de documento; luego cargue el .docx y complete los metadatos."
+        descripcion="Seleccione primero el programa o el trámite institucional; el sistema fijará el trámite activo y las guías que puede cargar."
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="min-w-0">
           <CardContent className="space-y-6 pt-6">
-            <SelectorTramiteCargaEvidencia
-              modalidad={modalidad}
-              alcance={alcance}
-              codigoGuia={codigoGuia}
-              tramiteBloqueado={Boolean(tramiteDesdePrograma) || soloProcesoInstitucional}
-              permitirAlcanceInstitucion={puedeCargarInstitucion}
-              onModalidadChange={manejarModalidadChange}
-              onAlcanceChange={manejarAlcanceChange}
-              onCodigoGuiaChange={manejarCodigoGuiaChange}
+            <PasoSeleccionContextoCarga
+              contexto={contextoCarga}
+              onContextoChange={manejarContextoChange}
+              programaId={programaId}
+              onProgramaChange={manejarProgramaChange}
+              programas={programas}
+              permitirInstitucion={puedeCargarInstitucion}
+              soloInstitucion={soloProcesoInstitucional}
             />
+
+            {cargandoProgreso ? (
+              <p className="text-sm text-muted-foreground">Cargando trámite y guías disponibles…</p>
+            ) : null}
+
+            {errorProgreso && contextoListo && !cargandoProgreso ? (
+              <div className="space-y-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p>{errorProgreso}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-red-200 bg-white text-red-800 hover:bg-red-50"
+                  onClick={() => setIntentoCargaProgreso((n) => n + 1)}
+                >
+                  Reintentar
+                </Button>
+              </div>
+            ) : null}
+
+            {contextoListo && !cargandoProgreso && progreso ? (
+              <SelectorTramiteCargaEvidencia
+                modalidad={modalidad}
+                alcance={alcance}
+                codigoGuia={codigoGuia}
+                permitirAlcanceInstitucion={puedeCargarInstitucion}
+                bloquearPasosTramite={bloquearPasosTramite}
+                inicioNumeracion={2}
+                guiasDisponibles={guiasDisponibles}
+                bloqueosCarga={bloqueosCarga}
+                onModalidadChange={manejarModalidadChange}
+                onAlcanceChange={manejarAlcanceChange}
+                onCodigoGuiaChange={manejarCodigoGuiaChange}
+              />
+            ) : null}
+
             {!configuracionCompleta && error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
             )}
@@ -341,7 +481,7 @@ function ContenidoNuevaEvidencia() {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">Paso 4</Badge>
+                  <Badge variant="secondary">Paso {pasoArchivo}</Badge>
                   <h3 className="text-sm font-semibold text-primary">
                     Cargar archivo y metadatos
                   </h3>
@@ -354,6 +494,12 @@ function ContenidoNuevaEvidencia() {
                   {tramiteSeleccionado && (
                     <p className="mt-1">
                       Trámite: <strong>{tramiteSeleccionado.nombre}</strong>
+                      {contextoCarga === 'programa' && programaActivo ? (
+                        <>
+                          {' '}
+                          · Programa: <strong>{programaActivo.nombre}</strong>
+                        </>
+                      ) : null}
                     </p>
                   )}
                 </div>
@@ -366,7 +512,7 @@ function ContenidoNuevaEvidencia() {
                     deshabilitado={extrayendo}
                   />
                   <span className="text-xs text-muted-foreground">
-                    Solo Word (.docx) · máximo 25 MB
+                    Solo Word (.docx) · máximo {TAMANO_MAXIMO_EVIDENCIA_MB} MB
                     {extrayendo ? ' · Analizando documento…' : ''}
                   </span>
                 </div>
@@ -381,23 +527,6 @@ function ContenidoNuevaEvidencia() {
                     required
                   />
                 </label>
-
-                {alcance !== 'Institucion' && codigoGuia !== 'G3' && codigoGuia !== 'G4' ? (
-                  <label className="block space-y-2 text-sm">
-                    <span className="font-medium">Programa</span>
-                    <select
-                      value={programaId}
-                      onChange={(evento) => setProgramaId(evento.target.value)}
-                      className="w-full rounded-lg border border-input px-3 py-2"
-                    >
-                      {programas.map((programa) => (
-                        <option key={programa.id} value={programa.id}>
-                          {programa.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
 
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Periodo</span>
@@ -447,13 +576,13 @@ function ContenidoNuevaEvidencia() {
               </form>
             ) : (
               <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-                <Badge variant="secondary">Paso 4</Badge>
+                <Badge variant="secondary">Paso {pasoArchivo}</Badge>
                 <p className="text-sm font-medium text-primary">
                   Cargar archivo y metadatos
                 </p>
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Complete los pasos 1 a 3 para habilitar la carga del documento .docx y
-                  los campos de metadatos en esta columna.
+                  Complete el programa o trámite institucional y elija un documento guía
+                  disponible para habilitar la carga del .docx.
                 </p>
               </div>
             )}

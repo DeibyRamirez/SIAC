@@ -1,0 +1,117 @@
+# Blueprint de Render para el backend SIAC (NestJS + Prisma).
+# - El frontend se despliega en Vercel (Root Directory = Frontend) y la BD/Storage en Supabase.
+# - Ningún valor se versiona: todas las variables usan `sync: false` y se diligencian en el
+#   panel de Render al crear el Blueprint (ver docs/despliegue.md).
+# - La versión de Node se fija con `engines.node` en Backend/package.json (24.x).
+services:
+  - type: web
+    name: siac-api
+    runtime: node
+    rootDir: Backend
+    # `free` (0.1 CPU / 512 MB, USD 0): se duerme tras ~15 min sin tráfico y, dormido, no corre
+    # el cron de vigencias (06:00 America/Bogota) ni el modo prueba. Se mitiga con el workflow
+    # .github/workflows/keep-alive.yml (GET /api/v1/salud cada 10 min). Para producción real,
+    # cambiar a `starter` (0.5 CPU / 512 MB, USD 7/mes, siempre encendido).
+    plan: free
+    # Región cercana a Supabase (ca-central-1 / us-east). No se puede cambiar después.
+    region: virginia
+    # Una sola instancia: el cron y las sesiones del modo prueba viven en memoria del proceso.
+    numInstances: 1
+    # Se instalan devDependencies aunque NODE_ENV=production (nest CLI, prisma, typescript).
+    buildCommand: |
+      npm install -g corepack@latest
+      corepack enable
+      pnpm --version
+      pnpm install --frozen-lockfile --prod=false
+      pnpm build
+    # Aplica migraciones pendientes (DIRECT_URL) y arranca dist/src/main.js en 0.0.0.0:$PORT.
+    startCommand: pnpm start:despliegue
+    healthCheckPath: /api/v1/salud
+    envVars:
+      # --- Ejecución ---
+      - key: NODE_ENV # production
+        sync: false
+      - key: TZ # America/Bogota (cron diario y día calendario de las alertas)
+        sync: false
+      # --- Base de datos (Supabase) ---
+      - key: DATABASE_URL # pooler transaction :6543 ?pgbouncer=true&connection_limit=1
+        sync: false
+      - key: DIRECT_URL # pooler session :5432 (Render es solo IPv4)
+        sync: false
+      # --- Autenticación ---
+      - key: JWT_SECRETO
+        sync: false
+      - key: JWT_EXPIRACION
+        sync: false
+      - key: DOMINIO_INSTITUCIONAL
+        sync: false
+      # --- CORS y enlaces de correo ---
+      - key: CORS_ORIGENES # https://<proyecto>.vercel.app[,https://dominio-propio]
+        sync: false
+      - key: FRONTEND_URL # https://<proyecto>.vercel.app (enlaces en correos)
+        sync: false
+      # --- Almacenamiento (Supabase Storage S3) ---
+      - key: S3_USAR_ALMACEN_LOCAL # false
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_BUCKET_PLANTILLAS
+        sync: false
+      - key: S3_BUCKET_DOCUMENTOS
+        sync: false
+      # --- Correo (Resend o SMTP institucional) ---
+      - key: CORREO_CANAL # resend | smtp
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CORREO_DESDE
+        sync: false
+      - key: RESEND_CORREO_SANDBOX
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USUARIO
+        sync: false
+      - key: SMTP_CONTRASENA
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # --- Power BI (HU-009) ---
+      - key: POWERBI_CLIENT_ID
+        sync: false
+      - key: POWERBI_WORKSPACE_ID
+        sync: false
+      - key: POWERBI_REPORT_ID
+        sync: false
+      - key: POWERBI_REPORT_ID_ESTUDIANTES
+        sync: false
+      - key: POWERBI_URL_PUBLICA_ESTUDIANTES
+        sync: false
+      # --- Integraciones externas (opcionales) ---
+      - key: CARRERAS_API_URL
+        sync: false
+      - key: CARRERAS_IMAGENES_BASE_URL
+        sync: false
+      - key: TI_API_URL
+        sync: false
+      - key: TI_API_TOKEN
+        sync: false
+      # --- Vigencias: modo prueba acelerado (solo staging, ver docs/despliegue.md) ---
+      - key: VIGENCIA_MODO_PRUEBA
+        sync: false
+      - key: VIGENCIA_DURACION_PRUEBA_SEG
+        sync: false
+      - key: VIGENCIA_INTERVALO_PRUEBA_SEG
+        sync: false
+      - key: VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION
+        sync: false

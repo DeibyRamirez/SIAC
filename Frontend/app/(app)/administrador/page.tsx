@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -43,6 +43,7 @@ import {
   obtenerProgresoProgramaApi,
   type ProgresoProcesoSIAC,
 } from '@/lib/servicios/progreso-programa.servicio'
+import { usarCargaConSesion } from '@/lib/hooks/usar-carga-con-sesion'
 import { contarEvidenciasPendientes, manejarCambioSelect, obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function ResumenAdministradorPage() {
@@ -64,26 +65,25 @@ function ContenidoResumen() {
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
 
-  useEffect(() => {
-    async function cargar() {
-      if (!apiDisponible()) return
-      try {
-        const [lista, resumen] = await Promise.all([
-          listarProgramasApi(),
-          obtenerAvanceInstitucionalApi(),
-        ])
-        setProgramas(lista)
-        setAvanceInstitucional(resumen.avanceInstitucional)
-        if (lista.length > 0 && !programaProcesoId) {
-          setProgramaProcesoId(lista[0].id)
-        }
-      } catch {
-        setProgramas([])
-        setAvanceInstitucional(null)
+  const cargarResumen = useCallback(async () => {
+    if (!apiDisponible()) return
+    try {
+      const [lista, resumen] = await Promise.all([
+        listarProgramasApi(),
+        obtenerAvanceInstitucionalApi(),
+      ])
+      setProgramas(lista)
+      setAvanceInstitucional(resumen.avanceInstitucional)
+      if (lista.length > 0) {
+        setProgramaProcesoId((actual) => actual ?? lista[0].id)
       }
+    } catch {
+      setProgramas([])
+      setAvanceInstitucional(null)
     }
-    cargar()
   }, [])
+
+  usarCargaConSesion(cargarResumen)
 
   const evidenciasPeriodo = useMemo(
     () => datos.evidencias.filter((e) => e.periodo === periodo),

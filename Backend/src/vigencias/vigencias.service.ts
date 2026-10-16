@@ -12,20 +12,23 @@ import {
 
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-import { ConfigService } from '@nestjs/config';
-
-import * as nodemailer from 'nodemailer';
-
 import { PrismaService } from '../prisma/prisma.module';
 
-import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
+import { EstadoVigencia, Prisma, RolUsuario, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
+import { plantillaAnexoVenceManana } from '../correo/plantillas';
+import { mensajeAnexoVenceManana } from '../correo/plantillas/anexos';
+import { claveAnexoD1 } from '../notificaciones/claves-evento';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
+import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
+
+/** Zona horaria institucional (CUAC Popayán) para el cron diario de vigencias. */
+export const ZONA_HORARIA_SIAC = 'America/Bogota';
 
 
 
@@ -40,45 +43,17 @@ export class VigenciasService implements OnModuleInit {
 
   private readonly logger = new Logger(VigenciasService.name);
 
-  private transporter: nodemailer.Transporter | null = null;
-
-
-
   constructor(
 
     private readonly prisma: PrismaService,
 
-    private readonly notificaciones: NotificacionesService,
-
-    private readonly config: ConfigService,
+    private readonly notificacionesDespacho: NotificacionesDespachoService,
 
     private readonly almacenamiento: AlmacenamientoService,
 
-  ) {
+    private readonly evaluadorVigenciaRegistro: EvaluadorVigenciaRegistroService,
 
-    const host = config.get('SMTP_HOST');
-
-    if (host) {
-
-      this.transporter = nodemailer.createTransport({
-
-        host,
-
-        port: parseInt(config.get('SMTP_PORT') ?? '587', 10),
-
-        auth: {
-
-          user: config.get('SMTP_USUARIO'),
-
-          pass: config.get('SMTP_CONTRASENA'),
-
-        },
-
-      });
-
-    }
-
-  }
+  ) {}
 
 
 
@@ -346,96 +321,145 @@ export class VigenciasService implements OnModuleInit {
 
 
 
-  @Cron(CronExpression.EVERY_DAY_AT_6AM)
-
-  async actualizarVigenciasDiarias() {
-
+  /**
+   * T-007.2: único cron diario, 06:00 en Colombia sin depender de la zona del servidor (Render
+   * corre en UTC si no se define TZ). `VIGENCIAS_CRON_ZONA` permite otra zona (America/Bogota por defecto).
+   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador activo) y
+   * transiciones de vigencia de registro de programas e institución.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_6AM, {
+    name: 'vigencias-diarias',
+    timeZone: process.env.VIGENCIAS_CRON_ZONA ?? ZONA_HORARIA_SIAC,
+  })
+  async actualizarVigenciasDiarias(): Promise<void> {
     this.logger.log('Ejecutando cron de vigencias...');
 
-
-
-    const anexos = await this.prisma.anexoVigencia.findMany();
-
-    const manana = new Date();
-
-    manana.setDate(manana.getDate() + 1);
-
-    manana.setHours(0, 0, 0, 0);
-
-
-
-    for (const anexo of anexos) {
-
-      // El estado se calcula al consultar (R-D 3e); el cron ya no reescribe la columna, así no choca
-      // con el CHECK de documento y evidencia en los anexos históricos.
-      const vencimiento = new Date(anexo.fechaVencimiento);
-
-      vencimiento.setHours(0, 0, 0, 0);
-
-
-
-      if (vencimiento.getTime() === manana.getTime()) {
-
-        const mensaje = `El documento "${anexo.titulo}" vence mañana. Responsable: ${anexo.responsable}.`;
-
-        await this.enviarAlerta(anexo.responsable, mensaje, anexo.id);
-
-      }
-
-    }
-
-
+    await this.notificarAnexosQueVencenManana();
+    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
 
     this.logger.log('Cron de vigencias completado.');
-
   }
 
+  /** D-1: avisos de anexos que vencen mañana; la idempotencia la da `claveAnexoD1`. */
+  private async notificarAnexosQueVencenManana(): Promise<void> {
+    // fechaVencimiento se guarda como fecha a medianoche UTC (fechaUtc); se compara el día
+    // calendario de mañana en la zona del servidor con ese día UTC, sin mezclar zonas horarias.
+    const manana = diaCalendarioLocal(1);
+    const vencimientoManana = new Date(`${manana}T00:00:00.000Z`);
 
-
-  private async enviarAlerta(responsable: string, mensaje: string, anexoId: string) {
-
-    const usuario = await this.prisma.usuario.findFirst({
-
-      where: { correo: { contains: responsable.split('@')[0] ?? responsable } },
-
+    const anexos = await this.prisma.anexoVigencia.findMany({
+      // Solo vigentes (el estado vencido no recibe recordatorio) y no notificados (clave única).
+      where: {
+        fechaVencimiento: vencimientoManana,
+        estado: { not: EstadoVigencia.Vencido },
+      },
+      include: { programa: { select: { id: true, nombre: true } } },
     });
+    if (anexos.length === 0) return;
 
+    const administradores = await this.prisma.usuario.findMany({
+      where: { activo: true, rol: RolUsuario.Administrador },
+      select: { id: true },
+    });
+    const idsAdministradores = administradores.map((a) => a.id);
 
-
-    if (usuario) {
-
-      await this.notificaciones.crear(usuario.id, mensaje, 'vigencia');
-
+    for (const anexo of anexos) {
+      await this.avisarAnexoD1(anexo, idsAdministradores);
     }
-
-
-
-    if (this.transporter && responsable.includes('@')) {
-
-      try {
-
-        await this.transporter.sendMail({
-
-          from: this.config.get('SMTP_FROM') ?? 'planeacion@uniautonoma.edu.co',
-
-          to: responsable.includes('@') ? responsable : undefined,
-
-          subject: '[SIAC] Alerta de vencimiento',
-
-          text: mensaje,
-
-        });
-
-      } catch (error) {
-
-        this.logger.error(`Fallo SMTP para anexo ${anexoId}: ${error}`);
-
-      }
-
-    }
-
   }
 
+  private async avisarAnexoD1(
+    anexo: {
+      id: string;
+      titulo: string;
+      fechaVencimiento: Date;
+      responsable: string;
+      programaId: string;
+    },
+    idsAdministradores: string[],
+  ): Promise<void> {
+    const fechaVencimientoIso = new Date(anexo.fechaVencimiento).toISOString();
+    const datos = {
+      titulo: anexo.titulo,
+      responsable: anexo.responsable,
+      fechaVencimientoIso,
+      programaId: anexo.programaId,
+      anexoId: anexo.id,
+    };
+    const mensaje = mensajeAnexoVenceManana(datos);
+    const plantilla = plantillaAnexoVenceManana(datos);
+    const metadata = {
+      anexoId: anexo.id,
+      programaId: anexo.programaId,
+      fechaVencimiento: fechaVencimientoIso,
+    };
+
+    const correoResponsable = anexo.responsable.includes('@')
+      ? anexo.responsable.trim().toLowerCase()
+      : null;
+    const usuarioResponsable = correoResponsable
+      ? await this.prisma.usuario.findUnique({
+          where: { correo: correoResponsable },
+          select: { id: true },
+        })
+      : null;
+
+    if (usuarioResponsable) {
+      await this.notificacionesDespacho.notificar({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: usuarioResponsable.id,
+        }),
+        usuarioId: usuarioResponsable.id,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    } else if (correoResponsable) {
+      // Responsable sin cuenta: solo correo, con la misma clave idempotente por destinatario.
+      await this.notificacionesDespacho.encolarCorreoExterno({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: `externo:${correoResponsable}`,
+        }),
+        destinatarioCorreo: correoResponsable,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    }
+
+    for (const adminId of idsAdministradores) {
+      await this.notificacionesDespacho.notificar({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: adminId,
+        }),
+        usuarioId: adminId,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    }
+  }
+}
+
+/** Día calendario AAAA-MM-DD en la zona del servidor, desplazado desplazamientoDias. */
+export function diaCalendarioLocal(desplazamientoDias = 0, base = new Date()): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + desplazamientoDias);
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
 /** Fecha AAAA-MM-DD a medianoche UTC. */

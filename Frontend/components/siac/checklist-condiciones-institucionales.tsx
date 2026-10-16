@@ -20,6 +20,8 @@ interface ChecklistCondicionesInstitucionalesProps {
   estados: EstadoCondicionInstitucionalDictamen[]
   onChange: (estados: EstadoCondicionInstitucionalDictamen[]) => void
   deshabilitado?: boolean
+  /** T-006.1: códigos con «Corregir» sin observación; marca el campo en rojo. */
+  codigosConError?: string[]
 }
 
 export function crearEstadosCondicionInstitucionalIniciales(): EstadoCondicionInstitucionalDictamen[] {
@@ -40,6 +42,7 @@ export function ChecklistCondicionesInstitucionales({
   estados,
   onChange,
   deshabilitado = false,
+  codigosConError = [],
 }: ChecklistCondicionesInstitucionalesProps) {
   function actualizar(
     codigo: CodigoCondicionInstitucional,
@@ -115,15 +118,35 @@ export function ChecklistCondicionesInstitucionales({
                 </Button>
               </div>
               {estado.decision === 'corregir' && (
-                <Textarea
-                  className="mt-3"
-                  placeholder="Observación para el cargador"
-                  value={estado.observacion}
-                  disabled={deshabilitado}
-                  onChange={(e) =>
-                    actualizar(def.codigo, { observacion: e.target.value })
-                  }
-                />
+                <>
+                  <Textarea
+                    className={cn(
+                      'mt-3',
+                      codigosConError.includes(def.codigo) &&
+                        'border-destructive ring-2 ring-destructive/30',
+                    )}
+                    placeholder="Observación para el cargador"
+                    value={estado.observacion}
+                    disabled={deshabilitado}
+                    aria-invalid={codigosConError.includes(def.codigo) || undefined}
+                    aria-describedby={
+                      codigosConError.includes(def.codigo)
+                        ? `error-condicion-institucional-${def.codigo}`
+                        : undefined
+                    }
+                    onChange={(e) =>
+                      actualizar(def.codigo, { observacion: e.target.value })
+                    }
+                  />
+                  {codigosConError.includes(def.codigo) && (
+                    <p
+                      id={`error-condicion-institucional-${def.codigo}`}
+                      className="mt-1 text-xs font-medium text-destructive"
+                    >
+                      Registra una observación para esta condición.
+                    </p>
+                  )}
+                </>
               )}
             </li>
           )

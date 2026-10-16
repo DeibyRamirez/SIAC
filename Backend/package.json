@@ -4,10 +4,11 @@
   "description": "API REST del Sistema Interno de Aseguramiento de la Calidad — CUAC",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
+    "start:despliegue": "prisma migrate deploy && node dist/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -16,13 +17,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:repair-schema": "ts-node prisma/aplicar-esquema-versionado.ts",
     "prisma:verify": "ts-node prisma/verificar-esquema.ts",
     "prisma:backfill-versiones": "ts-node prisma/backfill-versiones-evidencia.ts",
-    "prisma:setup": "pnpm prisma:repair-schema && pnpm prisma:verify && prisma generate && ts-node prisma/semilla.ts && ts-node prisma/backfill-versiones-evidencia.ts",
+    "prisma:setup": "ts-node prisma/guarda-setup.ts && pnpm prisma:deploy && pnpm prisma:verify && prisma generate && ts-node prisma/semilla.ts && ts-node prisma/backfill-versiones-evidencia.ts",
     "prisma:seed": "ts-node prisma/semilla.ts",
     "prisma:studio": "prisma studio",
-    "datos:limpiar-anexos-sin-documento": "ts-node prisma/scripts/limpiar-anexos-sin-documento.ts"
+    "datos:limpiar-anexos-sin-documento": "ts-node prisma/scripts/limpiar-anexos-sin-documento.ts",
+    "demo:semaforo-vigencia": "ts-node scripts/demo-semaforo-vigencia.ts",
+    "demo:vigencia": "ts-node prisma/demo-vigencia.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
@@ -47,6 +49,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.32.1",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
@@ -68,6 +71,9 @@
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": "24.x"
   },
   "packageManager": "pnpm@10.33.2"
 }

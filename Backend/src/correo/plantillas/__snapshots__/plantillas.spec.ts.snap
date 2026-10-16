@@ -1,0 +1,307 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`plantillas de correo (T-007.3h, C-5) anexo_vence_manana 1`] = `
+{
+  "asunto": "[SIAC] Certificado vence mañana",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Un certificado vence mañana</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Vigencia</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">El documento &quot;Certificado RETIE&quot; vence mañana (2026-10-17). Responsable: admin.planeacion@uniautonoma.edu.co.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Revisar el certificado en SIAC</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio D-1 de vigencia del SIAC. Si el certificado se renueva, cárguelo de nuevo para mantener la vigencia al día.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "El documento "Certificado RETIE" vence mañana (2026-10-17). Responsable: admin.planeacion@uniautonoma.edu.co.
+
+Revisar el certificado en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) avance_umbral 1`] = `
+{
+  "asunto": "[SIAC] Avance de programa",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Cambio de umbral de avance</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Avance de programa</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">El programa &quot;Derecho&quot; alcanzó 55.6% de avance (umbral amarillo: 55%).</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/administrador/programas/prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver programa</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Este mensaje se envió porque usted tiene un rol activo en el Sistema Interno de Aseguramiento de la Calidad. También puede ver esta alerta en la campana de notificaciones dentro de SIAC.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "El programa "Derecho" alcanzó 55.6% de avance (umbral amarillo: 55%).
+
+Ver programa: https://siac.test/administrador/programas/prog-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) dictamen_con_observaciones 1`] = `
+{
+  "asunto": "[SIAC] Evidencia con observaciones",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Resultado de la revisión</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Con observaciones</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">Tu evidencia &quot;G1 &lt;script&gt;alert(1)&lt;/script&gt;&quot; quedó con observaciones.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/cargador/evidencias/ev-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver mi evidencia</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Este mensaje se envió porque usted tiene un rol activo en el Sistema Interno de Aseguramiento de la Calidad. También puede ver esta alerta en la campana de notificaciones dentro de SIAC.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "Tu evidencia "G1 <script>alert(1)</script>" quedó con observaciones.
+
+Ver mi evidencia: https://siac.test/cargador/evidencias/ev-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) dictamen_cumple 1`] = `
+{
+  "asunto": "[SIAC] Evidencia cumple todas las condiciones",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Resultado de la revisión</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Cumple</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">Tu evidencia &quot;G1 Derecho&quot; cumple todas las condiciones (9/9).</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/cargador/evidencias/ev-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver mi evidencia</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Este mensaje se envió porque usted tiene un rol activo en el Sistema Interno de Aseguramiento de la Calidad. También puede ver esta alerta en la campana de notificaciones dentro de SIAC.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "Tu evidencia "G1 Derecho" cumple todas las condiciones (9/9).
+
+Ver mi evidencia: https://siac.test/cargador/evidencias/ev-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) dictamen_validado 1`] = `
+{
+  "asunto": "[SIAC] Evidencia validada",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Resultado de la revisión</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Aprobación</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">Tu evidencia &quot;G1 Derecho&quot; quedó Validada.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/cargador/evidencias/ev-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver mi evidencia</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Este mensaje se envió porque usted tiene un rol activo en el Sistema Interno de Aseguramiento de la Calidad. También puede ver esta alerta en la campana de notificaciones dentro de SIAC.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "Tu evidencia "G1 Derecho" quedó Validada.
+
+Ver mi evidencia: https://siac.test/cargador/evidencias/ev-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) revision_pendiente 1`] = `
+{
+  "asunto": "[SIAC] Evidencia pendiente de revisión",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Evidencia pendiente de revisión</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Revisión pendiente</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">Nueva evidencia en revisión: &quot;G1 Derecho&quot;.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/revisor/bandeja/ev-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Revisar evidencia</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Este mensaje se envió porque usted tiene un rol activo en el Sistema Interno de Aseguramiento de la Calidad. También puede ver esta alerta en la campana de notificaciones dentro de SIAC.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "Nueva evidencia en revisión: "G1 Derecho".
+
+Revisar evidencia: https://siac.test/revisor/bandeja/ev-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) vigencia_amarilla 1`] = `
+{
+  "asunto": "[SIAC] Inicio de ventana de renovación",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Ventana de renovación abierta</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Vigencia</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">La vigencia de registro de Derecho entró en ventana de renovación (año 6 de 7; amarillo desde 24 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "La vigencia de registro de Derecho entró en ventana de renovación (año 6 de 7; amarillo desde 24 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda.
+
+Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) vigencia_roja 1`] = `
+{
+  "asunto": "[SIAC] Ventana roja de vigencia",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia en ventana roja</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Vigencia</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">La vigencia de registro de Derecho entró en ventana roja (18 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "La vigencia de registro de Derecho entró en ventana roja (18 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo.
+
+Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
+}
+`;
+
+exports[`plantillas de correo (T-007.3h, C-5) vigencia_vencida 1`] = `
+{
+  "asunto": "[SIAC] Vigencia de registro vencida",
+  "html": "<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0">
+    <tr>
+      <td style="padding:24px 28px 8px">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia de registro vencida</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 0">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#0A3B74;color:#fff;font-size:11px;font-weight:600">Vigencia</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
+        <p style="margin:0">La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación.</p>
+        <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
+        <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>",
+  "texto": "La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación.
+
+Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
+}
+`;

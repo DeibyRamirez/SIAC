@@ -8,9 +8,11 @@ import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { PanelProgramasService } from './panel-programas.service';
 import { ResolucionMenService } from './resolucion-men.service';
 import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+import { VigenciasModule } from '../vigencias/vigencias.module';
 
 @Module({
-  imports: [AlcanceProgramaModule],
+  imports: [AlcanceProgramaModule, NotificacionesModule, VigenciasModule],
   controllers: [ProgramasController, InstitucionController],
   providers: [
     ProgramasService,

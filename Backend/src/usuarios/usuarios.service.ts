@@ -7,10 +7,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { RolUsuario } from '@prisma/client';
+import { RolUsuario, Usuario } from '@prisma/client';
 import { UsuarioRepositorio } from './usuario.repositorio';
 import { CrearUsuarioDto, ActualizarUsuarioDto } from '../auth/dto/auth.dto';
 import { UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
+
+type UsuarioSinContrasena = Omit<Usuario, 'contrasena'>;
 
 @Injectable()
 export class UsuariosService {
@@ -18,6 +20,19 @@ export class UsuariosService {
     private readonly usuarioRepo: UsuarioRepositorio,
     private readonly config: ConfigService,
   ) {}
+
+  private sinContrasena(usuario: Usuario | UsuarioSinContrasena): UsuarioSinContrasena {
+    const { contrasena: _omitida, ...resto } = usuario as Usuario;
+    return resto;
+  }
+
+  private async asegurarQuedaSuperAdminActivo(usuario: Usuario): Promise<void> {
+    if (usuario.rol !== RolUsuario.SuperAdmin || !usuario.activo) return;
+    const activos = await this.usuarioRepo.contarActivosPorRol(RolUsuario.SuperAdmin);
+    if (activos <= 1) {
+      throw new BadRequestException('Debe quedar al menos un superadministrador activo.');
+    }
+  }
 
   async crear(dto: CrearUsuarioDto) {
     const dominio = this.config.get<string>('DOMINIO_INSTITUCIONAL') ?? 'uniautonoma.edu.co';
@@ -33,7 +48,7 @@ export class UsuariosService {
     }
 
     const hash = await bcrypt.hash(dto.contrasena, 10);
-    return this.usuarioRepo.crear({
+    const creado = await this.usuarioRepo.crear({
       nombre: dto.nombre.trim(),
       correo,
       contrasena: hash,
@@ -41,11 +56,19 @@ export class UsuariosService {
       cargo: dto.cargo,
       dependencia: dto.dependencia,
     });
+    return this.sinContrasena(creado);
   }
 
-  async actualizar(id: string, dto: ActualizarUsuarioDto) {
+  async actualizar(actorId: string, id: string, dto: ActualizarUsuarioDto) {
     const usuario = await this.usuarioRepo.buscarPorId(id);
     if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    if (dto.activo === false) {
+      if (actorId === id) {
+        throw new BadRequestException('No puede desactivar su propia cuenta.');
+      }
+      await this.asegurarQuedaSuperAdminActivo(usuario);
+    }
 
     const datos: Record<string, unknown> = {};
     if (dto.nombre !== undefined) datos.nombre = dto.nombre.trim();
@@ -56,11 +79,12 @@ export class UsuariosService {
       datos.contrasena = await bcrypt.hash(dto.contrasena, 10);
     }
 
-    return this.usuarioRepo.actualizar(id, datos);
+    const actualizado = await this.usuarioRepo.actualizar(id, datos);
+    return this.sinContrasena(actualizado);
   }
 
-  async desactivar(id: string) {
-    return this.actualizar(id, { activo: false });
+  async desactivar(actorId: string, id: string) {
+    return this.actualizar(actorId, id, { activo: false });
   }
 
   async actualizarRol(actor: UsuarioAlcance, id: string, rol: RolUsuario) {
@@ -71,9 +95,16 @@ export class UsuariosService {
       throw new ForbiddenException('Solo el superadministrador puede cambiar roles.');
     }
 
+    if (
+      destino.rol === RolUsuario.SuperAdmin &&
+      rol !== RolUsuario.SuperAdmin &&
+      destino.activo
+    ) {
+      await this.asegurarQuedaSuperAdminActivo(destino);
+    }
+
     const actualizado = await this.usuarioRepo.actualizarRol(id, rol);
-    const { contrasena: _contrasena, ...sinClave } = actualizado;
-    return sinClave;
+    return this.sinContrasena(actualizado);
   }
 
   async listarProgramas(usuarioId: string) {

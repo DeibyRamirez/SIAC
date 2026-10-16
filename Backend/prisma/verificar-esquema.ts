@@ -100,7 +100,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.error('Esquema incompleto. Ejecute: pnpm prisma:repair-schema');
+  console.error('Esquema incompleto. Ejecute: pnpm prisma:deploy (aplique las migraciones pendientes).');
   process.exit(1);
 }
 

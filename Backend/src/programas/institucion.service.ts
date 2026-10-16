@@ -1,21 +1,29 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AlcanceTramiteSIAC, EstadoEvidencia } from '@prisma/client';
+import { AlcanceTramiteSIAC, EstadoEvidencia, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
+import { ServicioAlcancePrograma } from '../common/alcance/servicio-alcance-programa';
 import { calcularSemaforoAvance } from '../dominio/panel-siac';
 import { AvanceProcesoSIACService } from './avance-proceso-siac.service';
 import { tramitePorTipo } from './catalogo-tramites-siac';
 import { ActualizarInstitucionDto } from './dto/actualizar-institucion.dto';
 import { ConteosEstadoPrograma } from './programas.service';
 
+export interface UsuarioInstitucionToken {
+  id: string;
+  rol: RolUsuario;
+}
+
 @Injectable()
 export class InstitucionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly avanceProceso: AvanceProcesoSIACService,
+    private readonly alcance: ServicioAlcancePrograma,
   ) {}
 
   async obtener() {
@@ -51,10 +59,32 @@ export class InstitucionService {
     };
   }
 
-  async obtenerProgreso() {
+  async obtenerProgreso(usuario?: UsuarioInstitucionToken) {
+    if (usuario) {
+      await this.exigirAccesoProgresoInstitucional(usuario);
+    }
     const institucion = await this.prisma.institucion.findFirst();
     if (!institucion) throw new NotFoundException('Institución no configurada.');
     return this.avanceProceso.calcularProgresoInstitucion(institucion.id);
+  }
+
+  private async exigirAccesoProgresoInstitucional(usuario: UsuarioInstitucionToken) {
+    if (
+      usuario.rol === RolUsuario.Administrador ||
+      usuario.rol === RolUsuario.SuperAdmin
+    ) {
+      return;
+    }
+    if (usuario.rol === RolUsuario.Cargador || usuario.rol === RolUsuario.Revisor) {
+      const responsable = await this.alcance.esResponsableProcesoInstitucional(usuario.id);
+      if (!responsable) {
+        throw new ForbiddenException(
+          'No está asignado como responsable del proceso institucional (G3/G4).',
+        );
+      }
+      return;
+    }
+    throw new ForbiddenException('No tiene permiso para consultar el progreso institucional.');
   }
 
   async obtenerResumen() {

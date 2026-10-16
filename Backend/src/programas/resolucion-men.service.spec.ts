@@ -101,11 +101,11 @@ describe('ResolucionMenService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Amarillo el 06/10/2026; guarda evidencia y fecha real', async () => {
+  it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Rojo el 06/10/2026 (umbrales PO 24/18); guarda evidencia y fecha real', async () => {
     const resultado = await servicio.cargarParaPrograma('p1', dto, archivo(), usuario);
 
     expect(resultado.fechaFinVigencia.toISOString().slice(0, 10)).toBe('2027-03-01');
-    expect(resultado.semaforoVigencia).toBe('Amarillo');
+    expect(resultado.semaforoVigencia).toBe('Rojo');
     expect(tx.evidencia.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         tipoEvidencia: TipoEvidencia.ResolucionMen,

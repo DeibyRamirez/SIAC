@@ -109,6 +109,7 @@ export class IntegracionService {
 
       const baseImagenes =
         this.config.get<string>('CARRERAS_IMAGENES_BASE_URL')?.trim() ||
+        this.config.get<string>('FRONTEND_URL')?.trim() ||
         'http://localhost:3000';
       const catalogo = mapearCarrerasExternas(datos.carreras, { baseImagenes });
       const { importados, actualizados } = await this.upsertCatalogoProgramas(

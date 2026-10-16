@@ -11,9 +11,7 @@ import {
   ClipboardCheck,
   FileCheck2,
   Files,
-  HelpCircle,
   LayoutDashboard,
-  LogOut,
   Settings,
   ShieldCheck,
   Users,
@@ -80,7 +78,6 @@ function itemsAdministrador(): ItemNavegacion[] {
 function itemsParAcademico(): ItemNavegacion[] {
   return [
     { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
-    { href: '/administrador/dashboard', etiqueta: 'Dashboard de métricas', icono: ShieldCheck },
     { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
   ]
 }
@@ -147,7 +144,7 @@ export function BarraLateral({
   onAlternarPlegado?: () => void
 }) {
   const pathname = usePathname()
-  const { sesion, cerrarSesion } = usarSesion()
+  const { sesion } = usarSesion()
   const { datos } = usarAlmacen()
 
   if (!sesion) {
@@ -268,34 +265,6 @@ export function BarraLateral({
             {plegado ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </Button>
         )}
-        {!plegado && (
-          <>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-primary"
-            >
-              <HelpCircle className="size-4" />
-              Centro de ayuda
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-primary"
-            >
-              <Settings className="size-4" />
-              Configuración
-            </button>
-          </>
-        )}
-        <Button
-          variant="outline"
-          size={plegado ? 'icon-sm' : 'default'}
-          className={cn('border-primary/20 text-primary', plegado ? 'mx-auto' : 'w-full')}
-          onClick={cerrarSesion}
-          title={plegado ? 'Cerrar sesión' : undefined}
-        >
-          <LogOut className="size-4" />
-          {!plegado && 'Cerrar sesión'}
-        </Button>
         {!plegado && (
           <p className="text-center text-[10px] text-muted-foreground">SIAC v1.0 · CUAC</p>
         )}

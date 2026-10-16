@@ -4,7 +4,7 @@ Monorepo del proyecto académico CUAC (Frontend Next.js + Backend NestJS).
 
 ## Requisitos
 
-- Node.js 20 LTS
+- Node.js 24 LTS (fijado en `engines.node` de Backend y Frontend)
 - pnpm 10.x (`corepack enable`)
 - Docker Desktop (PostgreSQL local)
 
@@ -47,6 +47,12 @@ pnpm prisma:seed     # solo 5 usuarios, uno por rol
 pnpm start:dev
 ```
 
+`pnpm prisma:setup` (migraciones + verificación + semilla + backfill en un solo paso) es **solo para
+una BD local**: aborta si `DATABASE_URL`/`DIRECT_URL` apuntan a un host que no sea `localhost`,
+`127.0.0.1` o el servicio `postgres` de CI (p. ej. Supabase). Para un caso excepcional y deliberado
+contra una BD remota hay que declarar `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal. Render no
+usa este script: aplica las migraciones con `start:despliegue`.
+
 La base arranca sin programas, evidencias, plantillas ni vigencias de ejemplo. Tras iniciar sesión
 como Administrador (`admin.planeacion@uniautonoma.edu.co` / `Admin2026`) se crean los programas
 (o se sincronizan por CSV) y se suben las plantillas `.docx` desde la Biblioteca de plantillas;
@@ -56,7 +62,7 @@ quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
 
 ```bash
 pnpm build
-node dist/src/main.js
+node dist/src/main.js   # equivalente a pnpm start:prod
 ```
 
 Swagger: `http://localhost:3001/api/docs`
@@ -72,6 +78,10 @@ pnpm dev
 ```
 
 App: `http://localhost:3000`
+
+## Despliegue (Supabase + Render + Vercel)
+
+Ver [docs/despliegue.md](docs/despliegue.md) y el Blueprint [render.yaml](render.yaml).
 
 ## Estrategia de ramas
 

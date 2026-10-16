@@ -4,14 +4,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-30 |
+| **Última actualización** | 2026-10-16 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
 | **Ruta local** | `D:\Proyectos\Simulacion_SIAC` |
 | **Institución** | Corporación Universitaria Autónoma del Cauca (CUAC) — Planeación / SIAC |
 | **Marco normativo** | Decreto 1330 de 2021 (6 CI + 9 CP) |
-| **Fase actual** | Sprint 2 en progreso (ClickUp es la fuente de verdad; este repo no declara sprints completados) |
+| **Fase actual** | Sprint 3 en curso (HU-006 y HU-007 implementadas en repo; ClickUp es la fuente de verdad) |
 | **Convención API** | F-03 en español — prefijo `/api/v1/` |
 
 ---
@@ -63,7 +63,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Auth | JWT + Passport, dominio `@uniautonoma.edu.co` |
 | Storage | Por defecto en dev: disco `Backend/almacen-local` (`S3_USAR_ALMACEN_LOCAL=true`); producción opcional Supabase S3 |
 | Docs API | Swagger en `/api/docs` |
-| Cron | `@nestjs/schedule` — vigencias 00:00 |
+| Cron | `@nestjs/schedule` — vigencias 06:00 America/Bogota |
 
 ### Módulos implementados
 
@@ -82,8 +82,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Integracion | `/integracion` | UPSERT maestros TI |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
-| Cifras | `/cifras` | KPIs institucionales (HU-009; v1 estudiantes) |
-| Power BI | `/powerbi/embed-token` | Embed por categoría |
+| Power BI | `/powerbi`, `/powerbi/embed-token` | URLs públicas (CRUD) y embed por categoría |
 | Estructura | `/estructura` | CRUD etapas/carpetas/docs |
 | Almacenamiento | (servicio) | Supabase S3 |
 
@@ -116,7 +115,9 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-003 | JWT MVP; OAuth Google stub |
 | ADR-004 | `periodo` como String; factor/indicador retirados (T-REF-001), clasificación por `codigoGuia` G1–G4 |
 | ADR-005 | Copia local maestros + adapter integracion |
-| ADR-006 | Alertas in-app; SMTP opcional |
+| ADR-006 | Alertas in-app obligatorias; correo espejo del mensaje |
+| ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
+| ADR-009 | Power BI «Publicar en la web» (`POWERBI_MODO=publico`); App Owns Data (`embebido`) bloqueado hasta credenciales Azure. **Informes públicos sin autenticación** |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
@@ -125,8 +126,8 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 |----|--------|-----------|
 | B-B1 | OAuth Google real | P2 |
 | B-B2 | API TI institucional conectada | P1 |
-| B-B3 | Buckets Storage creados en Supabase Dashboard | P0 |
-| B-B4 | Semilla ejecutada en Supabase remoto | P0 |
+| ~~B-B3~~ | ~~Buckets Supabase~~ — cancelado (almacen local / servidor univ.) | — |
+| ~~B-B4~~ | ~~Semilla remota Supabase~~ — cancelado; `prisma:seed` en Postgres local | — |
 | B-B5 | Tests E2E / CI backend | P2 |
 
 ---
@@ -300,8 +301,8 @@ pnpm prisma:deploy
 
 ```powershell
 cd Backend
-pnpm prisma:repair-schema   # Crea EvidenciaVersion y columnas si faltan
-pnpm prisma:verify          # Comprueba esquema antes del seed
+pnpm prisma:deploy          # Única vía de esquema: aplica las migraciones pendientes
+pnpm prisma:verify          # Comprueba esquema antes del seed (solo lectura)
 pnpm prisma:seed
 pnpm prisma:backfill-versiones   # v1 para evidencias legacy
 ```
@@ -313,7 +314,7 @@ SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'Evidenc
 SELECT column_name FROM information_schema.columns WHERE table_name = 'Evidencia' AND column_name = 'version';
 ```
 
-Si `repair-schema` no basta, ejecutar SQL de `Backend/prisma/migrations/` en SQL Editor de Supabase.
+El antiguo `prisma:repair-schema` se retiró (S3-CIERRE): alteraba el esquema fuera de migraciones. Si falta un objeto, aplique la migración correspondiente de `Backend/prisma/migrations/` con `pnpm prisma:deploy`; nunca vía SQL manual ni `db push`.
 
 ---
 
@@ -383,7 +384,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 |------|------------------|
 | 1 | Supabase Dashboard: proyecto **Active** (no Paused) |
 | 2 | `Test-NetConnection aws-0-ca-central-1.pooler.supabase.com -Port 5432` |
-| 3 | `pnpm prisma:repair-schema` + `pnpm prisma:verify` (o baseline § 7.3) |
+| 3 | `pnpm prisma:deploy` + `pnpm prisma:verify` (o baseline § 7.3) |
 | 4 | `pnpm prisma:seed` + `pnpm prisma:backfill-versiones` |
 | 5 | Reiniciar backend; reproducir carga; leer log consola (filtro HTTP loguea stack en 500) |
 | 6 | `GET /integracion/estado-storage` — diagnóstico buckets S3 |
@@ -392,7 +393,7 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 ## 8. Estado actual (2026-10-10)
 
-El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK.
+El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK. **S3-02:** frontend de cifras (panel por categoría, importación Excel, diccionario de variables, página `/administrador/cifras`); Vitest 62 tests, `tsc` 0 y `next build` OK. **S3-03:** registros por categoría según `docs/plantillas-siac.xlsx` (6 modelos + esquemas tipados, reemplazo por periodo/sede, plantilla/JSON, feed Power BI); import real 15804/1351/1338/80/71/12 con 0 errores, Jest 228, Vitest 63 y builds OK. **16/10/2026 — S3-HU006 (cierre HU-006):** máquina de estados, observación obligatoria por condición, notificación al Cargador con correo escapado, una sola petición de dictamen, CP-E2E-04 reescrito y E2E nuevo G2/G4; Jest 305 y Vitest 102, builds OK (E2E pendientes de CI: sin BD de pruebas local). **16/10/2026 — S3-HU007 (cierre HU-007):** umbrales PO (aviso 24 / rojo 18) con `Vencido` distinto de `Rojo` y relectura sin redeploy; opción B del semáforo general (30 casos); outbox `NotificacionSalida` + `AlertaInApp.claveEvento` con procesador de reintentos y bitácora `GET /notificaciones/salida`; cron 6:00 America/Bogota idempotente (D-1 + transiciones de vigencia); plantillas de correo puras con snapshots; demo acelerada 300 s con `GET /programas/:id/vigencia` y polling 5 s; Jest 42 suites / 372 tests, Vitest 24 / 107, `tsc`, `next build` y `pnpm build` OK (E2E no ejecutados: sin BD de pruebas; migración `20261016120000` creada y pendiente de `prisma migrate deploy`). **16/10/2026 — S3-CIERRE (HU-007 + limpieza de datos):** umbrales editables vía `GET/PATCH /api/v1/configuracion/vigencia` (SuperAdmin/Administrador; DTO 1..84, aviso > rojo, Swagger) con tarjeta «Umbrales del semáforo» en `/administrador/vigencias`; E2E nuevos `umbrales-vigencia` y `alertas-vigencia` (CA3 con referencias inyectadas, outbox `Enviado`/`Fallido` y bitácora); `EvidenciaComentario` pasó de SQL crudo a Prisma tipado; retirados `prisma/aplicar-esquema-versionado.ts` y `prisma:repair-schema`; migración `20261016120000` ya aplicada; Jest 48 suites / 413, Vitest 29 / 129, `tsc`, `next build` y `pnpm build` OK (E2E se validan en CI).
 
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
@@ -410,10 +411,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
 - [x] Biblioteca de plantillas unificada (sin accesos Renovación/Nuevos)
 - [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
-- [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
-- [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
-- [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
-- [ ] Semilla remota completa tras baseline (`pnpm prisma:seed`)
+- [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
+- [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
 
 ### Estado anterior (2026-09-17)
 
@@ -440,10 +439,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Modelo `EvidenciaVersion` + columnas `AnexoVigencia` (migración `20260916180000`)
 - [x] Filtro HTTP con mensajes legibles Prisma/S3 + log stack en 500
 - [x] Bandeja Revisor: API + fallback semilla; semilla backend con `EnRevision`
-- [ ] Baseline `_prisma_migrations` en Supabase remoto (`migrate resolve` — ver § 7.3)
-- [ ] Buckets Storage: `evidencias`, `plantillas`, **`documentos`**
-- [ ] `.env`: `DIRECT_URL` session pooler + `S3_ENDPOINT` formato `.storage.supabase.co`
-- [ ] Semilla remota completa tras baseline (`pnpm prisma:seed`)
+- [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
+- [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
 
 ---
 
@@ -456,8 +453,8 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | Schema + migración Supabase | Backend |
 | [x] | API v1 + endpoints F-03 | Backend |
 | [x] | MemoriaGlobal + docs etapa 0-1 | Docs |
-| [ ] | Crear buckets Storage Supabase | Supabase |
-| [ ] | Configurar `.env` y ejecutar semilla | Backend |
+| [x] | ~~INF-01 buckets Supabase~~ — cancelado (disco local) | — |
+| [x] | `.env` local + `prisma:seed` usuarios | Backend |
 
 ### P1 — Sprint 2 (completada en repo, 09/10/2026)
 
@@ -487,6 +484,104 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
+
+- [Backend] T-007.3a: `GET/PATCH /api/v1/configuracion/vigencia` (`ConfiguracionController`, SuperAdmin/Administrador, Swagger). `ActualizarUmbralesVigenciaDto` exige enteros 1..84 y `mesesAvisoVigencia > mesesRojoVigencia` (400 con mensaje claro); `ConfiguracionSiacService.cargar()` relee la BD, así el siguiente cálculo del semáforo aplica el cambio sin redeploy. No existe módulo de auditoría en el repo: no se registró auditoría adicional.
+- [Backend] `EvidenciaComentario` dejó de usar SQL crudo (`$executeRawUnsafe`/`$queryRawUnsafe`) en `evidencia.repositorio.ts`: `deleteMany` + `createMany` en `$transaction` y `findMany` tipado con el mismo contrato y orden. Retirados `prisma/aplicar-esquema-versionado.ts` y el script `prisma:repair-schema`; `prisma:setup` ahora encadena `prisma:deploy`. `prisma/verificar-esquema.ts` queda como verificación de solo lectura. Todo lo que aplicaba repair-schema ya existe en migraciones (EvidenciaVersion, Evidencia.version, columnas de AnexoVigencia, EvidenciaComentario, enums); el remapeo de estados legacy y el catálogo mínimo de programas eran datos operativos (el catálogo se crea desde la app/semilla).
+- [Backend/E2E] Nuevos `test/e2e/umbrales-vigencia.e2e-spec.ts` (verde→amarillo al subir el aviso, 400/403) y `test/e2e/alertas-vigencia.e2e-spec.ts` (CA3 sin sleeps: 3 eventos por destinatario sin duplicados, outbox con transporte en memoria `Enviado`, transporte que falla → `Fallido` con `ultimoError` tras `CORREO_MAX_INTENTOS`, bitácora `GET /notificaciones/salida`). Se ejecutan en CI.
+- [Frontend] Tarjeta «Umbrales del semáforo» en `/administrador/vigencias` (solo SuperAdmin/Administrador) con validación espejo del DTO, `ConfiguracionServicio` (`/configuracion/vigencia`) y toast de éxito/error.
+- [Tests] Backend: Jest 48 suites / 413 tests (404 + 9 nuevos), `tsc --noEmit` y `pnpm build` OK. Frontend: Vitest 29 archivos / 129 tests (117 + 12 nuevos: tarjeta y campana), `tsc --noEmit` y `next build` OK. `rg '\$queryRaw|\$executeRaw' Backend/src` solo devuelve `salud.service.ts` (`SELECT 1`, justificado) y `fts-evidencias.ts` (`Prisma.sql` parametrizado sobre `searchVector Unsupported("tsvector")`, no expresable con el cliente tipado).
+- [Docs] `docs/etapa-3/README.md` (endpoints nuevos, migración outbox aplicada, pruebas del cierre), `docs/sprint-reviews/sprint-3.md` (estado real de HU-006/007/009) y `docs/estandar-base-siac.md` (scripts oficiales sin `prisma:repair-schema`).
+
+### 2026-10-16 - Sprint 3: preparación de despliegue (Supabase + Render + Vercel)
+
+- [Backend] Escucha en `0.0.0.0:$PORT` (Render) con respaldo `PUERTO`; CORS desde `CORS_ORIGENES` (coma), `CORS_ORIGEN` (heredada) y `FRONTEND_URL`; en producción no arranca sin `JWT_SECRETO`/`DATABASE_URL` y advierte de `FRONTEND_URL`, CORS vacío, almacén local y `TZ`.
+- [Backend] `GET /api/v1/salud` público (sin guard; la API no tiene guard global) con ping `SELECT 1` y 503 si la BD no responde en 3 s.
+- [Backend] `build` = `prisma generate && nest build`; `start:prod` corregido a `node dist/src/main.js`; `start:despliegue` = `prisma migrate deploy` + arranque; `engines.node` 24.x.
+- [Backend] Cron de vigencias con `timeZone: 'America/Bogota'`; tick del modo prueba sin solapamiento; bandera explícita `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION` (solo staging). Outbox con clave única: sigue planificado (C-4), no implementado.
+- [Frontend] `urlBackendInterna()` exige `API_URL_INTERNAL` en producción (sin localhost); `apiDisponible()` ya no depende de la URL del servidor.
+- [DevOps] `render.yaml` (plan starter, healthCheckPath, variables `sync: false`), `.env.example` completos, `.gitignore` de `.env.*`. Guía: [docs/despliegue.md](docs/despliegue.md).
+- [Verificación] 31 migraciones aplican en BD vacía + semilla, sin drift (`migrate diff`).
+
+### 2026-10-16 — S3-HU007: cierre de HU-007 (vigencias y alertas al 100 %)
+
+- [Decisión] Umbrales PO 13/10 en `ConfiguracionSIAC`: `mesesAvisoVigencia=24`, nuevo `mesesRojoVigencia=18`; `calcularSemaforoVigencia` devuelve `Verde|Amarillo|Rojo|Vencido|SinVigencia` (Vencido ≠ Rojo) y `ConfiguracionSiacService.cargar()` relee la BD (sin redeploy). Opción B: `calcularSemaforoGeneral` = peor entre vigencia y avance, Vencido cuenta como Rojo, SinVigencia se ignora, RN-003 fuerza Rojo (30 casos en `panel-siac.spec.ts`).
+- [Backend] Outbox C-4: `NotificacionSalida` + `AlertaInApp.claveEvento @unique` (migración `20261016120000_t007_3_umbrales_outbox`, `prisma migrate diff`, aditiva, sin aplicar); despacho transaccional idempotente por claves `vigencia:*`, `anexo_d1:*`, `dictamen:*`; `ProcesadorNotificacionesSalidaService` (cron cada minuto, reclamo `updateMany` condicionado, backoff `base·2^(n-1)`, `Fallido` al máximo); C-8 `GET /notificaciones/salida` paginado para Administrador/SuperAdmin. Plantillas puras en `src/correo/plantillas/` con snapshots; `CORREO_DESTINATARIOS_PERMITIDOS` (dev) + validación de canal al arrancar (`smtp`/`resend`) y `CORREO_CANAL="ninguno"` por defecto.
+- [Backend] Cron T-007.2 `@Cron('0 6 * * *', { timeZone: VIGENCIAS_CRON_ZONA ?? 'America/Bogota' })`: D-1 (responsable por correo exacto + Administradores) y transiciones amarillo/rojo/vencido a Administrador/SuperAdmin/Revisor activos, 1 aviso por destinatario, idempotente; anexos con `findMany` filtrado. §0: demo 300 s con escala proporcional a umbrales (214/236/300 s), claves aisladas por sesión, script `pnpm demo:vigencia`, `GET /programas/:id/vigencia`, barra y campana con polling 5 s. `VIGENCIA_MODO_PRUEBA` en producción impide el arranque.
+- [Frontend] `vigencia-registro.ts` con 24/18 y `Vencido`; etiquetas («Vencido», «Por vencer») y barra demo 5 min con semáforo del servidor; notificaciones `vigencia_roja`/`anexo_vence_manana`.
+- [Tests] Jest 42 suites / 372 tests (CA1 reloj falso, 30 casos opción B, CA2/CA3, snapshots); Vitest 24 / 107; `tsc --noEmit`, `next build` y `pnpm build` OK. E2E no ejecutados en local: `Backend/.env` apunta a la BD compartida y no hay BD de pruebas; quedan para CI tras `prisma migrate deploy`.
+
+### 2026-10-16 — S3-HU006: cierre de HU-006 (G1-G4 «Con observaciones», máquina de estados, notificación CA2)
+
+- [Decisión] CP-E2E-04: la regla de 740c16c es correcta (no se crea una segunda evidencia de la misma guía con una abierta); el E2E se reescribió sobre el flujo real: nueva versión de la evidencia existente (`PATCH /evidencias/:id/archivo`) y borrador nunca enviado en un programa sin evidencias previas.
+- [Backend] `dominio/maquina-estados-evidencia.ts` (tabla única + `transicionPermitida`) usada por `enviarRevision`, `dictaminar` y `reemplazarArchivo` (400 si no permitida); T-006.1 observación obligatoria con `cumple=false` en servicio y `DictaminarDto` («La condición X requiere una observación»); retirado el alias `POST /aprobacion/:id/dictaminar`.
+- [Backend] Notificación CA2: tipos `dictamen_validado` / `dictamen_cumple` / `dictamen_con_observaciones`, asunto por tipo, enlace `SIAC_URL_FRONTEND` + ruta del cargador, `escaparHtml` para textos del usuario; el fallo de correo no revierte la alerta.
+- [Backend] `GET /metricas/token` solo Administrador; `start:prod` → `node dist/src/main.js`; correo en memoria para E2E y E2E nuevo `dictamen-sin-puntaje.e2e-spec.ts` (G2/G4).
+- [Frontend] Una sola petición de dictamen (el almacén solo refleja la respuesta); campos de condición marcados si falta observación; límite 20 MB compartido (`lib/constantes/documentos.ts`); filtros y acciones sin «Rechazado» en el flujo G1-G4; etiquetas de notificación nuevas.
+- [Tests] Jest 36 suites / 305 tests; Vitest 24 archivos / 102 tests; `tsc`, `next build` y `pnpm build` OK. E2E no ejecutados local (sin BD de pruebas; `Backend/.env` apunta a la BD compartida y Docker no está disponible): pendiente en CI.
+
+### 2026-10-13 — ADR-010 Camino 2 API cifras (replanteo, sin código)
+
+- [Docs] [ADR-010](docs/adr/ADR-010-camino-2-api-cifras-institucionales.md): contrato 8 categorías alineado a `docs/plantillas-siac-general.xlsx`; opción preferida B1 (API valida → Excel maestro Drive → Power BI); endpoints futuros bajo `/api/v1/integracion/cifras-institucionales`.
+- [Docs] Guía integradores: `docs/camino-2-api-cifras-institucionales.md`.
+
+### 2026-10-13 — Retirada almacén local de cifras (Camino 1 Power BI)
+
+- [Backend] Migración `20261013230000_eliminar_cifras_institucionales`: eliminados `VariableCifra`, `CargaCifras`, `CifraIndicador`, tablas `Registro*` / `ProgramaAseguramiento` / `SedeInfraestructura` y enum `FuenteCifra`. Se conserva `ConfiguracionInformePowerBi`.
+- [Backend] Eliminado módulo `src/cifras` y `CIFRAS_API_KEY`.
+- [Frontend] Eliminados panel Recharts, `/administrador/cifras` y cliente `/cifras/*`; dashboard de métricas solo iframe + mensajes si falta URL o falla la carga.
+- [Docs] ADR-009 actualizado; `docs/powerbi-conexion-cifras.md` marcado obsoleto. Datos de informes: Excel externo → Power BI; contrato de campos en `docs/plantillas-siac-general.xlsx`.
+
+### 2026-10-13 — HU-009 (T-009.3): 6 dashboards Power BI «Publicar en la web»
+
+- [Frontend] Catálogo tipado `lib/informes-powerbi.ts` con 6 categorías (aseguramiento, infraestructura, egresados, investigación, profesores, estudiantes) y su variable `NEXT_PUBLIC_POWERBI_URL_*` (lectura estática en `lib/powerbi/configuracion-powerbi.ts`; solo se aceptan URL `https://app.powerbi.com/view?r=`).
+- [Frontend] Iframe accesible (`loading="lazy"`, `allowFullScreen`, responsive); «Informe aún no publicado», respaldo Recharts (Estudiantes) y «Reintentar» si falla o tarda.
+- [Frontend] Pestaña Power BI solo para Administrador y SuperAdmin (`lib/powerbi/acceso-powerbi.ts`); `POWERBI_MODO=publico|embebido` (embebido conserva la ruta simulada).
+- [Frontend] `next.config.mjs`: CSP solo con `frame-src 'self' https://app.powerbi.com`.
+- [Docs] ADR-009 (Publicar en la web vs App Owns Data, advertencia de exposición pública).
+
+### 2026-10-12 — Fix S3-03: filtros del panel de cifras (periodo, facultad, programa, sede)
+
+- [Backend] Nuevo `GET /cifras/:categoriaId/filtros?periodo=&facultad=`: valores DISTINCT reales de los registros (`periodos` desc, `facultades`, `programas` dependientes de la facultad, `sedes` para infraestructura); devuelve `[]` donde no exista la columna.
+- [Backend] `GET /cifras/:categoriaId`: `periodosDisponibles` y `meta.periodo/fuente` se calculan sin aplicar facultad/programa/sede (los filtros solo reducen indicadores); `meta.sinCoincidencias=true` cuando hay datos en el periodo pero el filtro deja 0 (un filtro sin coincidencias ya no cae a semilla). Comparación de facultad/programa/sede normalizada (trim, sin mayúsculas/tildes). Nuevo query `programa` (nombre) manteniendo `programaId` heredado.
+- [Frontend] Panel de cifras: los 3 selects (y «Sede» en infraestructura) se pueblan desde `/filtros`; cambiar facultad recarga programas y resetea la selección; los valores de URL inválidos se ignoran y se limpian; estado «No hay datos para los filtros seleccionados» + «Limpiar filtros» (sin importar) vs «Aún no hay cifras cargadas» + Importar.
+- [Tests] Jest 30 suites / 237 tests (filtros distinct, facultad inexistente → sinCoincidencias con periodos poblados, programa dependiente de facultad) y Vitest 16 archivos / 68 tests (selects poblados, reset de programa, limpiar filtros); builds OK.
+
+### 2026-10-12 — S3-03 / HU-009: datasets por categoría según docs/plantillas-siac.xlsx
+
+- [Backend] Migración `20261012200000_cifras_registros`: `RegistroEstudiante`, `RegistroProfesor`, `RegistroEgresado`, `RegistroSemillero`, `ProgramaAseguramiento`, `SedeInfraestructura` (+ carga y timestamps, índices por periodo/facultad/programa). Aplicada con `migrate deploy`.
+- [Backend] Catálogo tipado `src/cifras/esquemas/*` (6 categorías, encabezados reales con alias `falcultad` y `cantidad estudianes`, enums reales de grado, banderas excluyentes, fechas, monto m2) que genera validación, plantillas, ejemplo JSON, Swagger y diccionario. `valor_dimension` queda deprecada (se ignora).
+- [Backend] Importación estricta por registros (reemplazo transaccional por periodo; infraestructura por sede; lotes de 1000; máx. 20 MB) y misma validación para ingesta JSON (`GET/POST` mantienen clave/valor solo para bienestar y relaciones-entorno). Errores `Fila N, columna X`.
+- [Backend] `GET /cifras/:categoriaId` agrega desde registros (estudiantes 15804 en 2023-2, 9 facultades); `GET /cifras/:categoriaId/plantilla` (hoja de la categoría + instrucciones); `GET /cifras/:categoriaId/plantilla.json`; feed `GET /cifras/:categoriaId/datos` (x-api-key o JWT Admin, máx. 5000, sin nombres). Docs: `docs/powerbi-conexion-cifras.md`.
+- [Tests] Fixture reducido en `Backend/test/fixtures/plantillas-siac-reducido.xlsx`; specs de validador, importación/reemplazo, privacidad y feed. Jest 228/228 y Vitest 63/63, `tsc` 0, builds OK.
+- [Operación] Verificación con el Excel real completo (15804/1351/1338/80/71/12, filasError=0; reimport sin duplicar; feed sin nombres) y limpieza total de datos de prueba (0 registros restantes).
+- [Backend] Ajuste de ortografía de encabezados visibles (`Período académico`, `Género`, `Código del estudiante`, `Código SNIES`, `Acreditado/Acreditable/Registro calificado`, `Área construida total (m²)`, etc.): el texto anterior queda como alias (`falcultad`, `cantidad estudianes`, `total m2 area construida`) para seguir importando archivos viejos; la normalización mapea `²`→`2`. Claves JSON/Prisma sin cambios. `Valor de la dimensión` sale de la plantilla, el ejemplo JSON, instrucciones y diccionario, pero se sigue aceptando e ignorando al importar. Jest 231/231, Vitest 63/63 y builds OK.
+
+### 2026-10-12 — S3-02 / HU-009: importación de cifras y gráficas por categoría (frontend)
+
+- [Frontend] Panel genérico `panel-cifras-categoria.tsx` con filtros periodo/facultad/programa en URL, KPIs, gráficos (línea por dimensión temporal, dona para conteos ≤6, barras), badge de fuente API/Excel/Semilla/Mixta y estado vacío con «Importar Excel» (solo Administrador); `panel-cifras-estudiantes` queda como wrapper.
+- [Frontend] `dialogo-importar-cifras.tsx` (plantilla, validación cliente .xlsx ≤5 MB, errores por fila) y `ContenedorInformePowerBi` generalizado: sin embed/400/falla → panel de cifras de la categoría.
+- [Frontend] Nueva página `/administrador/cifras` (categorías con última carga + importación; diccionario con PATCH de etiquetas CUAC) y ítem de sidebar.
+- [Verificación] Vitest 62/62, `tsc --noEmit` 0 y `next build` OK; sin datos de prueba nuevos en BD (specs con servicios mockeados).
+
+### 2026-10-13 — HU-009 / UX cargador / ayuda / correo
+
+- [Frontend] Catálogo Power BI ampliado a 8 categorías (bienestar, relaciones-entorno); URLs vía API autenticada con fallback `NEXT_PUBLIC_*`; panel de actualización en dashboard admin; cargador con pasos 1–3 visibles y sugerencia de trámite; filtro de programas al 100 % documental en vigencias y carga de evidencias; asistente flotante FAQ (`AsistenteAyudaFlotante`).
+- [Backend] `ConfiguracionInformePowerBi` + CRUD `/powerbi/informes`; hash SHA-256; roles Admin/SuperAdmin; plantillas HTML en correos de notificación; script `pnpm demo:semaforo-vigencia` (~5 min).
+- [Operación] Aplicar migración `20261013180000_configuracion_informe_powerbi` y `pnpm prisma:generate` en Backend.
+
+### 2026-10-12 — S3-01 / HU-009: cifras institucionales + ingesta API/Excel
+
+- [Backend] Migración `20261012120000_cifras_institucionales`: enum `FuenteCifra` (API|EXCEL|SEMILLA) y modelos `VariableCifra`, `CargaCifras`, `CifraIndicador` (upsert lógico por variable/periodo/facultad/programa/sede/dimension/valorDimension). Aplicada con `prisma migrate deploy` sin perder datos (drift varchar/text preexistente no relacionado; `prisma migrate dev` sigue bloqueado por ese drift).
+- [Backend] Seed `prisma/datos/variables-cifras.json`: 35 variables en 8 categorías; `pnpm prisma:seed` las upsertea (etiqueta CUAC editable).
+- [Backend] `CifrasPrismaService` proveedor por defecto; `CifrasSemillaService` solo respaldo (fuente SEMILLA) cuando no hay datos.
+- [Backend] Endpoints `/api/v1/cifras`: `GET /categorias`, `GET /variables`, `PATCH /variables/:id`, `GET /:categoriaId` (compatible `GET /estudiantes`), `GET /:categoriaId/plantilla` (.xlsx con hojas «datos» y «variables»), `POST /:categoriaId/ingesta` (header `x-api-key` contra `CIFRAS_API_KEY`, comparación timing-safe) y `POST /:categoriaId/importar` (exceljs, máx. 5 MB, errores por fila en español).
+- [Backend] Tests: `cifras-importacion.service.spec.ts` (fila válida, clave inexistente, periodo inválido, valor no numérico, upsert reemplaza, parcial, SNIES) y `cifras-api-key.guard.spec.ts`; Jest 204/204.
+- [Frontend] `lib/tipos/cifras.ts` alineado (`API|EXCEL|SEMILLA`, `DesgloseCifra`, `VariableCifra`, `periodosDisponibles`); sin cambios de UI.
+- [Verificación] Smoke end-to-end: plantilla de profesores + 5 filas → `GET /cifras/profesores?periodo=2025-2` fuente EXCEL y etiquetas CUAC; ingesta sin/con clave inválida 401; estudiantes sin datos → fuente SEMILLA; DOCX/comentarios/checklist cubiertos por suite Jest.
+- [Backend] Ajustes pre-commit (12/10): periodo validado con `@Matches(/^\d{4}(-[12])?$/)` en consulta e ingesta (mensaje «El periodo debe tener formato AAAA-S (ej. 2026-1) o AAAA.») y misma regla por fila en Excel; `meta.fuente` = `MIXTA` si el periodo mezcla fuentes y `fuente` por indicador; dimensión validada contra `VariableCifra.dimensiones` (nombre canónico, tolerante a mayúsculas/acentos); specs de DTO/dimensiones/fuente MIXTA (Jest 222/222).
+- [Operación] Script puntual `pnpm datos:limpiar-cifras-prueba -- --ejecutar --permitir-bd-remota`: eliminó 6 indicadores y 4 cargas de prueba de `profesores`/`2025-2` (respaldo JSON en `Backend/respaldos/`).
 
 ### 2026-10-10 — Cierre verificado Etapa 2 / Sprint 2
 
@@ -536,6 +631,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [CI] La CI corre `jest`, `test:e2e` (supertest sobre `postgres:16`) y `pnpm test` (Vitest). E2E del flujo CP-E2E-01 a CP-E2E-05 en `Backend/test/e2e/flujo-carga-panel.e2e-spec.ts`.
 - [Docs] T-DOC.1: jerarquía real de ClickUp (workspace `90171502668`, lista `901717352937`), HU-008 y HU-010 en curso, DoD de la Etapa 2 sin marcar hasta el cierre en ClickUp, RN-003 corregida en la Etapa 1 y se elimina el volcado de texto del backend que estaba en la raíz del repositorio.
 
+### 2026-10-09 — Notificaciones in-app + correo (Resend/SMTP)
+
+- [Backend] Módulo `correo/` (DIP): Resend en desarrollo, SMTP en producción (`CORREO_CANAL`, ADR-008). `NotificacionesDespachoService` replica cada alerta in-app por correo.
+- [Backend] Eventos: dictamen, envío a revisión (revisores con alcance), cron vigencia D-1, umbrales de avance programa (admin/par). `AlertaInApp.metadata` (JSON).
+- [Frontend] `CampanaNotificaciones`: badge (`99+`), acciones por `tipo`/`metadata`/rol (`accion-notificacion.ts`), polling 60s y recarga al abrir campana / tras dictamen.
+- [Docs/INF] Cancelados INF-01..03 Supabase remoto; arranque oficial Postgres Docker + almacen local (`docs/etapa-3`).
+
 ### 2026-09-30 — Arquitectura catálogo API + dominio SIAC
 
 - [Backend] Migración `20260930140000_corregir_pesos_tramite_guia`: corrige `pesoPorcentaje` en `TramiteDocumentoGuia` (trámites de 2 guías sumaban 200 % por el default de la migración de relleno).
@@ -573,6 +675,15 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Frontend] Biblioteca plantillas: dos accesos (Renovación / Nuevos). HU-008: página evidencias con Server Component y filtros en URL.
 - [Backend] `urlImagen` en `Programa`; enums G1–G4, `TipoTramiteSIAC`, catálogo trámites; `AvanceProcesoSIACService` con peso igual por documento guía; semáforo/estadoProceso derivados en listado programas (RN-003 + rechazos).
 - [Backend] `GET /evidencias/:id/evaluaciones-condicion?numeroRevision=N`; mis revisiones enriquecidas con puntaje y observaciones por ciclo.
+
+### 2026-10-13 — Correo Resend (dev)
+
+- [Backend] `CORREO_REMITENTE` como alias de `CORREO_DESDE`; `RESEND_CORREO_SANDBOX` redirige envíos en desarrollo (modo prueba Resend). Producción CUAC: `CORREO_CANAL=smtp`.
+
+### 2026-10-12 — HU-011 SuperAdmin: edición de usuarios
+
+- [Frontend] `/superadmin/usuarios`: diálogo **Editar** (nombre, cargo, dependencia, rol, contraseña opcional; correo solo lectura) con `DialogoConfirmacion` antes de guardar; reactivar con confirmación; copy de baja lógica (no borrado en BD).
+- [Backend] `POST`/`PATCH` usuarios devuelven el registro sin `contrasena`; `DELETE` sigue siendo desactivación (`activo: false`). No auto-desactivación; al menos un SuperAdmin activo al desactivar o bajar rol.
 
 ### 2026-09-28 — Alcance por programa (inicio Sprint 2)
 
