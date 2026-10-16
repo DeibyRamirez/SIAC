@@ -4,10 +4,11 @@
   "description": "API REST del Sistema Interno de Aseguramiento de la Calidad — CUAC",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
+    "start:despliegue": "prisma migrate deploy && node dist/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -70,6 +71,9 @@
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": "24.x"
   },
   "packageManager": "pnpm@10.33.2"
 }
