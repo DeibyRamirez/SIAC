@@ -52,6 +52,8 @@ jobs:
           cache-dependency-path: Backend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
+      - name: Verificar tipos del backend (tsc)
+        run: pnpm exec tsc --noEmit
       - name: Aplicar migraciones en PostgreSQL de CI
         run: pnpm exec prisma migrate deploy
       - name: Verificar el estado de las migraciones
