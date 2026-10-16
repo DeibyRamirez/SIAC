@@ -11,7 +11,7 @@ import { ActualizarUmbralesVigenciaDto } from './dto/actualizar-umbrales-vigenci
  * T-010.2 (R-010.2a): umbrales del semáforo leídos de la tabla `ConfiguracionSIAC`.
  * Se cargan una vez al arrancar; si son incoherentes el backend no arranca.
  * T-007.3a: `cargar()` relee la BD (permite cambiar mesesRojoVigencia sin redeploy) y
- * `actualizarUmbrales()` valida mesesAvisoVigencia > mesesRojoVigencia ≥ 0.
+ * `actualizarUmbrales()` valida mesesAvisoVigencia > mesesRojoVigencia ≥ 1.
  */
 @Injectable()
 export class ConfiguracionSiacService {
@@ -47,9 +47,14 @@ export class ConfiguracionSiacService {
 
   /**
    * Actualiza la fila global con los nuevos umbrales de vigencia, previa validación
-   * (mesesAvisoVigencia > mesesRojoVigencia ≥ 0 y aviso < vigencia completa).
+   * (mesesAvisoVigencia > mesesRojoVigencia ≥ 1 y aviso < vigencia completa).
+   * Sin módulo de auditoría: el cambio queda en el log con el id del usuario y los valores
+   * anterior/nuevo (sin otros datos personales).
    */
-  async actualizarUmbrales(dto: ActualizarUmbralesVigenciaDto): Promise<UmbralesSemaforo> {
+  async actualizarUmbrales(
+    dto: ActualizarUmbralesVigenciaDto,
+    usuarioId?: string,
+  ): Promise<UmbralesSemaforo> {
     const actuales = await this.cargar();
     const propuestos: UmbralesSemaforo = {
       ...actuales,
@@ -77,6 +82,11 @@ export class ConfiguracionSiacService {
       },
     });
     this.umbrales = propuestos;
+    this.logger.log(
+      `Umbrales de vigencia actualizados por el usuario ${usuarioId ?? 'desconocido'}: ` +
+        `mesesAvisoVigencia ${actuales.mesesAvisoVigencia} → ${propuestos.mesesAvisoVigencia}, ` +
+        `mesesRojoVigencia ${actuales.mesesRojoVigencia} → ${propuestos.mesesRojoVigencia}.`,
+    );
     return propuestos;
   }
 }

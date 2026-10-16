@@ -9,6 +9,7 @@ import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
 import { PanelPaquetesVigenciaRegistro } from '@/components/siac/panel-paquetes-vigencia-registro'
+import { TarjetaUmbralesSemaforo } from '@/components/siac/tarjeta-umbrales-semaforo'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
@@ -260,6 +261,8 @@ function ContenidoVigencias() {
       )}
 
       <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+
+      <TarjetaUmbralesSemaforo />
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-primary">Certificados y anexos</h2>

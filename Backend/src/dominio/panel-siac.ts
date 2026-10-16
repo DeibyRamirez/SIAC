@@ -86,8 +86,9 @@ export function validarUmbralesSemaforo(umbrales: UmbralesSemaforo): void {
   }
   if (!(Number.isInteger(aniosVigencia) && aniosVigencia > 0)) errores.push('aniosVigencia debe ser un entero > 0');
   const mesesVigenciaCompleta = aniosVigencia * 12;
-  if (!(Number.isInteger(mesesRojoVigencia) && mesesRojoVigencia >= 0)) {
-    errores.push('mesesRojoVigencia debe ser un entero ≥ 0');
+  // Decisión 16/10/2026: el rojo siempre ocurre antes del fin de vigencia (≥ 1 mes), igual que el DTO.
+  if (!(Number.isInteger(mesesRojoVigencia) && mesesRojoVigencia >= 1)) {
+    errores.push('mesesRojoVigencia debe ser un entero ≥ 1');
   }
   if (!(Number.isInteger(mesesAvisoVigencia) && mesesAvisoVigencia > mesesRojoVigencia)) {
     errores.push('mesesAvisoVigencia debe ser un entero mayor que mesesRojoVigencia');
