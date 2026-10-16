@@ -8,6 +8,9 @@ import {
 /**
  * Cabeceras de salto (hop-by-hop) o propias del navegador que no se reenvían al backend.
  * `expect: 100-continue` (curl y algunos clientes en cargas grandes) hace fallar el fetch de Node.
+ * `accept-encoding` no se reenvía: el fetch de Node negocia su propia compresión con el
+ * backend y entrega el cuerpo ya descomprimido; la compresión hacia el navegador la
+ * decide la plataforma (Vercel), no el BFF.
  */
 const CABECERAS_NO_REENVIABLES = new Set([
   'host',
@@ -21,6 +24,22 @@ const CABECERAS_NO_REENVIABLES = new Set([
   'trailer',
   'proxy-authorization',
   'proxy-connection',
+  'accept-encoding',
+]);
+
+/**
+ * Cabeceras de la respuesta del backend que no se copian al navegador.
+ * El fetch de Node descomprime el cuerpo (br, gzip, deflate) pero conserva las cabeceras
+ * originales: si se reenvían `content-encoding` y `content-length`, el navegador intenta
+ * descomprimir un cuerpo que ya viene en claro y falla con ERR_CONTENT_DECODING_FAILED
+ * (visto en producción con Render/Cloudflare respondiendo `content-encoding: br`).
+ */
+const CABECERAS_RESPUESTA_NO_REENVIABLES = new Set([
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'connection',
+  'keep-alive',
 ]);
 
 async function reenviar(
@@ -59,12 +78,7 @@ async function reenviar(
 
   const cabecerasSalida = new Headers();
   respuesta.headers.forEach((valor, clave) => {
-    const normalizada = clave.toLowerCase();
-    if (
-      normalizada === 'transfer-encoding' ||
-      normalizada === 'connection' ||
-      normalizada === 'keep-alive'
-    ) {
+    if (CABECERAS_RESPUESTA_NO_REENVIABLES.has(clave.toLowerCase())) {
       return;
     }
     cabecerasSalida.set(clave, valor);
