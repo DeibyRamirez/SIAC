@@ -548,25 +548,21 @@ export class EvidenciaRepositorio {
 
     await this.prisma.$transaction(async (tx) => {
 
-      await tx.$executeRawUnsafe(
+      await tx.evidenciaComentario.deleteMany({
 
-        `DELETE FROM "EvidenciaComentario" WHERE "evidenciaId" = $1 AND "numeroVersion" = $2`,
+        where: { evidenciaId, numeroVersion },
 
-        evidenciaId,
+      });
 
-        numeroVersion,
+      if (comentarios.length === 0) return;
 
-      );
+      // createMany conserva el orden del arreglo; el contrato de lectura ordena por
+      // numeroVersion y createdAt, igual que antes.
+      await tx.evidenciaComentario.createMany({
 
-      for (const comentario of comentarios) {
+        data: comentarios.map((comentario) => ({
 
-        await tx.$executeRawUnsafe(
-
-          `INSERT INTO "EvidenciaComentario" ("id","evidenciaId","numeroVersion","revisorId","autor","hunkId","anchor","quote","texto")
-
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-
-          randomUUID(),
+          id: randomUUID(),
 
           evidenciaId,
 
@@ -574,19 +570,19 @@ export class EvidenciaRepositorio {
 
           revisorId,
 
-          recortar(comentario.autor, 255),
+          autor: recortar(comentario.autor, 255),
 
-          recortar(comentario.hunkId, 100),
+          hunkId: recortar(comentario.hunkId, 100),
 
-          recortar(comentario.anchor, 100),
+          anchor: recortar(comentario.anchor, 100),
 
-          comentario.quote ?? null,
+          quote: comentario.quote ?? null,
 
-          comentario.texto,
+          texto: comentario.texto,
 
-        );
+        })),
 
-      }
+      });
 
     });
 
@@ -636,41 +632,37 @@ export class EvidenciaRepositorio {
 
     try {
 
-      const filas = await this.prisma.$queryRawUnsafe<
+      const filas = await this.prisma.evidenciaComentario.findMany({
 
-        {
+        where: {
 
-          hunkId: string | null;
+          evidenciaId,
 
-          anchor: string | null;
+          numeroVersion: { gte: desde, lte: hasta },
 
-          quote: string | null;
+        },
 
-          texto: string;
+        orderBy: [{ numeroVersion: 'asc' }, { createdAt: 'asc' }],
 
-          autor: string | null;
+        select: {
 
-          numeroVersion: number;
+          hunkId: true,
 
-          createdAt: Date;
+          anchor: true,
 
-        }[]
+          quote: true,
 
-      >(
+          texto: true,
 
-        `SELECT "hunkId","anchor","quote","texto","autor","numeroVersion","createdAt" FROM "EvidenciaComentario"
+          autor: true,
 
-         WHERE "evidenciaId" = $1 AND "numeroVersion" >= $2 AND "numeroVersion" <= $3
+          numeroVersion: true,
 
-         ORDER BY "numeroVersion" ASC, "createdAt" ASC`,
+          createdAt: true,
 
-        evidenciaId,
+        },
 
-        desde,
-
-        hasta,
-
-      );
+      });
 
       return filas.map((fila) => ({
 
@@ -694,7 +686,7 @@ export class EvidenciaRepositorio {
 
       this.logger.warn(
 
-        `No se pudieron leer comentarios de ${evidenciaId} v${desde}..v${hasta} (¿falta tabla/columna? Ejecute pnpm prisma:repair-schema): ${err instanceof Error ? err.message : err}`,
+        `No se pudieron leer comentarios de ${evidenciaId} v${desde}..v${hasta} (¿falta la migración 20261006010000_evidencia_comentario_idempotente?): ${err instanceof Error ? err.message : err}`,
 
       );
 

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ConfiguracionSiacService } from './configuracion-siac.service';
 
 const FILA_GLOBAL = {
@@ -75,5 +76,19 @@ describe('ConfiguracionSiacService (T-007.3a)', () => {
       servicio.actualizarUmbrales({ mesesAvisoVigencia: 6, mesesRojoVigencia: 18 }),
     ).rejects.toThrow(/mesesAvisoVigencia/);
     expect(prisma.configuracionSIAC.upsert).not.toHaveBeenCalled();
+  });
+
+  it('actualizarUmbrales deja en el log el usuario y los valores anterior/nuevo', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    await servicio.actualizarUmbrales({ mesesAvisoVigencia: 30, mesesRojoVigencia: 6 }, 'usuario-admin-1');
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('usuario-admin-1'));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('mesesAvisoVigencia 24 → 30'));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('mesesRojoVigencia 18 → 6'));
+    log.mockRestore();
+  });
+
+  it('mesesRojoVigencia = 0 en BD es incoherente (el rojo debe ser ≥ 1 mes)', async () => {
+    prisma.configuracionSIAC.findUnique.mockResolvedValue({ ...FILA_GLOBAL, mesesRojoVigencia: 0 });
+    await expect(servicio.cargar()).rejects.toThrow(/mesesRojoVigencia debe ser un entero ≥ 1/);
   });
 });

@@ -42,7 +42,8 @@ flowchart LR
    Remove-Item Env:DATABASE_URL, Env:DIRECT_URL
    ```
    Cambiar las contraseñas de demostración tras el primer ingreso si el entorno será visible para terceros.
-7. Plan gratuito de Supabase: el proyecto se **pausa** tras una semana sin actividad; reactivarlo desde el panel antes de una demostración.
+7. **`pnpm prisma:setup` no se usa contra Supabase.** Encadena `migrate deploy`, verificación, semilla y backfill, y tiene una guarda (`Backend/prisma/guarda-setup.ts`, lógica en `src/common/config/guarda-setup.ts`) que aborta si `DATABASE_URL` o `DIRECT_URL` no son locales (`localhost`, `127.0.0.1`, `postgres` de CI). Solo con `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal se permite un host remoto, de forma deliberada. En Supabase las migraciones las aplica Render (`start:despliegue`) y la semilla se ejecuta una sola vez con el paso 6.
+8. Plan gratuito de Supabase: el proyecto se **pausa** tras una semana sin actividad; reactivarlo desde el panel antes de una demostración.
 
 ## 2. Render (backend)
 
