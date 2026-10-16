@@ -485,6 +485,16 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-10-16 - Sprint 3: preparación de despliegue (Supabase + Render + Vercel)
+
+- [Backend] Escucha en `0.0.0.0:$PORT` (Render) con respaldo `PUERTO`; CORS desde `CORS_ORIGENES` (coma), `CORS_ORIGEN` (heredada) y `FRONTEND_URL`; en producción no arranca sin `JWT_SECRETO`/`DATABASE_URL` y advierte de `FRONTEND_URL`, CORS vacío, almacén local y `TZ`.
+- [Backend] `GET /api/v1/salud` público (sin guard; la API no tiene guard global) con ping `SELECT 1` y 503 si la BD no responde en 3 s.
+- [Backend] `build` = `prisma generate && nest build`; `start:prod` corregido a `node dist/src/main.js`; `start:despliegue` = `prisma migrate deploy` + arranque; `engines.node` 24.x.
+- [Backend] Cron de vigencias con `timeZone: 'America/Bogota'`; tick del modo prueba sin solapamiento; bandera explícita `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION` (solo staging). Outbox con clave única: sigue planificado (C-4), no implementado.
+- [Frontend] `urlBackendInterna()` exige `API_URL_INTERNAL` en producción (sin localhost); `apiDisponible()` ya no depende de la URL del servidor.
+- [DevOps] `render.yaml` (plan starter, healthCheckPath, variables `sync: false`), `.env.example` completos, `.gitignore` de `.env.*`. Guía: [docs/despliegue.md](docs/despliegue.md).
+- [Verificación] 31 migraciones aplican en BD vacía + semilla, sin drift (`migrate diff`).
+
 ### 2026-10-13 — ADR-010 Camino 2 API cifras (replanteo, sin código)
 
 - [Docs] [ADR-010](docs/adr/ADR-010-camino-2-api-cifras-institucionales.md): contrato 8 categorías alineado a `docs/plantillas-siac-general.xlsx`; opción preferida B1 (API valida → Excel maestro Drive → Power BI); endpoints futuros bajo `/api/v1/integracion/cifras-institucionales`.

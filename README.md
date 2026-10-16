@@ -4,7 +4,7 @@ Monorepo del proyecto académico CUAC (Frontend Next.js + Backend NestJS).
 
 ## Requisitos
 
-- Node.js 20 LTS
+- Node.js 24 LTS (fijado en `engines.node` de Backend y Frontend)
 - pnpm 10.x (`corepack enable`)
 - Docker Desktop (PostgreSQL local)
 
@@ -56,7 +56,7 @@ quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
 
 ```bash
 pnpm build
-node dist/src/main.js
+node dist/src/main.js   # equivalente a pnpm start:prod
 ```
 
 Swagger: `http://localhost:3001/api/docs`
@@ -72,6 +72,10 @@ pnpm dev
 ```
 
 App: `http://localhost:3000`
+
+## Despliegue (Supabase + Render + Vercel)
+
+Ver [docs/despliegue.md](docs/despliegue.md) y el Blueprint [render.yaml](render.yaml).
 
 ## Estrategia de ramas
 
