@@ -8,9 +8,11 @@ services:
     name: siac-api
     runtime: node
     rootDir: Backend
-    # `starter` (0.5 CPU / 512 MB): el plan free se duerme tras inactividad y el cron de
-    # vigencias (06:00 America/Bogota) y el modo prueba de 5 min dejarían de ejecutarse.
-    plan: starter
+    # `free` (0.1 CPU / 512 MB, USD 0): se duerme tras ~15 min sin tráfico y, dormido, no corre
+    # el cron de vigencias (06:00 America/Bogota) ni el modo prueba. Se mitiga con el workflow
+    # .github/workflows/keep-alive.yml (GET /api/v1/salud cada 10 min). Para producción real,
+    # cambiar a `starter` (0.5 CPU / 512 MB, USD 7/mes, siempre encendido).
+    plan: free
     # Región cercana a Supabase (ca-central-1 / us-east). No se puede cambiar después.
     region: virginia
     # Una sola instancia: el cron y las sesiones del modo prueba viven en memoria del proceso.
