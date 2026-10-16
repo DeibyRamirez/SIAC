@@ -3,18 +3,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 
-import { PanelCifrasCategoria } from '@/components/siac/panel-cifras-categoria'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
 import {
   obtenerModoPowerBi,
-  resolverUrlPowerBi,
   TIEMPO_MAXIMO_CARGA_INFORME_MS,
   type ModoPowerBi,
 } from '@/lib/powerbi/configuracion-powerbi'
+import { useUrlPublicaPowerBi } from '@/lib/powerbi/use-url-publica-powerbi'
 import { obtenerEmbedPowerBiApi } from '@/lib/servicios/programas.servicio'
-import type { RespuestaEmbedPowerBi } from '@/lib/tipos/cifras'
+import type { RespuestaEmbedPowerBi } from '@/lib/tipos/powerbi'
 
 interface ContenedorInformePowerBiProps {
   informe: InformePowerBi
@@ -28,8 +27,8 @@ interface ContenedorInformePowerBiProps {
 }
 
 /**
- * Intenta el informe embebido de Power BI para cualquier categoría; si no hay
- * informe disponible (400/sin embed/falla) muestra el panel de cifras de la categoría.
+ * Muestra el informe embebido de Power BI para la categoría; si no hay URL o falla la carga,
+ * informa al usuario (sin gráficos nativos de respaldo).
  */
 export function ContenedorInformePowerBi({
   informe,
@@ -52,21 +51,20 @@ export function ContenedorInformePowerBi({
   )
 }
 
-/** Respaldo nativo: panel de cifras de la categoría (Recharts) o aviso si no tiene uno. */
-function RespaldoInforme({ informe, mensaje }: { informe: InformePowerBi; mensaje: string }) {
-  if (informe.tieneRespaldoRecharts) {
-    return (
-      <PanelCifrasCategoria
-        categoriaId={informe.id}
-        categoriaTitulo={informe.titulo}
-        mensajeEncabezado={mensaje}
-      />
-    )
-  }
+function AvisoInformeIndisponible({
+  titulo,
+  descripcion,
+}: {
+  titulo: string
+  descripcion: string
+}) {
   return (
-    <p className="text-sm text-muted-foreground">
-      Esta categoría aún no tiene una vista alternativa con métricas SIAC.
-    </p>
+    <Card className="tarjeta-institucional">
+      <CardContent className="space-y-2 py-8 text-center" role="status">
+        <p className="font-semibold text-primary">{titulo}</p>
+        <p className="text-sm text-muted-foreground">{descripcion}</p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -80,11 +78,10 @@ function InformePowerBiPublico({
   informe: InformePowerBi
   tiempoMaximoCargaMs: number
 }) {
-  const estadoUrl = resolverUrlPowerBi(informe.id)
+  const estadoUrl = useUrlPublicaPowerBi(informe.id)
   const [intento, setIntento] = useState(0)
   const [estadoCarga, setEstadoCarga] = useState<EstadoCargaIframe>('cargando')
 
-  // Un iframe de otro origen no informa errores de carga: el tiempo máximo cubre fallos y demoras.
   useEffect(() => {
     if (estadoUrl.estado !== 'publicada' || estadoCarga !== 'cargando') return
     const temporizador = window.setTimeout(() => setEstadoCarga('fallido'), tiempoMaximoCargaMs)
@@ -94,24 +91,14 @@ function InformePowerBiPublico({
   if (estadoUrl.estado !== 'publicada') {
     const invalida = estadoUrl.estado === 'invalida'
     return (
-      <div className="space-y-4">
-        <Card className="tarjeta-institucional">
-          <CardContent className="space-y-2 py-8 text-center" role="status">
-            <p className="font-semibold text-primary">Informe aún no publicado</p>
-            <p className="text-sm text-muted-foreground">
-              {invalida
-                ? `La URL configurada en ${informe.variableEntorno} no es una URL pública válida de Power BI y fue rechazada.`
-                : `El informe «${informe.titulo}» todavía no tiene una URL pública configurada.`}
-            </p>
-          </CardContent>
-        </Card>
-        {informe.tieneRespaldoRecharts ? (
-          <RespaldoInforme
-            informe={informe}
-            mensaje="Vista alternativa con métricas SIAC mientras se publica el informe de Power BI."
-          />
-        ) : null}
-      </div>
+      <AvisoInformeIndisponible
+        titulo="Informe aún no publicado"
+        descripcion={
+          invalida
+            ? `La URL configurada para «${informe.titulo}» no es una URL pública válida de Power BI. Un administrador puede actualizarla en la configuración de informes.`
+            : `El informe «${informe.titulo}» todavía no tiene una URL pública configurada. Contacte al administrador del SIAC.`
+        }
+      />
     )
   }
 
@@ -127,6 +114,7 @@ function InformePowerBiPublico({
           <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-destructive" role="alert">
               No fue posible cargar el informe «{informe.titulo}» de Power BI o tardó demasiado.
+              Si el informe fue republicado, un administrador debe actualizar la URL en el SIAC.
             </p>
             <Button type="button" onClick={reintentar}>
               <RefreshCw className="size-4" />
@@ -134,10 +122,6 @@ function InformePowerBiPublico({
             </Button>
           </CardContent>
         </Card>
-        <RespaldoInforme
-          informe={informe}
-          mensaje="Vista alternativa con métricas SIAC mientras se restablece el informe de Power BI."
-        />
       </div>
     )
   }
@@ -169,7 +153,6 @@ function InformePowerBiPublico({
 
 /**
  * Modo `embebido` (App Owns Data, T-009.2): bloqueado hasta recibir credenciales Azure.
- * Conserva la ruta simulada con el backend (`/powerbi/embed-token`); no genera token real.
  */
 function InformePowerBiEmbebidoSimulado({
   informe,
@@ -202,7 +185,6 @@ function InformePowerBiEmbebidoSimulado({
   }, [cargarEmbed])
 
   const mostrarIframe = tokenValido && !cargandoEmbed && Boolean(embed?.embedUrl?.length)
-  const mostrarPanelCifras = !mostrarIframe && !cargandoEmbed
 
   return (
     <div className="space-y-4">
@@ -233,7 +215,7 @@ function InformePowerBiEmbebidoSimulado({
         </div>
       ) : null}
 
-      {mostrarPanelCifras ? (
+      {!cargandoEmbed && !mostrarIframe ? (
         <div className="space-y-4">
           {!tokenValido ? (
             <Card className="tarjeta-institucional">
@@ -247,19 +229,12 @@ function InformePowerBiEmbebidoSimulado({
                 </Button>
               </CardContent>
             </Card>
-          ) : null}
-
-          <PanelCifrasCategoria
-            categoriaId={informe.id}
-            categoriaTitulo={informe.titulo}
-            mensajeEncabezado={
-              !tokenValido
-                ? 'Vista alternativa con métricas SIAC mientras se restablece el informe embebido.'
-                : embed?.fallback
-                  ? 'Vista alternativa con datos del API institucional (semilla de desarrollo).'
-                  : undefined
-            }
-          />
+          ) : (
+            <AvisoInformeIndisponible
+              titulo="Informe embebido no disponible"
+              descripcion={`El informe «${informe.titulo}» no está disponible en modo embebido. Use el modo público o configure las credenciales de Azure cuando estén listas.`}
+            />
+          )}
         </div>
       ) : null}
     </div>

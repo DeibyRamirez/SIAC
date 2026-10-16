@@ -1,12 +1,7 @@
 /**
- * Configuración de Power BI en el frontend (HU-009, T-009.3).
- *
- * Next.js reemplaza `process.env.NEXT_PUBLIC_*` en tiempo de compilación solo cuando la
- * referencia es estática; por eso cada variable se lee con su nombre literal y nunca con
- * una clave dinámica (`process.env[nombre]` llegaría vacía al navegador).
+ * Utilidades de Power BI en el frontend (HU-009, T-009.3).
+ * Las URL públicas se consultan en el servidor (`ConfiguracionInformePowerBi`).
  */
-import type { CategoriaIdPowerBi } from '@/lib/informes-powerbi'
-
 /** Prefijo obligatorio de una URL de «Publicar en la web». */
 export const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r='
 
@@ -15,26 +10,26 @@ export const TIEMPO_MAXIMO_CARGA_INFORME_MS = 20_000
 
 export type ModoPowerBi = 'publico' | 'embebido'
 
-/** Lee la URL cruda de la variable de entorno de cada categoría (referencias estáticas). */
-export function leerUrlCrudaPowerBi(categoriaId: CategoriaIdPowerBi): string | undefined {
-  switch (categoriaId) {
-    case 'aseguramiento':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_ASEGURAMIENTO
-    case 'infraestructura':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_INFRAESTRUCTURA
-    case 'egresados':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_EGRESADOS
-    case 'investigacion':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_INVESTIGACION
-    case 'profesores':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_PROFESORES
-    case 'estudiantes':
-      return process.env.NEXT_PUBLIC_POWERBI_URL_ESTUDIANTES
-  }
+/**
+ * Acepta URL limpia o HTML de iframe («Publicar en la web» pegado desde Power BI).
+ * Devuelve la primera URL válida encontrada o null.
+ */
+export function extraerUrlPublicaPowerBi(valor: string | null | undefined): string | null {
+  const crudo = valor?.trim() ?? ''
+  if (!crudo) return null
+  if (esUrlPublicaPowerBiValida(crudo)) return crudo
+
+  const patron = new RegExp(
+    `${PREFIJO_URL_PUBLICA_POWERBI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"'\\s>]+`,
+    'i',
+  )
+  const coincidencia = crudo.match(patron)?.[0]
+  if (coincidencia && esUrlPublicaPowerBiValida(coincidencia)) return coincidencia
+  return null
 }
 
 /** Valida que la URL sea una vista pública de Power BI (https://app.powerbi.com/view?r=...). */
-export function esUrlPublicaPowerBiValida(url: string | null | undefined): url is string {
+export function esUrlPublicaPowerBiValida(url: string | null | undefined): boolean {
   if (!url) return false
   const limpia = url.trim()
   if (!limpia.startsWith(PREFIJO_URL_PUBLICA_POWERBI)) return false
@@ -57,9 +52,9 @@ export type EstadoUrlPowerBi =
   | { estado: 'no-publicada' }
   | { estado: 'invalida' }
 
-/** Resuelve el estado de la URL pública de una categoría. */
-export function resolverUrlPowerBi(categoriaId: CategoriaIdPowerBi): EstadoUrlPowerBi {
-  const cruda = leerUrlCrudaPowerBi(categoriaId)?.trim()
+/** Clasifica una URL devuelta por la API (o vacía si no hay configuración). */
+export function estadoDesdeUrlPublica(url: string | null | undefined): EstadoUrlPowerBi {
+  const cruda = url?.trim() ?? ''
   if (!cruda) return { estado: 'no-publicada' }
   if (!esUrlPublicaPowerBiValida(cruda)) return { estado: 'invalida' }
   return { estado: 'publicada', url: cruda }

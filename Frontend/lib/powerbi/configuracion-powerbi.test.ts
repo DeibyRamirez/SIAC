@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { categoriasInformesPowerBi } from '@/lib/informes-powerbi'
 import {
   esUrlPublicaPowerBiValida,
+  estadoDesdeUrlPublica,
+  extraerUrlPublicaPowerBi,
   obtenerModoPowerBi,
-  resolverUrlPowerBi,
 } from '@/lib/powerbi/configuracion-powerbi'
 import { puedeVerInformesPowerBi } from '@/lib/powerbi/acceso-powerbi'
 
@@ -15,7 +16,7 @@ afterEach(() => {
 })
 
 describe('catálogo de informes Power BI', () => {
-  it('tiene las 6 categorías con su variable de entorno', () => {
+  it('tiene las 8 categorías institucionales', () => {
     expect(categoriasInformesPowerBi.map((c) => c.id)).toEqual([
       'aseguramiento',
       'infraestructura',
@@ -23,12 +24,23 @@ describe('catálogo de informes Power BI', () => {
       'investigacion',
       'profesores',
       'estudiantes',
+      'bienestar',
+      'relaciones-entorno',
     ])
-    for (const categoria of categoriasInformesPowerBi) {
-      expect(categoria.variableEntorno).toBe(
-        `NEXT_PUBLIC_POWERBI_URL_${categoria.id.toUpperCase()}`,
-      )
-    }
+  })
+})
+
+describe('extraerUrlPublicaPowerBi', () => {
+  it('extrae la URL desde un iframe pegado', () => {
+    const iframe =
+      '<iframe src="https://app.powerbi.com/view?r=tokenEjemplo" width="600"></iframe>'
+    expect(extraerUrlPublicaPowerBi(iframe)).toBe(
+      'https://app.powerbi.com/view?r=tokenEjemplo',
+    )
+  })
+
+  it('devuelve null si no hay URL válida', () => {
+    expect(extraerUrlPublicaPowerBi('texto sin enlace')).toBeNull()
   })
 })
 
@@ -49,13 +61,11 @@ describe('validación de URL pública', () => {
     expect(esUrlPublicaPowerBiValida(url)).toBe(false)
   })
 
-  it('resuelve publicada, no publicada e inválida por categoría', () => {
-    vi.stubEnv('NEXT_PUBLIC_POWERBI_URL_EGRESADOS', URL_EJEMPLO)
-    vi.stubEnv('NEXT_PUBLIC_POWERBI_URL_PROFESORES', 'https://ejemplo.com/informe')
-    vi.stubEnv('NEXT_PUBLIC_POWERBI_URL_ASEGURAMIENTO', '')
-    expect(resolverUrlPowerBi('egresados')).toEqual({ estado: 'publicada', url: URL_EJEMPLO })
-    expect(resolverUrlPowerBi('profesores')).toEqual({ estado: 'invalida' })
-    expect(resolverUrlPowerBi('aseguramiento')).toEqual({ estado: 'no-publicada' })
+  it('estadoDesdeUrlPublica distingue publicada, no publicada e inválida', () => {
+    expect(estadoDesdeUrlPublica(URL_EJEMPLO)).toEqual({ estado: 'publicada', url: URL_EJEMPLO })
+    expect(estadoDesdeUrlPublica('https://ejemplo.com/informe')).toEqual({ estado: 'invalida' })
+    expect(estadoDesdeUrlPublica('')).toEqual({ estado: 'no-publicada' })
+    expect(estadoDesdeUrlPublica(null)).toEqual({ estado: 'no-publicada' })
   })
 })
 

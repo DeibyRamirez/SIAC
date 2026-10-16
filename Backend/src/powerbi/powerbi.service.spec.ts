@@ -6,9 +6,30 @@ import { PowerBiService } from './powerbi.service';
 
 const URL_PRUEBA = 'https://app.powerbi.com/view?r=urlDePrueba123';
 
-function crearServicio(valores: Record<string, string | undefined>) {
+function crearServicio(
+  valores: Record<string, string | undefined>,
+  urlPublicaEstudiantes?: string,
+) {
   const config = { get: (clave: string) => valores[clave] } as unknown as ConfigService;
-  return new PowerBiService(config);
+  const prisma = {
+    configuracionInformePowerBi: {
+      findUnique: jest.fn().mockImplementation(({ where }: { where: { categoriaId: string } }) => {
+        if (where.categoriaId === 'estudiantes' && urlPublicaEstudiantes) {
+          return Promise.resolve({
+            categoriaId: 'estudiantes',
+            urlPublica: urlPublicaEstudiantes,
+            activo: true,
+            urlHash: 'hash-prueba',
+            updatedAt: new Date(),
+          });
+        }
+        return Promise.resolve(null);
+      }),
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn(),
+    },
+  };
+  return new PowerBiService(config, prisma as never);
 }
 
 describe('normalizarUrlPublicaPowerBi', () => {
@@ -33,29 +54,26 @@ describe('PowerBiService · estudiantes', () => {
     const respuesta = await crearServicio({}).obtenerEmbedToken('estudiantes');
     expect(respuesta.embedUrl).toBe('');
     expect(respuesta.fallback).toBe(true);
-    expect(respuesta.mensaje).toMatch(/POWERBI_URL_PUBLICA_ESTUDIANTES/);
+    expect(respuesta.mensaje).toMatch(/Informe público de Estudiantes no configurado/);
   });
 
-  it('usa la URL pública configurada en el entorno', async () => {
-    const respuesta = await crearServicio({
-      POWERBI_URL_PUBLICA_ESTUDIANTES: URL_PRUEBA,
-    }).obtenerEmbedToken('estudiantes');
+  it('usa la URL pública almacenada en ConfiguracionInformePowerBi', async () => {
+    const respuesta = await crearServicio({}, URL_PRUEBA).obtenerEmbedToken('estudiantes');
     expect(respuesta.embedUrl).toBe(URL_PRUEBA);
     expect(respuesta.fallback).toBe(true);
   });
 
-  it('ignora una URL pública inválida y cae al respaldo', async () => {
-    const respuesta = await crearServicio({
-      POWERBI_URL_PUBLICA_ESTUDIANTES: 'https://ejemplo.com/informe',
-    }).obtenerEmbedToken('estudiantes');
+  it('ignora una URL pública inválida en BD y cae al respaldo', async () => {
+    const respuesta = await crearServicio(
+      {},
+      'https://ejemplo.com/informe',
+    ).obtenerEmbedToken('estudiantes');
     expect(respuesta.embedUrl).toBe('');
     expect(respuesta.fallback).toBe(true);
   });
 
   it('sin POWERBI_REPORT_ID_ESTUDIANTES no inventa un ID (no hay valor por defecto)', async () => {
-    const respuesta = await crearServicio({
-      POWERBI_URL_PUBLICA_ESTUDIANTES: URL_PRUEBA,
-    }).obtenerEmbedToken('estudiantes');
+    const respuesta = await crearServicio({}, URL_PRUEBA).obtenerEmbedToken('estudiantes');
     expect(respuesta.reportId).toBe('');
   });
 
@@ -73,10 +91,10 @@ describe('PowerBiService · estudiantes', () => {
   });
 
   it('con Azure pero sin ID del informe cae a la vista pública o al respaldo', async () => {
-    const conVista = await crearServicio({
-      POWERBI_CLIENT_ID: 'cliente-prueba',
-      POWERBI_URL_PUBLICA_ESTUDIANTES: URL_PRUEBA,
-    }).obtenerEmbedToken('estudiantes');
+    const conVista = await crearServicio(
+      { POWERBI_CLIENT_ID: 'cliente-prueba' },
+      URL_PRUEBA,
+    ).obtenerEmbedToken('estudiantes');
     expect(conVista.embedUrl).toBe(URL_PRUEBA);
     expect(conVista.fallback).toBe(true);
 

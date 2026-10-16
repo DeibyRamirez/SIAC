@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
 import { ContenedorInformePowerBi } from '@/components/siac/contenedor-informe-powerbi'
@@ -17,6 +17,7 @@ import {
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { categoriasInformesPowerBi, type InformePowerBi } from '@/lib/informes-powerbi'
 import { obtenerModoPowerBi, type ModoPowerBi } from '@/lib/powerbi/configuracion-powerbi'
+import { listarInformesPowerBiApi } from '@/lib/servicios/powerbi.servicio'
 import { itemsSelectProgramas, manejarCambioSelect } from '@/lib/utilidades-siac'
 
 interface RejillaInformesPowerBiProps {
@@ -30,6 +31,26 @@ export function RejillaInformesPowerBi({ modo = obtenerModoPowerBi() }: RejillaI
   const [informeActivo, setInformeActivo] = useState<InformePowerBi | null>(null)
   const [programaSeleccionadoId, setProgramaId] = useState<string | null>(null)
   const [tokenValido, setTokenValido] = useState(true)
+  const [publicadoPorCategoria, setPublicadoPorCategoria] = useState<
+    Record<string, boolean> | null
+  >(null)
+
+  const cargarMetadatosInformes = useCallback(async () => {
+    try {
+      const lista = await listarInformesPowerBiApi()
+      const mapa: Record<string, boolean> = {}
+      for (const meta of lista) {
+        mapa[meta.categoriaId] = meta.configurado && meta.activo
+      }
+      setPublicadoPorCategoria(mapa)
+    } catch {
+      setPublicadoPorCategoria({})
+    }
+  }, [])
+
+  useEffect(() => {
+    void cargarMetadatosInformes()
+  }, [cargarMetadatosInformes])
 
   const programaId = programaSeleccionadoId ?? programas[0]?.id ?? ''
   const programa = programas.find((p) => p.id === programaId)
@@ -111,6 +132,7 @@ export function RejillaInformesPowerBi({ modo = obtenerModoPowerBi() }: RejillaI
           <TarjetaInformePowerBi
             key={informe.id}
             informe={informe}
+            publicado={publicadoPorCategoria?.[informe.id]}
             onSeleccionar={setInformeActivo}
           />
         ))}

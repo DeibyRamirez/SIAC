@@ -3,15 +3,19 @@
 import Image from 'next/image'
 
 import type { InformePowerBi } from '@/lib/informes-powerbi'
-import { resolverUrlPowerBi } from '@/lib/powerbi/configuracion-powerbi'
 
 interface TarjetaInformePowerBiProps {
   informe: InformePowerBi
+  /** `undefined` mientras no se cargan metadatos del servidor (no mostrar aviso). */
+  publicado?: boolean
   onSeleccionar: (informe: InformePowerBi) => void
 }
 
-export function TarjetaInformePowerBi({ informe, onSeleccionar }: TarjetaInformePowerBiProps) {
-  const publicado = resolverUrlPowerBi(informe.id).estado === 'publicada'
+export function TarjetaInformePowerBi({
+  informe,
+  publicado,
+  onSeleccionar,
+}: TarjetaInformePowerBiProps) {
   return (
     <button
       type="button"
@@ -46,7 +50,7 @@ export function TarjetaInformePowerBi({ informe, onSeleccionar }: TarjetaInforme
       <div className="px-5 py-4">
         <h3 className="text-base font-bold text-primary">{informe.titulo}</h3>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{informe.descripcion}</p>
-        {!publicado ? (
+        {publicado === false ? (
           <p className="mt-2 text-xs font-medium text-ocre">Informe aún no publicado</p>
         ) : null}
       </div>
