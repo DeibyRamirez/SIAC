@@ -16,7 +16,7 @@ import { VigenciaDemoService } from './vigencia-demo.service';
     EvaluadorVigenciaRegistroService,
     VigenciaDemoService,
   ],
-  exports: [VigenciasService, PaquetesRegistroVigenciaService, EvaluadorVigenciaRegistroService],
+  exports: [VigenciasService, PaquetesRegistroVigenciaService, EvaluadorVigenciaRegistroService, VigenciaDemoService],
 })
 export class VigenciasModule {}
 

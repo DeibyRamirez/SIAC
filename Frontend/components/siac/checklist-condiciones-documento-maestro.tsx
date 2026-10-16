@@ -22,6 +22,8 @@ interface ChecklistCondicionesDocumentoMaestroProps {
   estados: EstadoCondicionDictamen[]
   onChange: (estados: EstadoCondicionDictamen[]) => void
   deshabilitado?: boolean
+  /** T-006.1: códigos con «Corregir» sin observación; marca el campo en rojo. */
+  codigosConError?: string[]
 }
 
 export function crearEstadosCondicionIniciales(): EstadoCondicionDictamen[] {
@@ -40,6 +42,7 @@ export function ChecklistCondicionesDocumentoMaestro({
   estados,
   onChange,
   deshabilitado = false,
+  codigosConError = [],
 }: ChecklistCondicionesDocumentoMaestroProps) {
   function actualizar(
     codigo: CodigoCondicionDocumentoMaestro,
@@ -115,15 +118,35 @@ export function ChecklistCondicionesDocumentoMaestro({
                 </p>
               )}
               {estado.decision === 'corregir' && (
-                <Textarea
-                  className="mt-2 min-h-[72px] text-sm"
-                  placeholder="Observaciones para el cargador (obligatorio si debe corregir)."
-                  value={estado.observacion}
-                  disabled={deshabilitado}
-                  onChange={(e) =>
-                    actualizar(def.codigo, { observacion: e.target.value })
-                  }
-                />
+                <>
+                  <Textarea
+                    className={cn(
+                      'mt-2 min-h-[72px] text-sm',
+                      codigosConError.includes(def.codigo) &&
+                        'border-destructive ring-2 ring-destructive/30',
+                    )}
+                    placeholder="Observaciones para el cargador (obligatorio si debe corregir)."
+                    value={estado.observacion}
+                    disabled={deshabilitado}
+                    aria-invalid={codigosConError.includes(def.codigo) || undefined}
+                    aria-describedby={
+                      codigosConError.includes(def.codigo)
+                        ? `error-condicion-${def.codigo}`
+                        : undefined
+                    }
+                    onChange={(e) =>
+                      actualizar(def.codigo, { observacion: e.target.value })
+                    }
+                  />
+                  {codigosConError.includes(def.codigo) && (
+                    <p
+                      id={`error-condicion-${def.codigo}`}
+                      className="mt-1 text-xs font-medium text-destructive"
+                    >
+                      Registra una observación para esta condición.
+                    </p>
+                  )}
+                </>
               )}
             </li>
           )

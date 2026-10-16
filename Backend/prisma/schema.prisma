@@ -130,6 +130,7 @@ model Usuario {
   resolucionesMen      ResolucionMen[]
   versionesEvidencia   EvidenciaVersion[]
   alertas              AlertaInApp[]
+  notificacionesSalida NotificacionSalida[]
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -386,6 +387,8 @@ model AlertaInApp {
   leida     Boolean  @default(false)
   tipo      String   @default("general")
   metadata  Json?
+  /// T-007.3c: clave idempotente del evento que originó la alerta (las filas históricas quedan en null).
+  claveEvento String? @unique
   createdAt DateTime @default(now())
 
   @@index([usuarioId, leida])
@@ -422,9 +425,44 @@ model ConfiguracionSIAC {
   avanceMinimoAmarillo Int      @default(55)
   /// Años de vigencia de la resolución MEN.
   aniosVigencia        Int      @default(7)
-  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo.
-  mesesAvisoVigencia   Int      @default(12)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo (PO 13/10: 24).
+  mesesAvisoVigencia   Int      @default(24)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a rojo (PO 13/10: 18). T-007.3a.
+  mesesRojoVigencia    Int      @default(18)
   updatedAt            DateTime @default(now()) @updatedAt
+}
+
+/// T-007.3c (C-4): outbox de correo. El evento de negocio crea la alerta in-app y esta fila en la
+/// misma transacción; el procesador (NestJS, cron cada minuto) envía con reintentos y bitácora.
+enum EstadoNotificacionSalida {
+  Pendiente
+  Enviado
+  Fallido
+  Descartado
+}
+
+model NotificacionSalida {
+  id               String                    @id @default(cuid())
+  /// Clave idempotente del evento; coincide con `AlertaInApp.claveEvento` cuando hay alerta.
+  claveEvento      String                    @unique
+  usuarioId        String?
+  usuario          Usuario?                  @relation(fields: [usuarioId], references: [id])
+  /// Correo destino (responsable externo sin cuenta); si es null se usa el correo del usuario.
+  destinatarioCorreo String?
+  canal            String                    @default("correo")
+  tipo             String
+  /// Mensaje y plantilla ya renderizados; nunca se expone en la API de consulta.
+  payload          Json
+  estado           EstadoNotificacionSalida  @default(Pendiente)
+  intentos         Int                       @default(0)
+  ultimoError      String?
+  proximoIntentoAt DateTime                  @default(now())
+  enviadoAt        DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@index([estado, proximoIntentoAt])
+  @@index([usuarioId])
 }
 
 model TramiteSIAC {

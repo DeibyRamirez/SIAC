@@ -115,6 +115,8 @@ export class PanelProgramasService implements OnModuleInit {
     query: ConsultaPanelProgramasDto,
     usuario: UsuarioAlcance,
   ): Promise<RespuestaPanelDto> {
+    // T-007.3a: relee los umbrales de BD (cambiar mesesRojoVigencia no exige redeploy).
+    await this.configuracion.cargar();
     if (query.alcance === AlcanceTramiteSIAC.Institucion) {
       return this.panelInstitucion(query);
     }

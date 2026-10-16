@@ -52,7 +52,7 @@ function motivoBloqueoAbierta(estado: EstadoEvidencia, codigoGuia: CodigoDocumen
     return `El documento ${codigoGuia} está pendiente de verificación por el revisor. Espere el dictamen antes de cargar otro del mismo tipo.`;
   }
   if (ESTADOS_REQUIEREN_CORRECCION_EN_LUGAR.includes(estado)) {
-    return `El documento ${codigoGuia} tiene observaciones o fue rechazado. Suba una nueva versión en la evidencia existente, no cree otra.`;
+    return `El documento ${codigoGuia} quedó con observaciones. Suba una nueva versión en la evidencia existente, no cree otra.`;
   }
   return `No puede cargar un nuevo ${codigoGuia} en este momento.`;
 }

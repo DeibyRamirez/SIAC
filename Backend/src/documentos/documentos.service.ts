@@ -20,6 +20,8 @@ import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service'
 
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { NotificacionesDestinatariosService } from '../notificaciones/notificaciones-destinatarios.service';
+import { claveDictamen, claveRevisionPendiente } from '../notificaciones/claves-evento';
+import { plantillaDictamen, plantillaRevisionPendiente } from '../correo/plantillas';
 
 import {
   CrearEvidenciaDto,
@@ -35,6 +37,7 @@ import { AvanceProcesoSIACService } from '../programas/avance-proceso-siac.servi
 import { codigosGuiaPermitidos } from '../programas/catalogo-tramites-siac';
 import { validarNuevaCargaEvidencia } from '../dominio/reglas-carga-evidencia';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
+import { transicionPermitida } from '../dominio/maquina-estados-evidencia';
 
 import {
 
@@ -80,12 +83,12 @@ const TIPOS_PERMITIDOS = [
 
 const TAMANO_MAXIMO = 20 * 1024 * 1024;
 
-/** Estados desde los que el Cargador corrige: sube una versión nueva y la reenvía a revisión. */
-const ESTADOS_QUE_ADMITEN_CORRECCION: EstadoEvidencia[] = [
-  EstadoEvidencia.Borrador,
-  EstadoEvidencia.ConObservaciones,
-  EstadoEvidencia.Rechazado,
-];
+/** Asuntos de correo por tipo de dictamen (HU-006, CA2). */
+const ASUNTOS_CORREO_DICTAMEN: Record<string, string> = {
+  dictamen_validado: '[SIAC] Evidencia validada',
+  dictamen_cumple: '[SIAC] Evidencia cumple todas las condiciones',
+  dictamen_con_observaciones: '[SIAC] Evidencia con observaciones',
+};
 
 
 
@@ -486,7 +489,7 @@ export class DocumentosService {
 
 
 
-    if (!ESTADOS_QUE_ADMITEN_CORRECCION.includes(evidencia.estado)) {
+    if (!transicionPermitida(evidencia.estado, evidencia.estado, evidencia.codigoGuia)) {
 
       throw new BadRequestException(
 
@@ -667,7 +670,7 @@ export class DocumentosService {
 
 
 
-    if (!ESTADOS_QUE_ADMITEN_CORRECCION.includes(evidencia.estado)) {
+    if (!transicionPermitida(evidencia.estado, EstadoEvidencia.EnRevision, evidencia.codigoGuia)) {
 
       throw new BadRequestException(
 
@@ -675,6 +678,16 @@ export class DocumentosService {
 
       );
 
+    }
+
+    if (
+      (evidencia.estado === EstadoEvidencia.ConObservaciones ||
+        evidencia.estado === EstadoEvidencia.Rechazado) &&
+      (evidencia.version ?? 1) < 2
+    ) {
+      throw new BadRequestException(
+        'Debe subir la versión corregida del documento antes de reenviarlo a revisión.',
+      );
     }
 
 
@@ -721,10 +734,23 @@ export class DocumentosService {
       evidencia.programaId,
     );
     const mensajeRevision = `Nueva evidencia en revisión: "${evidencia.nombre}".`;
-    await this.notificacionesDespacho.notificarVarios(revisores, mensajeRevision, 'revision_pendiente', {
-      asuntoCorreo: '[SIAC] Evidencia pendiente de revisión',
-      metadata: { evidenciaId: id, programaId: evidencia.programaId },
+    const versionRevision = evidencia.version ?? 1;
+    const plantillaRevision = plantillaRevisionPendiente({
+      nombreEvidencia: evidencia.nombre,
+      evidenciaId: id,
+      programaId: evidencia.programaId,
     });
+    for (const revisorId of [...new Set(revisores)]) {
+      await this.notificacionesDespacho.notificar({
+        claveEvento: claveRevisionPendiente(id, versionRevision, revisorId),
+        usuarioId: revisorId,
+        mensaje: mensajeRevision,
+        tipo: 'revision_pendiente',
+        asuntoCorreo: plantillaRevision.asunto,
+        metadata: { evidenciaId: id, programaId: evidencia.programaId },
+        plantilla: plantillaRevision,
+      });
+    }
 
     return actualizada;
 
@@ -774,6 +800,12 @@ export class DocumentosService {
       );
     }
 
+    if (!guiaDocumento && (dto.condiciones?.length || dto.condicionesInstitucionales?.length)) {
+      throw new BadRequestException(
+        'El documento sin guía no se evalúa por condiciones: dictamínelo como Validado o Rechazado.',
+      );
+    }
+
     const usaChecklistPrograma =
       !guiaSinPuntaje &&
       (guiaDocumento === CodigoDocumentoGuia.G1 ||
@@ -811,7 +843,7 @@ export class DocumentosService {
       for (const condicion of dto.condiciones) {
         if (!condicion.cumple && !condicion.observacion?.trim()) {
           throw new BadRequestException(
-            `Registra una observación para la condición «${etiquetaCondicion(condicion.codigo)}».`,
+            `La condición ${etiquetaCondicion(condicion.codigo)} requiere una observación.`,
           );
         }
       }
@@ -863,7 +895,7 @@ export class DocumentosService {
       for (const condicion of dto.condicionesInstitucionales) {
         if (!condicion.cumple && !condicion.observacion?.trim()) {
           throw new BadRequestException(
-            `Registra una observación para la condición «${etiquetaCondicionInstitucional(condicion.codigo)}».`,
+            `La condición ${etiquetaCondicionInstitucional(condicion.codigo)} requiere una observación.`,
           );
         }
       }
@@ -923,6 +955,18 @@ export class DocumentosService {
 
     if (!estadoFinal) {
       throw new BadRequestException('El dictamen debe incluir un estado válido.');
+    }
+
+    if (
+      !transicionPermitida(
+        EstadoEvidencia.EnRevision,
+        estadoFinal,
+        guiaDocumento,
+      )
+    ) {
+      throw new BadRequestException(
+        `El dictamen no puede dejar la evidencia en ${estadoFinal} según su guía y su estado actual.`,
+      );
     }
 
 
@@ -988,12 +1032,20 @@ export class DocumentosService {
       totalCondicionesActual,
     );
 
+    // T-007.3c: clave `dictamen:{evidenciaId}:v{version}:{usuarioId}` (HU-006 sin cambio visible).
+    const plantillaDictamenCorreo = plantillaDictamen({
+      tipo,
+      mensaje,
+      evidenciaId: id,
+    });
     await this.notificacionesDespacho.notificar({
+      claveEvento: claveDictamen(id, evidencia.version ?? 1, evidencia.autorId),
       usuarioId: evidencia.autorId,
       mensaje,
       tipo,
-      asuntoCorreo: '[SIAC] Actualización de evidencia',
+      asuntoCorreo: ASUNTOS_CORREO_DICTAMEN[tipo] ?? plantillaDictamenCorreo.asunto,
       metadata: { evidenciaId: id },
+      plantilla: plantillaDictamenCorreo,
     });
 
     if (
@@ -1031,20 +1083,21 @@ export class DocumentosService {
     switch (estado) {
       case EstadoEvidencia.Cumple:
         return {
-          tipo: 'aprobacion',
+          tipo: 'dictamen_cumple',
           mensaje: `Tu evidencia "${nombre}" cumple todas las condiciones${textoPuntaje}.`,
         };
-      case EstadoEvidencia.ConObservaciones:
-        return {
-          tipo: 'observaciones',
-          mensaje: `Tu evidencia "${nombre}" quedó con observaciones${textoPuntaje}: ${detalle}`,
-        };
       case EstadoEvidencia.Validado:
-        return { tipo: 'aprobacion', mensaje: `Tu evidencia "${nombre}" fue aprobada.` };
-      default:
         return {
-          tipo: 'rechazo',
-          mensaje: `Tu evidencia "${nombre}" fue rechazada: ${detalle}`,
+          tipo: 'dictamen_validado',
+          mensaje: `Tu evidencia "${nombre}" fue aprobada.`,
+        };
+      case EstadoEvidencia.ConObservaciones:
+      default:
+        // `Rechazado` solo existe para evidencias legadas sin guía: el flujo G1-G4
+        // comunica siempre «Con observaciones» (decisión del PO, 13/10).
+        return {
+          tipo: 'dictamen_con_observaciones',
+          mensaje: `Tu evidencia "${nombre}" quedó con observaciones${textoPuntaje}: ${detalle}`,
         };
     }
   }

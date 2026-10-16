@@ -52,4 +52,33 @@ describe('reglas-carga-evidencia', () => {
     );
     expect(validarNuevaCargaEvidencia(CodigoDocumentoGuia.G1, reglas)).toMatch(/nueva versión/);
   });
+
+  /**
+   * Decisión CP-E2E-04 (cierre HU-006, 16/10): mientras exista una evidencia abierta de la
+   * misma guía (Borrador, EnRevision, ConObservaciones o Rechazado legado) no se crea otra;
+   * el flujo real es subir una nueva versión de la evidencia existente (PATCH …/archivo).
+   */
+  it.each([
+    EstadoEvidencia.Borrador,
+    EstadoEvidencia.EnRevision,
+    EstadoEvidencia.ConObservaciones,
+    EstadoEvidencia.Rechazado,
+  ])('CP-E2E-04: una segunda carga G1 con la primera en %s devuelve bloqueo', (estado) => {
+    const reglas = calcularReglasCargaGuias(
+      [CodigoDocumentoGuia.G1],
+      [{ codigoGuia: CodigoDocumentoGuia.G1, aceptado: false }],
+      [{ codigoGuia: CodigoDocumentoGuia.G1, estado }],
+    );
+    expect(reglas.guiasDisponiblesCarga).not.toContain(CodigoDocumentoGuia.G1);
+    expect(validarNuevaCargaEvidencia(CodigoDocumentoGuia.G1, reglas)).not.toBeNull();
+  });
+
+  it('CP-E2E-04: sin evidencia abierta, la carga G1 vuelve a estar disponible', () => {
+    const reglas = calcularReglasCargaGuias(
+      [CodigoDocumentoGuia.G1],
+      [{ codigoGuia: CodigoDocumentoGuia.G1, aceptado: false }],
+      [],
+    );
+    expect(validarNuevaCargaEvidencia(CodigoDocumentoGuia.G1, reglas)).toBeNull();
+  });
 });

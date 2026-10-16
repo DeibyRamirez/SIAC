@@ -6,6 +6,7 @@ import { NotificacionesController } from './notificaciones.controller';
 import { NotificacionesDestinatariosService } from './notificaciones-destinatarios.service';
 import { NotificacionesDespachoService } from './notificaciones-despacho.service';
 import { NotificacionesService } from './notificaciones.service';
+import { ProcesadorNotificacionesSalidaService } from './procesador-notificaciones-salida.service';
 
 @Module({
   imports: [CorreoModule, UsuariosModule],
@@ -15,6 +16,7 @@ import { NotificacionesService } from './notificaciones.service';
     NotificacionesDespachoService,
     NotificacionesDestinatariosService,
     NotificacionesAvanceService,
+    ProcesadorNotificacionesSalidaService,
   ],
   exports: [
     NotificacionesService,

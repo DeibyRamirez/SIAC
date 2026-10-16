@@ -18,9 +18,12 @@ import { NotificacionesDespachoService } from '../notificaciones/notificaciones-
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
+import { EstadoVigencia, Prisma, RolUsuario, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
+import { plantillaAnexoVenceManana } from '../correo/plantillas';
+import { mensajeAnexoVenceManana } from '../correo/plantillas/anexos';
+import { claveAnexoD1 } from '../notificaciones/claves-evento';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 
@@ -318,53 +321,136 @@ export class VigenciasService implements OnModuleInit {
 
 
 
-  // 06:00 en Colombia sin depender de la zona del servidor (Render corre en UTC si no se define TZ).
-  @Cron(CronExpression.EVERY_DAY_AT_6AM, { name: 'vigencias-diarias', timeZone: ZONA_HORARIA_SIAC })
-
-  async actualizarVigenciasDiarias() {
-
+  /**
+   * T-007.2: único cron diario, 06:00 en Colombia sin depender de la zona del servidor (Render
+   * corre en UTC si no se define TZ). `VIGENCIAS_CRON_ZONA` permite otra zona (America/Bogota por defecto).
+   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador activo) y
+   * transiciones de vigencia de registro de programas e institución.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_6AM, {
+    name: 'vigencias-diarias',
+    timeZone: process.env.VIGENCIAS_CRON_ZONA ?? ZONA_HORARIA_SIAC,
+  })
+  async actualizarVigenciasDiarias(): Promise<void> {
     this.logger.log('Ejecutando cron de vigencias...');
 
-
-
-    const anexos = await this.prisma.anexoVigencia.findMany();
-
-    // fechaVencimiento se guarda como fecha a medianoche UTC (fechaUtc); se compara el día
-    // calendario de mañana en la zona del servidor con ese día UTC, sin mezclar zonas horarias.
-    const manana = diaCalendarioLocal(1);
-
-
-
-    for (const anexo of anexos) {
-
-      // El estado se calcula al consultar (R-D 3e); el cron ya no reescribe la columna, así no choca
-      // con el CHECK de documento y evidencia en los anexos históricos.
-      const vencimiento = new Date(anexo.fechaVencimiento).toISOString().slice(0, 10);
-
-      if (vencimiento === manana) {
-
-        const mensaje = `El documento "${anexo.titulo}" vence mañana. Responsable: ${anexo.responsable}.`;
-
-        await this.enviarAlerta(anexo.responsable, mensaje, anexo.id);
-
-      }
-
-    }
-
-
-
+    await this.notificarAnexosQueVencenManana();
     await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
 
     this.logger.log('Cron de vigencias completado.');
-
   }
 
+  /** D-1: avisos de anexos que vencen mañana; la idempotencia la da `claveAnexoD1`. */
+  private async notificarAnexosQueVencenManana(): Promise<void> {
+    // fechaVencimiento se guarda como fecha a medianoche UTC (fechaUtc); se compara el día
+    // calendario de mañana en la zona del servidor con ese día UTC, sin mezclar zonas horarias.
+    const manana = diaCalendarioLocal(1);
+    const vencimientoManana = new Date(`${manana}T00:00:00.000Z`);
 
+    const anexos = await this.prisma.anexoVigencia.findMany({
+      // Solo vigentes (el estado vencido no recibe recordatorio) y no notificados (clave única).
+      where: {
+        fechaVencimiento: vencimientoManana,
+        estado: { not: EstadoVigencia.Vencido },
+      },
+      include: { programa: { select: { id: true, nombre: true } } },
+    });
+    if (anexos.length === 0) return;
 
-  private async enviarAlerta(responsable: string, mensaje: string, anexoId: string) {
-    await this.notificacionesDespacho.notificarVigencia(responsable, mensaje, { anexoId });
+    const administradores = await this.prisma.usuario.findMany({
+      where: { activo: true, rol: RolUsuario.Administrador },
+      select: { id: true },
+    });
+    const idsAdministradores = administradores.map((a) => a.id);
+
+    for (const anexo of anexos) {
+      await this.avisarAnexoD1(anexo, idsAdministradores);
+    }
   }
 
+  private async avisarAnexoD1(
+    anexo: {
+      id: string;
+      titulo: string;
+      fechaVencimiento: Date;
+      responsable: string;
+      programaId: string;
+    },
+    idsAdministradores: string[],
+  ): Promise<void> {
+    const fechaVencimientoIso = new Date(anexo.fechaVencimiento).toISOString();
+    const datos = {
+      titulo: anexo.titulo,
+      responsable: anexo.responsable,
+      fechaVencimientoIso,
+      programaId: anexo.programaId,
+      anexoId: anexo.id,
+    };
+    const mensaje = mensajeAnexoVenceManana(datos);
+    const plantilla = plantillaAnexoVenceManana(datos);
+    const metadata = {
+      anexoId: anexo.id,
+      programaId: anexo.programaId,
+      fechaVencimiento: fechaVencimientoIso,
+    };
+
+    const correoResponsable = anexo.responsable.includes('@')
+      ? anexo.responsable.trim().toLowerCase()
+      : null;
+    const usuarioResponsable = correoResponsable
+      ? await this.prisma.usuario.findUnique({
+          where: { correo: correoResponsable },
+          select: { id: true },
+        })
+      : null;
+
+    if (usuarioResponsable) {
+      await this.notificacionesDespacho.notificar({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: usuarioResponsable.id,
+        }),
+        usuarioId: usuarioResponsable.id,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    } else if (correoResponsable) {
+      // Responsable sin cuenta: solo correo, con la misma clave idempotente por destinatario.
+      await this.notificacionesDespacho.encolarCorreoExterno({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: `externo:${correoResponsable}`,
+        }),
+        destinatarioCorreo: correoResponsable,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    }
+
+    for (const adminId of idsAdministradores) {
+      await this.notificacionesDespacho.notificar({
+        claveEvento: claveAnexoD1({
+          anexoId: anexo.id,
+          fechaVencimientoIso,
+          usuarioId: adminId,
+        }),
+        usuarioId: adminId,
+        mensaje,
+        tipo: 'anexo_vence_manana',
+        asuntoCorreo: plantilla.asunto,
+        metadata,
+        plantilla,
+      });
+    }
+  }
 }
 
 /** Día calendario AAAA-MM-DD en la zona del servidor, desplazado desplazamientoDias. */

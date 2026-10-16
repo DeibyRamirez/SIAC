@@ -318,6 +318,13 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-10-16 — S3-HU007: vigencias y alertas al 100 % (frontend)
+
+- [Frontend] `lib/utilidades/vigencia-registro.ts`: umbrales PO (aviso 24 / rojo 18), `Vencido` distinto de `Rojo`, demo de 5 min (`DURACION_DEMO_VIGENCIA_MS=300_000`) y `hayDemoVigenciaEnCurso()` para el polling.
+- [Frontend] Etiquetas: «Vencido» y «Por vencer» en `etiquetas-semaforo.ts`; `SemaforoVigencia` incluye `Vencido`; barra, celda y panel de paquetes muestran el estado vencido por separado.
+- [Frontend] Demo acelerada: botón «Iniciar prueba de vigencia (5 min)», barra con semáforo del servidor (`GET /programas/:id/vigencia` → `obtenerVigenciaProgramaApi`) y polling de 5 s en barra y campana; `accion-notificacion`/`etiqueta-notificacion` reconocen `vigencia_roja` y `anexo_vence_manana`.
+- [Tests] Vitest 24 archivos / 107 tests; `tsc --noEmit` 0 y `next build` OK.
+
 ### 2026-10-15 — Bandeja revisor con búsqueda HU-008
 
 - [Frontend] `/revisor/bandeja` reutiliza `ContenidoBusquedaEvidencias` (mismos filtros que administrador); alcance por programas asignados vía `GET /busqueda`; por defecto `estado=EnRevision`; detalle sigue en `/revisor/bandeja/:id`.

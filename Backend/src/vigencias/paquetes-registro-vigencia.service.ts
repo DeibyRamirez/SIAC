@@ -49,7 +49,8 @@ export class PaquetesRegistroVigenciaService {
 
   async listar(programaId?: string): Promise<PaqueteVigenciaRegistro[]> {
     const referencia = new Date();
-    const umbrales = this.configuracion.obtener();
+    // T-007.3a: relee umbrales de BD en cada consulta (cambiar mesesRojoVigencia no exige redeploy).
+    const umbrales = await this.configuracion.cargar();
     const paquetes: PaqueteVigenciaRegistro[] = [];
 
     const programas = await this.prisma.programa.findMany({
@@ -265,18 +266,4 @@ export function calcularPorcentajeVigencia(
   const ms = referencia.getTime() - fechaResolucion.getTime();
   const anios = Math.max(0, ms / MS_POR_ANIO);
   return Math.min(100, Math.round((anios / aniosVigencia) * 100));
-}
-
-export function calcularReferenciaDemoVigencia(
-  fechaResolucion: Date,
-  inicioDemoMs: number,
-  ahoraMs: number,
-  duracionPruebaSeg: number,
-  aniosVigencia: number,
-): Date {
-  const fin = calcularFechaFinVigencia(fechaResolucion, aniosVigencia);
-  const duracionVigenciaMs = fin.getTime() - fechaResolucion.getTime();
-  const transcurridoSeg = Math.max(0, (ahoraMs - inicioDemoMs) / 1000);
-  const fraccion = Math.min(1, transcurridoSeg / duracionPruebaSeg);
-  return new Date(fechaResolucion.getTime() + duracionVigenciaMs * fraccion);
 }

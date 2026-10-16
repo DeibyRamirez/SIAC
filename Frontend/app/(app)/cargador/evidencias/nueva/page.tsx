@@ -26,6 +26,10 @@ import {
 } from '@/lib/servicios/progreso-programa.servicio'
 import { ErrorApi, apiDisponible } from '@/lib/servicios/cliente-api'
 import { enviarRevisionApi } from '@/lib/servicios/evidencias.servicio'
+import {
+  TAMANO_MAXIMO_EVIDENCIA_MB,
+  validarTamanoEvidencia,
+} from '@/lib/constantes/documentos'
 import type { CodigoDocumentoGuia, Programa } from '@/lib/tipos'
 import { programasElegiblesParaCargaEvidencia } from '@/lib/utilidades/filtro-programas-vigencias'
 import { extraerMetadatosDocx } from '@/lib/utilidades/extraer-metadatos-docx'
@@ -357,8 +361,9 @@ function ContenidoNuevaEvidencia() {
       setError('Solo se permiten documentos Word (.docx).')
       return false
     }
-    if (archivo.size > 25 * 1024 * 1024) {
-      setError('El archivo supera el tamaño máximo permitido (25 MB).')
+    const errorTamano = validarTamanoEvidencia(archivo.size)
+    if (errorTamano) {
+      setError(errorTamano)
       return false
     }
     return true
@@ -507,7 +512,7 @@ function ContenidoNuevaEvidencia() {
                     deshabilitado={extrayendo}
                   />
                   <span className="text-xs text-muted-foreground">
-                    Solo Word (.docx) · máximo 25 MB
+                    Solo Word (.docx) · máximo {TAMANO_MAXIMO_EVIDENCIA_MB} MB
                     {extrayendo ? ' · Analizando documento…' : ''}
                   </span>
                 </div>

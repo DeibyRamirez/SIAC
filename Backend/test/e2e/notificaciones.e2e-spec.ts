@@ -130,7 +130,7 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
       .expect(201);
 
     const tiposCargador = await listarTipos(tokenCargador);
-    expect(tiposCargador).toContain('observaciones');
+    expect(tiposCargador).toContain('dictamen_con_observaciones');
 
     const tiposAdmin = await listarTipos(tokenAdmin);
     const tiposPar = await listarTipos(tokenPar);
@@ -144,7 +144,7 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
     expect(avanceBd?.metadata).toMatchObject({ programaId, umbral: 'amarillo' });
   });
 
-  it('vigencia: el cron D-1 crea alerta para el responsable registrado', async () => {
+  it('anexo D-1: el cron crea alerta para el responsable registrado y no duplica al reejecutar', async () => {
     await request(servidor())
       .post('/api/v1/vigencias/con-archivo')
       .set('Authorization', `Bearer ${tokenAdmin}`)
@@ -166,13 +166,31 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
       .expect(201);
 
     const tiposAdmin = await listarTipos(tokenAdmin);
-    expect(tiposAdmin).toContain('vigencia');
+    expect(tiposAdmin).toContain('anexo_vence_manana');
 
     const vigenciaBd = await ctx.prisma.alertaInApp.findFirst({
-      where: { usuarioId: adminId, tipo: 'vigencia' },
+      where: { usuarioId: adminId, tipo: 'anexo_vence_manana' },
       orderBy: { createdAt: 'desc' },
     });
     expect(vigenciaBd?.mensaje).toMatch(/vence mañana/i);
+
+    // CA2: reejecutar el cron el mismo día no duplica alertas ni filas de outbox (clave única).
+    const alertasAntes = await ctx.prisma.alertaInApp.count({
+      where: { tipo: 'anexo_vence_manana' },
+    });
+    const salidaAntes = await ctx.prisma.notificacionSalida.count({
+      where: { tipo: 'anexo_vence_manana' },
+    });
+    await request(servidor())
+      .post('/api/v1/vigencias/ejecutar-cron')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .expect(201);
+    expect(await ctx.prisma.alertaInApp.count({ where: { tipo: 'anexo_vence_manana' } })).toBe(
+      alertasAntes,
+    );
+    expect(
+      await ctx.prisma.notificacionSalida.count({ where: { tipo: 'anexo_vence_manana' } }),
+    ).toBe(salidaAntes);
   });
 
   it('vigencia registro: resolución vencida notifica vigencia_vencida al administrador', async () => {

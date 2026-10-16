@@ -1,3 +1,5 @@
+import { validarConfiguracionCorreo } from '../../correo/validar-configuracion-correo';
+
 /**
  * Configuración del servidor HTTP para despliegue (Render) y desarrollo local.
  * Render inyecta `PORT`; en local se mantiene `PUERTO` (por defecto 3001).
@@ -77,6 +79,35 @@ export function validarEntornoProduccion(
   }
   if (entorno.TZ !== 'America/Bogota') {
     advertencias.push('TZ distinto de America/Bogota: defina TZ=America/Bogota para fechas y logs locales.');
+  }
+
+  // HU-007 §0: la demo acelerada de vigencias no arranca en producción salvo la bandera de staging.
+  const modoPrueba = entorno.VIGENCIA_MODO_PRUEBA === 'true' || entorno.VIGENCIA_MODO_PRUEBA === '1';
+  if (modoPrueba && entorno.VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION !== 'true') {
+    errores.push(
+      'VIGENCIA_MODO_PRUEBA activo con NODE_ENV=production (solo staging con VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true).',
+    );
+  }
+
+  // T-007.3f: el canal de correo explícito exige sus variables (misma regla que CorreoModule al arrancar).
+  const canal = (entorno.CORREO_CANAL ?? '').trim().toLowerCase();
+  if (canal === 'smtp' || canal === 'resend') {
+    try {
+      validarConfiguracionCorreo(canal, {
+        smtpHost: entorno.SMTP_HOST,
+        resendApiKey: entorno.RESEND_API_KEY,
+        correoDesde: entorno.CORREO_DESDE,
+        correoRemitente: entorno.CORREO_REMITENTE,
+        smtpFrom: entorno.SMTP_FROM,
+      });
+    } catch (error) {
+      errores.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  if (entorno.CORREO_DESTINATARIOS_PERMITIDOS?.trim()) {
+    advertencias.push(
+      'CORREO_DESTINATARIOS_PERMITIDOS se ignora en producción: los correos llegan a todos los destinatarios reales.',
+    );
   }
   return { errores, advertencias };
 }

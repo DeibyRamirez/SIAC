@@ -1,128 +1,185 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { CorreoService } from '../correo/correo.service';
+import { PlantillaCorreo } from '../correo/plantillas';
 import { construirPlantillaCorreoNotificacion } from '../correo/plantillas-notificacion';
-import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
-import { NotificacionesService } from './notificaciones.service';
+import { PrismaService } from '../prisma/prisma.module';
 
-export interface PayloadNotificacion {
+export interface EventoNotificacion {
+  /** T-007.3c: clave idempotente del evento (misma para AlertaInApp y NotificacionSalida). */
+  claveEvento: string;
   usuarioId: string;
   mensaje: string;
   tipo: string;
   asuntoCorreo?: string;
   metadata?: Prisma.InputJsonValue;
+  /** Plantilla específica (T-007.3h); si falta se usa la genérica por tipo. */
+  plantilla?: PlantillaCorreo;
 }
 
+export interface EventoCorreoExterno {
+  claveEvento: string;
+  /** Responsable sin cuenta en SIAC: solo se encola el correo. */
+  destinatarioCorreo: string;
+  mensaje: string;
+  tipo: string;
+  asuntoCorreo?: string;
+  metadata?: Prisma.InputJsonValue;
+  plantilla?: PlantillaCorreo;
+}
+
+interface PayloadCorreo {
+  mensaje: string;
+  asunto: string;
+  textoPlano: string;
+  textoHtml: string;
+  metadata?: unknown;
+}
+
+/**
+ * T-007.3c (C-4): el despacho crea la alerta in-app y la fila de outbox dentro de la misma
+ * transacción que el evento de negocio (o una propia si no se recibe `tx`). El correo ya no se
+ * envía dentro de la petición: lo procesa `ProcesadorNotificacionesSalidaService` con reintentos.
+ * La deduplicación es por `claveEvento` único, no por búsquedas sobre `metadata`.
+ */
 @Injectable()
 export class NotificacionesDespachoService {
   private readonly logger = new Logger(NotificacionesDespachoService.name);
 
-  constructor(
-    private readonly notificaciones: NotificacionesService,
-    private readonly usuarios: UsuarioRepositorio,
-    private readonly correo: CorreoService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async notificar(payload: PayloadNotificacion): Promise<void> {
-    await this.notificaciones.crear(
-      payload.usuarioId,
-      payload.mensaje,
-      payload.tipo,
-      payload.metadata,
-    );
-
-    const usuario = await this.usuarios.buscarPorId(payload.usuarioId);
-    if (!usuario?.correo) return;
-
-    const plantilla = construirPlantillaCorreoNotificacion(
-      payload.tipo,
-      payload.mensaje,
-      payload.asuntoCorreo,
-      payload.metadata as Record<string, unknown> | undefined,
-    );
+  /** Crea alerta in-app + outbox para un usuario (idempotente por `claveEvento`). */
+  async notificar(
+    evento: EventoNotificacion,
+    tx?: Prisma.TransactionClient,
+  ): Promise<{ creada: boolean }> {
+    if (tx) return this.notificarEnTransaccion(tx, evento);
     try {
-      await this.correo.enviar({
-        destinatario: usuario.correo,
-        asunto: plantilla.asunto,
-        textoPlano: plantilla.textoPlano,
-        textoHtml: plantilla.textoHtml,
-      });
-    } catch (error) {
-      this.logger.error(
-        `No se pudo enviar correo a ${usuario.correo} (${payload.tipo}): ${error}`,
+      return await this.prisma.$transaction((cliente) =>
+        this.notificarEnTransaccion(cliente, evento),
       );
+    } catch (error) {
+      if (esClaveDuplicada(error)) {
+        this.logger.warn(`Evento ya notificado (clave ${evento.claveEvento}); se omite.`);
+        return { creada: false };
+      }
+      throw error;
     }
   }
 
-  async notificarVarios(
-    usuarioIds: string[],
-    mensaje: string,
-    tipo: string,
-    opciones?: { asuntoCorreo?: string; metadata?: Prisma.InputJsonValue },
-  ): Promise<void> {
-    const unicos = [...new Set(usuarioIds)];
-    for (const usuarioId of unicos) {
-      await this.notificar({
-        usuarioId,
-        mensaje,
-        tipo,
-        asuntoCorreo: opciones?.asuntoCorreo,
-        metadata: opciones?.metadata,
-      });
-    }
-  }
+  /** Variante para usar dentro de una transacción de negocio ya abierta. */
+  async notificarEnTransaccion(
+    cliente: Prisma.TransactionClient,
+    evento: EventoNotificacion,
+  ): Promise<{ creada: boolean }> {
+    const yaExiste = await this.existeEvento(cliente, evento.claveEvento);
+    if (yaExiste) return { creada: false };
 
-  /** Vigencia: in-app si hay usuario; correo si el responsable incluye @. */
-  async notificarVigencia(
-    responsable: string,
-    mensaje: string,
-    metadata?: Prisma.InputJsonValue,
-  ): Promise<void> {
-    const correo = responsable.includes('@')
-      ? responsable.trim().toLowerCase()
-      : null;
+    const usuario = await cliente.usuario.findUnique({
+      where: { id: evento.usuarioId },
+      select: { correo: true },
+    });
 
+    await cliente.alertaInApp.create({
+      data: {
+        usuarioId: evento.usuarioId,
+        mensaje: evento.mensaje,
+        tipo: evento.tipo,
+        metadata: evento.metadata,
+        claveEvento: evento.claveEvento,
+      },
+    });
+
+    const correo = usuario?.correo?.trim().toLowerCase();
     if (correo) {
-      const usuario = await this.usuarios.buscarPorCorreo(correo);
-      if (usuario) {
-        await this.notificar({
-          usuarioId: usuario.id,
-          mensaje,
-          tipo: 'vigencia',
-          asuntoCorreo: '[SIAC] Alerta de vencimiento',
-          metadata,
-        });
-        return;
-      }
-
-      try {
-        const plantilla = construirPlantillaCorreoNotificacion(
-          'vigencia',
-          mensaje,
-          '[SIAC] Alerta de vencimiento',
-          metadata as Record<string, unknown> | undefined,
-        );
-        await this.correo.enviar({
-          destinatario: correo,
-          asunto: plantilla.asunto,
-          textoPlano: plantilla.textoPlano,
-          textoHtml: plantilla.textoHtml,
-        });
-      } catch (error) {
-        this.logger.error(`Correo vigencia a ${correo}: ${error}`);
-      }
-      return;
-    }
-
-    const usuario = await this.usuarios.buscarPorCorreo(responsable.trim().toLowerCase());
-    if (usuario) {
-      await this.notificar({
-        usuarioId: usuario.id,
-        mensaje,
-        tipo: 'vigencia',
-        asuntoCorreo: '[SIAC] Alerta de vencimiento',
-        metadata,
+      await cliente.notificacionSalida.create({
+        data: {
+          claveEvento: evento.claveEvento,
+          usuarioId: evento.usuarioId,
+          destinatarioCorreo: correo,
+          canal: 'correo',
+          tipo: evento.tipo,
+          payload: this.payloadCorreo(evento) as unknown as Prisma.InputJsonValue,
+        },
       });
     }
+    return { creada: true };
   }
+
+  /** Responsable externo (correo sin cuenta): encola solo la fila de outbox, idempotente. */
+  async encolarCorreoExterno(
+    evento: EventoCorreoExterno,
+    tx?: Prisma.TransactionClient,
+  ): Promise<{ creada: boolean }> {
+    const ejecutar = async (cliente: Prisma.TransactionClient) => {
+      const yaExiste = await cliente.notificacionSalida.findUnique({
+        where: { claveEvento: evento.claveEvento },
+      });
+      if (yaExiste) return { creada: false };
+      await cliente.notificacionSalida.create({
+        data: {
+          claveEvento: evento.claveEvento,
+          usuarioId: null,
+          destinatarioCorreo: evento.destinatarioCorreo.trim().toLowerCase(),
+          canal: 'correo',
+          tipo: evento.tipo,
+          payload: this.payloadCorreo(evento) as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return { creada: true };
+    };
+    if (tx) return ejecutar(tx);
+    try {
+      return await this.prisma.$transaction(ejecutar);
+    } catch (error) {
+      if (esClaveDuplicada(error)) return { creada: false };
+      throw error;
+    }
+  }
+
+  private async existeEvento(cliente: Prisma.TransactionClient, claveEvento: string) {
+    const alerta = await cliente.alertaInApp.findUnique({ where: { claveEvento } });
+    if (alerta) return true;
+    const salida = await cliente.notificacionSalida.findUnique({ where: { claveEvento } });
+    return Boolean(salida);
+  }
+
+  private payloadCorreo(evento: {
+    mensaje: string;
+    tipo: string;
+    asuntoCorreo?: string;
+    metadata?: Prisma.InputJsonValue;
+    plantilla?: PlantillaCorreo;
+  }): PayloadCorreo {
+    const plantilla = normalizarPlantilla(
+      evento.plantilla ??
+        construirPlantillaCorreoNotificacion(
+          evento.tipo,
+          evento.mensaje,
+          evento.asuntoCorreo,
+          evento.metadata as Record<string, unknown> | undefined,
+        ),
+    );
+    return {
+      mensaje: evento.mensaje,
+      asunto: plantilla.asunto,
+      textoPlano: plantilla.textoPlano,
+      textoHtml: plantilla.textoHtml,
+      metadata: evento.metadata ?? null,
+    };
+  }
+}
+
+function normalizarPlantilla(
+  plantilla: PlantillaCorreo | { asunto: string; textoPlano: string; textoHtml: string },
+): { asunto: string; textoPlano: string; textoHtml: string } {
+  if ('texto' in plantilla) {
+    return { asunto: plantilla.asunto, textoPlano: plantilla.texto, textoHtml: plantilla.html };
+  }
+  return plantilla;
+}
+
+function esClaveDuplicada(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+  );
 }

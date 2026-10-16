@@ -1,6 +1,6 @@
 import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
-import { UMBRALES_SEMAFORO_DEFECTO } from '../dominio/panel-siac';
-import { PaquetesRegistroVigenciaService, calcularReferenciaDemoVigencia } from './paquetes-registro-vigencia.service';
+import { UMBRALES_SEMAFORO_DEFECTO, calcularReferenciaDemoVigencia } from '../dominio/panel-siac';
+import { PaquetesRegistroVigenciaService } from './paquetes-registro-vigencia.service';
 
 describe('PaquetesRegistroVigenciaService', () => {
   const fechaResolucion = new Date('2020-01-01T00:00:00.000Z');
@@ -14,6 +14,7 @@ describe('PaquetesRegistroVigenciaService', () => {
 
   const configuracion = {
     obtener: jest.fn(() => UMBRALES_SEMAFORO_DEFECTO),
+    cargar: jest.fn(async () => UMBRALES_SEMAFORO_DEFECTO),
   };
 
   const servicio = new PaquetesRegistroVigenciaService(prisma as never, configuracion as never);
@@ -68,20 +69,20 @@ describe('PaquetesRegistroVigenciaService', () => {
     expect(['Amarillo', 'Rojo']).toContain(lista[0].semaforoVigencia);
   });
 
-  it('demo 7 min: referencia avanza hacia el fin de vigencia', () => {
+  it('demo 300 s (§0): la referencia avanza hacia el fin de vigencia', () => {
     const inicio = Date.now();
     const referenciaMitad = calcularReferenciaDemoVigencia(
       fechaResolucion,
       inicio,
-      inicio + 210_000,
-      420,
+      inicio + 150_000,
+      300,
       7,
     );
     const referenciaFin = calcularReferenciaDemoVigencia(
       fechaResolucion,
       inicio,
-      inicio + 420_000,
-      420,
+      inicio + 300_000,
+      300,
       7,
     );
     expect(referenciaMitad.getTime()).toBeGreaterThan(fechaResolucion.getTime());

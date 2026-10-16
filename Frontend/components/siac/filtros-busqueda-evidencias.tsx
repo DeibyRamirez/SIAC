@@ -38,7 +38,6 @@ const filtrosEstado = [
   { valor: 'ConObservaciones', etiqueta: 'Con observaciones' },
   { valor: 'Cumple', etiqueta: 'Cumple' },
   { valor: 'Validado', etiqueta: 'Validados' },
-  { valor: 'Rechazado', etiqueta: 'Rechazados' },
 ]
 
 const opcionesFormato = [

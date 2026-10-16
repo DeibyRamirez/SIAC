@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 
@@ -23,11 +24,20 @@ import {
   textoBadgeNotificaciones,
 } from '@/lib/utilidades/accion-notificacion'
 import { etiquetaTipoNotificacion } from '@/lib/utilidades/etiqueta-notificacion'
+import { hayDemoVigenciaEnCurso } from '@/lib/utilidades/vigencia-registro'
 
 export function CampanaNotificaciones() {
   const router = useRouter()
   const { sesion } = usarSesion()
   const { datos, marcarAlertaLeida, marcarTodasAlertasLeidas, recargarAlertas } = usarAlmacen()
+
+  // §0: en modo prueba (demo acelerada), la campana refresca cada 5 s para seguir el semáforo.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (hayDemoVigenciaEnCurso()) void recargarAlertas()
+    }, 5_000)
+    return () => window.clearInterval(id)
+  }, [recargarAlertas])
 
   const alertasPendientes = datos.alertas.filter((alerta) => !alerta.leida)
   const contador = contadorBadgeNotificaciones(alertasPendientes.length)

@@ -22,8 +22,8 @@ export type EstadoVigencia = 'Vigente' | 'Proximo' | 'Vencido'
 export type NivelPrograma = 'Pregrado' | 'Posgrado'
 
 export type SemaforoPrograma = 'Verde' | 'Amarillo' | 'Rojo'
-/** Semáforo de vigencia: «SinVigencia» (gris) cuando no hay resolución MEN registrada. */
-export type SemaforoVigencia = SemaforoPrograma | 'SinVigencia'
+/** Semáforo de vigencia: «SinVigencia» (gris) sin resolución MEN; «Vencido» es distinto de «Rojo». */
+export type SemaforoVigencia = SemaforoPrograma | 'Vencido' | 'SinVigencia'
 
 export type TipoEtapaAcreditacion =
   | 'PreRadicacion'
@@ -148,6 +148,13 @@ export interface EstadoDemoVigencia {
   semaforoVigencia: SemaforoVigencia
   segundosRestantes: number
   fraccion: number
+}
+
+/** §0: respuesta de GET /programas/:id/vigencia (modo prueba con escala acelerada). */
+export interface VigenciaPrograma {
+  semaforo: SemaforoVigencia
+  segundosRestantes: number
+  modoPrueba: boolean
 }
 
 /** Categoría explícita del anexo; RN-003 solo considera «Infraestructura». */

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { plantillaAvanceUmbral } from '../correo/plantillas';
 import { PrismaService } from '../prisma/prisma.module';
+import { claveAvance } from './claves-evento';
 import { NotificacionesDespachoService } from './notificaciones-despacho.service';
 import { NotificacionesDestinatariosService } from './notificaciones-destinatarios.service';
 
@@ -37,8 +39,6 @@ export class NotificacionesAvanceService {
 
     for (const { clave, minimo } of umbrales) {
       if (avanceAnterior >= minimo || avanceNuevo < minimo) continue;
-      const yaNotificado = await this.existeAlertaReciente(programaId, clave);
-      if (yaNotificado) continue;
 
       const mensaje = `El programa "${programa.nombre}" alcanzó ${avanceNuevo.toFixed(1)}% de avance (umbral ${clave}: ${minimo}%).`;
       const metadata: Prisma.InputJsonValue = {
@@ -46,31 +46,27 @@ export class NotificacionesAvanceService {
         umbral: clave,
         avance: avanceNuevo,
       };
-
-      const destinatarios = await this.destinatarios.idsAdministradoresYPar();
-      await this.despacho.notificarVarios(destinatarios, mensaje, 'avance', {
-        asuntoCorreo: '[SIAC] Avance de programa',
-        metadata,
+      const plantilla = plantillaAvanceUmbral({
+        nombrePrograma: programa.nombre,
+        avance: avanceNuevo,
+        umbral: clave,
+        minimo,
+        programaId,
       });
+
+      // T-007.3c: la idempotencia la da la clave única del evento (ya no hay dedup por metadata).
+      const destinatarios = [...new Set(await this.destinatarios.idsAdministradoresYPar())];
+      for (const usuarioId of destinatarios) {
+        await this.despacho.notificar({
+          claveEvento: claveAvance(programaId, clave, usuarioId),
+          usuarioId,
+          mensaje,
+          tipo: 'avance',
+          asuntoCorreo: plantilla.asunto,
+          metadata,
+          plantilla,
+        });
+      }
     }
-  }
-
-  private async existeAlertaReciente(
-    programaId: string,
-    umbral: UmbralAvance,
-  ): Promise<boolean> {
-    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recientes = await this.prisma.alertaInApp.findMany({
-      where: {
-        tipo: 'avance',
-        createdAt: { gte: hace24h },
-      },
-      select: { metadata: true },
-    });
-
-    return recientes.some((fila) => {
-      const meta = fila.metadata as { programaId?: string; umbral?: string } | null;
-      return meta?.programaId === programaId && meta?.umbral === umbral;
-    });
   }
 }

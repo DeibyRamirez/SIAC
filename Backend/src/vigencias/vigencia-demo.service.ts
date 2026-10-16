@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
-import { calcularSemaforoVigencia, ColorSemaforoVigencia } from '../dominio/panel-siac';
-import { PrismaService } from '../prisma/prisma.module';
 import {
-  AlcancePaqueteVigencia,
   calcularReferenciaDemoVigencia,
-} from './paquetes-registro-vigencia.service';
+  calcularSegundosRestantesVigencia,
+  calcularSemaforoVigencia,
+  ColorSemaforoVigencia,
+  EscalaDemoVigencia,
+} from '../dominio/panel-siac';
+import { PrismaService } from '../prisma/prisma.module';
+import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
 
 export interface SesionDemoVigencia {
   alcance: AlcancePaqueteVigencia;
@@ -20,6 +23,12 @@ export interface EstadoDemoVigencia {
   semaforoVigencia: ColorSemaforoVigencia;
   segundosRestantes: number;
   fraccion: number;
+}
+
+export interface VigenciaEntidad {
+  semaforo: ColorSemaforoVigencia;
+  segundosRestantes: number;
+  modoPrueba: boolean;
 }
 
 @Injectable()
@@ -37,11 +46,19 @@ export class VigenciaDemoService {
   }
 
   duracionPruebaSeg(): number {
-    return this.config.get<number>('vigenciaDuracionPruebaSeg') ?? 420;
+    return this.config.get<number>('vigenciaDuracionPruebaSeg') ?? 300;
   }
 
   intervaloPruebaSeg(): number {
     return this.config.get<number>('vigenciaIntervaloPruebaSeg') ?? 10;
+  }
+
+  /** Escala de la demo activa (§0): amarillo 5/7 ≈ 214 s, rojo 5,5/7 ≈ 236 s, vencido 300 s. */
+  escalaSesion(sesion: SesionDemoVigencia): EscalaDemoVigencia {
+    return {
+      inicioMs: sesion.inicioAtMs,
+      duracionMs: this.duracionPruebaSeg() * 1000,
+    };
   }
 
   private clave(alcance: AlcancePaqueteVigencia, entidadId: string): string {
@@ -77,7 +94,7 @@ export class VigenciaDemoService {
     alcance: AlcancePaqueteVigencia,
     entidadId: string,
   ): Promise<EstadoDemoVigencia> {
-    const umbrales = this.configuracion.obtener();
+    const umbrales = await this.configuracion.cargar();
     const sesion = this.obtenerSesion(alcance, entidadId);
     const fechaResolucion = await this.obtenerFechaResolucion(alcance, entidadId);
     if (!fechaResolucion) {
@@ -97,17 +114,14 @@ export class VigenciaDemoService {
     const transcurrido = Math.max(0, ahora - inicio);
     const fraccion = activa ? Math.min(1, transcurrido / duracionMs) : 0;
     const segundosRestantes = activa ? Math.max(0, Math.ceil((duracionMs - transcurrido) / 1000)) : 0;
-    const referencia = activa
-      ? calcularReferenciaDemoVigencia(
-          fechaResolucion,
-          inicio,
-          ahora,
-          this.duracionPruebaSeg(),
-          umbrales.aniosVigencia,
-        )
-      : new Date();
+    const referencia = new Date(ahora);
 
-    const semaforoVigencia = calcularSemaforoVigencia(fechaResolucion, referencia, umbrales);
+    const semaforoVigencia = calcularSemaforoVigencia(
+      fechaResolucion,
+      referencia,
+      umbrales,
+      sesion ? this.escalaSesion(sesion) : undefined,
+    );
 
     return {
       modoPrueba: this.modoPruebaActivo(),
@@ -115,6 +129,32 @@ export class VigenciaDemoService {
       semaforoVigencia,
       segundosRestantes,
       fraccion,
+    };
+  }
+
+  /**
+   * §0: vigencia de una entidad para `GET /programas/:id/vigencia`. En modo prueba con sesión
+   * activa usa la escala acelerada; fuera de la demo, el reloj real.
+   */
+  async consultarVigenciaEntidad(
+    alcance: AlcancePaqueteVigencia,
+    entidadId: string,
+  ): Promise<VigenciaEntidad> {
+    const umbrales = await this.configuracion.cargar();
+    const fechaResolucion = await this.obtenerFechaResolucion(alcance, entidadId);
+    const ahora = new Date();
+    const sesion = this.obtenerSesion(alcance, entidadId);
+    const escala = sesion ? this.escalaSesion(sesion) : undefined;
+
+    return {
+      semaforo: calcularSemaforoVigencia(fechaResolucion, ahora, umbrales, escala),
+      segundosRestantes: calcularSegundosRestantesVigencia(
+        fechaResolucion,
+        ahora,
+        umbrales,
+        escala,
+      ),
+      modoPrueba: this.modoPruebaActivo(),
     };
   }
 

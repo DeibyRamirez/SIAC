@@ -1,6 +1,7 @@
 import { RolUsuario, TipoTramiteSIAC } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
+import type { Response } from 'supertest';
 import {
   ContextoE2E,
   USUARIOS_SEMILLA,
@@ -10,6 +11,16 @@ import {
 } from '../utilidades/app-e2e';
 import { asignarPrograma, crearPrograma, crearUsuarioE2E } from '../utilidades/datos-e2e';
 import { MIME_DOCX, crearDocxE2E } from '../utilidades/docx-e2e';
+
+/** supertest debe devolver el .docx como Buffer, sin decodificarlo como texto. */
+function parserBinario(
+  respuesta: Response,
+  callback: (error: Error | null, cuerpo: Buffer) => void,
+): void {
+  const fragmentos: Buffer[] = [];
+  respuesta.on('data', (fragmento: Buffer) => fragmentos.push(fragmento));
+  respuesta.on('end', () => callback(null, Buffer.concat(fragmentos)));
+}
 
 const CONDICIONES_G1 = [
   'Denominacion',
@@ -33,6 +44,7 @@ describe('Flujo de carga y panel (CP-E2E-01 a CP-E2E-05)', () => {
   let tokenRevisor: string;
   let tokenAdmin: string;
   let tokenRevisorAjeno: string;
+  let cargadorId: string;
   let derechoId: string;
   let evidenciaG1Id: string;
 
@@ -45,6 +57,7 @@ describe('Flujo de carga y panel (CP-E2E-01 a CP-E2E-05)', () => {
     const cargador = await iniciarSesion(ctx.app, 'Cargador');
     const revisor = await iniciarSesion(ctx.app, 'Revisor');
     tokenCargador = cargador.token;
+    cargadorId = cargador.usuarioId;
     tokenRevisor = revisor.token;
     tokenAdmin = (await iniciarSesion(ctx.app, 'Administrador')).token;
 
@@ -73,12 +86,17 @@ describe('Flujo de carga y panel (CP-E2E-01 a CP-E2E-05)', () => {
     }
   });
 
-  function subirG1(nombreArchivo: string, buffer: Buffer, tipo = MIME_DOCX) {
+  function subirG1(
+    nombreArchivo: string,
+    buffer: Buffer,
+    tipo = MIME_DOCX,
+    programaId = derechoId,
+  ) {
     return request(servidor())
       .post('/api/v1/evidencias')
       .set('Authorization', `Bearer ${tokenCargador}`)
       .field('nombre', 'Documento maestro Derecho')
-      .field('programaId', derechoId)
+      .field('programaId', programaId)
       .field('periodo', '2026-2')
       .field('codigoGuia', 'G1')
       .attach('archivo', buffer, { filename: nombreArchivo, contentType: tipo });
@@ -134,15 +152,59 @@ describe('Flujo de carga y panel (CP-E2E-01 a CP-E2E-05)', () => {
       .expect(403);
   });
 
-  it('CP-E2E-04: el Administrador no ve un borrador nunca enviado', async () => {
-    const { body: borrador } = await subirG1('Borrador Derecho.docx', await crearDocxE2E('Borrador')).expect(201);
+  it('CP-E2E-04: el Administrador no ve un borrador nunca enviado y no se crea otra G1 con una abierta', async () => {
+    // Decisión CP-E2E-04 (regla de 740c16c): con la G1 de CP-E2E-01 en «ConObservaciones»
+    // no se permite crear otra evidencia G1; el flujo real es subir una nueva versión.
+    const { body: bloqueo } = await subirG1('Otra G1 Derecho.docx', await crearDocxE2E('Otra G1')).expect(409);
+    expect(JSON.stringify(bloqueo)).toMatch(/nueva versión/i);
 
-    const { body: lista } = await request(servidor())
+    // Tras el dictamen, la v1 exige la firma SIAC (documentos.service.ts): en vez de fabricar un
+    // .docx nuevo, se descarga la versión firmada desde la API y se sube ese mismo buffer.
+    const descarga = await request(servidor())
+      .get(`/api/v1/evidencias/${evidenciaG1Id}/contenido?version=1`)
+      .set('Authorization', `Bearer ${tokenCargador}`)
+      .buffer(true)
+      .parse(parserBinario)
+      .expect(200);
+
+    const { body: versionDos } = await request(servidor())
+      .patch(`/api/v1/evidencias/${evidenciaG1Id}/archivo`)
+      .set('Authorization', `Bearer ${tokenCargador}`)
+      .attach('archivo', descarga.body as Buffer, {
+        filename: 'Documento maestro Derecho.docx',
+        contentType: MIME_DOCX,
+      })
+      .expect(200);
+    expect(versionDos.version).toBe(2);
+
+    const { body: listaDerecho } = await request(servidor())
       .get(`/api/v1/evidencias?programaId=${derechoId}`)
       .set('Authorization', `Bearer ${tokenAdmin}`)
       .expect(200);
+    const idsDerecho = (listaDerecho.datos ?? listaDerecho).map((e: { id: string }) => e.id);
+    expect(idsDerecho).toContain(evidenciaG1Id);
+
+    // Borrador nunca enviado: programa nuevo, sin evidencias previas de la guía.
+    const laboralId = (
+      await crearPrograma(ctx.prisma, {
+        nombre: 'Derecho Laboral',
+        slug: 'derecho-laboral',
+        tipoTramiteActivo: TipoTramiteSIAC.RegistroCalificadoNuevo,
+      })
+    ).id;
+    await asignarPrograma(ctx.prisma, cargadorId, laboralId);
+    const { body: borrador } = await subirG1(
+      'Borrador Derecho Laboral.docx',
+      await crearDocxE2E('Borrador'),
+      MIME_DOCX,
+      laboralId,
+    ).expect(201);
+
+    const { body: lista } = await request(servidor())
+      .get(`/api/v1/evidencias?programaId=${laboralId}`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .expect(200);
     const ids = (lista.datos ?? lista).map((e: { id: string }) => e.id);
-    expect(ids).toContain(evidenciaG1Id);
     expect(ids).not.toContain(borrador.id);
 
     const detalle = await request(servidor())

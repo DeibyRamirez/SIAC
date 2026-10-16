@@ -125,11 +125,11 @@ describe('Resolución MEN (POST /programas/:id/resolucion y /institucion/resoluc
       await cargar(`/programas/${programaId}/resolucion`, pdfValido, { fechaResolucion: '2026-12-01' }).expect(400);
     });
 
-    it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Amarillo el 06/10/2026 (respuesta y panel)', async () => {
+    it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Rojo el 06/10/2026 (umbrales PO 24/18)', async () => {
       const { body } = await cargar(`/programas/${programaId}/resolucion`, pdfValido).expect(201);
       expect(body.numero).toBe('012345');
       expect(body.fechaFinVigencia.slice(0, 10)).toBe('2027-03-01');
-      expect(body.semaforoVigencia).toBe('Amarillo');
+      expect(body.semaforoVigencia).toBe('Rojo');
 
       const evidencia = await ctx.prisma.evidencia.findUniqueOrThrow({ where: { id: body.evidenciaId } });
       expect(evidencia.tipoEvidencia).toBe('ResolucionMen');
@@ -143,7 +143,7 @@ describe('Resolución MEN (POST /programas/:id/resolucion y /institucion/resoluc
       const fila = panel.datos.find((p: { id: string }) => p.id === programaId);
       expect(fila.fechaResolucion.slice(0, 10)).toBe('2020-03-01');
       expect(fila.fechaFinVigencia.slice(0, 10)).toBe('2027-03-01');
-      expect(fila.semaforoVigencia).toBe('Amarillo');
+      expect(fila.semaforoVigencia).toBe('Rojo');
     });
 
     it('la ruta antigua «activar-vigencia» ya no existe', async () => {

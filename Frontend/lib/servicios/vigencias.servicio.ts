@@ -1,9 +1,19 @@
 import { peticionApi } from '@/lib/servicios/cliente-api'
-import type { AlcancePaqueteVigencia, EstadoDemoVigencia, PaqueteVigenciaRegistro } from '@/lib/tipos'
+import type {
+  AlcancePaqueteVigencia,
+  EstadoDemoVigencia,
+  PaqueteVigenciaRegistro,
+  VigenciaPrograma,
+} from '@/lib/tipos'
 
 export async function listarPaquetesRegistroVigenciaApi(programaId?: string) {
   const query = programaId ? `?programaId=${encodeURIComponent(programaId)}` : ''
   return peticionApi<PaqueteVigenciaRegistro[]>(`/vigencias/paquetes-registro${query}`)
+}
+
+/** §0: vigencia de un programa con escala demo si la sesión está activa (polling 5 s en modo prueba). */
+export async function obtenerVigenciaProgramaApi(programaId: string) {
+  return peticionApi<VigenciaPrograma>(`/programas/${encodeURIComponent(programaId)}/vigencia`)
 }
 
 export async function iniciarDemoVigenciaApi(entidadId: string, alcance: AlcancePaqueteVigencia) {

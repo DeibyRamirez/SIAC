@@ -16,7 +16,8 @@ const nextConfig = {
   },
   experimental: {
     // Respaldo de R-008.4a: si alguna ruta con cuerpo vuelve a pasar por proxy.ts,
-    // Next no debe truncar cargas por debajo del máximo que anuncia la UI (25 MB).
+    // Next no debe truncar cargas por debajo del máximo que anuncia la UI (20 MB);
+    // el margen extra absorbe el overhead de multipart.
     proxyClientMaxBodySize: '25mb',
   },
   async headers() {

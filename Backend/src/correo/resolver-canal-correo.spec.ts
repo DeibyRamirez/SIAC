@@ -12,14 +12,21 @@ describe('resolverCanalCorreo', () => {
     expect(
       resolverCanalCorreo(configMock({ CORREO_CANAL: 'smtp', SMTP_HOST: 'x' })),
     ).toBe('smtp');
+    expect(
+      resolverCanalCorreo(configMock({ CORREO_CANAL: 'resend', RESEND_API_KEY: 're_1' })),
+    ).toBe('resend');
+    expect(resolverCanalCorreo(configMock({ correoCanal: 'ninguno' }))).toBe('ninguno');
   });
 
-  it('infiere resend si hay API key', () => {
-    expect(resolverCanalCorreo(configMock({ RESEND_API_KEY: 're_123' }))).toBe('resend');
+  it('sin CORREO_CANAL no deduce el canal aunque haya credenciales (→ ninguno)', () => {
+    expect(
+      resolverCanalCorreo(configMock({ RESEND_API_KEY: 're_123', SMTP_HOST: 'mail.local' })),
+    ).toBe('ninguno');
   });
 
-  it('infiere smtp si hay host', () => {
-    expect(resolverCanalCorreo(configMock({ SMTP_HOST: 'mail.local' }))).toBe('smtp');
+  it('valor desconocido o vacío → ninguno', () => {
+    expect(resolverCanalCorreo(configMock({ CORREO_CANAL: 'otro' }))).toBe('ninguno');
+    expect(resolverCanalCorreo(configMock({ CORREO_CANAL: '  ' }))).toBe('ninguno');
   });
 
   it('devuelve ninguno sin configuración', () => {

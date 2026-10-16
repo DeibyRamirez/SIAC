@@ -18,7 +18,7 @@ import {
 
 function semaforoAEstadoVigencia(semaforo: SemaforoVigencia): EstadoVigencia {
   if (semaforo === 'Amarillo') return 'Proximo'
-  if (semaforo === 'Rojo') return 'Vencido'
+  if (semaforo === 'Rojo' || semaforo === 'Vencido') return 'Vencido'
   return 'Vigente'
 }
 
@@ -33,12 +33,15 @@ interface BarraVigenciaRegistroDemoProps {
   fechaResolucion: string
   nombreEntidad: string
   inicioDemoMs: number
+  /** Semáforo que reporta el servidor (GET /programas/:id/vigencia); si falta se calcula local. */
+  semaforoServidor?: SemaforoVigencia
 }
 
 export function BarraVigenciaRegistroDemo({
   fechaResolucion,
   nombreEntidad,
   inicioDemoMs,
+  semaforoServidor,
 }: BarraVigenciaRegistroDemoProps) {
   const [ahora, setAhora] = useState(() => Date.now())
 
@@ -49,7 +52,8 @@ export function BarraVigenciaRegistroDemo({
 
   const referencia = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemoMs, ahora)
   const porcentaje = calcularPorcentajeVigencia(fechaResolucion, referencia)
-  const semaforo = calcularSemaforoVigencia(fechaResolucion, referencia)
+  const semaforoLocal = calcularSemaforoVigencia(fechaResolucion, referencia)
+  const semaforo = semaforoServidor ?? semaforoLocal
   const estadoBarra = semaforoAEstadoVigencia(semaforo)
   const etiqueta = etiquetaAniosVigencia(fechaResolucion, referencia)
   const alerta = mensajeAlertaVigencia(fechaResolucion, nombreEntidad, referencia)
@@ -71,7 +75,7 @@ export function BarraVigenciaRegistroDemo({
           <FlaskConical className="mt-0.5 size-4 shrink-0 text-cyan-tecnico" aria-hidden />
           <div>
             <p className="text-sm font-semibold text-primary">
-              Simulación de prueba (7 minutos = 7 años)
+              Simulación de prueba (5 minutos = 7 años)
             </p>
             <p className="text-xs text-muted-foreground">
               No modifica la base de datos ni el cron de vigencias. Referencia simulada:{' '}
@@ -85,7 +89,11 @@ export function BarraVigenciaRegistroDemo({
               ? 'Prueba finalizada'
               : `Tiempo demo: ${formatearTiempoRestante(msRestante)} · ${Math.round(fraccion * 100)}%`}
           </span>
-          <Semaforo valor={semaforo === 'SinVigencia' ? 'Verde' : semaforo} contexto="vigenciaRegistro" etiqueta="Simulación" />
+          <Semaforo
+            valor={semaforo === 'SinVigencia' ? 'SinVigencia' : semaforo}
+            contexto="vigenciaRegistro"
+            etiqueta="Simulación"
+          />
         </div>
       </div>
 
@@ -103,7 +111,7 @@ export function BarraVigenciaRegistroDemo({
       {alerta ? (
         <div
           className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
-            semaforo === 'Rojo'
+            semaforo === 'Rojo' || semaforo === 'Vencido'
               ? 'border-fucsia/40 bg-fucsia/10 text-fucsia'
               : 'border-ocre/40 bg-ocre/10 text-ocre'
           }`}

@@ -70,7 +70,7 @@ async function main() {
     });
   }
 
-  // T-010.2: umbrales vigentes del semáforo (la migración ya inserta la fila; esto la asegura).
+  // T-010.2/T-007.3a: umbrales vigentes del semáforo (la migración ya inserta la fila; esto la asegura).
   await prisma.configuracionSIAC.upsert({
     where: { id: 'global' },
     update: {},
@@ -79,7 +79,8 @@ async function main() {
       avanceMinimoVerde: 100,
       avanceMinimoAmarillo: 55,
       aniosVigencia: 7,
-      mesesAvisoVigencia: 12,
+      mesesAvisoVigencia: 24,
+      mesesRojoVigencia: 18,
     },
   });
 

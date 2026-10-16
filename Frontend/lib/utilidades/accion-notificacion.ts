@@ -22,6 +22,9 @@ export function resolverAccionNotificacion(
       if (!evidenciaId || rol !== 'Revisor') return null
       return { href: `/revisor/bandeja/${evidenciaId}`, etiqueta: 'Revisar evidencia' }
     }
+    case 'dictamen_validado':
+    case 'dictamen_cumple':
+    case 'dictamen_con_observaciones':
     case 'aprobacion':
     case 'observaciones':
     case 'rechazo': {
@@ -39,7 +42,9 @@ export function resolverAccionNotificacion(
     }
     case 'vigencia':
     case 'vigencia_amarilla':
+    case 'vigencia_roja':
     case 'vigencia_vencida':
+    case 'anexo_vence_manana':
       if (rol === 'Administrador' || rol === 'SuperAdmin' || rol === 'Revisor') {
         const programaId = idValido(meta.programaId)
         return {

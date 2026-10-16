@@ -19,9 +19,6 @@ import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   listarEvidenciasApi,
   crearEvidenciaApi,
-  dictaminarEvidenciaApi,
-  type CondicionDictamenPayload,
-  type PuntajeVerificacion,
 } from '@/lib/servicios/evidencias.servicio'
 import {
   crearPlantillaApi,
@@ -60,10 +57,12 @@ interface ContextoAlmacen {
   eliminarEvidencia: (id: string) => void
   dictaminarEvidencia: (
     id: string,
-    estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
-    observaciones?: string,
-    condiciones?: CondicionDictamenPayload[],
-    puntaje?: PuntajeVerificacion,
+    resultado: {
+      estado: Extract<EstadoEvidencia, 'Cumple' | 'ConObservaciones' | 'Validado' | 'Rechazado'>
+      observaciones?: string
+      puntajeActual?: number | null
+      totalCondicionesActual?: number | null
+    },
   ) => void
   crearPlantilla: (
     plantilla: Omit<Plantilla, 'id'>,
@@ -304,46 +303,37 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     [persistir],
   )
 
+  /**
+   * §5.4: solo actualiza el estado local. La petición POST /evidencias/:id/dictamen
+   * la hace la página del revisor (`dictaminarEvidenciaApi`) una sola vez.
+   */
   const dictaminarEvidencia = useCallback(
-    async (
+    (
       id: string,
-      estado: Exclude<EstadoEvidencia, 'Borrador' | 'EnRevision'>,
-      observaciones?: string,
-      condiciones?: CondicionDictamenPayload[],
-      puntaje?: PuntajeVerificacion,
+      resultado: {
+        estado: Extract<EstadoEvidencia, 'Cumple' | 'ConObservaciones' | 'Validado' | 'Rechazado'>
+        observaciones?: string
+        puntajeActual?: number | null
+        totalCondicionesActual?: number | null
+      },
     ) => {
-      if (apiDisponible()) {
-        try {
-          await dictaminarEvidenciaApi(id, {
-            estado:
-              condiciones?.length || (estado !== 'Validado' && estado !== 'Rechazado')
-                ? undefined
-                : estado,
-            observaciones,
-            condiciones,
-          })
-          await recargarAlertas()
-        } catch {
-          // Continúa con actualización local
-        }
-      }
       persistir((prev) => ({
         ...prev,
         evidencias: prev.evidencias.map((e) =>
           e.id === id
             ? {
                 ...e,
-                estado,
-                observaciones: observaciones ?? e.observaciones,
-                puntajeActual: puntaje?.puntajeActual ?? e.puntajeActual,
+                estado: resultado.estado,
+                observaciones: resultado.observaciones ?? e.observaciones,
+                puntajeActual: resultado.puntajeActual ?? e.puntajeActual,
                 totalCondicionesActual:
-                  puntaje?.totalCondicionesActual ?? e.totalCondicionesActual,
+                  resultado.totalCondicionesActual ?? e.totalCondicionesActual,
               }
             : e,
         ),
       }))
     },
-    [persistir, recargarAlertas],
+    [persistir],
   )
 
   const crearPlantilla = useCallback(

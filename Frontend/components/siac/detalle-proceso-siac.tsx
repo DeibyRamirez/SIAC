@@ -36,9 +36,10 @@ import {
   detenerDemoVigenciaApi,
   iniciarDemoVigenciaApi,
   obtenerEstadoDemoVigenciaApi,
+  obtenerVigenciaProgramaApi,
 } from '@/lib/servicios/vigencias.servicio'
 import type { AlcancePaqueteVigencia } from '@/lib/tipos'
-import type { NivelPrograma, Programa, SemaforoPrograma } from '@/lib/tipos'
+import type { NivelPrograma, Programa, SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 import {
   CATALOGO_TRAMITES_SIAC,
   type TipoTramiteSIAC,
@@ -128,6 +129,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   const [guardando, setGuardando] = useState(false)
   const [demoVigenciaActiva, setDemoVigenciaActiva] = useState(false)
   const [inicioDemoVigenciaMs, setInicioDemoVigenciaMs] = useState<number | null>(null)
+  const [semaforoServidor, setSemaforoServidor] = useState<SemaforoVigencia | null>(null)
 
   const tramitesPrograma = CATALOGO_TRAMITES_SIAC.filter((item) => item.alcance === 'Programa')
   const tramitesInstitucion = CATALOGO_TRAMITES_SIAC.filter(
@@ -184,7 +186,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     if (!programa?.fechaResolucion) return
     const alerta = mensajeAlertaVigencia(programa.fechaResolucion, programa.nombre)
     const semaforo = calcularSemaforoVigencia(programa.fechaResolucion)
-    if (alerta && (semaforo === 'Amarillo' || semaforo === 'Rojo')) {
+    if (alerta && (semaforo === 'Amarillo' || semaforo === 'Rojo' || semaforo === 'Vencido')) {
       toast.warning(alerta, { id: `vigencia-${idResolucion}` })
     }
   }, [programa?.fechaResolucion, programa?.nombre, idResolucion])
@@ -201,6 +203,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     }
     setInicioDemoVigenciaMs(ahora)
     setDemoVigenciaActiva(true)
+    setSemaforoServidor(null)
     if (apiDisponible() && idEntidadDemo) {
       try {
         const respuesta = await iniciarDemoVigenciaApi(idEntidadDemo, alcanceDemo)
@@ -220,6 +223,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     }
     setDemoVigenciaActiva(false)
     setInicioDemoVigenciaMs(null)
+    setSemaforoServidor(null)
     if (apiDisponible() && idEntidadDemo) {
       try {
         await detenerDemoVigenciaApi(idEntidadDemo, alcanceDemo)
@@ -262,11 +266,23 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
 
   useEffect(() => {
     if (!demoVigenciaActiva || !idEntidadDemo || !apiDisponible()) return
-    const id = window.setInterval(() => {
-      void obtenerEstadoDemoVigenciaApi(idEntidadDemo, alcanceDemo).then(() => {
-        void recargarAlertas()
-      })
-    }, 10_000)
+    const consultar = async () => {
+      try {
+        const estado = await obtenerEstadoDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+        if (alcanceDemo === 'Programa') {
+          const vigencia = await obtenerVigenciaProgramaApi(idEntidadDemo)
+          setSemaforoServidor(vigencia.semaforo)
+        } else {
+          setSemaforoServidor(estado.semaforoVigencia)
+        }
+        await recargarAlertas()
+      } catch {
+        /* se reintenta en el siguiente ciclo */
+      }
+    }
+    void consultar()
+    // §0: barra y campana con polling de 5 s en modo prueba.
+    const id = window.setInterval(() => void consultar(), 5_000)
     return () => window.clearInterval(id)
   }, [alcanceDemo, demoVigenciaActiva, idEntidadDemo, recargarAlertas])
 
@@ -311,7 +327,9 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     puedeAdministrar &&
     !esInstitucion &&
     vigenciaActiva &&
-    (semaforoVigencia === 'Amarillo' || semaforoVigencia === 'Rojo')
+    (semaforoVigencia === 'Amarillo' ||
+      semaforoVigencia === 'Rojo' ||
+      semaforoVigencia === 'Vencido')
   const avanceMostrado = progreso.avanceGlobal
 
   return (
@@ -348,7 +366,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         <div className="flex flex-wrap items-center gap-2">
           {!demoVigenciaActiva ? (
             <Button type="button" variant="outline" size="sm" onClick={iniciarDemoVigencia}>
-              Iniciar prueba de vigencia (7 min)
+              Iniciar prueba de vigencia (5 min)
             </Button>
           ) : (
             <Button type="button" variant="outline" size="sm" onClick={detenerDemoVigencia}>
@@ -366,6 +384,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
           fechaResolucion={programa.fechaResolucion}
           nombreEntidad={programa.nombre}
           inicioDemoMs={inicioDemoVigenciaMs}
+          semaforoServidor={semaforoServidor ?? undefined}
         />
       ) : null}
 

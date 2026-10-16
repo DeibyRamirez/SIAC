@@ -365,7 +365,7 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
     expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
       expect.objectContaining({
         usuarioId: 'car',
-        tipo: 'observaciones',
+        tipo: 'dictamen_con_observaciones',
         mensaje: expect.stringContaining('(5/9)'),
       }),
     );
@@ -404,7 +404,7 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
       expect(notificacionesDespacho.notificar).toHaveBeenCalledWith(
         expect.objectContaining({
           usuarioId: 'car',
-          tipo: 'observaciones',
+          tipo: 'dictamen_con_observaciones',
           mensaje: expect.stringContaining('plan de mejoramiento'),
         }),
       );
@@ -490,7 +490,29 @@ describe('DocumentosService dictamen con checklist (regla n/9, HU-003)', () => {
 
     await expect(
       servicio.dictaminar('ev-1', { condiciones }, revisor),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toThrow(/La condición .* requiere una observación\./);
+    expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('exige observación también en las condiciones institucionales (G3)', async () => {
+    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(CodigoDocumentoGuia.G3));
+    const condiciones = condicionesInstitucionales(5).map((c) => ({
+      ...c,
+      observacion: undefined,
+    }));
+
+    await expect(
+      servicio.dictaminar('ev-1', { condicionesInstitucionales: condiciones }, revisor),
+    ).rejects.toThrow(/La condición .* requiere una observación\./);
+    expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('una evidencia legada sin guía no acepta condiciones', async () => {
+    evidenciaRepo.buscarPorId.mockResolvedValue(evidenciaEnRevision(null));
+
+    await expect(
+      servicio.dictaminar('ev-1', { condiciones: condicionesPrograma(9) }, revisor),
+    ).rejects.toThrow(/no se evalúa por condiciones/);
     expect(evidenciaRepo.actualizar).not.toHaveBeenCalled();
   });
 

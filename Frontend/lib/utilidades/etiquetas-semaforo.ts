@@ -9,7 +9,8 @@ const ETIQUETAS_VIGENCIA_REGISTRO: Record<SemaforoVigencia, string> = {
   SinVigencia: 'Sin vigencia',
   Verde: 'Vigente',
   Amarillo: 'Próximo a vencer',
-  Rojo: 'Vencida',
+  Rojo: 'Por vencer',
+  Vencido: 'Vencido',
 }
 
 const ETIQUETAS_AVANCE_PROGRAMA: Record<SemaforoPrograma, string> = {
@@ -31,6 +32,7 @@ const NOMBRE_COLOR_ARIA: Record<ValorSemaforoUi, string> = {
   Verde: 'verde',
   Amarillo: 'ámbar',
   Rojo: 'rojo',
+  Vencido: 'rojo',
   Gris: 'gris',
 }
 
@@ -38,6 +40,7 @@ export const CLASES_PUNTO_SEMAFORO: Record<ValorSemaforoUi, string> = {
   Verde: 'bg-esmeralda',
   Amarillo: 'bg-ocre',
   Rojo: 'bg-fucsia',
+  Vencido: 'bg-fucsia',
   SinVigencia: 'bg-muted-foreground/40',
   Gris: 'bg-muted-foreground/40',
 }

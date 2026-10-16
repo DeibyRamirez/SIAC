@@ -31,6 +31,7 @@ import { Roles, RolesGuard } from '../common/guards/roles.guard';
 import { AlcancePrograma } from '../common/alcance/alcance-programa.decorator';
 import { GuardAlcancePrograma } from '../common/alcance/guard-alcance-programa';
 import { UsuarioAlcance } from '../common/alcance/servicio-alcance-programa';
+import { VigenciaDemoService } from '../vigencias/vigencia-demo.service';
 
 @Controller('programas')
 @UseGuards(AuthGuard('jwt'), RolesGuard, GuardAlcancePrograma)
@@ -40,6 +41,7 @@ export class ProgramasController {
     private readonly avanceProcesoService: AvanceProcesoSIACService,
     private readonly panelProgramasService: PanelProgramasService,
     private readonly resolucionMen: ResolucionMenService,
+    private readonly vigenciaDemo: VigenciaDemoService,
   ) {}
 
   @Get()
@@ -107,6 +109,13 @@ export class ProgramasController {
   @AlcancePrograma({ parametroPrograma: 'id', modo: 'lectura' })
   progreso(@Param('id') id: string) {
     return this.avanceProcesoService.calcularProgresoPrograma(id);
+  }
+
+  /** §0: semáforo de vigencia del programa (con escala demo si hay sesión activa). */
+  @Get(':id/vigencia')
+  @AlcancePrograma({ parametroPrograma: 'id', modo: 'lectura' })
+  vigencia(@Param('id') id: string) {
+    return this.vigenciaDemo.consultarVigenciaEntidad('Programa', id);
   }
 
   @Get(':id')

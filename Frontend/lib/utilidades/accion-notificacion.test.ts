@@ -17,7 +17,14 @@ describe('resolverAccionNotificacion', () => {
   })
 
   it('dictamen lleva al cargador a su evidencia', () => {
-    for (const tipo of ['aprobacion', 'observaciones', 'rechazo'] as const) {
+    for (const tipo of [
+      'dictamen_validado',
+      'dictamen_cumple',
+      'dictamen_con_observaciones',
+      'aprobacion',
+      'observaciones',
+      'rechazo',
+    ] as const) {
       expect(resolverAccionNotificacion(tipo, { evidenciaId: 'ev-2' }, 'Cargador')).toEqual({
         href: '/cargador/evidencias/ev-2',
         etiqueta: 'Ver mi evidencia',
@@ -44,6 +51,15 @@ describe('resolverAccionNotificacion', () => {
       etiqueta: 'Ver vigencias',
     })
     expect(resolverAccionNotificacion('vigencia', { anexoId: 'an-1' }, 'Cargador')).toBeNull()
+  })
+
+  it('vigencia_roja y anexo_vence_manana (T-007) también llevan a vigencias', () => {
+    expect(
+      resolverAccionNotificacion('vigencia_roja', { programaId: 'prog-1' }, 'Administrador'),
+    ).toEqual({ href: '/administrador/vigencias?programaId=prog-1', etiqueta: 'Ver vigencias' })
+    expect(
+      resolverAccionNotificacion('anexo_vence_manana', { anexoId: 'an-1' }, 'SuperAdmin'),
+    ).toEqual({ href: '/administrador/vigencias', etiqueta: 'Ver vigencias' })
   })
 
   it('sin metadata válida no navega', () => {

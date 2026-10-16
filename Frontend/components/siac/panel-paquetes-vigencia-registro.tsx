@@ -23,7 +23,7 @@ import { formatearFecha } from '@/lib/utilidades-siac'
 
 function semaforoAEstadoAnexo(semaforo: SemaforoVigencia): 'Vigente' | 'Proximo' | 'Vencido' {
   if (semaforo === 'Amarillo') return 'Proximo'
-  if (semaforo === 'Rojo') return 'Vencido'
+  if (semaforo === 'Rojo' || semaforo === 'Vencido') return 'Vencido'
   return 'Vigente'
 }
 
@@ -46,7 +46,9 @@ export function PanelPaquetesVigenciaRegistro({
   const resumen = {
     Vigente: lista.filter((p) => p.semaforoVigencia === 'Verde').length,
     Proximo: lista.filter((p) => p.semaforoVigencia === 'Amarillo').length,
-    Vencido: lista.filter((p) => p.semaforoVigencia === 'Rojo').length,
+    Vencido: lista.filter(
+      (p) => p.semaforoVigencia === 'Rojo' || p.semaforoVigencia === 'Vencido',
+    ).length,
   }
 
   const estilosTarjeta: Record<'Vigente' | 'Proximo' | 'Vencido', string> = {

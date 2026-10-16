@@ -38,7 +38,7 @@ export function BarraVigenciaRegistro({ fechaResolucion, nombreEntidad }: BarraV
       {alerta ? (
         <div
           className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
-            semaforo === 'Rojo'
+            semaforo === 'Rojo' || semaforo === 'Vencido'
               ? 'border-fucsia/40 bg-fucsia/10 text-fucsia'
               : 'border-ocre/40 bg-ocre/10 text-ocre'
           }`}

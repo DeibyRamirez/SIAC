@@ -3,16 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { Interval } from '@nestjs/schedule';
 import { RolUsuario } from '@prisma/client';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
-import { calcularSemaforoVigencia, UmbralesSemaforoVigencia } from '../dominio/panel-siac';
+import { plantillaVigencia, UmbralVigenciaCorreo } from '../correo/plantillas';
+import { mensajeVigencia } from '../correo/plantillas/vigencia';
+import {
+  calcularHitosVigencia,
+  calcularReferenciaDemoVigencia,
+  calcularSemaforoVigencia,
+  UmbralesSemaforoVigencia,
+} from '../dominio/panel-siac';
+import { claveVigencia } from '../notificaciones/claves-evento';
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { PrismaService } from '../prisma/prisma.module';
-import {
-  AlcancePaqueteVigencia,
-  calcularReferenciaDemoVigencia,
-} from './paquetes-registro-vigencia.service';
+import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
 import { VigenciaDemoService } from './vigencia-demo.service';
-
-type UmbralVigenciaRegistro = 'amarillo' | 'vencido';
 
 @Injectable()
 export class EvaluadorVigenciaRegistroService implements OnModuleInit {
@@ -45,24 +48,45 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     );
   }
 
-  /** Evalúa vigencia de registro MEN (programas e institución) en la fecha de referencia. */
+  /**
+   * Evalúa vigencia de registro MEN (programas e institución) en la fecha de referencia.
+   * T-007.3a: relee los umbrales de BD en cada corrida (cambiar mesesRojoVigencia no exige redeploy).
+   * T-007.2: 1 aviso por destinatario (Administrador/SuperAdmin/Revisor activos) por transición.
+   */
   async evaluarTodasLasEntidades(referencia: Date = new Date()): Promise<void> {
-    const umbrales = this.configuracion.obtener();
+    const umbrales = await this.configuracion.cargar();
 
     const programas = await this.prisma.programa.findMany({
       where: { fechaResolucion: { not: null } },
-      select: { id: true, nombre: true, fechaResolucion: true },
+      select: {
+        id: true,
+        nombre: true,
+        fechaResolucion: true,
+        resoluciones: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true },
+        },
+      },
     });
     for (const programa of programas) {
       if (!programa.fechaResolucion) continue;
-      const ref = this.referenciaEntidad('Programa', programa.id, programa.fechaResolucion, umbrales);
-      if (!ref) continue;
+      const evaluacion = this.referenciaEntidad(
+        'Programa',
+        programa.id,
+        programa.fechaResolucion,
+        umbrales,
+        referencia,
+      );
+      if (!evaluacion) continue;
       await this.evaluarEntidad({
         alcance: 'Programa',
         entidadId: programa.id,
         nombre: programa.nombre,
         fechaResolucion: programa.fechaResolucion,
-        referencia: ref,
+        referencia: evaluacion.referencia,
+        tokenDemo: evaluacion.tokenDemo,
+        resolucionId: programa.resoluciones[0]?.id ?? programa.fechaResolucion.toISOString().slice(0, 10),
         umbrales,
         programaId: programa.id,
       });
@@ -70,22 +94,36 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
 
     const institucion = await this.prisma.institucion.findFirst({
       where: { fechaResolucion: { not: null } },
-      select: { id: true, nombre: true, fechaResolucion: true },
+      select: {
+        id: true,
+        nombre: true,
+        fechaResolucion: true,
+        resoluciones: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true },
+        },
+      },
     });
     if (institucion?.fechaResolucion) {
-      const ref = this.referenciaEntidad(
+      const evaluacion = this.referenciaEntidad(
         'Institucion',
         institucion.id,
         institucion.fechaResolucion,
         umbrales,
+        referencia,
       );
-      if (ref) {
+      if (evaluacion) {
         await this.evaluarEntidad({
           alcance: 'Institucion',
           entidadId: institucion.id,
           nombre: institucion.nombre,
           fechaResolucion: institucion.fechaResolucion,
-          referencia: ref,
+          referencia: evaluacion.referencia,
+          tokenDemo: evaluacion.tokenDemo,
+          resolucionId:
+            institucion.resoluciones[0]?.id ??
+            institucion.fechaResolucion.toISOString().slice(0, 10),
           umbrales,
         });
       }
@@ -97,19 +135,23 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     entidadId: string,
     fechaResolucion: Date,
     umbrales: UmbralesSemaforoVigencia,
-  ): Date | null {
+    ahora: Date,
+  ): { referencia: Date; tokenDemo?: string } | null {
     const sesion = this.demo.obtenerSesion(alcance, entidadId);
     if (this.demo.modoPruebaActivo()) {
       if (!sesion) return null;
-      return calcularReferenciaDemoVigencia(
-        fechaResolucion,
-        sesion.inicioAtMs,
-        Date.now(),
-        this.demo.duracionPruebaSeg(),
-        umbrales.aniosVigencia,
-      );
+      return {
+        referencia: calcularReferenciaDemoVigencia(
+          fechaResolucion,
+          sesion.inicioAtMs,
+          ahora.getTime(),
+          this.demo.duracionPruebaSeg(),
+          umbrales.aniosVigencia,
+        ),
+        tokenDemo: String(sesion.inicioAtMs),
+      };
     }
-    return new Date();
+    return { referencia: ahora };
   }
 
   private async evaluarEntidad(input: {
@@ -120,6 +162,8 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     referencia: Date;
     umbrales: UmbralesSemaforoVigencia;
     programaId?: string;
+    resolucionId: string;
+    tokenDemo?: string;
   }): Promise<void> {
     const semaforo = calcularSemaforoVigencia(
       input.fechaResolucion,
@@ -128,54 +172,56 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     );
     if (semaforo === 'Verde' || semaforo === 'SinVigencia') return;
 
-    const umbral: UmbralVigenciaRegistro = semaforo === 'Amarillo' ? 'amarillo' : 'vencido';
-    const tipo = umbral === 'amarillo' ? 'vigencia_amarilla' : 'vigencia_vencida';
-    const mensaje = this.mensajeNotificacion(umbral, input.nombre, input.umbrales.aniosVigencia);
-
+    const umbral: UmbralVigenciaCorreo =
+      semaforo === 'Amarillo' ? 'amarillo' : semaforo === 'Rojo' ? 'rojo' : 'vencido';
+    const tipo =
+      umbral === 'amarillo'
+        ? 'vigencia_amarilla'
+        : umbral === 'rojo'
+          ? 'vigencia_roja'
+          : 'vigencia_vencida';
+    const fechaFinIso = calcularHitosVigencia(
+      input.fechaResolucion,
+      input.umbrales,
+    ).fin.toISOString();
+    const datosPlantilla = {
+      nombreEntidad: input.nombre,
+      aniosVigencia: input.umbrales.aniosVigencia,
+      mesesAvisoVigencia: input.umbrales.mesesAvisoVigencia,
+      mesesRojoVigencia: input.umbrales.mesesRojoVigencia,
+      fechaFinIso,
+      ...(input.programaId ? { programaId: input.programaId } : {}),
+      ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
+    };
+    const mensaje = mensajeVigencia(datosPlantilla, umbral);
+    const plantilla = plantillaVigencia(umbral, datosPlantilla);
     const metadata = {
       umbral,
+      fechaFin: fechaFinIso,
+      aniosVigencia: input.umbrales.aniosVigencia,
       ...(input.programaId ? { programaId: input.programaId } : {}),
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
 
     const destinatarios = await this.obtenerDestinatarios(input.programaId);
     for (const usuarioId of destinatarios) {
-      const yaNotificado = await this.prisma.alertaInApp.findFirst({
-        where: {
-          usuarioId,
-          tipo,
-          AND: [
-            { metadata: { path: ['umbral'], equals: umbral } },
-            input.programaId
-              ? { metadata: { path: ['programaId'], equals: input.programaId } }
-              : { metadata: { path: ['institucionId'], equals: input.entidadId } },
-          ],
-        },
-      });
-      if (yaNotificado) continue;
-
       await this.notificacionesDespacho.notificar({
+        claveEvento: claveVigencia({
+          entidadId: input.entidadId,
+          resolucionId: input.resolucionId,
+          fechaFinIso,
+          umbral,
+          usuarioId,
+          tokenDemo: input.tokenDemo,
+        }),
         usuarioId,
         mensaje,
         tipo,
-        asuntoCorreo:
-          umbral === 'amarillo'
-            ? '[SIAC] Inicio de ventana de renovación'
-            : '[SIAC] Vigencia de registro vencida',
+        asuntoCorreo: plantilla.asunto,
         metadata,
+        plantilla,
       });
     }
-  }
-
-  private mensajeNotificacion(
-    umbral: UmbralVigenciaRegistro,
-    nombreEntidad: string,
-    aniosVigencia: number,
-  ): string {
-    if (umbral === 'amarillo') {
-      return `La vigencia de registro de ${nombreEntidad} entró en ventana de renovación (año 6 de ${aniosVigencia}). Inicie el proceso SIAC de renovación cuando corresponda.`;
-    }
-    return `La vigencia de registro de ${nombreEntidad} ha superado los ${aniosVigencia} años. Inicie el proceso de renovación.`;
   }
 
   private async obtenerDestinatarios(programaId?: string): Promise<string[]> {

@@ -2,12 +2,13 @@ import { ConfigService } from '@nestjs/config';
 
 export type CanalCorreo = 'resend' | 'smtp' | 'ninguno';
 
+/**
+ * T-007.3f: `CORREO_CANAL` explícito manda (`resend`/`smtp`/`ninguno`).
+ * Sin `CORREO_CANAL` definido el canal es `ninguno`: no se deduce por tener credenciales.
+ */
 export function resolverCanalCorreo(config: ConfigService): CanalCorreo {
-  const explicito = (config.get<string>('CORREO_CANAL') ?? '').trim().toLowerCase();
-  if (explicito === 'resend' || explicito === 'smtp' || explicito === 'ninguno') {
-    return explicito;
-  }
-  if (config.get<string>('RESEND_API_KEY')) return 'resend';
-  if (config.get<string>('SMTP_HOST')) return 'smtp';
-  return 'ninguno';
+  const explicito = (config.get<string>('correoCanal') ?? config.get<string>('CORREO_CANAL') ?? '')
+    .trim()
+    .toLowerCase();
+  return explicito === 'resend' || explicito === 'smtp' ? explicito : 'ninguno';
 }
