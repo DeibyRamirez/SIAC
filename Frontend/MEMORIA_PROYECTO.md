@@ -318,6 +318,15 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-10-15 — Bandeja revisor con búsqueda HU-008
+
+- [Frontend] `/revisor/bandeja` reutiliza `ContenidoBusquedaEvidencias` (mismos filtros que administrador); alcance por programas asignados vía `GET /busqueda`; por defecto `estado=EnRevision`; detalle sigue en `/revisor/bandeja/:id`.
+
+### 2026-10-15 — Flujo Cargador: programa primero y anti-duplicado de guías
+
+- [Frontend] `/cargador/evidencias/nueva`: paso 1 elige programa o trámite institucional; modalidad y alcance se fijan desde el progreso del trámite activo; el paso de guía solo muestra `guiasDisponiblesCarga` del API (bloqueos con motivo si G1 en revisión o falta predecesora G1→G2 / G3→G4).
+- [Backend] Reglas en `reglas-carga-evidencia` + `crearConArchivo` responde 409 si la guía no está disponible para nueva carga.
+
 ### 2026-10-12 — Fix S3-03: filtros reales del panel de cifras
 
 - [Frontend] `panel-cifras-categoria`: selects de Periodo/Facultad/Programa (y Sede en infraestructura) poblados desde `GET /cifras/:categoriaId/filtros` (datos persistidos, no catálogo); cambiar Facultad recarga programas y los resetea; valores de URL sin coincidencia se ignoran y limpian; estados «No hay datos para los filtros seleccionados» + «Limpiar filtros» vs «Aún no hay cifras cargadas» + Importar; tras importar se refrescan filtros y datos conservando la selección válida.

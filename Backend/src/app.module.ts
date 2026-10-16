@@ -20,8 +20,6 @@ import { IngestaModule } from './ingesta/ingesta.module';
 import { AcreditacionModule } from './acreditacion/acreditacion.module';
 import { MetricasModule } from './metricas/metricas.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
-import { CifrasModule } from './cifras/cifras.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuracionEnv] }),
@@ -44,7 +42,6 @@ import { CifrasModule } from './cifras/cifras.module';
     IngestaModule,
     AcreditacionModule,
     MetricasModule,
-    CifrasModule,
   ],
 })
 export class AppModule {}

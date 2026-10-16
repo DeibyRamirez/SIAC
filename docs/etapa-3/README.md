@@ -37,9 +37,8 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | GET | `/api/v1/notificaciones` | HU-006/007 |
 | PATCH | `/api/v1/notificaciones/:id/leida` | Alertas in-app |
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
-| GET | `/api/v1/cifras/categorias` | HU-009 (cifras) |
-| GET | `/api/v1/cifras/estudiantes?periodo=` | HU-009 (cifras estudiantes) |
-| GET | `/api/v1/powerbi/embed-token?categoriaId=estudiantes` | HU-009 |
+| GET/PUT | `/api/v1/powerbi/informes` | HU-009 (URLs públicas por categoría) |
+| GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido, T-009.2) |
 | CRUD | `/api/estructura/*` | Estructura normativa |
 
 ### Entorno de desarrollo (Postgres + correo)
@@ -61,20 +60,17 @@ POWERBI_TENANT_ID=
 POWERBI_WORKSPACE_ID=
 POWERBI_REPORT_ID_ESTUDIANTES=<id-del-informe>   # opcional
 
-# Demo sin Azure: iframe con informe publicado
-POWERBI_URL_PUBLICA_ESTUDIANTES=   # opcional, https://app.powerbi.com/view?r=...
 ```
 
-Sin `POWERBI_CLIENT_ID`, el backend devuelve `embedUrl` de vista pública y `fallback: true`. El frontend muestra el iframe; si el token falla o no hay URL, consume `GET /cifras/estudiantes` y renderiza Recharts.
+Sin `POWERBI_CLIENT_ID`, el modo embebido permanece simulado. En producción se usa **modo público**: iframe con URL de `ConfiguracionInformePowerBi` (panel admin en el dashboard). Los datos del informe vienen del Excel maestro refrescado en Power BI Service (ver ADR-009 y ADR-010).
 
-### Checklist manual — Dashboard Estudiantes
+### Checklist manual — Dashboard de métricas (Power BI)
 
-1. Iniciar sesión como **Administrador** o **SuperAdmin** (el Par académico está en pausa y el Revisor no tiene acceso).
-2. Ir a **Dashboard de métricas** → pestaña **Power BI** → tarjeta **Estudiantes**.
-3. Verificar iframe del informe (vista publicada en desarrollo).
-4. Pulsar **Simular token expirado** → deben aparecer KPIs y gráficos desde la API.
-5. **Reintentar carga del informe** → vuelve el iframe.
-6. Swagger: probar `GET /api/v1/cifras/estudiantes` con Bearer JWT.
+1. Iniciar sesión como **Administrador** o **SuperAdmin**.
+2. Ir a **Dashboard de métricas** → tarjetas de las 8 categorías.
+3. Verificar iframe cuando la URL está configurada en el panel de informes Power BI.
+4. Si falta URL o falla la carga, comprobar mensaje al administrador y botón **Reintentar** (sin gráficos nativos de respaldo).
+5. Swagger: `GET /api/v1/powerbi/informes` y `GET /api/v1/powerbi/informes/:categoriaId/url` con Bearer JWT.
 
 ## Casos de prueba (CP-01 a CP-04)
 

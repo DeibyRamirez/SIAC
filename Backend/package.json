@@ -23,7 +23,7 @@
     "prisma:seed": "ts-node prisma/semilla.ts",
     "prisma:studio": "prisma studio",
     "datos:limpiar-anexos-sin-documento": "ts-node prisma/scripts/limpiar-anexos-sin-documento.ts",
-    "datos:limpiar-cifras-prueba": "ts-node prisma/scripts/limpiar-cifras-prueba.ts"
+    "demo:semaforo-vigencia": "ts-node scripts/demo-semaforo-vigencia.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",

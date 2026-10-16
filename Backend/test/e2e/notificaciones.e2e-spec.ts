@@ -174,4 +174,22 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
     });
     expect(vigenciaBd?.mensaje).toMatch(/vence mañana/i);
   });
+
+  it('vigencia registro: resolución vencida notifica vigencia_vencida al administrador', async () => {
+    await ctx.prisma.programa.update({
+      where: { id: programaId },
+      data: { fechaResolucion: new Date('2015-01-01T00:00:00.000Z') },
+    });
+
+    await request(servidor())
+      .post('/api/v1/vigencias/ejecutar-cron')
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .expect(201);
+
+    const alerta = await ctx.prisma.alertaInApp.findFirst({
+      where: { usuarioId: adminId, tipo: 'vigencia_vencida' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(alerta?.mensaje).toMatch(/superado los 7 años/i);
+  });
 });

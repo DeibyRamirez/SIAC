@@ -43,6 +43,14 @@ describe('Búsqueda de evidencias contra PostgreSQL (HU-008)', () => {
 
     const derecho = await crearPrograma(ctx.prisma, { nombre: 'Derecho', slug: 'derecho' });
     const medicina = await crearPrograma(ctx.prisma, { nombre: 'Medicina', slug: 'medicina' });
+    const software = await crearPrograma(ctx.prisma, {
+      nombre: 'Ingeniería de Software y Computación',
+      slug: 'ingenieria-software',
+    });
+    const administracion = await crearPrograma(ctx.prisma, {
+      nombre: 'Administración de Empresas',
+      slug: 'administracion-empresas',
+    });
     await asignarPrograma(ctx.prisma, cargador.usuarioId, derecho.id);
     await asignarPrograma(ctx.prisma, revisor.usuarioId, derecho.id);
     const otroCargador = await crearUsuarioE2E(ctx.prisma, {
@@ -57,6 +65,26 @@ describe('Búsqueda de evidencias contra PostgreSQL (HU-008)', () => {
     ids.derecho5 = (await crearEvidencia(ctx.prisma, { ...base, nombre: 'Currículo y plan de estudios Derecho', autorId: cargador.usuarioId, programaId: derecho.id, estado: EstadoEvidencia.ConObservaciones, puntaje: 5 })).id;
     ids.derecho9 = (await crearEvidencia(ctx.prisma, { ...base, nombre: 'Condiciones de calidad Derecho', autorId: cargador.usuarioId, programaId: derecho.id, estado: EstadoEvidencia.Cumple, puntaje: 9 })).id;
     ids.medicina9 = (await crearEvidencia(ctx.prisma, { ...base, nombre: 'Condiciones de calidad Medicina', autorId: otroCargador.id, programaId: medicina.id, estado: EstadoEvidencia.Cumple, puntaje: 9 })).id;
+    ids.software = (
+      await crearEvidencia(ctx.prisma, {
+        ...base,
+        nombre: 'Documento maestro Software',
+        autorId: cargador.usuarioId,
+        programaId: software.id,
+        estado: EstadoEvidencia.Validado,
+        puntaje: 8,
+      })
+    ).id;
+    ids.adminEmpresas = (
+      await crearEvidencia(ctx.prisma, {
+        ...base,
+        nombre: 'Plan de estudios Administración',
+        autorId: cargador.usuarioId,
+        programaId: administracion.id,
+        estado: EstadoEvidencia.Validado,
+        puntaje: 7,
+      })
+    ).id;
     ids.g3Propio = (await crearEvidencia(ctx.prisma, { nombre: 'Condiciones institucionales propias', autorId: cargador.usuarioId, institucionId, codigoGuia: CodigoDocumentoGuia.G3, estado: EstadoEvidencia.Borrador })).id;
     ids.g3Ajeno = (await crearEvidencia(ctx.prisma, { nombre: 'Condiciones institucionales ajenas', autorId: otroCargador.id, institucionId, codigoGuia: CodigoDocumentoGuia.G3, estado: EstadoEvidencia.EnRevision })).id;
     ids.g4Borrador = (await crearEvidencia(ctx.prisma, { nombre: 'Renovación institucional en borrador', autorId: otroCargador.id, institucionId, codigoGuia: CodigoDocumentoGuia.G4, estado: EstadoEvidencia.Borrador })).id;
@@ -94,6 +122,16 @@ describe('Búsqueda de evidencias contra PostgreSQL (HU-008)', () => {
   it('q=curriculo (sin tilde) encuentra "Currículo" con FTS + unaccent', async () => {
     const { body } = await buscar(tokenAdmin, 'q=curriculo');
     expect(idsDe(body.resultados)).toEqual([ids.derecho5]);
+  });
+
+  it('q=Soft encuentra evidencia por nombre de programa (subcadena)', async () => {
+    const { body } = await buscar(tokenAdmin, 'q=Soft');
+    expect(idsDe(body.resultados)).toContain(ids.software);
+  });
+
+  it('q=admin encuentra Administración de Empresas por subcadena de programa', async () => {
+    const { body } = await buscar(tokenAdmin, 'q=admin');
+    expect(idsDe(body.resultados)).toContain(ids.adminEmpresas);
   });
 
   it('el Administrador no ve borradores nunca enviados', async () => {

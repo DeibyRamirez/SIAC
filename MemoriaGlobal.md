@@ -82,8 +82,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Integracion | `/integracion` | UPSERT maestros TI |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
-| Cifras | `/cifras` | KPIs institucionales (HU-009; v1 estudiantes) |
-| Power BI | `/powerbi/embed-token` | Embed por categoría |
+| Power BI | `/powerbi`, `/powerbi/embed-token` | URLs públicas (CRUD) y embed por categoría |
 | Estructura | `/estructura` | CRUD etapas/carpetas/docs |
 | Almacenamiento | (servicio) | Supabase S3 |
 
@@ -486,6 +485,18 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-10-13 — ADR-010 Camino 2 API cifras (replanteo, sin código)
+
+- [Docs] [ADR-010](docs/adr/ADR-010-camino-2-api-cifras-institucionales.md): contrato 8 categorías alineado a `docs/plantillas-siac-general.xlsx`; opción preferida B1 (API valida → Excel maestro Drive → Power BI); endpoints futuros bajo `/api/v1/integracion/cifras-institucionales`.
+- [Docs] Guía integradores: `docs/camino-2-api-cifras-institucionales.md`.
+
+### 2026-10-13 — Retirada almacén local de cifras (Camino 1 Power BI)
+
+- [Backend] Migración `20261013230000_eliminar_cifras_institucionales`: eliminados `VariableCifra`, `CargaCifras`, `CifraIndicador`, tablas `Registro*` / `ProgramaAseguramiento` / `SedeInfraestructura` y enum `FuenteCifra`. Se conserva `ConfiguracionInformePowerBi`.
+- [Backend] Eliminado módulo `src/cifras` y `CIFRAS_API_KEY`.
+- [Frontend] Eliminados panel Recharts, `/administrador/cifras` y cliente `/cifras/*`; dashboard de métricas solo iframe + mensajes si falta URL o falla la carga.
+- [Docs] ADR-009 actualizado; `docs/powerbi-conexion-cifras.md` marcado obsoleto. Datos de informes: Excel externo → Power BI; contrato de campos en `docs/plantillas-siac-general.xlsx`.
+
 ### 2026-10-13 — HU-009 (T-009.3): 6 dashboards Power BI «Publicar en la web»
 
 - [Frontend] Catálogo tipado `lib/informes-powerbi.ts` con 6 categorías (aseguramiento, infraestructura, egresados, investigación, profesores, estudiantes) y su variable `NEXT_PUBLIC_POWERBI_URL_*` (lectura estática en `lib/powerbi/configuracion-powerbi.ts`; solo se aceptan URL `https://app.powerbi.com/view?r=`).
@@ -517,6 +528,12 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Frontend] `dialogo-importar-cifras.tsx` (plantilla, validación cliente .xlsx ≤5 MB, errores por fila) y `ContenedorInformePowerBi` generalizado: sin embed/400/falla → panel de cifras de la categoría.
 - [Frontend] Nueva página `/administrador/cifras` (categorías con última carga + importación; diccionario con PATCH de etiquetas CUAC) y ítem de sidebar.
 - [Verificación] Vitest 62/62, `tsc --noEmit` 0 y `next build` OK; sin datos de prueba nuevos en BD (specs con servicios mockeados).
+
+### 2026-10-13 — HU-009 / UX cargador / ayuda / correo
+
+- [Frontend] Catálogo Power BI ampliado a 8 categorías (bienestar, relaciones-entorno); URLs vía API autenticada con fallback `NEXT_PUBLIC_*`; panel de actualización en dashboard admin; cargador con pasos 1–3 visibles y sugerencia de trámite; filtro de programas al 100 % documental en vigencias y carga de evidencias; asistente flotante FAQ (`AsistenteAyudaFlotante`).
+- [Backend] `ConfiguracionInformePowerBi` + CRUD `/powerbi/informes`; hash SHA-256; roles Admin/SuperAdmin; plantillas HTML en correos de notificación; script `pnpm demo:semaforo-vigencia` (~5 min).
+- [Operación] Aplicar migración `20261013180000_configuracion_informe_powerbi` y `pnpm prisma:generate` en Backend.
 
 ### 2026-10-12 — S3-01 / HU-009: cifras institucionales + ingesta API/Excel
 
