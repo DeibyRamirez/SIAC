@@ -999,7 +999,7 @@ export class DocumentosService {
           );
         } catch (err) {
           this.logger.error(
-            `No se pudieron persistir ${comentariosPersistir.length} comentarios de evidencia ${id} v${evidencia.version ?? 1}. Ejecute pnpm prisma:repair-schema. Detalle: ${err instanceof Error ? err.message : err}`,
+            `No se pudieron persistir ${comentariosPersistir.length} comentarios de evidencia ${id} v${evidencia.version ?? 1}. Aplique las migraciones pendientes (pnpm prisma:deploy). Detalle: ${err instanceof Error ? err.message : err}`,
           );
         }
       }
