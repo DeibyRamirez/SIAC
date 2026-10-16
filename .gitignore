@@ -3,6 +3,9 @@ node_modules/
 dist/
 .env
 .env.local
+.env.*
+!.env.example
+!.env.local.example
 *.log
 .DS_Store
 Backend/almacen-local/
