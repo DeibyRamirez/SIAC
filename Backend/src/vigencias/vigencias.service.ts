@@ -22,6 +22,7 @@ import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
+import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 
 
 
@@ -43,6 +44,8 @@ export class VigenciasService implements OnModuleInit {
     private readonly notificacionesDespacho: NotificacionesDespachoService,
 
     private readonly almacenamiento: AlmacenamientoService,
+
+    private readonly evaluadorVigenciaRegistro: EvaluadorVigenciaRegistroService,
 
   ) {}
 
@@ -345,6 +348,8 @@ export class VigenciasService implements OnModuleInit {
     }
 
 
+
+    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
 
     this.logger.log('Cron de vigencias completado.');
 

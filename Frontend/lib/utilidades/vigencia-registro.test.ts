@@ -3,10 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   ANIOS_VIGENCIA_AMARILLO,
   ANIOS_VIGENCIA_REGISTRO,
+  DURACION_DEMO_VIGENCIA_MS,
   calcularFechaFinVigencia,
   calcularPorcentajeVigencia,
+  calcularReferenciaDemoVigencia,
   calcularSemaforoAvance,
   calcularSemaforoVigencia,
+  demoVigenciaFinalizada,
+  fraccionDemoVigenciaTranscurrida,
   mensajeAlertaVigencia,
 } from './vigencia-registro'
 
@@ -42,6 +46,31 @@ describe('vigencia-registro', () => {
     const inicio = new Date(referencia)
     inicio.setFullYear(inicio.getFullYear() - (ANIOS_VIGENCIA_REGISTRO + 0.5))
     expect(calcularSemaforoVigencia(inicio.toISOString(), referencia)).toBe('Rojo')
+  })
+
+  it('demo 7 min: referencia y porcentaje en inicio y al final', () => {
+    const fechaResolucion = '2020-03-01T00:00:00.000Z'
+    const inicioDemo = 1_700_000_000_000
+    const ref0 = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemo, inicioDemo)
+    expect(ref0.toISOString()).toBe('2020-03-01T00:00:00.000Z')
+    expect(calcularPorcentajeVigencia(fechaResolucion, ref0)).toBe(0)
+
+    const alFinal = inicioDemo + DURACION_DEMO_VIGENCIA_MS
+    const refFin = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemo, alFinal)
+    expect(refFin.toISOString()).toBe(calcularFechaFinVigencia(fechaResolucion).toISOString())
+    expect(calcularPorcentajeVigencia(fechaResolucion, refFin)).toBe(100)
+    expect(fraccionDemoVigenciaTranscurrida(inicioDemo, alFinal)).toBe(1)
+    expect(demoVigenciaFinalizada(inicioDemo, alFinal)).toBe(true)
+  })
+
+  it('demo 7 min: punto intermedio avanza la referencia', () => {
+    const fechaResolucion = '2020-03-01T00:00:00.000Z'
+    const inicioDemo = 0
+    const mitad = inicioDemo + DURACION_DEMO_VIGENCIA_MS / 2
+    const ref = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemo, mitad)
+    const pct = calcularPorcentajeVigencia(fechaResolucion, ref)
+    expect(pct).toBeGreaterThan(45)
+    expect(pct).toBeLessThan(55)
   })
 
   it('genera alerta en año 6 o más', () => {

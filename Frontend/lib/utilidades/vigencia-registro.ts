@@ -3,6 +3,8 @@ import type { SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 /** Valores por defecto; el backend los lee de `ConfiguracionSIAC` (T-010.2) y manda el semáforo ya calculado. */
 export const ANIOS_VIGENCIA_REGISTRO = 7
 export const MESES_AVISO_VIGENCIA = 12
+/** Duración de la simulación UI: 7 minutos de reloj ≈ 7 años de vigencia. */
+export const DURACION_DEMO_VIGENCIA_MS = 7 * 60 * 1000
 /** Año desde el que el semáforo pasa a amarillo (7 años − 12 meses = año 6). */
 export const ANIOS_VIGENCIA_AMARILLO = ANIOS_VIGENCIA_REGISTRO - MESES_AVISO_VIGENCIA / 12
 
@@ -81,4 +83,37 @@ export function etiquetaAniosVigencia(
   const anios = calcularAniosTranscurridos(fechaResolucion, referencia)
   const anioActual = Math.min(ANIOS_VIGENCIA_REGISTRO, Math.floor(anios) + 1)
   return `Año ${anioActual} de ${ANIOS_VIGENCIA_REGISTRO}`
+}
+
+export function claveSessionDemoVigencia(entidadId: string): string {
+  return `siac-demo-vigencia:${entidadId}`
+}
+
+/** Fracción 0..1 del tiempo de demo ya transcurrido (7 min). */
+export function fraccionDemoVigenciaTranscurrida(
+  inicioDemoMs: number,
+  ahoraMs: number = Date.now(),
+): number {
+  const transcurrido = Math.max(0, ahoraMs - inicioDemoMs)
+  return Math.min(1, transcurrido / DURACION_DEMO_VIGENCIA_MS)
+}
+
+/**
+ * Mapea el reloj de la demo (7 min) a una fecha «como si» hubieran pasado hasta 7 años desde la resolución.
+ */
+export function calcularReferenciaDemoVigencia(
+  fechaResolucion: Date | string,
+  inicioDemoMs: number,
+  ahoraMs: number = Date.now(),
+): Date {
+  const inicio =
+    typeof fechaResolucion === 'string' ? new Date(fechaResolucion) : fechaResolucion
+  const fin = calcularFechaFinVigencia(fechaResolucion)
+  const duracionVigenciaMs = fin.getTime() - inicio.getTime()
+  const fraccion = fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs)
+  return new Date(inicio.getTime() + duracionVigenciaMs * fraccion)
+}
+
+export function demoVigenciaFinalizada(inicioDemoMs: number, ahoraMs: number = Date.now()): boolean {
+  return fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs) >= 1
 }

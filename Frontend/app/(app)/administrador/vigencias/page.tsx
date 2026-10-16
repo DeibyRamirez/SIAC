@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
+import { PanelPaquetesVigenciaRegistro } from '@/components/siac/panel-paquetes-vigencia-registro'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
@@ -45,7 +46,15 @@ import {
   listarVigenciasApi,
   obtenerUrlDescargaVigenciaApi,
 } from '@/lib/servicios/programas.servicio'
-import type { AnexoVigencia, CategoriaAnexo, EstadoVigencia, Evidencia, Programa } from '@/lib/tipos'
+import { listarPaquetesRegistroVigenciaApi } from '@/lib/servicios/vigencias.servicio'
+import type {
+  AnexoVigencia,
+  CategoriaAnexo,
+  EstadoVigencia,
+  Evidencia,
+  PaqueteVigenciaRegistro,
+  Programa,
+} from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
 import {
@@ -53,6 +62,7 @@ import {
   FORMULARIO_ANEXO_INICIAL,
   construirFormularioAnexo,
 } from '@/lib/utilidades/formulario-anexo'
+import { programasElegiblesParaVigencias } from '@/lib/utilidades/filtro-programas-vigencias'
 import {
   formatearFecha,
   itemsSelectProgramas,
@@ -85,6 +95,9 @@ function ContenidoVigencias() {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [formulario, setFormulario] = useState(FORMULARIO_ANEXO_INICIAL)
   const [evidenciasPrograma, setEvidenciasPrograma] = useState<Evidencia[]>([])
+  const [programasVigencias, setProgramasVigencias] = useState<Programa[]>([])
+  const [paquetes, setPaquetes] = useState<PaqueteVigenciaRegistro[]>([])
+  const programaIdUrl = searchParams.get('programaId')
 
   const alertasPendientes = useMemo(
     () => datos.alertas.filter((alerta) => !alerta.leida).length,
@@ -97,13 +110,27 @@ function ContenidoVigencias() {
   )
 
   const opcionesPrograma = useMemo(
-    () => itemsSelectProgramas(programas),
-    [programas],
+    () => itemsSelectProgramas(programasVigencias),
+    [programasVigencias],
   )
 
   useEffect(() => {
     setPagina(1)
   }, [anexos.length])
+
+  const cargarPaquetes = useCallback(async () => {
+    if (!apiDisponible()) {
+      setPaquetes([])
+      return
+    }
+    try {
+      const lista = await listarPaquetesRegistroVigenciaApi(programaIdUrl ?? undefined)
+      setPaquetes(lista)
+    } catch (err) {
+      setPaquetes([])
+      toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los paquetes de vigencia.')
+    }
+  }, [programaIdUrl])
 
   const cargarAnexos = useCallback(async () => {
     if (!apiDisponible()) {
@@ -111,7 +138,7 @@ function ContenidoVigencias() {
       return
     }
     try {
-      const programaId = searchParams.get('programaId') ?? undefined
+      const programaId = programaIdUrl ?? undefined
       const lista = (await listarVigenciasApi(programaId)) as AnexoVigencia[]
       setAnexos(
         lista.map((a) => ({
@@ -124,30 +151,37 @@ function ContenidoVigencias() {
             typeof a.fechaCarga === 'string' ? a.fechaCarga.slice(0, 10) : a.fechaCarga,
         })),
       )
-    } catch {
-      setAnexos(datos.anexosVigencia)
+    } catch (err) {
+      setAnexos([])
+      toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los anexos de vigencia.')
     }
-  }, [datos.anexosVigencia, searchParams])
+  }, [datos.anexosVigencia, programaIdUrl])
 
   useEffect(() => {
+    cargarPaquetes()
     cargarAnexos()
     async function cargarProgramas() {
       if (!apiDisponible()) return
       try {
         const lista = await listarProgramasApi()
         setProgramas(lista)
-        if (lista[0]) {
+        const elegibles = await programasElegiblesParaVigencias(lista)
+        setProgramasVigencias(elegibles)
+        const programaInicial =
+          elegibles.find((p) => p.id === searchParams.get('programaId')) ?? elegibles[0]
+        if (programaInicial) {
           setFormulario((prev) => ({
             ...prev,
-            programaId: searchParams.get('programaId') ?? lista[0].id,
+            programaId: programaInicial.id,
           }))
         }
       } catch {
         setProgramas([])
+        setProgramasVigencias([])
       }
     }
     cargarProgramas()
-  }, [cargarAnexos, searchParams])
+  }, [cargarAnexos, cargarPaquetes, searchParams])
 
   // El anexo se vincula a una evidencia (documento guía) del mismo programa (decisión del PO, 06/10).
   useEffect(() => {
@@ -225,28 +259,33 @@ function ContenidoVigencias() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {(['Vigente', 'Proximo', 'Vencido'] as const).map((estado) => {
-          const total = anexos.filter((anexo) => anexo.estado === estado).length
-          return (
-            <Card
-              key={estado}
-              className={cn('border-l-4', estilosTarjetaResumen[estado])}
-            >
-              <CardContent className="pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {estado === 'Proximo' ? 'Próximo' : estado}
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-primary">{total}</p>
-              </CardContent>
-            </Card>
-          )
-        })}
+      <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-primary">Certificados y anexos</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {(['Vigente', 'Proximo', 'Vencido'] as const).map((estado) => {
+            const total = anexos.filter((anexo) => anexo.estado === estado).length
+            return (
+              <Card
+                key={estado}
+                className={cn('border-l-4', estilosTarjetaResumen[estado])}
+              >
+                <CardContent className="pt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {estado === 'Proximo' ? 'Próximo' : estado}
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold text-primary">{total}</p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-primary/10 bg-white/60">
-          <CardTitle>Control de vigencias</CardTitle>
+          <CardTitle>Anexos con fecha de vencimiento</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
