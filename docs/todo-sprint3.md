@@ -235,6 +235,11 @@ Validar al arranque (en `configuracion.env.ts`) que si `CORREO_CANAL=smtp` exist
 - **C-4** Outbox + idempotencia + procesador con reintentos (6.5). **Criterio:** pruebas de 6.7.
 - **C-5** Plantillas (6.3). **C-6** Eventos de vigencia de resolución MEN (T-007.2). **C-7** Preferencias (6.6). **C-8** Vista de fallidos para Administrador.
 
+## 6.9 RLS (implementada el 21/10/2026)
+
+- [x] Roles `siac_app` y `siac_powerbi_lectura`, RLS ENABLE + FORCE en 22 tablas, contexto por transacción, ruta de sistema, revoke de `anon`/`authenticated` con guarda, fix de usuario inactivo en el login, e2e D-1 → Revisor.
+- [ ] Pasos manuales en Supabase y Render: ver `docs/despliegue.md` §9 (contraseñas de los roles, `DATABASE_URL` con `siac_app.<ref>` y Power BI).
+
 ## 7. Orden sugerido, dependencias y riesgos
 
 1. Arreglos rápidos heredados: §5.3 `start:prod`, §5.4 doble dictamen, §5.2 límite 20 MB (independientes, 1 commit cada uno).

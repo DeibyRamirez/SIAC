@@ -485,6 +485,21 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-10-21 — Row Level Security (plan-rls aprobado por el PO)
+
+- [BD] Migración `20261021000000_rls_roles_funciones`:
+  - crea de forma idempotente los roles `siac_app` y `siac_powerbi_lectura`, NOLOGIN, NOBYPASSRLS y sin contraseña;
+  - agrega el esquema `siac` con las funciones de contexto y visibilidad (SECURITY DEFINER donde hace falta) y las búsquedas de login y sesión;
+  - otorga los permisos;
+  - revoca `anon`/`authenticated` solo si existen.
+- [BD] Migración `20261021000100_rls_politicas`: ENABLE + FORCE RLS en las 22 tablas y 88 políticas por rol, programa, institución y Borrador del autor. Power BI queda limitado a `v_powerbi_puntajes`.
+- [Backend] La extensión de Prisma fija `app.usuario_id` y `app.rol` con `set_config(..., true)` en cada transacción, compatible con pgbouncer. `MiddlewareContextoRls` abre el contexto por petición.
+- [Backend] `ejecutarComoSistema` (`src/prisma/contexto-sistema.ts`, único punto que fija `sistema`) cubre el cron de vigencias, el outbox, la configuración, los agregados de avance y los destinatarios de notificaciones.
+- [Backend] El login rechaza a los usuarios inactivos.
+- [Desviaciones del plan] Se agregó `siac.usuario_visible`, que incluye a las personas que aparecen en evidencias visibles. Los porcentajes de avance se calculan por la ruta de sistema. La semilla y los scripts de mantenimiento usan `DIRECT_URL` (dueño). Los usuarios de la semilla y la pantalla de login demo no se tocaron.
+- [Pruebas] Nuevos `test/e2e/rls.e2e-spec.ts` (SQL como `siac_app` y `siac_powerbi_lectura`) y `anexo-d1-revisor.e2e-spec.ts`. CI corre la suite e2e con la API como `siac_app`.
+- [Despliegue] Pasos manuales en `docs/despliegue.md` §9.
+
 ### 2026-10-20 — Correcciones de la auditoría y eliminación del rol Par académico
 
 - [Backend] `GET /plantillas?tipoTramite=` validado contra el enum (400 con mensaje en español).

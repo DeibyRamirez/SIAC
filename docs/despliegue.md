@@ -200,3 +200,81 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 - Proyecto Supabase: reutilizar el actual o crear uno nuevo y vacío para el despliegue; buckets privados.
 - Resend: verificar un dominio remitente o usar `RESEND_CORREO_SANDBOX` (sin dominio verificado solo se puede enviar a la cuenta propia).
 - Límite de 4,5 MB de Vercel en cargas (aceptado para esta verificación).
+
+## 9. RLS: roles `siac_app` y `siac_powerbi_lectura` (21/10/2026)
+
+Las migraciones `20261021000000_rls_roles_funciones` y `20261021000100_rls_politicas` activan RLS (ENABLE + FORCE) en las 22 tablas. Crean los dos roles **sin LOGIN ni contraseña**: el acceso se habilita a mano en cada entorno. El diseño está en `plan-rls.md`.
+
+- La API debe conectarse como `siac_app`, que no tiene `BYPASSRLS`.
+- `DIRECT_URL` (migraciones, semilla y scripts de mantenimiento) sigue con el dueño `postgres`.
+- El backend fija `app.usuario_id` y `app.rol` con `set_config(..., true)` en cada transacción, así que funciona con el pooler en modo transacción (6543).
+
+### 9.1 Antes de desplegar (una vez, en el SQL Editor de Supabase)
+
+```sql
+SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
+```
+
+`rolbypassrls` debe ser `true`.
+- Si es `false`, **no desplegar**: con FORCE RLS la app, que todavía conecta como `postgres`, dejaría de ver filas.
+- En ese caso hay que usar un rol de migración con BYPASSRLS antes de continuar.
+
+### 9.2 Orden de despliegue
+
+1. **Desplegar el backend con `DATABASE_URL` sin cambios** (todavía `postgres.<ref>`).
+   - `start:despliegue` aplica las migraciones por `DIRECT_URL`: crea roles, funciones, permisos y RLS, y revoca `anon`/`authenticated`.
+   - La app sigue funcionando igual porque `postgres` omite la RLS.
+2. **Habilitar los logins** en el SQL Editor de Supabase. Use contraseñas largas y aleatorias, guárdelas en el gestor de secretos y no las pegue en tickets, chats ni archivos del repo.
+   ```sql
+   ALTER ROLE siac_app LOGIN PASSWORD '<contraseña-larga-aleatoria>';
+   ALTER ROLE siac_powerbi_lectura LOGIN PASSWORD '<otra-contraseña-larga-aleatoria>';
+   ```
+3. **Comprobar** el estado:
+   ```sql
+   SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname LIKE 'siac_%';
+   -- esperado: siac_app y siac_powerbi_lectura con rolcanlogin = true y rolbypassrls = false
+   SELECT count(*) FROM pg_class
+   WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' AND relrowsecurity AND relforcerowsecurity;
+   -- esperado: 22 (todas salvo _prisma_migrations)
+   ```
+4. **Render → Environment → `DATABASE_URL`**: cambiar solo el usuario y la contraseña (mismo host, puerto 6543 y parámetros):
+   `postgresql://siac_app.<ref>:<contraseña-siac_app>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1`
+   - Con el pooler de Supabase (Supavisor), el usuario de un rol propio se escribe `<rol>.<project_ref>`.
+   - `DIRECT_URL` **no cambia** (`postgres.<ref>`, puerto 5432).
+   - Guardar y redeploy (o *Manual Deploy → Deploy latest commit*).
+5. **Verificar** después del redeploy:
+   - `/api/v1/salud`;
+   - login de cada rol;
+   - el panel del Administrador;
+   - la carga de un documento por el Cargador;
+   - un dictamen del Revisor;
+   - `POST /api/v1/vigencias/ejecutar-cron`.
+
+   Revisar los logs de Render en busca de `row-level security` o `permission denied`.
+6. **Data API de Supabase**: con `anon`/`authenticated` ya revocados, `GET https://<ref>.supabase.co/rest/v1/Evidencia` con la *anon key* debe responder `[]`, 401 o 404. Opcional: quitar `public` de *Settings → API → Exposed schemas*.
+
+### 9.3 Power BI (`siac_powerbi_lectura`)
+
+- Solo puede leer `v_powerbi_puntajes`. No tiene acceso a `Usuario` ni a columnas personales y su sesión es de solo lectura.
+- Conexión desde Power BI Desktop o el gateway con el conector PostgreSQL:
+  - servidor `aws-0-<region>.pooler.supabase.com:5432` (modo sesión);
+  - base `postgres`;
+  - usuario `siac_powerbi_lectura.<ref>`;
+  - la contraseña del paso 2;
+  - SSL obligatorio.
+- La contraseña se guarda solo en Power BI Service o en el gateway.
+
+### 9.4 Reversión
+
+- **Inmediata:** volver `DATABASE_URL` en Render a `postgres.<ref>` (la cadena anterior) y redeploy. El dueño omite la RLS y la app vuelve al comportamiento previo. Las políticas pueden quedarse en la BD.
+- **Deshabilitar el login** de los roles, si hace falta:
+  ```sql
+  ALTER ROLE siac_app NOLOGIN;
+  ALTER ROLE siac_powerbi_lectura NOLOGIN;
+  ```
+- **Quitar la RLS del todo** (no recomendado): `ALTER TABLE "<tabla>" NO FORCE ROW LEVEL SECURITY; ALTER TABLE "<tabla>" DISABLE ROW LEVEL SECURITY;` en las 22 tablas, mediante una migración nueva. Nunca editar las migraciones ya aplicadas.
+
+### 9.5 Desarrollo local y CI
+
+- **CI** (`.github/workflows/ci.yml`) habilita los logins con contraseñas desechables y corre `pnpm test:e2e` con `DATABASE_URL=siac_app`, `DIRECT_URL=postgres` y `DATABASE_URL_POWERBI`.
+- **Local:** con `DATABASE_URL` apuntando al dueño todo funciona como antes. Para probar la RLS, repetir los mismos `ALTER ROLE ... LOGIN PASSWORD` en la BD local y usar esas variables.
