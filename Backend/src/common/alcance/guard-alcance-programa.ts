@@ -87,10 +87,7 @@ export class GuardAlcancePrograma implements CanActivate {
     programaId: string,
     modo: 'lectura' | 'escritura',
   ): Promise<boolean> {
-    if (
-      modo === 'lectura' &&
-      (usuario.rol === RolUsuario.Administrador || usuario.rol === RolUsuario.ParAcademico)
-    ) {
+    if (modo === 'lectura' && usuario.rol === RolUsuario.Administrador) {
       return true;
     }
 

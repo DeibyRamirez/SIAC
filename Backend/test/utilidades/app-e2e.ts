@@ -24,7 +24,6 @@ export const USUARIOS_SEMILLA = {
     correo: 'admin.planeacion@uniautonoma.edu.co',
     contrasena: CLAVES_SEMILLA.Administrador,
   },
-  ParAcademico: { correo: 'par.academico@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.ParAcademico },
 } as const;
 
 export interface ContextoE2E {

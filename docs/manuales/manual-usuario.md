@@ -87,17 +87,6 @@ Supervisa el avance institucional, configura normativa y consulta evidencias val
 - Gestionar vigencias, alertas y estructura normativa según permisos del módulo
 - Eliminar evidencias solo tras confirmación explícita
 
-### Par académico MEN
-
-Perfil de **consulta externa** (Ministerio de Educación). Comparte rutas con el módulo administrador (`/administrador/...`) pero con restricciones de seguridad:
-
-- Solo puede ver evidencias en estado **Aprobado (Validado)**
-- No accede a borradores, documentos en revisión ni rechazados (el sistema responde con acceso denegado)
-- No carga ni modifica evidencias
-- Puede consultar plantillas vigentes y métricas de avance institucional
-
-> En la aplicación aparece como «Par académico MEN» en la barra lateral.
-
 ### Super administrador (SuperAdmin)
 
 Administración técnica del sistema y acceso transversal a todos los módulos.
@@ -112,7 +101,7 @@ Administración técnica del sistema y acceso transversal a todos los módulos.
 
 **Capacidades**
 
-- Crear usuarios con cualquier rol (`Cargador`, `Revisor`, `ParAcademico`, `Administrador`, `SuperAdmin`)
+- Crear usuarios con cualquier rol (`Cargador`, `Revisor`, `Administrador`, `SuperAdmin`)
 - Desactivar cuentas (con confirmación)
 - Navegar a cualquier módulo operativo para soporte o pruebas
 - Bypass de restricciones de rol en API para operaciones de mantenimiento
@@ -127,7 +116,7 @@ Administración técnica del sistema y acceso transversal a todos los módulos.
 4. Envía a revisión; el estado pasa a *En revisión*
 5. El **revisor** abre la bandeja, visualiza el PDF/Excel y aprueba o rechaza con observaciones
 6. Si rechaza: el cargador sube una **nueva versión**, corrige según observaciones y reenvía
-7. Si aprueba: la evidencia queda *Validada* y es visible para **Administrador** y **Par académico**
+7. Si aprueba: la evidencia queda *Validada* y es visible para el **Administrador**
 8. El **administrador** supervisa avance por programa, vigencias y métricas en el dashboard
 9. Cuando todos los documentos del trámite están aprobados, el **administrador** usa **Cargar resolución MEN** en el detalle del programa o de la institución: adjunta el PDF de la resolución (única excepción a la regla .docx; se valida que sea un PDF real) y registra su número y fecha reales. Con documentos pendientes el botón queda deshabilitado (la API responde 409)
 

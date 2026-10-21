@@ -50,11 +50,7 @@ export class ProgramasController {
   }
 
   @Get('avance-institucional')
-  @Roles(
-    RolUsuario.Administrador,
-    RolUsuario.SuperAdmin,
-    RolUsuario.ParAcademico,
-  )
+  @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
   avanceInstitucional(@Request() req: { user: UsuarioAlcance }) {
     return this.programasService.calcularAvanceInstitucional(req.user);
   }

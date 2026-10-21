@@ -75,13 +75,6 @@ function itemsAdministrador(): ItemNavegacion[] {
   ]
 }
 
-function itemsParAcademico(): ItemNavegacion[] {
-  return [
-    { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
-    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
-  ]
-}
-
 function itemsSuperAdmin(): ItemNavegacion[] {
   return [
     { href: '/superadmin', etiqueta: 'Panel SuperAdmin', icono: ShieldCheck },
@@ -123,8 +116,6 @@ function itemsPorRol(rol: RolUsuario): ItemNavegacion[] {
       return itemsRevisor()
     case 'Administrador':
       return itemsAdministrador()
-    case 'ParAcademico':
-      return itemsParAcademico()
     case 'SuperAdmin':
       return itemsSuperAdmin()
     default:

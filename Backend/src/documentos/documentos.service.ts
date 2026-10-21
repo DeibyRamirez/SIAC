@@ -1547,20 +1547,6 @@ export class DocumentosService {
 
 
 
-    if (usuario.rol === RolUsuario.ParAcademico) {
-
-      if (evidencia.estado !== EstadoEvidencia.Validado) {
-
-        throw new ForbiddenException('El par académico solo consulta evidencias validadas.');
-
-      }
-
-      return;
-
-    }
-
-
-
     if (usuario.rol === RolUsuario.Cargador) {
 
       if (evidencia.autorId !== usuario.id) {
@@ -1710,9 +1696,7 @@ export class DocumentosService {
 
     if (
 
-      usuario.rol === RolUsuario.Administrador ||
-
-      usuario.rol === RolUsuario.ParAcademico
+      usuario.rol === RolUsuario.Administrador
 
     ) {
 

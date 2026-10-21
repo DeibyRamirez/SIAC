@@ -37,7 +37,6 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
   let tokenCargador: string;
   let tokenRevisor: string;
   let tokenAdmin: string;
-  let tokenPar: string;
   let cargadorId: string;
   let revisorId: string;
   let adminId: string;
@@ -60,8 +59,6 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
     const admin = await iniciarSesion(ctx.app, 'Administrador');
     tokenAdmin = admin.token;
     adminId = admin.usuarioId;
-
-    tokenPar = (await iniciarSesion(ctx.app, 'ParAcademico')).token;
 
     programaId = (
       await crearPrograma(ctx.prisma, {
@@ -133,9 +130,7 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
     expect(tiposCargador).toContain('dictamen_con_observaciones');
 
     const tiposAdmin = await listarTipos(tokenAdmin);
-    const tiposPar = await listarTipos(tokenPar);
     expect(tiposAdmin).toContain('avance');
-    expect(tiposPar).toContain('avance');
 
     const avanceBd = await ctx.prisma.alertaInApp.findFirst({
       where: { tipo: 'avance', usuarioId: adminId },

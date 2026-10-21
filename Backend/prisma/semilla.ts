@@ -50,13 +50,6 @@ const USUARIOS_SEMILLA: Array<{
     dependencia: 'Planeación',
   },
   {
-    nombre: 'Carlos Méndez',
-    correo: 'par.academico@uniautonoma.edu.co',
-    rol: RolUsuario.ParAcademico,
-    cargo: 'Par Académico MEN',
-    dependencia: 'Externo',
-  },
-  {
     nombre: 'Ana SuperAdmin',
     correo: 'superadmin@uniautonoma.edu.co',
     rol: RolUsuario.SuperAdmin,

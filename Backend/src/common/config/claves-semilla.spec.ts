@@ -52,7 +52,7 @@ describe('resolverClavesSemilla (S-1: contraseñas fuera del repositorio)', () =
 
   it('el mensaje de error nunca incluye los valores de las claves', () => {
     try {
-      resolverClavesSemilla({ NODE_ENV: 'production', ...TODAS, SEMILLA_CLAVE_PAR: 'secreto1' });
+      resolverClavesSemilla({ NODE_ENV: 'production', ...TODAS, SEMILLA_CLAVE_CARGADOR: 'secreto1' });
       throw new Error('debía fallar');
     } catch (error) {
       expect((error as Error).message).not.toContain('secreto1');

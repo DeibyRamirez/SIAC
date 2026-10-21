@@ -43,8 +43,6 @@ export function rutaInicioPorRol(rol: RolUsuario): string {
       return '/revisor'
     case 'Administrador':
       return '/administrador'
-    case 'ParAcademico':
-      return '/administrador'
     case 'SuperAdmin':
       return '/superadmin'
   }
@@ -57,8 +55,6 @@ export function prefijoRol(rol: RolUsuario): string {
     case 'Revisor':
       return '/revisor'
     case 'Administrador':
-      return '/administrador'
-    case 'ParAcademico':
       return '/administrador'
     case 'SuperAdmin':
       return '/superadmin'
@@ -73,8 +69,6 @@ export function etiquetaRol(rol: RolUsuario): string {
       return 'Revisora de calidad'
     case 'Administrador':
       return 'Administrador'
-    case 'ParAcademico':
-      return 'Par académico MEN'
     case 'SuperAdmin':
       return 'Super administrador SIAC'
   }
@@ -82,26 +76,12 @@ export function etiquetaRol(rol: RolUsuario): string {
 
 const RUTAS_SUPERADMIN = ['/superadmin', '/cargador', '/revisor', '/administrador'] as const
 
-/**
- * Rutas de consulta institucional para Par académico (HU-002): sin carga ni dictamen.
- * El rol está en pausa (decisión del PO, 06/10; T-006.4 pausada): ya no entra al panel de
- * programas ni al dashboard de métricas (HU-009, 13/10). Si abre esas rutas, la guardia lo
- * devuelve a su inicio (sin página 403).
- */
-const RUTAS_PAR_ACADEMICO = ['/administrador/busqueda'] as const
-
-export const ROLES_CONSULTA_INSTITUCIONAL: RolUsuario[] = ['Administrador', 'ParAcademico']
+/** Roles con consulta institucional (resumen, búsqueda, bandeja y detalle): solo Administrador. */
+export const ROLES_CONSULTA_INSTITUCIONAL: RolUsuario[] = ['Administrador']
 export { ROLES_PANEL_PROGRAMAS } from '@/lib/constantes/roles'
 
 export function rutaPermitidaSuperAdmin(pathname: string): boolean {
   return RUTAS_SUPERADMIN.some(
-    (prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`),
-  )
-}
-
-export function rutaPermitidaParAcademico(pathname: string): boolean {
-  if (pathname === '/administrador') return true
-  return RUTAS_PAR_ACADEMICO.some(
     (prefijo) => pathname === prefijo || pathname.startsWith(`${prefijo}/`),
   )
 }

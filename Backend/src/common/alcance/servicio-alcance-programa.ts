@@ -79,10 +79,6 @@ export function construirFiltroVisibilidad(
     return {};
   }
 
-  if (usuario.rol === RolUsuario.ParAcademico) {
-    return { estado: EstadoEvidencia.Validado };
-  }
-
   if (usuario.rol === RolUsuario.Administrador) {
     return {
       OR: [

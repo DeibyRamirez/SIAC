@@ -37,7 +37,7 @@
 
 | ID | Regla | HU relacionadas |
 |----|-------|-----------------|
-| RN-001 | Par Académico / Admin no accede a borradores ni rechazados (el rol Par Académico está pausado por decisión del PO del 07/10/2026) | HU-002, HU-004, HU-011 |
+| RN-001 | El Administrador no accede a borradores ni rechazados (el rol Par Académico se eliminó el 20/10/2026; T-006.4 descartada) | HU-002, HU-004, HU-011 |
 | RN-003 | Programa con anexo infraestructura vencido → semáforo rojo | HU-007, HU-010 |
 
 ---

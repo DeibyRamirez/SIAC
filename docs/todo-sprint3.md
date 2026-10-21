@@ -46,7 +46,7 @@
 | Validación del PO de HU-006 y HU-007 y reescritura de sus CA en ClickUp | Pendiente (ver auditoría §G) |
 | Keep-alive fiable | GitHub lo ejecuta cada 2–3 h; decidir ping externo o Render `starter` (`docs/despliegue.md` §2.1) |
 | Rotar las contraseñas de los usuarios semilla en producción | Acción manual en la BD |
-| T-006.4 RN-001 Par académico | Pausada (decisión del PO del 07/10) |
+| T-006.4 RN-001 Par académico | **Descartada** (20/10/2026): el rol se eliminó del código y de la BD |
 
 ## 1. Resumen
 
@@ -61,7 +61,7 @@
 | T-006.1 Observaciones por condición | hecho | 90 % |
 | T-006.2 Dictamen y máquina de estados | parcial | 80 % |
 | T-006.3 Notificación al Cargador | parcial | 50 % (85 % con WIP) |
-| T-006.4 RN-001 Par académico | **pausada** (decisión PO) | — |
+| T-006.4 RN-001 Par académico | **descartada** (20/10/2026) | — |
 | T-007.1 Fecha de vigencia | hecho | 90 % |
 | T-007.2 Cron diario de vigencias | parcial | 40 % |
 | T-007.3 Semáforo combinado | parcial | 70 % |
@@ -103,7 +103,9 @@ Criterios de aceptación de ClickUp (HU):
   1. **Qué:** integrar el WIP de correo/notificaciones (ver §4, tareas C-1..C-3). **Criterio:** `pnpm test`, `pnpm test:e2e`, `vitest run`, builds verdes. **Cómo probar:** CI.
   2. **Qué:** E2E «dictamen ConObservaciones → Cargador tiene 1 alerta tipo dictamen con `metadata.evidenciaId` y el transporte simulado registró 1 correo». **Dónde:** `notificaciones.e2e-spec.ts`. **Cómo probar:** `pnpm test:e2e` con proveedor de correo en memoria.
 
-### T-006.4 · RN-001 Par académico — **PAUSADA**
+### T-006.4 · RN-001 Par académico — **DESCARTADA (20/10/2026)**
+- El rol `ParAcademico` se eliminó por completo: enum, guardas, rutas, pantallas, semilla, pruebas y documentación. La migración `20261020220000_eliminar_rol_par_academico` desactiva (`activo = false`) a los usuarios que tuvieran el rol, los pasa a `Cargador` (sin asignaciones no ven nada) y recrea el enum sin el valor; no se borran usuarios ni evidencias.
+- Texto histórico (13/10):
 - Decisión del PO (MemoriaGlobal.md, 07/10): Par académico en pausa; rol y datos intactos, sin panel ni página 403. **No planificar desarrollo en este sprint.** Lo existente (`servicio-alcance-programa.ts`, CP-E2E-04 sobre borradores) se mantiene sin cambios.
 
 ## 3. HU-007 · Vigencias y alertas (RF-003)

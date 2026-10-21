@@ -8,12 +8,6 @@ describe('construirFiltroVisibilidad', () => {
     ).toEqual({});
   });
 
-  it('el par académico solo ve validados', () => {
-    expect(
-      construirFiltroVisibilidad({ id: 'par', rol: RolUsuario.ParAcademico }, []),
-    ).toEqual({ estado: EstadoEvidencia.Validado });
-  });
-
   it('el administrador no ve borradores nunca enviados', () => {
     expect(
       construirFiltroVisibilidad({ id: 'admin', rol: RolUsuario.Administrador }, []),

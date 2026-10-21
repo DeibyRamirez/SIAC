@@ -84,7 +84,6 @@ describe('modo y acceso', () => {
     expect(puedeVerInformesPowerBi('SuperAdmin')).toBe(true)
     expect(puedeVerInformesPowerBi('Revisor')).toBe(false)
     expect(puedeVerInformesPowerBi('Cargador')).toBe(false)
-    expect(puedeVerInformesPowerBi('ParAcademico')).toBe(false)
     expect(puedeVerInformesPowerBi(undefined)).toBe(false)
   })
 })

@@ -28,10 +28,10 @@ export class NotificacionesDestinatariosService {
     return institucionales.map((r) => r.id);
   }
 
-  async idsAdministradoresYPar(): Promise<string[]> {
+  async idsAdministradores(): Promise<string[]> {
     const usuarios = await this.prisma.usuario.findMany({
       where: {
-        rol: { in: [RolUsuario.Administrador, RolUsuario.ParAcademico] },
+        rol: RolUsuario.Administrador,
       },
       select: { id: true },
     });

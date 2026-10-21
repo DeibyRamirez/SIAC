@@ -1,7 +1,6 @@
 export type RolUsuario =
   | 'Cargador'
   | 'Revisor'
-  | 'ParAcademico'
   | 'Administrador'
   | 'SuperAdmin'
 

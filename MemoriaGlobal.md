@@ -26,7 +26,7 @@
 Cargador descarga plantilla → sube evidencia (Borrador)
   → envía a revisión (EnRevision)
   → Revisor dictamina (Validado / Rechazado)
-  → Administrador / Par Académico consulta validadas
+  → Administrador consulta validadas
   → Vigencias y semáforos alimentan panel administrativo
 ```
 
@@ -90,7 +90,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 
 12 entidades según F-03 §2.2: `Usuario`, `Programa`, `UsuarioPrograma`, `Evidencia`, `HistorialEvidencia`, `Plantilla`, `AnexoVigencia`, `AlertaInApp`, `EtapaAcreditacion`, `CarpetaNormativa`, `DocumentoRequerido`.
 
-**Enums clave:** `RolUsuario` (incl. `ParAcademico`, `SuperAdmin`), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
+**Enums clave:** `RolUsuario` (`Cargador`, `Revisor`, `Administrador`, `SuperAdmin`; `ParAcademico` eliminado el 20/10/2026), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
 
 **Campos maestros TI:** `idExterno`, `origenDato`, `fechaSincronizacion` en Usuario y Programa.
 
@@ -484,6 +484,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-20 — Correcciones de la auditoría y eliminación del rol Par académico
+
+- [Backend] `GET /plantillas?tipoTramite=` validado contra el enum (400 con mensaje en español).
+- [Frontend] `ProveedorAlmacen`: cada lista (evidencias, plantillas, vigencias, alertas, programas) se publica al resolver su petición, con `estadoListas` (cargando/error), un reintento automático y `recargarLista`. Estados «Cargando…», error con «Reintentar» y vacío en plantillas, evidencias y vigencias.
+- [Seguridad] Contraseñas de la semilla desde `SEMILLA_CLAVE_*` (obligatorias en producción); fuera del README.
+- [Decisión] Rol `ParAcademico` eliminado (T-006.4 descartada). Migración `20261020220000_eliminar_rol_par_academico`: usuarios con el rol → `activo=false` y rol `Cargador`; enum recreado. Las entradas antiguas de esta memoria que lo mencionan son históricas.
+- [Docs] README, backlog, ADR-008 (outbox), ADR-009 (8 categorías CUAC), índice de ADR, etapa-3, despliegue (keep-alive irregular) y `docs/todo-sprint3.md` actualizados.
 
 ### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
 

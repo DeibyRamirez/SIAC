@@ -38,7 +38,6 @@ import {
 const ROLES: RolUsuario[] = [
   'Cargador',
   'Revisor',
-  'ParAcademico',
   'Administrador',
   'SuperAdmin',
 ]

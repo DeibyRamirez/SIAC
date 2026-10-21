@@ -12,7 +12,6 @@ export const VARIABLES_CLAVE_SEMILLA = {
   Cargador: 'SEMILLA_CLAVE_CARGADOR',
   Revisor: 'SEMILLA_CLAVE_REVISOR',
   Administrador: 'SEMILLA_CLAVE_ADMINISTRADOR',
-  ParAcademico: 'SEMILLA_CLAVE_PAR',
   SuperAdmin: 'SEMILLA_CLAVE_SUPERADMIN',
 } as const;
 
@@ -25,7 +24,6 @@ const CLAVES_DESARROLLO: Record<RolSemilla, string> = {
   Cargador: 'SiacDev-Cargador',
   Revisor: 'SiacDev-Revisor',
   Administrador: 'SiacDev-Administrador',
-  ParAcademico: 'SiacDev-Par',
   SuperAdmin: 'SiacDev-SuperAdmin',
 };
 

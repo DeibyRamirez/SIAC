@@ -32,11 +32,11 @@ describe('resolverAccionNotificacion', () => {
     }
   })
 
-  it('avance: administrador al programa; el par (pausado) no tiene acción', () => {
+  it('avance: el administrador va al programa; el cargador no tiene acción', () => {
     expect(
       resolverAccionNotificacion('avance', { programaId: 'prog-1', umbral: 'amarillo' }, 'Administrador'),
     ).toEqual({ href: '/administrador/programas/prog-1', etiqueta: 'Ver programa' })
-    expect(resolverAccionNotificacion('avance', { programaId: 'prog-1' }, 'ParAcademico')).toBeNull()
+    expect(resolverAccionNotificacion('avance', { programaId: 'prog-1' }, 'Cargador')).toBeNull()
   })
 
   it('vigencia lleva al administrador a la página de vigencias', () => {

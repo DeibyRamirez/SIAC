@@ -55,7 +55,7 @@ export class NotificacionesAvanceService {
       });
 
       // T-007.3c: la idempotencia la da la clave única del evento (ya no hay dedup por metadata).
-      const destinatarios = [...new Set(await this.destinatarios.idsAdministradoresYPar())];
+      const destinatarios = [...new Set(await this.destinatarios.idsAdministradores())];
       for (const usuarioId of destinatarios) {
         await this.despacho.notificar({
           claveEvento: claveAvance(programaId, clave, usuarioId),
