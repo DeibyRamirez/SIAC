@@ -18,12 +18,13 @@ import { NotificacionesDespachoService } from '../notificaciones/notificaciones-
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { EstadoVigencia, Prisma, RolUsuario, TipoEvidencia } from '@prisma/client';
+import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
 import { plantillaAnexoVenceManana } from '../correo/plantillas';
 import { mensajeAnexoVenceManana } from '../correo/plantillas/anexos';
 import { claveAnexoD1 } from '../notificaciones/claves-evento';
+import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 
@@ -324,7 +325,8 @@ export class VigenciasService implements OnModuleInit {
   /**
    * T-007.2: único cron diario, 06:00 en Colombia sin depender de la zona del servidor (Render
    * corre en UTC si no se define TZ). `VIGENCIAS_CRON_ZONA` permite otra zona (America/Bogota por defecto).
-   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador activo) y
+   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador/SuperAdmin
+   * activos + Revisores activos del programa del anexo) y
    * transiciones de vigencia de registro de programas e institución.
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM, {
@@ -357,14 +359,15 @@ export class VigenciasService implements OnModuleInit {
     });
     if (anexos.length === 0) return;
 
-    const administradores = await this.prisma.usuario.findMany({
-      where: { activo: true, rol: RolUsuario.Administrador },
-      select: { id: true },
-    });
-    const idsAdministradores = administradores.map((a) => a.id);
-
+    // Gestión (Administrador/SuperAdmin) es la misma para todos; los Revisores dependen del programa.
+    const destinatariosPorPrograma = new Map<string, string[]>();
     for (const anexo of anexos) {
-      await this.avisarAnexoD1(anexo, idsAdministradores);
+      let destinatarios = destinatariosPorPrograma.get(anexo.programaId);
+      if (!destinatarios) {
+        destinatarios = await idsGestionYRevisores(this.prisma, anexo.programaId);
+        destinatariosPorPrograma.set(anexo.programaId, destinatarios);
+      }
+      await this.avisarAnexoD1(anexo, destinatarios);
     }
   }
 
@@ -376,7 +379,7 @@ export class VigenciasService implements OnModuleInit {
       responsable: string;
       programaId: string;
     },
-    idsAdministradores: string[],
+    idsDestinatarios: string[],
   ): Promise<void> {
     const fechaVencimientoIso = new Date(anexo.fechaVencimiento).toISOString();
     const datos = {
@@ -435,14 +438,16 @@ export class VigenciasService implements OnModuleInit {
       });
     }
 
-    for (const adminId of idsAdministradores) {
+    // El responsable ya recibió su aviso arriba; no se le duplica si además es Admin o Revisor.
+    for (const usuarioId of idsDestinatarios) {
+      if (usuarioId === usuarioResponsable?.id) continue;
       await this.notificacionesDespacho.notificar({
         claveEvento: claveAnexoD1({
           anexoId: anexo.id,
           fechaVencimientoIso,
-          usuarioId: adminId,
+          usuarioId,
         }),
-        usuarioId: adminId,
+        usuarioId,
         mensaje,
         tipo: 'anexo_vence_manana',
         asuntoCorreo: plantilla.asunto,

@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Interval } from '@nestjs/schedule';
-import { RolUsuario } from '@prisma/client';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { plantillaVigencia, UmbralVigenciaCorreo } from '../correo/plantillas';
 import { mensajeVigencia } from '../correo/plantillas/vigencia';
@@ -12,6 +11,7 @@ import {
   UmbralesSemaforoVigencia,
 } from '../dominio/panel-siac';
 import { claveVigencia } from '../notificaciones/claves-evento';
+import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { PrismaService } from '../prisma/prisma.module';
 import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
@@ -224,30 +224,9 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     }
   }
 
-  private async obtenerDestinatarios(programaId?: string): Promise<string[]> {
-    const admins = await this.prisma.usuario.findMany({
-      where: {
-        activo: true,
-        rol: { in: [RolUsuario.Administrador, RolUsuario.SuperAdmin] },
-      },
-      select: { id: true },
-    });
-
-    const revisores = programaId
-      ? await this.prisma.usuario.findMany({
-        where: {
-          activo: true,
-          rol: RolUsuario.Revisor,
-          usuarioProgramas: { some: { programaId } },
-        },
-        select: { id: true },
-      })
-      : await this.prisma.usuario.findMany({
-        where: { activo: true, rol: RolUsuario.Revisor },
-        select: { id: true },
-      });
-
-    return [...new Set([...admins, ...revisores].map((u) => u.id))];
+  /** Administrador/SuperAdmin activos + Revisores activos del programa (todos si es institucional). */
+  private obtenerDestinatarios(programaId?: string): Promise<string[]> {
+    return idsGestionYRevisores(this.prisma, programaId);
   }
 
   @Interval(10_000)
