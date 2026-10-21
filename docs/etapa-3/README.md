@@ -30,12 +30,12 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 
 | Método | Ruta | HU |
 |--------|------|-----|
-| GET | `/api/aprobacion/pendientes` | HU-006 |
-| POST | `/api/v1/evidencias/:id/dictamen` | HU-006 (canónico; el alias `POST /api/aprobacion/:id/dictaminar` se retiró) |
-| GET/POST/PATCH/DELETE | `/api/vigencias` | HU-007 |
-| POST | `/api/vigencias/ejecutar-cron` | HU-007 |
-| GET | `/api/vigencias/paquetes-registro` | HU-007 (paquetes de vigencia MEN) |
-| GET/POST | `/api/vigencias/demo/estado`, `/api/vigencias/demo/iniciar`, `/api/vigencias/demo/detener` | HU-007 (§0 demo acelerada) |
+| GET | `/api/v1/aprobacion/pendientes` | HU-006 |
+| POST | `/api/v1/evidencias/:id/dictamen` | HU-006 (canónico; el alias `POST /api/v1/aprobacion/:id/dictaminar` se retiró) |
+| GET/POST/PATCH/DELETE | `/api/v1/vigencias` | HU-007 |
+| POST | `/api/v1/vigencias/ejecutar-cron` | HU-007 |
+| GET | `/api/v1/vigencias/paquetes-registro` | HU-007 (paquetes de vigencia MEN) |
+| GET/POST | `/api/v1/vigencias/demo/estado`, `/api/v1/vigencias/demo/iniciar`, `/api/v1/vigencias/demo/detener` | HU-007 (§0 demo acelerada) |
 | GET | `/api/v1/programas/:id/vigencia` | HU-007 (§0: `{semaforo, segundosRestantes, modoPrueba}`) |
 | GET | `/api/v1/notificaciones` | HU-006/007 |
 | GET | `/api/v1/notificaciones/salida?estado=&page=&limit=` | HU-007 (C-8: bitácora del outbox; Administrador/SuperAdmin) |
@@ -45,7 +45,7 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
 | GET/PUT | `/api/v1/powerbi/informes` | HU-009 (URLs públicas por categoría) |
 | GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido, T-009.2) |
-| CRUD | `/api/estructura/*` | Estructura normativa |
+| CRUD | `/api/v1/estructura/*` | Estructura normativa |
 
 ### Entorno de desarrollo (Postgres + correo)
 
@@ -221,7 +221,7 @@ No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se
 - [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
 - [ ] Cron actualiza semáforo vigencias
 - [ ] Alerta in-app en vencimiento próximo
-- [ ] Power BI embed o fallback Recharts documentado
+- [ ] Power BI: informes con «Publicar en la web» y botón «Reintentar» si el iframe falla (ADR-009); embed token pendiente de credenciales Azure
 - [ ] Tests unitarios auth pasan
 
 ## Flujo BPM

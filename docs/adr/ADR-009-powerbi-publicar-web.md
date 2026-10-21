@@ -6,7 +6,7 @@
 
 ## Contexto
 
-HU-009 pide mostrar dentro de SIAC seis informes Power BI con datos de Unicauca: aseguramiento, infraestructura, egresados, investigación, profesores y estudiantes. La opción App Owns Data (T-009.2) necesita un service principal de Azure y capacidad Power BI Embedded, y esas credenciales aún no llegan.
+HU-009 pide mostrar dentro de SIAC los informes Power BI de la Corporación Universitaria Autónoma del Cauca (CUAC / Uniautónoma). El catálogo implementado tiene ocho categorías (`Backend/src/powerbi/categorias-powerbi.ts` y `Frontend/lib/informes-powerbi.ts`): aseguramiento, infraestructura, egresados, investigación, profesores, estudiantes, bienestar y relaciones con el entorno. La opción App Owns Data (T-009.2) necesita un service principal de Azure y capacidad Power BI Embedded, y esas credenciales aún no llegan.
 
 ## Opciones
 

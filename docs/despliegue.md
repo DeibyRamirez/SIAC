@@ -69,15 +69,20 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
 
 ### 2.1 Keep-alive (mitiga el sueño del plan free)
 
-El workflow `.github/workflows/keep-alive.yml` hace `GET <BACKEND_URL>/api/v1/salud` cada 10 minutos (`cron: '*/10 * * * *'`, además de ejecución manual con *Run workflow*). Como el health check hace `SELECT 1`, también mantiene activa la base de Supabase y evita que el proyecto gratuito se pause.
+El workflow `.github/workflows/keep-alive.yml` pide `GET <BACKEND_URL>/api/v1/salud` con `cron: '*/10 * * * *'` (además de ejecución manual con *Run workflow*). Como el health check hace `SELECT 1`, también mantiene activa la base de Supabase y evita que el proyecto gratuito se pause.
 
 1. GitHub → repositorio → **Settings → Secrets and variables → Actions → Variables** → crear la variable de repositorio `BACKEND_URL` = `https://<servicio>.onrender.com` (sin `/api/v1`; la barra final se ignora).
 2. Si `BACKEND_URL` está vacía el workflow solo imprime un aviso y termina en verde.
 3. Limitaciones de GitHub Actions:
-   - Los workflows programados **solo corren desde la rama por defecto del repositorio** (hoy `main`): el keep-alive empieza a funcionar cuando el archivo llegue a esa rama.
-   - La programación es «best effort»: GitHub puede retrasar o saltarse ejecuciones en horas de carga, así que puede haber huecos y algún arranque en frío.
+   - Los workflows programados **solo corren desde la rama por defecto del repositorio** (`main`; el keep-alive ya está ahí y corre con éxito).
+   - **En la práctica GitHub lo ejecuta de forma irregular, cada 2–3 horas** y no cada 10 minutos (medido el 20/10/2026: 15:54, 18:35 y 20:59 hora de Bogotá). La programación de Actions es «best effort» y los cron frecuentes se retrasan o se saltan. Como Render free duerme a los ~15 min, **el keep-alive de GitHub no basta**: el servicio pasa la mayor parte del tiempo dormido y la primera petición tarda más de un minuto.
    - En repositorios públicos GitHub desactiva los workflows programados tras 60 días sin actividad en el repositorio; reactivarlo desde la pestaña **Actions**.
-4. Para que el cron de las 06:00 corra, el servicio debe estar despierto a esa hora; con el keep-alive activo lo normal es que lo esté, pero no está garantizado como en `starter`.
+4. Para que el cron de las 06:00 y el procesador del outbox de correo corran, el servicio debe estar despierto. Con solo el keep-alive de GitHub **no** está garantizado.
+
+**Recomendación** (decisión pendiente del equipo):
+
+- **Opción A — ping externo (gratis):** un monitor HTTP cada 5 min contra `https://<servicio>.onrender.com/api/v1/salud`, p. ej. UptimeRobot (monitor HTTP, intervalo 5 min) o cron-job.org (cada 5 o 10 min, método GET, tiempo de espera ≥ 60 s). Mantiene el servicio despierto casi todo el día; 750 h/mes de Render free alcanzan para un servicio encendido todo el mes. Se puede conservar el workflow de GitHub como respaldo.
+- **Opción B — Render `starter` (USD 7/mes):** siempre encendido; cambiar `plan: free` por `plan: starter` en `render.yaml`. Es lo recomendable para producción real (cron de las 06:00 garantizado, sin arranques en frío).
 
 > Con `NODE_ENV=production` el backend **no arranca** si falta `JWT_SECRETO` o `DATABASE_URL`, y advierte (sin detenerse) si falta `FRONTEND_URL`, si `CORS_ORIGENES` queda vacío, si `S3_USAR_ALMACEN_LOCAL=true` (disco efímero) o si `TZ` no es `America/Bogota`.
 

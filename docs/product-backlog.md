@@ -20,14 +20,16 @@
 | HU-001 | Inicio de sesión JWT | Usuario institucional | autenticarme con correo y contraseña | acceder al sistema de forma segura | Must | 1 |
 | HU-002 | Pantalla de inicio por rol | Usuario autenticado | ver mi panel según mi rol | acceder solo a funciones permitidas | Must | 1 |
 | HU-011 | Roles y permisos | Administrador | gestionar roles de usuarios | controlar accesos según RN-001 | Must | 1 |
-| HU-003 | Carga de evidencias | Cargador | subir PDF/XLSX con metadatos | registrar evidencias en estado Borrador | Must | 1–2 |
+| HU-003 | Carga de evidencias | Cargador | subir documentos Word (.docx) con metadatos; la resolución MEN se adjunta en PDF | registrar evidencias en estado Borrador | Must | 1–2 |
 | HU-004 | CRUD de evidencias | Cargador | editar/eliminar mis borradores | corregir antes de enviar a revisión | Must | 2 |
 | HU-005 | Biblioteca de plantillas | Revisor/Admin | publicar y versionar plantillas oficiales | estandarizar formatos de acreditación | Must | 2 |
 | HU-008 | Búsqueda y filtros | Administrador | buscar evidencias con filtros en URL | compartir vistas específicas | Must | 2 |
 | HU-010 | Panel de programas | Administrador | ver semáforo por programa | monitorear cumplimiento RN-003 | Must | 2 |
-| HU-006 | Aprobar/rechazar evidencias | Revisor | dictaminar evidencias en revisión | validar calidad documental | Must | 3 |
+| HU-006 | Aprobar o dejar con observaciones | Revisor | dictaminar evidencias en revisión (aprobar o devolver con observaciones por condición) | validar calidad documental | Must | 3 |
 | HU-007 | Semáforo de vigencias | Administrador | ver alertas de vencimiento | anticipar incumplimientos | Must | 3 |
-| HU-009 | Métricas Power BI | Revisor/Admin | ver dashboards embebidos | analizar indicadores institucionales | Should | 3 |
+| HU-009 | Métricas Power BI | Administrador / SuperAdmin | ver dashboards embebidos | analizar indicadores institucionales | Should | 3 |
+
+> Formatos: las evidencias y plantillas solo se aceptan en `.docx` (extensión, MIME y estructura OOXML, máx. 20 MB); la única excepción es la resolución MEN, que se carga en PDF. El Revisor no ve la pestaña Power BI: solo Administrador y SuperAdmin (ADR-009).
 
 ---
 
@@ -35,7 +37,7 @@
 
 | ID | Regla | HU relacionadas |
 |----|-------|-----------------|
-| RN-001 | Par Académico / Admin no accede a borradores ni rechazados | HU-002, HU-004, HU-011 |
+| RN-001 | Par Académico / Admin no accede a borradores ni rechazados (el rol Par Académico está pausado por decisión del PO del 07/10/2026) | HU-002, HU-004, HU-011 |
 | RN-003 | Programa con anexo infraestructura vencido → semáforo rojo | HU-007, HU-010 |
 
 ---

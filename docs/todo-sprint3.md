@@ -4,6 +4,50 @@
 > **Commit revisado:** `d6905094bde45d28a4f54bf5940c07aefe42dfb6` (`develop_v2` = `origin/develop_v2`, 09/10/2026 23:29 -05, «[test][Sprint 2][HU-008] E2E busqueda con responsable institucional»).
 > **Ojo:** la copia local `D:\Proyectos\SIAC` tiene **trabajo sin commitear** (33 archivos modificados + archivos nuevos) que implementa buena parte del correo y la campana de notificaciones (módulo `Backend/src/correo/`, `NotificacionesDespachoService`, ADR-008, migración `20261009200000_alerta_metadata`, `campana-notificaciones.tsx`). Este plan distingue **[commit]** (lo que está en `d690509`) de **[WIP local]** (lo que existe solo en el árbol de trabajo). Lo WIP no cuenta como hecho hasta que esté commiteado, con pruebas y CI verde.
 
+## 0. Estado al 20/10/2026 (actualización)
+
+> Contrastado con el código de `develop_v2` (`983cc63`, PR #11) y la auditoría del 20/10/2026. Las secciones 1 a 8 se conservan como **plan histórico del 13/10**; donde contradigan esta tabla, manda esta tabla.
+
+### Hecho (en código, con pruebas)
+
+| Tarea | Evidencia |
+|---|---|
+| T-006.1 Observaciones por condición | Observación obligatoria por condición; `resumen-observaciones-por-condicion` |
+| T-006.2 Dictamen y máquina de estados | `dominio/maquina-estados-evidencia.ts`, E2E `dictamen-sin-puntaje` (se dictamina desde `EnRevision`) |
+| T-006.3 Notificación al Cargador | Alerta in-app y correo por outbox (clave `dictamen:{id}:v{n}:{usuario}`), E2E `notificaciones`. El correo real depende del canal (Resend hoy; SMTP pendiente) |
+| T-007.1 Fecha de vigencia | `ResolucionMen`; fin = fecha + 7 años |
+| T-007.2 Cron diario | `@Cron(EVERY_DAY_AT_6AM, America/Bogota)` idempotente; eventos D-1 de anexos |
+| T-007.3 Semáforo combinado | Umbrales 24/18 editables (`GET/PATCH /configuracion/vigencia`), estado `Vencido`, RN-003 |
+| T-007.4 Alertas y bitácora | Outbox `NotificacionSalida` con reintentos y `GET /notificaciones/salida`; E2E `alertas-vigencia` |
+| C-1 a C-4 | Módulo `correo/`, despacho, campana y outbox con `claveEvento @unique` (ver ADR-008, enmienda 20/10) |
+| C-5 Plantillas de correo | `Backend/src/correo/plantillas/` con *snapshots* |
+| C-6 Eventos de vigencia de la resolución MEN | `claveVigencia` y alertas de vigencia en el cron |
+| C-8 Bitácora de fallidos (backend) | `GET /api/v1/notificaciones/salida` (Administrador/SuperAdmin) |
+| Despliegue | Render free + Vercel Hobby + Supabase desde el 16/10/2026 (`docs/despliegue.md`) |
+| Defectos HU-005 (20/10) | `tipoTramite` validado (400); estados «Cargando», error con «Reintentar» y vacío en plantillas, evidencias y vigencias |
+| Contraseñas de la semilla | Leídas de `SEMILLA_CLAVE_*`, obligatorias en producción (falta rotarlas en la BD de producción) |
+
+### Parcial
+
+| Tarea | Falta |
+|---|---|
+| T-009.3 Componente embed con fallback | Hecho en modo público (8 categorías, iframe y «Reintentar»); falta el modo embebido |
+| C-8 Bitácora de fallidos (frontend) | Pantalla y reenvío manual |
+
+### Pendiente
+
+| Tarea | Estado |
+|---|---|
+| T-009.1 Dataset n/9 por programa y condición | Sin código; decidir si sigue en alcance |
+| T-009.2 Embed token (App Owns Data) | Bloqueada: faltan credenciales Azure (ADR-009) |
+| T-009.4 Aceptación con el cliente | Sin fecha |
+| C-7 Preferencias de notificación | Sin código |
+| SMTP institucional | Faltan credenciales de TI |
+| Validación del PO de HU-006 y HU-007 y reescritura de sus CA en ClickUp | Pendiente (ver auditoría §G) |
+| Keep-alive fiable | GitHub lo ejecuta cada 2–3 h; decidir ping externo o Render `starter` (`docs/despliegue.md` §2.1) |
+| Rotar las contraseñas de los usuarios semilla en producción | Acción manual en la BD |
+| T-006.4 RN-001 Par académico | Pausada (decisión del PO del 07/10) |
+
 ## 1. Resumen
 
 | HU | % estimado (commit) | % con WIP local | Estado |
