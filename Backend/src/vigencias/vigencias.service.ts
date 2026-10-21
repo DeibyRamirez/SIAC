@@ -27,6 +27,7 @@ import { claveAnexoD1 } from '../notificaciones/claves-evento';
 import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 /** Zona horaria institucional (CUAC Popayán) para el cron diario de vigencias. */
 export const ZONA_HORARIA_SIAC = 'America/Bogota';
@@ -334,12 +335,14 @@ export class VigenciasService implements OnModuleInit {
     timeZone: process.env.VIGENCIAS_CRON_ZONA ?? ZONA_HORARIA_SIAC,
   })
   async actualizarVigenciasDiarias(): Promise<void> {
-    this.logger.log('Ejecutando cron de vigencias...');
+    return ejecutarComoSistema(async () => {
+      this.logger.log('Ejecutando cron de vigencias...');
 
-    await this.notificarAnexosQueVencenManana();
-    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
+      await this.notificarAnexosQueVencenManana();
+      await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
 
-    this.logger.log('Cron de vigencias completado.');
+      this.logger.log('Cron de vigencias completado.');
+    });
   }
 
   /** D-1: avisos de anexos que vencen mañana; la idempotencia la da `claveAnexoD1`. */

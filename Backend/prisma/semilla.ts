@@ -14,7 +14,10 @@ import {
   RolSemilla,
   resolverClavesSemilla,
 } from '../src/common/config/claves-semilla';
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  // RLS: los scripts de mantenimiento y la semilla corren como dueño (DIRECT_URL), no como siac_app.
+  datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
 
 /**
  * Las contraseñas no viven en el código: se leen de SEMILLA_CLAVE_* (ver Backend/.env.example).

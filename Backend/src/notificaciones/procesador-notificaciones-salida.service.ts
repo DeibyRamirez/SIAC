@@ -5,6 +5,7 @@ import { NotificacionSalida } from '@prisma/client';
 import { CorreoService } from '../correo/correo.service';
 import { destinatarioPermitidoEnDesarrollo } from '../correo/filtrar-destinatarios-permitidos';
 import { PrismaService } from '../prisma/prisma.module';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 interface PayloadSalida {
   mensaje?: string;
@@ -60,41 +61,43 @@ export class ProcesadorNotificacionesSalidaService {
 
   /** Procesa el lote actual de pendientes vencidos (también invocable desde pruebas). */
   async procesarPendientes(ahora: Date = new Date()): Promise<ResumenProcesamientoSalida> {
-    const maxIntentos = this.maxIntentos();
-    const baseSegundos = this.reintentoBaseSegundos();
-    const leaseMs = this.leaseSegundos() * 1000;
+    return ejecutarComoSistema(async () => {
+      const maxIntentos = this.maxIntentos();
+      const baseSegundos = this.reintentoBaseSegundos();
+      const leaseMs = this.leaseSegundos() * 1000;
 
-    const filas = await this.prisma.notificacionSalida.findMany({
-      where: { estado: 'Pendiente', proximoIntentoAt: { lte: ahora } },
-      orderBy: { createdAt: 'asc' },
-      take: LOTE_POR_TANDA,
-    });
-
-    const resumen: ResumenProcesamientoSalida = {
-      enviados: 0,
-      fallidos: 0,
-      descartados: 0,
-      pendientes: 0,
-    };
-
-    for (const fila of filas) {
-      // Reclamo seguro ante varias instancias: solo gana quien conserva estado e intentos.
-      // El lease mueve proximoIntentoAt para que otro tick no tome la fila mientras se envía.
-      const reclamada = await this.prisma.notificacionSalida.updateMany({
-        where: { id: fila.id, estado: 'Pendiente', intentos: fila.intentos },
-        data: {
-          intentos: { increment: 1 },
-          proximoIntentoAt: new Date(ahora.getTime() + leaseMs),
-        },
+      const filas = await this.prisma.notificacionSalida.findMany({
+        where: { estado: 'Pendiente', proximoIntentoAt: { lte: ahora } },
+        orderBy: { createdAt: 'asc' },
+        take: LOTE_POR_TANDA,
       });
-      if (reclamada.count === 0) continue;
 
-      const intentos = fila.intentos + 1;
-      const resultado = await this.procesarFila(fila, intentos, maxIntentos, baseSegundos, ahora);
-      resumen[resultado] += 1;
-    }
+      const resumen: ResumenProcesamientoSalida = {
+        enviados: 0,
+        fallidos: 0,
+        descartados: 0,
+        pendientes: 0,
+      };
 
-    return resumen;
+      for (const fila of filas) {
+        // Reclamo seguro ante varias instancias: solo gana quien conserva estado e intentos.
+        // El lease mueve proximoIntentoAt para que otro tick no tome la fila mientras se envía.
+        const reclamada = await this.prisma.notificacionSalida.updateMany({
+          where: { id: fila.id, estado: 'Pendiente', intentos: fila.intentos },
+          data: {
+            intentos: { increment: 1 },
+            proximoIntentoAt: new Date(ahora.getTime() + leaseMs),
+          },
+        });
+        if (reclamada.count === 0) continue;
+
+        const intentos = fila.intentos + 1;
+        const resultado = await this.procesarFila(fila, intentos, maxIntentos, baseSegundos, ahora);
+        resumen[resultado] += 1;
+      }
+
+      return resumen;
+    });
   }
 
   private async procesarFila(

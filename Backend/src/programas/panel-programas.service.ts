@@ -29,6 +29,7 @@ import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
 import { calcularSemaforo } from './programas.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 export interface DocumentoPanelDto {
   codigoGuia: CodigoDocumentoGuia;
@@ -90,25 +91,27 @@ export class PanelProgramasService implements OnModuleInit {
    * (antes solo se registraba una advertencia y el panel calculaba con datos inválidos).
    */
   async onModuleInit(): Promise<void> {
-    await this.configuracion.cargar();
-    const tramites = await this.prisma.tramiteSIAC.findMany({
-      include: { documentos: true },
-    });
+    return ejecutarComoSistema(async () => {
+      await this.configuracion.cargar();
+      const tramites = await this.prisma.tramiteSIAC.findMany({
+        include: { documentos: true },
+      });
 
-    for (const tramite of tramites) {
-      const mapa = new Map<CodigoDocumentoGuia, number>();
-      for (const doc of tramite.documentos) {
-        mapa.set(doc.codigoGuia, doc.pesoPorcentaje);
+      for (const tramite of tramites) {
+        const mapa = new Map<CodigoDocumentoGuia, number>();
+        for (const doc of tramite.documentos) {
+          mapa.set(doc.codigoGuia, doc.pesoPorcentaje);
+        }
+        try {
+          validarPesosTramite(tramite.documentos.map((d) => d.pesoPorcentaje));
+        } catch (error) {
+          const mensaje = `Pesos inválidos en el trámite ${tramite.tipo}: ${(error as Error).message}`;
+          this.logger.error(mensaje);
+          throw new Error(mensaje);
+        }
+        this.pesosPorTramite.set(tramite.tipo, mapa);
       }
-      try {
-        validarPesosTramite(tramite.documentos.map((d) => d.pesoPorcentaje));
-      } catch (error) {
-        const mensaje = `Pesos inválidos en el trámite ${tramite.tipo}: ${(error as Error).message}`;
-        this.logger.error(mensaje);
-        throw new Error(mensaje);
-      }
-      this.pesosPorTramite.set(tramite.tipo, mapa);
-    }
+    });
   }
 
   async listarPanel(

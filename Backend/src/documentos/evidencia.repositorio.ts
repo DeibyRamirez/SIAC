@@ -21,6 +21,7 @@ import {
   combinarCondicionTextoLibre,
   construirFiltroTextoLibre,
 } from './texto-libre-evidencias';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 
 
@@ -125,6 +126,17 @@ export class EvidenciaRepositorio {
   }
 
 
+
+  /**
+   * RLS: una evidencia fuera del alcance del usuario no aparece en sus consultas. Para conservar
+   * el contrato de la API (403 si existe pero no tiene acceso, 404 si no existe) se comprueba la
+   * existencia por la ruta de sistema, sin devolver ningún dato de la fila.
+   */
+  existe(id: string): Promise<boolean> {
+    return ejecutarComoSistema(async () =>
+      Boolean(await this.prisma.evidencia.findUnique({ where: { id }, select: { id: true } })),
+    );
+  }
 
   buscarPorId(id: string) {
 

@@ -102,7 +102,10 @@ async function principal() {
     );
   }
   console.log(`BD: ${host} · modo: ${opciones.ejecutar ? 'EJECUTAR' : 'simulación'}`);
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    // RLS: los scripts de mantenimiento corren como dueño (DIRECT_URL), no como siac_app.
+    datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+  });
   try {
     await limpiarAnexosSinDocumento(prisma, opciones);
   } finally {

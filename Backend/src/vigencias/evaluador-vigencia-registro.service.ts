@@ -16,6 +16,7 @@ import { NotificacionesDespachoService } from '../notificaciones/notificaciones-
 import { PrismaService } from '../prisma/prisma.module';
 import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
 import { VigenciaDemoService } from './vigencia-demo.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 @Injectable()
 export class EvaluadorVigenciaRegistroService implements OnModuleInit {
@@ -54,80 +55,82 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
    * T-007.2: 1 aviso por destinatario (Administrador/SuperAdmin/Revisor activos) por transición.
    */
   async evaluarTodasLasEntidades(referencia: Date = new Date()): Promise<void> {
-    const umbrales = await this.configuracion.cargar();
+    return ejecutarComoSistema(async () => {
+      const umbrales = await this.configuracion.cargar();
 
-    const programas = await this.prisma.programa.findMany({
-      where: { fechaResolucion: { not: null } },
-      select: {
-        id: true,
-        nombre: true,
-        fechaResolucion: true,
-        resoluciones: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { id: true },
+      const programas = await this.prisma.programa.findMany({
+        where: { fechaResolucion: { not: null } },
+        select: {
+          id: true,
+          nombre: true,
+          fechaResolucion: true,
+          resoluciones: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true },
+          },
         },
-      },
-    });
-    for (const programa of programas) {
-      if (!programa.fechaResolucion) continue;
-      const evaluacion = this.referenciaEntidad(
-        'Programa',
-        programa.id,
-        programa.fechaResolucion,
-        umbrales,
-        referencia,
-      );
-      if (!evaluacion) continue;
-      await this.evaluarEntidad({
-        alcance: 'Programa',
-        entidadId: programa.id,
-        nombre: programa.nombre,
-        fechaResolucion: programa.fechaResolucion,
-        referencia: evaluacion.referencia,
-        tokenDemo: evaluacion.tokenDemo,
-        resolucionId: programa.resoluciones[0]?.id ?? programa.fechaResolucion.toISOString().slice(0, 10),
-        umbrales,
-        programaId: programa.id,
       });
-    }
-
-    const institucion = await this.prisma.institucion.findFirst({
-      where: { fechaResolucion: { not: null } },
-      select: {
-        id: true,
-        nombre: true,
-        fechaResolucion: true,
-        resoluciones: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { id: true },
-        },
-      },
-    });
-    if (institucion?.fechaResolucion) {
-      const evaluacion = this.referenciaEntidad(
-        'Institucion',
-        institucion.id,
-        institucion.fechaResolucion,
-        umbrales,
-        referencia,
-      );
-      if (evaluacion) {
+      for (const programa of programas) {
+        if (!programa.fechaResolucion) continue;
+        const evaluacion = this.referenciaEntidad(
+          'Programa',
+          programa.id,
+          programa.fechaResolucion,
+          umbrales,
+          referencia,
+        );
+        if (!evaluacion) continue;
         await this.evaluarEntidad({
-          alcance: 'Institucion',
-          entidadId: institucion.id,
-          nombre: institucion.nombre,
-          fechaResolucion: institucion.fechaResolucion,
+          alcance: 'Programa',
+          entidadId: programa.id,
+          nombre: programa.nombre,
+          fechaResolucion: programa.fechaResolucion,
           referencia: evaluacion.referencia,
           tokenDemo: evaluacion.tokenDemo,
-          resolucionId:
-            institucion.resoluciones[0]?.id ??
-            institucion.fechaResolucion.toISOString().slice(0, 10),
+          resolucionId: programa.resoluciones[0]?.id ?? programa.fechaResolucion.toISOString().slice(0, 10),
           umbrales,
+          programaId: programa.id,
         });
       }
-    }
+
+      const institucion = await this.prisma.institucion.findFirst({
+        where: { fechaResolucion: { not: null } },
+        select: {
+          id: true,
+          nombre: true,
+          fechaResolucion: true,
+          resoluciones: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      });
+      if (institucion?.fechaResolucion) {
+        const evaluacion = this.referenciaEntidad(
+          'Institucion',
+          institucion.id,
+          institucion.fechaResolucion,
+          umbrales,
+          referencia,
+        );
+        if (evaluacion) {
+          await this.evaluarEntidad({
+            alcance: 'Institucion',
+            entidadId: institucion.id,
+            nombre: institucion.nombre,
+            fechaResolucion: institucion.fechaResolucion,
+            referencia: evaluacion.referencia,
+            tokenDemo: evaluacion.tokenDemo,
+            resolucionId:
+              institucion.resoluciones[0]?.id ??
+              institucion.fechaResolucion.toISOString().slice(0, 10),
+            umbrales,
+          });
+        }
+      }
+    });
   }
 
   private referenciaEntidad(

@@ -425,7 +425,7 @@ export class DocumentosService {
 
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
-    if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+    if (!evidencia) return this.lanzarNoEncontradaOProhibida(id);
 
 
 
@@ -775,7 +775,7 @@ export class DocumentosService {
 
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
-    if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+    if (!evidencia) return this.lanzarNoEncontradaOProhibida(id);
 
 
 
@@ -1535,6 +1535,14 @@ export class DocumentosService {
   }
 
 
+
+  /** 403 si la evidencia existe pero la RLS la oculta al usuario; 404 si no existe. */
+  private async lanzarNoEncontradaOProhibida(id: string): Promise<never> {
+    if (await this.evidenciaRepo.existe(id)) {
+      throw new ForbiddenException('No tiene acceso a esta evidencia.');
+    }
+    throw new NotFoundException('Evidencia no encontrada.');
+  }
 
   private async verificarAccesoLectura(
 

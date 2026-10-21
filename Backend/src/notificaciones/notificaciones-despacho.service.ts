@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PlantillaCorreo } from '../correo/plantillas';
 import { construirPlantillaCorreoNotificacion } from '../correo/plantillas-notificacion';
 import { PrismaService } from '../prisma/prisma.module';
+import { ejecutarComoSistema, ejecutarComoSistemaEnTransaccion } from '../prisma/contexto-sistema';
 
 export interface EventoNotificacion {
   /** T-007.3c: clave idempotente del evento (misma para AlertaInApp y NotificacionSalida). */
@@ -52,10 +53,11 @@ export class NotificacionesDespachoService {
     evento: EventoNotificacion,
     tx?: Prisma.TransactionClient,
   ): Promise<{ creada: boolean }> {
-    if (tx) return this.notificarEnTransaccion(tx, evento);
+    // RLS: la alerta y el outbox son filas de otro usuario → ruta de sistema.
+    if (tx) return ejecutarComoSistemaEnTransaccion(tx, () => this.notificarEnTransaccion(tx, evento));
     try {
-      return await this.prisma.$transaction((cliente) =>
-        this.notificarEnTransaccion(cliente, evento),
+      return await ejecutarComoSistema(() =>
+        this.prisma.$transaction((cliente) => this.notificarEnTransaccion(cliente, evento)),
       );
     } catch (error) {
       if (esClaveDuplicada(error)) {
@@ -127,9 +129,9 @@ export class NotificacionesDespachoService {
       });
       return { creada: true };
     };
-    if (tx) return ejecutar(tx);
+    if (tx) return ejecutarComoSistemaEnTransaccion(tx, () => ejecutar(tx));
     try {
-      return await this.prisma.$transaction(ejecutar);
+      return await ejecutarComoSistema(() => this.prisma.$transaction(ejecutar));
     } catch (error) {
       if (esClaveDuplicada(error)) return { creada: false };
       throw error;

@@ -10,6 +10,7 @@ import {
   calcularReglasCargaGuias,
 } from '../dominio/reglas-carga-evidencia';
 import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 const ESTADOS_EVIDENCIA_ABIERTA_CARGA = [
   ...ESTADOS_BLOQUEAN_NUEVA_EVIDENCIA_MISMA_GUIA,
@@ -56,223 +57,227 @@ export class AvanceProcesoSIACService {
   constructor(private readonly prisma: PrismaService) {}
 
   async calcularProgresoPrograma(programaId: string): Promise<ProgresoProcesoSIAC> {
-    const programa = await this.prisma.programa.findUnique({ where: { id: programaId } });
-    if (!programa) throw new NotFoundException('Programa no encontrado.');
+    return ejecutarComoSistema(async () => {
+      const programa = await this.prisma.programa.findUnique({ where: { id: programaId } });
+      if (!programa) throw new NotFoundException('Programa no encontrado.');
 
-    const tramite = tramitePorTipo(programa.tipoTramiteActivo);
-    const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
+      const tramite = tramitePorTipo(programa.tipoTramiteActivo);
+      const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
 
-    const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
-      where: {
-        tramite: { tipo: programa.tipoTramiteActivo },
-        codigoGuia: { in: codigosGuia },
-      },
-      select: { codigoGuia: true, pesoPorcentaje: true },
-    });
-    const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
-
-    const evidencias = await this.prisma.evidencia.findMany({
-      where: {
-        programaId,
-        codigoGuia: { in: codigosGuia },
-        createdAt: { gte: programa.inicioCicloTramiteAt },
-        estado: {
-          in: [
-            EstadoEvidencia.Cumple,
-            EstadoEvidencia.ConObservaciones,
-            EstadoEvidencia.Validado,
-            EstadoEvidencia.Rechazado,
-          ],
+      const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
+        where: {
+          tramite: { tipo: programa.tipoTramiteActivo },
+          codigoGuia: { in: codigosGuia },
         },
-      },
-      select: {
-        codigoGuia: true,
-        estado: true,
-        puntajeActual: true,
-        totalCondicionesActual: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        select: { codigoGuia: true, pesoPorcentaje: true },
+      });
+      const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
 
-    const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
-    for (const ev of evidencias) {
-      if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
-      if (!ultimaPorGuia.has(ev.codigoGuia)) {
-        ultimaPorGuia.set(ev.codigoGuia, ev);
+      const evidencias = await this.prisma.evidencia.findMany({
+        where: {
+          programaId,
+          codigoGuia: { in: codigosGuia },
+          createdAt: { gte: programa.inicioCicloTramiteAt },
+          estado: {
+            in: [
+              EstadoEvidencia.Cumple,
+              EstadoEvidencia.ConObservaciones,
+              EstadoEvidencia.Validado,
+              EstadoEvidencia.Rechazado,
+            ],
+          },
+        },
+        select: {
+          codigoGuia: true,
+          estado: true,
+          puntajeActual: true,
+          totalCondicionesActual: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
+      for (const ev of evidencias) {
+        if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
+        if (!ultimaPorGuia.has(ev.codigoGuia)) {
+          ultimaPorGuia.set(ev.codigoGuia, ev);
+        }
       }
-    }
 
-    const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
-      const codigoGuia = docGuia.codigo;
-      const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
-      const evidencia = ultimaPorGuia.get(codigoGuia);
-      // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
-      const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
-      const porcentajeInterno = redondear2(porcentajeBruto);
-      const aportacion = redondear2((peso * porcentajeBruto) / 100);
+      const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
+        const codigoGuia = docGuia.codigo;
+        const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
+        const evidencia = ultimaPorGuia.get(codigoGuia);
+        // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
+        const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+        const porcentajeInterno = redondear2(porcentajeBruto);
+        const aportacion = redondear2((peso * porcentajeBruto) / 100);
+
+        return {
+          codigoGuia,
+          nombre: ETIQUETAS_GUIA[codigoGuia],
+          peso,
+          porcentajeInterno,
+          aportacion,
+          estado: evidencia?.estado ?? null,
+          puntaje: evidencia?.puntajeActual ?? null,
+          totalCondiciones: evidencia?.totalCondicionesActual ?? null,
+          aceptado:
+            evidencia?.estado === EstadoEvidencia.Cumple ||
+            evidencia?.estado === EstadoEvidencia.Validado,
+          conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
+          rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+          porcentajeBruto,
+        };
+      });
+
+      const avanceGlobal = calcularAvancePonderado(
+        documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
+      );
+      const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
+      const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+
+      const evidenciasAbiertas = await this.prisma.evidencia.findMany({
+        where: {
+          programaId,
+          codigoGuia: { in: codigosGuia },
+          createdAt: { gte: programa.inicioCicloTramiteAt },
+          estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
+        },
+        select: { codigoGuia: true, estado: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+      const reglasCarga = calcularReglasCargaGuias(
+        codigosGuia,
+        documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
+        evidenciasAbiertas
+          .filter((ev) => ev.codigoGuia)
+          .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
+      );
 
       return {
-        codigoGuia,
-        nombre: ETIQUETAS_GUIA[codigoGuia],
-        peso,
-        porcentajeInterno,
-        aportacion,
-        estado: evidencia?.estado ?? null,
-        puntaje: evidencia?.puntajeActual ?? null,
-        totalCondiciones: evidencia?.totalCondicionesActual ?? null,
-        aceptado:
-          evidencia?.estado === EstadoEvidencia.Cumple ||
-          evidencia?.estado === EstadoEvidencia.Validado,
-        conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
-        rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
-        porcentajeBruto,
+        programaId,
+        tipoTramite: programa.tipoTramiteActivo,
+        avanceGlobal,
+        documentosAceptados,
+        documentosTotal: tramite.documentosGuia.length,
+        documentos: documentosPublicos,
+        ...estadoResolucion(documentos),
+        ...reglasCarga,
       };
     });
-
-    const avanceGlobal = calcularAvancePonderado(
-      documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
-    );
-    const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
-    const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
-
-    const evidenciasAbiertas = await this.prisma.evidencia.findMany({
-      where: {
-        programaId,
-        codigoGuia: { in: codigosGuia },
-        createdAt: { gte: programa.inicioCicloTramiteAt },
-        estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
-      },
-      select: { codigoGuia: true, estado: true, updatedAt: true },
-      orderBy: { updatedAt: 'desc' },
-    });
-    const reglasCarga = calcularReglasCargaGuias(
-      codigosGuia,
-      documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
-      evidenciasAbiertas
-        .filter((ev) => ev.codigoGuia)
-        .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
-    );
-
-    return {
-      programaId,
-      tipoTramite: programa.tipoTramiteActivo,
-      avanceGlobal,
-      documentosAceptados,
-      documentosTotal: tramite.documentosGuia.length,
-      documentos: documentosPublicos,
-      ...estadoResolucion(documentos),
-      ...reglasCarga,
-    };
   }
 
   async calcularProgresoInstitucion(institucionId: string): Promise<ProgresoProcesoSIAC> {
-    const institucion = await this.prisma.institucion.findUnique({ where: { id: institucionId } });
-    if (!institucion) throw new NotFoundException('Institución no encontrada.');
+    return ejecutarComoSistema(async () => {
+      const institucion = await this.prisma.institucion.findUnique({ where: { id: institucionId } });
+      if (!institucion) throw new NotFoundException('Institución no encontrada.');
 
-    const tramite = tramitePorTipo(institucion.tipoTramiteActivo);
-    const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
+      const tramite = tramitePorTipo(institucion.tipoTramiteActivo);
+      const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
 
-    const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
-      where: {
-        tramite: { tipo: institucion.tipoTramiteActivo },
-        codigoGuia: { in: codigosGuia },
-      },
-      select: { codigoGuia: true, pesoPorcentaje: true },
-    });
-    const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
-
-    const evidencias = await this.prisma.evidencia.findMany({
-      where: {
-        institucionId,
-        codigoGuia: { in: codigosGuia },
-        estado: {
-          in: [
-            EstadoEvidencia.Cumple,
-            EstadoEvidencia.ConObservaciones,
-            EstadoEvidencia.Validado,
-            EstadoEvidencia.Rechazado,
-          ],
+      const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
+        where: {
+          tramite: { tipo: institucion.tipoTramiteActivo },
+          codigoGuia: { in: codigosGuia },
         },
-      },
-      select: {
-        codigoGuia: true,
-        estado: true,
-        puntajeActual: true,
-        totalCondicionesActual: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        select: { codigoGuia: true, pesoPorcentaje: true },
+      });
+      const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
 
-    const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
-    for (const ev of evidencias) {
-      if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
-      if (!ultimaPorGuia.has(ev.codigoGuia)) {
-        ultimaPorGuia.set(ev.codigoGuia, ev);
+      const evidencias = await this.prisma.evidencia.findMany({
+        where: {
+          institucionId,
+          codigoGuia: { in: codigosGuia },
+          estado: {
+            in: [
+              EstadoEvidencia.Cumple,
+              EstadoEvidencia.ConObservaciones,
+              EstadoEvidencia.Validado,
+              EstadoEvidencia.Rechazado,
+            ],
+          },
+        },
+        select: {
+          codigoGuia: true,
+          estado: true,
+          puntajeActual: true,
+          totalCondicionesActual: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
+      for (const ev of evidencias) {
+        if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
+        if (!ultimaPorGuia.has(ev.codigoGuia)) {
+          ultimaPorGuia.set(ev.codigoGuia, ev);
+        }
       }
-    }
 
-    const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
-      const codigoGuia = docGuia.codigo;
-      const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
-      const evidencia = ultimaPorGuia.get(codigoGuia);
-      // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
-      const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
-      const porcentajeInterno = redondear2(porcentajeBruto);
-      const aportacion = redondear2((peso * porcentajeBruto) / 100);
+      const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
+        const codigoGuia = docGuia.codigo;
+        const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
+        const evidencia = ultimaPorGuia.get(codigoGuia);
+        // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
+        const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+        const porcentajeInterno = redondear2(porcentajeBruto);
+        const aportacion = redondear2((peso * porcentajeBruto) / 100);
+
+        return {
+          codigoGuia,
+          nombre: ETIQUETAS_GUIA[codigoGuia],
+          peso,
+          porcentajeInterno,
+          aportacion,
+          estado: evidencia?.estado ?? null,
+          puntaje: evidencia?.puntajeActual ?? null,
+          totalCondiciones: evidencia?.totalCondicionesActual ?? null,
+          aceptado:
+            evidencia?.estado === EstadoEvidencia.Cumple ||
+            evidencia?.estado === EstadoEvidencia.Validado,
+          conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
+          rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+          porcentajeBruto,
+        };
+      });
+
+      const avanceGlobal = calcularAvancePonderado(
+        documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
+      );
+      const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
+      const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+
+      const evidenciasAbiertas = await this.prisma.evidencia.findMany({
+        where: {
+          institucionId,
+          codigoGuia: { in: codigosGuia },
+          estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
+        },
+        select: { codigoGuia: true, estado: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+      const reglasCarga = calcularReglasCargaGuias(
+        codigosGuia,
+        documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
+        evidenciasAbiertas
+          .filter((ev) => ev.codigoGuia)
+          .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
+      );
 
       return {
-        codigoGuia,
-        nombre: ETIQUETAS_GUIA[codigoGuia],
-        peso,
-        porcentajeInterno,
-        aportacion,
-        estado: evidencia?.estado ?? null,
-        puntaje: evidencia?.puntajeActual ?? null,
-        totalCondiciones: evidencia?.totalCondicionesActual ?? null,
-        aceptado:
-          evidencia?.estado === EstadoEvidencia.Cumple ||
-          evidencia?.estado === EstadoEvidencia.Validado,
-        conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
-        rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
-        porcentajeBruto,
+        programaId: institucionId,
+        tipoTramite: institucion.tipoTramiteActivo,
+        avanceGlobal,
+        documentosAceptados,
+        documentosTotal: tramite.documentosGuia.length,
+        documentos: documentosPublicos,
+        ...estadoResolucion(documentos),
+        ...reglasCarga,
       };
     });
-
-    const avanceGlobal = calcularAvancePonderado(
-      documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
-    );
-    const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
-    const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
-
-    const evidenciasAbiertas = await this.prisma.evidencia.findMany({
-      where: {
-        institucionId,
-        codigoGuia: { in: codigosGuia },
-        estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
-      },
-      select: { codigoGuia: true, estado: true, updatedAt: true },
-      orderBy: { updatedAt: 'desc' },
-    });
-    const reglasCarga = calcularReglasCargaGuias(
-      codigosGuia,
-      documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
-      evidenciasAbiertas
-        .filter((ev) => ev.codigoGuia)
-        .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
-    );
-
-    return {
-      programaId: institucionId,
-      tipoTramite: institucion.tipoTramiteActivo,
-      avanceGlobal,
-      documentosAceptados,
-      documentosTotal: tramite.documentosGuia.length,
-      documentos: documentosPublicos,
-      ...estadoResolucion(documentos),
-      ...reglasCarga,
-    };
   }
 }
 

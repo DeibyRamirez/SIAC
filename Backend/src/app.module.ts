@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { configuracionEnv } from './common/config/configuracion.env';
@@ -21,6 +21,7 @@ import { AcreditacionModule } from './acreditacion/acreditacion.module';
 import { MetricasModule } from './metricas/metricas.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { SaludModule } from './salud/salud.module';
+import { MiddlewareContextoRls } from './prisma/middleware-contexto-rls';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuracionEnv] }),
@@ -46,4 +47,8 @@ import { SaludModule } from './salud/salud.module';
     SaludModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(MiddlewareContextoRls).forRoutes('*');
+  }
+}
