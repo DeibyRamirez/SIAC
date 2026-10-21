@@ -6,7 +6,8 @@ Monorepo del proyecto académico CUAC (Frontend Next.js + Backend NestJS).
 
 - Node.js 24 LTS (fijado en `engines.node` de Backend y Frontend)
 - pnpm 10.x (`corepack enable`)
-- Docker Desktop (PostgreSQL local)
+- PostgreSQL 16 local: con Docker Desktop (`docker compose up -d`) o una instalación nativa.
+  Las pruebas E2E y la verificación de migraciones corren en la CI de GitHub con PostgreSQL 16.
 
 ## Arranque local
 
@@ -82,23 +83,37 @@ App: `http://localhost:3000`
 
 ## Despliegue (Supabase + Render + Vercel)
 
-Ver [docs/despliegue.md](docs/despliegue.md) y el Blueprint [render.yaml](render.yaml).
+SIAC está desplegado desde el 16/10/2026 con planes gratuitos:
+
+| Pieza | Servicio | Notas |
+|-------|----------|-------|
+| Frontend (Next.js 16 + BFF `/api/sesion`, `/api/v1/*`) | Vercel (Hobby) | Variable obligatoria `API_URL_INTERNAL` |
+| Backend (NestJS, `/api/v1`) | Render (free, Blueprint [`render.yaml`](render.yaml)) | Se duerme tras ~15 min sin tráfico; ver el keep-alive y sus límites |
+| Base de datos PostgreSQL | Supabase | La app usa el pooler en modo transacción (6543); las migraciones, el modo sesión (5432) |
+| Archivos (evidencias, plantillas, documentos) | Supabase Storage (API S3) | Buckets `evidencias`, `plantillas` y `documentos` |
+| Correo | Resend (o SMTP institucional cuando haya credenciales) | Outbox con reintentos (`NotificacionSalida`) |
+
+La guía completa (variables por servicio, orden de despliegue, migraciones, keep-alive, pruebas
+de humo y costos) está en [docs/despliegue.md](docs/despliegue.md).
 
 ## Estrategia de ramas
 
-- `main` — código estable desplegado
-- `develop` — integración de incrementos
-- `feature/HU-XXX-descripcion` — una rama por historia; PR hacia `develop`
+- `main` — código desplegado (Render y Vercel despliegan desde aquí); recibe PR desde `develop_v2`.
+- `develop_v2` — rama de integración vigente; la CI corre en cada push y PR.
+- `feature/HU-XXX-descripcion` o `feature/S3-...` — una rama por historia o tarea; PR hacia `develop_v2`.
+- `develop` y `develop_v3` son ramas antiguas: no se usan para trabajo nuevo.
 
 ## Sprints
 
-El estado oficial vive en ClickUp; este repositorio no declara sprints completados.
+El estado oficial vive en ClickUp; esta tabla resume el estado del código.
 
 | Sprint | Estado | Historias |
 |--------|--------|-----------|
-| 1 | Completada, con el alcance por programa cerrado al iniciar el Sprint 2 | HU-001, HU-002, HU-011, inicio HU-003 |
-| 2 | En progreso | HU-003, HU-004, HU-005, HU-008, HU-010 |
-| 3 | Por hacer | HU-006, HU-007, HU-009 |
-| 4 | Por hacer | Aceptación HU-001..HU-011 |
+| 1 | Cerrado | HU-001, HU-002, HU-011, inicio HU-003 |
+| 2 | Cerrado | HU-003, HU-004, HU-005, HU-008, HU-010 |
+| 3 | En curso (fin previsto: 18/11/2026) | HU-006 y HU-007 implementadas, pendientes de validación del PO; HU-009 parcial (informes con «Publicar en la web»; falta el embed token) |
+| 4 | Por hacer | Aceptación HU-001..HU-011, manuales y casos de prueba |
 
-Documentación del Sprint 1: [`docs/etapa-1/README.md`](docs/etapa-1/README.md). Repositorio: `https://github.com/DeibyRamirez/SIAC`.
+Plan y pendientes del Sprint 3: [`docs/todo-sprint3.md`](docs/todo-sprint3.md). Documentación del
+Sprint 1: [`docs/etapa-1/README.md`](docs/etapa-1/README.md). Repositorio:
+`https://github.com/DeibyRamirez/SIAC`.
