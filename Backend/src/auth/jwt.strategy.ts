@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { RolUsuario } from '@prisma/client';
 import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
+import { fijarUsuarioEnContexto } from '../prisma/contexto-rls';
 
 export interface PayloadJwt {
   sub: string;
@@ -25,10 +26,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: PayloadJwt) {
-    const usuario = await this.usuarioRepo.buscarPorId(payload.sub);
+    const usuario = await this.usuarioRepo.buscarSesion(payload.sub);
     if (!usuario || !usuario.activo) {
       throw new UnauthorizedException('Token inválido o usuario inactivo.');
     }
+    // RLS: desde aquí las consultas de la petición corren como este usuario.
+    fijarUsuarioEnContexto(usuario.id, usuario.rol);
     return {
       id: usuario.id,
       correo: usuario.correo,

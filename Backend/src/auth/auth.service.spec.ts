@@ -5,6 +5,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
 import { RolUsuario } from '@prisma/client';
+import { contextoRlsActual, ejecutarConContextoVacio } from '../prisma/contexto-rls';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn(),
@@ -24,7 +25,7 @@ describe('AuthService', () => {
         {
           provide: UsuarioRepositorio,
           useValue: {
-            buscarPorCorreo: jest.fn(),
+            buscarParaLogin: jest.fn(),
           },
         },
         {
@@ -48,7 +49,7 @@ describe('AuthService', () => {
     authService = module.get(AuthService);
     usuarioRepo = module.get(UsuarioRepositorio);
 
-    usuarioRepo.buscarPorCorreo.mockResolvedValue({
+    usuarioRepo.buscarParaLogin.mockResolvedValue({
       id: 'usr-1',
       codigoInstitucional: null,
       nombre: 'María Cortés',
@@ -99,5 +100,31 @@ describe('AuthService', () => {
         contrasena: 'incorrecta',
       }),
     ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('no emite token a un usuario inactivo aunque la contraseña sea correcta', async () => {
+    usuarioRepo.buscarParaLogin.mockResolvedValueOnce({
+      id: 'usr-2',
+      nombre: 'Inactiva',
+      correo: 'inactiva@uniautonoma.edu.co',
+      contrasena: 'hash',
+      rol: RolUsuario.Cargador,
+      activo: false,
+      responsableProcesoInstitucional: false,
+    });
+
+    await expect(
+      authService.iniciarSesion({ correo: 'inactiva@uniautonoma.edu.co', contrasena: 'Cargador2026' }),
+    ).rejects.toThrow('Usuario inactivo');
+  });
+
+  it('tras el login fija el usuario en el contexto de RLS de la petición', async () => {
+    await ejecutarConContextoVacio(async () => {
+      await authService.iniciarSesion({
+        correo: 'maria.cargadora@uniautonoma.edu.co',
+        contrasena: 'Cargador2026',
+      });
+      expect(contextoRlsActual()).toEqual({ usuarioId: 'usr-1', rol: RolUsuario.Cargador });
+    });
   });
 });
