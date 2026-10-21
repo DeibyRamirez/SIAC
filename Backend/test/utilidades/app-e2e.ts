@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.service';
+import { resolverClavesSemilla } from '../../src/common/config/claves-semilla';
 import { esHostDesechable, hostDeUrlBaseDatos } from '../../src/common/config/host-base-datos';
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
 import { PrismaService } from '../../src/prisma/prisma.module';
@@ -10,12 +11,20 @@ import { CorreoMemoriaProveedor } from './correo-memoria';
 import { CorreoNuloProveedor } from '../../src/correo/correo-nulo.proveedor';
 import { PROVEEDOR_CORREO } from '../../src/correo/proveedor-correo.port';
 
-/** Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). */
+/**
+ * Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). Las contraseñas se
+ * resuelven igual que en la semilla: SEMILLA_CLAVE_* o, si faltan, las claves de desarrollo.
+ */
+const CLAVES_SEMILLA = resolverClavesSemilla(process.env);
+
 export const USUARIOS_SEMILLA = {
-  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: 'Cargador2026' },
-  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: 'Revisor2026' },
-  Administrador: { correo: 'admin.planeacion@uniautonoma.edu.co', contrasena: 'Admin2026' },
-  ParAcademico: { correo: 'par.academico@uniautonoma.edu.co', contrasena: 'Par2026' },
+  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Cargador },
+  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Revisor },
+  Administrador: {
+    correo: 'admin.planeacion@uniautonoma.edu.co',
+    contrasena: CLAVES_SEMILLA.Administrador,
+  },
+  ParAcademico: { correo: 'par.academico@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.ParAcademico },
 } as const;
 
 export interface ContextoE2E {

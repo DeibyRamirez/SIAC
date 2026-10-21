@@ -6,20 +6,31 @@
  */
 import { PrismaClient, RolUsuario, OrigenDato } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { parseEnv } from 'node:util';
+import {
+  ErrorClavesSemilla,
+  RolSemilla,
+  resolverClavesSemilla,
+} from '../src/common/config/claves-semilla';
 const prisma = new PrismaClient();
 
+/**
+ * Las contraseñas no viven en el código: se leen de SEMILLA_CLAVE_* (ver Backend/.env.example).
+ * En producción son obligatorias; en desarrollo hay claves de desarrollo de respaldo.
+ * `upsert` con `update: {}` no cambia la contraseña de un usuario que ya existe.
+ */
 const USUARIOS_SEMILLA: Array<{
   nombre: string;
   correo: string;
-  clave: string;
-  rol: RolUsuario;
+  rol: RolSemilla;
   cargo: string;
   dependencia: string;
 }> = [
   {
     nombre: 'María Cortés',
     correo: 'maria.cargadora@uniautonoma.edu.co',
-    clave: 'Cargador2026',
     rol: RolUsuario.Cargador,
     cargo: 'Docente',
     dependencia: 'Ingeniería de Sistemas',
@@ -27,7 +38,6 @@ const USUARIOS_SEMILLA: Array<{
   {
     nombre: 'Laura Ramírez',
     correo: 'revisor.calidad@uniautonoma.edu.co',
-    clave: 'Revisor2026',
     rol: RolUsuario.Revisor,
     cargo: 'Profesional de Planeación',
     dependencia: 'Planeación',
@@ -35,7 +45,6 @@ const USUARIOS_SEMILLA: Array<{
   {
     nombre: 'Oscar Alvarado',
     correo: 'admin.planeacion@uniautonoma.edu.co',
-    clave: 'Admin2026',
     rol: RolUsuario.Administrador,
     cargo: 'Director de Planeación',
     dependencia: 'Planeación',
@@ -43,7 +52,6 @@ const USUARIOS_SEMILLA: Array<{
   {
     nombre: 'Carlos Méndez',
     correo: 'par.academico@uniautonoma.edu.co',
-    clave: 'Par2026',
     rol: RolUsuario.ParAcademico,
     cargo: 'Par Académico MEN',
     dependencia: 'Externo',
@@ -51,18 +59,35 @@ const USUARIOS_SEMILLA: Array<{
   {
     nombre: 'Ana SuperAdmin',
     correo: 'superadmin@uniautonoma.edu.co',
-    clave: 'SuperAdmin2026',
     rol: RolUsuario.SuperAdmin,
     cargo: 'Super Administrador TI',
     dependencia: 'Planeación',
   },
 ];
 
+/** Backend/.env más el entorno del proceso (este tiene prioridad), igual que guarda-setup. */
+function leerEntorno(): Record<string, string | undefined> {
+  const ruta = resolve(__dirname, '..', '.env');
+  const desdeArchivo = existsSync(ruta) ? parseEnv(readFileSync(ruta, 'utf8')) : {};
+  return { ...desdeArchivo, ...process.env };
+}
+
 async function main() {
+  let claves: Record<RolSemilla, string>;
+  try {
+    claves = resolverClavesSemilla(leerEntorno());
+  } catch (error) {
+    if (error instanceof ErrorClavesSemilla) {
+      console.error(`[semilla] ${error.message}`);
+      process.exit(1);
+    }
+    throw error;
+  }
+
   console.log('Sembrando usuarios SIAC (uno por rol)...');
 
-  for (const { clave, ...datos } of USUARIOS_SEMILLA) {
-    const contrasena = await bcrypt.hash(clave, 10);
+  for (const datos of USUARIOS_SEMILLA) {
+    const contrasena = await bcrypt.hash(claves[datos.rol], 10);
     await prisma.usuario.upsert({
       where: { correo: datos.correo },
       update: {},
