@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
+import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
 import { PanelPaquetesVigenciaRegistro } from '@/components/siac/panel-paquetes-vigencia-registro'
 import { TarjetaUmbralesSemaforo } from '@/components/siac/tarjeta-umbrales-semaforo'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
@@ -89,6 +90,8 @@ function ContenidoVigencias() {
   const searchParams = useSearchParams()
   const { datos } = usarAlmacen()
   const [anexos, setAnexos] = useState<AnexoVigencia[]>([])
+  const [cargandoAnexos, setCargandoAnexos] = useState(true)
+  const [errorAnexos, setErrorAnexos] = useState<string | null>(null)
   const [pagina, setPagina] = useState(1)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
@@ -136,8 +139,11 @@ function ContenidoVigencias() {
   const cargarAnexos = useCallback(async () => {
     if (!apiDisponible()) {
       setAnexos(datos.anexosVigencia)
+      setCargandoAnexos(false)
       return
     }
+    setCargandoAnexos(true)
+    setErrorAnexos(null)
     try {
       const programaId = programaIdUrl ?? undefined
       const lista = (await listarVigenciasApi(programaId)) as AnexoVigencia[]
@@ -154,7 +160,13 @@ function ContenidoVigencias() {
       )
     } catch (err) {
       setAnexos([])
-      toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los anexos de vigencia.')
+      setErrorAnexos(
+        err instanceof Error && err.message
+          ? `No se pudieron cargar las vigencias: ${err.message}`
+          : 'No se pudieron cargar las vigencias.',
+      )
+    } finally {
+      setCargandoAnexos(false)
     }
   }, [datos.anexosVigencia, programaIdUrl])
 
@@ -303,7 +315,22 @@ function ContenidoVigencias() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {anexos.length === 0 ? (
+                {anexos.length === 0 && cargandoAnexos ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="p-4">
+                      <MensajeCargando texto="Cargando vigencias…" />
+                    </TableCell>
+                  </TableRow>
+                ) : anexos.length === 0 && errorAnexos ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="p-4">
+                      <MensajeErrorCarga
+                        mensaje={errorAnexos}
+                        onReintentar={() => void cargarAnexos()}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : anexos.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
                       No hay documentos con vigencia registrados.

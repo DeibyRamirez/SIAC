@@ -10,6 +10,7 @@ import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { FiltroPrograma } from '@/components/siac/filtro-programa'
+import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
 import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ function ContenidoMisEvidencias() {
   const [total, setTotal] = useState(0)
   const [evidencias, setEvidencias] = useState<Evidencia[]>([])
   const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const novedades = useMemo(
     () => (sesion ? contarNovedadesCargador(datos.evidencias, sesion.usuarioId) : 0),
@@ -45,6 +47,7 @@ function ContenidoMisEvidencias() {
 
   const cargarEvidencias = useCallback(async () => {
     setCargando(true)
+    setError(null)
     try {
       if (apiDisponible()) {
         const resp = await listarEvidenciasApi({
@@ -64,6 +67,10 @@ function ContenidoMisEvidencias() {
       setTotal(lista.length)
       const inicio = (pagina - 1) * LIMITE_FILAS_TABLA
       setEvidencias(lista.slice(inicio, inicio + LIMITE_FILAS_TABLA))
+    } catch {
+      setEvidencias([])
+      setTotal(0)
+      setError('No se pudieron cargar tus evidencias.')
     } finally {
       setCargando(false)
     }
@@ -113,7 +120,9 @@ function ContenidoMisEvidencias() {
       </div>
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando evidencias…</p>
+        <MensajeCargando texto="Cargando evidencias…" />
+      ) : error ? (
+        <MensajeErrorCarga mensaje={error} onReintentar={() => void cargarEvidencias()} />
       ) : evidencias.length === 0 ? (
         <PanelVacio mensaje="Aún no has registrado evidencias." />
       ) : (

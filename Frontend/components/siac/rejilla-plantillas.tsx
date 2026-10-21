@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Download, Eye, FileText, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
 import { ModalVisualizadorDocumento } from '@/components/siac/modal-visualizador-documento'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,11 +22,24 @@ import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
 
 interface RejillaPlantillasProps {
   plantillas: Plantilla[]
+  /** La lista aún se está pidiendo a la API. */
+  cargando?: boolean
+  /** Mensaje si la carga falló (tras el reintento automático del proveedor). */
+  error?: string | null
+  /** Vuelve a pedir la lista; se muestra como botón «Reintentar» junto al error. */
+  onReintentar?: () => void
   onEditar?: (plantilla: Plantilla) => void
   onEliminar?: (id: string) => void
 }
 
-export function RejillaPlantillas({ plantillas, onEditar, onEliminar }: RejillaPlantillasProps) {
+export function RejillaPlantillas({
+  plantillas,
+  cargando = false,
+  error = null,
+  onReintentar,
+  onEditar,
+  onEliminar,
+}: RejillaPlantillasProps) {
   const [plantillaActiva, setPlantillaActiva] = useState<Plantilla | null>(null)
   const [urlDescargaActiva, setUrlDescargaActiva] = useState<string | undefined>()
 
@@ -50,6 +64,14 @@ export function RejillaPlantillas({ plantillas, onEditar, onEliminar }: RejillaP
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo descargar la plantilla.')
     }
+  }
+
+  if (cargando && plantillas.length === 0) {
+    return <MensajeCargando texto="Cargando plantillas…" />
+  }
+
+  if (error && plantillas.length === 0) {
+    return <MensajeErrorCarga mensaje={error} onReintentar={onReintentar} />
   }
 
   if (plantillas.length === 0) {
