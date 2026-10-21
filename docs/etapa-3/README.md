@@ -229,5 +229,5 @@ No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se
 ```text
 Cargador → sube evidencia (Borrador)
   → Revisor → aprueba (Validado) / rechaza (Rechazado + observaciones)
-    → Administrador/Par → solo lectura de Validado
+    → Administrador/SuperAdmin → solo lectura de Validado (el rol Par se eliminó el 20/10/2026)
 ```

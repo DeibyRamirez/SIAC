@@ -60,7 +60,7 @@ CRUD completo de evidencias y plantillas, búsqueda con filtros en URL y panel d
 - [x] Plantillas versionadas; Cargador solo descarga vigentes
 - [x] Búsqueda con filtros en URL, semáforo de puntaje en tabla y export CSV (HU-008)
 - [x] Panel programas con semáforo por etiquetas de negocio + RN-003 (CP-E2E-05; HU-010)
-- [x] Par académico no accede a borradores (API 403); sin panel de programas (decisión PO 06/10)
+- [x] ~~Par académico no accede a borradores (API 403); sin panel de programas (decisión PO 06/10)~~ — criterio retirado el 20/10/2026: el rol Par académico se eliminó (HU-011, T-006.4 descartada). La búsqueda (HU-008) la usan Administrador y SuperAdmin, y los borradores solo los ve su autor (RN-001)
 
 ## Regla de negocio RN-003
 
