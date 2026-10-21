@@ -71,7 +71,15 @@ jobs:
         run: pnpm prisma:seed
       - name: Pruebas del backend
         run: pnpm exec jest --runInBand
-      - name: Pruebas E2E contra PostgreSQL de CI (supertest)
+      - name: Habilitar el login de los roles de RLS (solo CI, contraseñas desechables)
+        run: |
+          psql -h localhost -U postgres -d siac -c "ALTER ROLE siac_app LOGIN PASSWORD 'ci-siac-app'"
+          psql -h localhost -U postgres -d siac -c "ALTER ROLE siac_powerbi_lectura LOGIN PASSWORD 'ci-siac-powerbi'"
+      - name: Pruebas E2E contra PostgreSQL de CI (supertest), con la API como siac_app (RLS aplicada)
+        env:
+          # La API corre sin BYPASSRLS; los datos de prueba se preparan como dueño (DIRECT_URL).
+          DATABASE_URL: postgresql://siac_app:ci-siac-app@localhost:5432/siac
+          DATABASE_URL_POWERBI: postgresql://siac_powerbi_lectura:ci-siac-powerbi@localhost:5432/siac
         run: pnpm test:e2e
       - name: Build del backend
         run: pnpm build

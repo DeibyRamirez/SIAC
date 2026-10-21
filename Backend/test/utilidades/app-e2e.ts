@@ -5,6 +5,7 @@ import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.s
 import { resolverClavesSemilla } from '../../src/common/config/claves-semilla';
 import { esHostDesechable, hostDeUrlBaseDatos } from '../../src/common/config/host-base-datos';
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
+import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.module';
 import { AlmacenamientoMemoria } from './almacenamiento-memoria';
 import { CorreoMemoriaProveedor } from './correo-memoria';
@@ -98,7 +99,18 @@ export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<Contex
   app.useGlobalFilters(new FiltroExcepcionHttp());
   await app.init();
 
-  return { app, prisma: app.get(PrismaService), almacen };
+  // Con RLS, la API corre como siac_app (DATABASE_URL). Los datos de prueba se preparan y se
+  // verifican con el dueño de la BD (DIRECT_URL), que no está sujeto a la RLS.
+  const prisma = new PrismaClient({
+    datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+  }) as unknown as PrismaService;
+  const cerrarApp = app.close.bind(app);
+  app.close = async () => {
+    await cerrarApp();
+    await prisma.$disconnect();
+  };
+
+  return { app, prisma, almacen };
 }
 
 export async function iniciarSesion(
