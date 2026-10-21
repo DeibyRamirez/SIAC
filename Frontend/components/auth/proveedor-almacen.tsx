@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 
@@ -46,8 +47,31 @@ import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { suscribirProgramasActualizados } from '@/lib/utilidades/eventos-programas'
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac'
 
+/** Listas que el proveedor sincroniza con la API, cada una con su propia petición. */
+export type ListaAlmacen = 'evidencias' | 'plantillas' | 'anexosVigencia' | 'alertas' | 'programas'
+
+export const LISTAS_ALMACEN: readonly ListaAlmacen[] = [
+  'evidencias',
+  'plantillas',
+  'anexosVigencia',
+  'alertas',
+  'programas',
+]
+
+/** Estado de carga de una lista: `cargando` mientras hay una petición en curso y `error` si falló. */
+export interface EstadoLista {
+  cargando: boolean
+  error: string | null
+}
+
+export type EstadoListas = Record<ListaAlmacen, EstadoLista>
+
 interface ContextoAlmacen {
   datos: DatosPrototipo
+  /** Estado de carga y error por lista (evidencias, plantillas, vigencias, alertas, programas). */
+  estadoListas: EstadoListas
+  /** Vuelve a pedir una lista a la API (con un reintento automático si falla). */
+  recargarLista: (lista: ListaAlmacen) => Promise<void>
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
@@ -123,6 +147,51 @@ function mapearAlertasDesdeApi(
   }))
 }
 
+const MENSAJES_ERROR_LISTA: Record<ListaAlmacen, string> = {
+  evidencias: 'No se pudieron cargar las evidencias.',
+  plantillas: 'No se pudieron cargar las plantillas.',
+  anexosVigencia: 'No se pudieron cargar las vigencias.',
+  alertas: 'No se pudieron cargar las notificaciones.',
+  programas: 'No se pudieron cargar los programas.',
+}
+
+function crearEstadoListas(cargando: boolean): EstadoListas {
+  return Object.fromEntries(
+    LISTAS_ALMACEN.map((lista) => [lista, { cargando, error: null }]),
+  ) as EstadoListas
+}
+
+/** Cada lista se pide por separado; así una petición lenta no retrasa a las demás. */
+const cargadoresListas: { [K in ListaAlmacen]: () => Promise<DatosPrototipo[K]> } = {
+  // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
+  evidencias: async () => {
+    const respuesta = await listarEvidenciasApi({ limite: 100 })
+    return respuesta.datos.map((e) => mapearEvidenciaDesdeApi(e))
+  },
+  plantillas: () => listarPlantillasApi(),
+  anexosVigencia: async () => {
+    const anexos = (await listarVigenciasApi()) as AnexoVigencia[]
+    return anexos.map((a) => ({
+      ...a,
+      fechaVencimiento:
+        typeof a.fechaVencimiento === 'string'
+          ? a.fechaVencimiento.slice(0, 10)
+          : a.fechaVencimiento,
+    }))
+  },
+  alertas: async () => mapearAlertasDesdeApi(await listarNotificacionesApi()),
+  programas: () => listarProgramasApi(),
+}
+
+/** Ejecuta la petición y, si falla, la repite una sola vez antes de propagar el error. */
+async function conUnReintento<T>(peticion: () => Promise<T>): Promise<T> {
+  try {
+    return await peticion()
+  } catch {
+    return peticion()
+  }
+}
+
 function generarId(prefijo: string): string {
   return `${prefijo}-${Date.now()}`
 }
@@ -130,6 +199,44 @@ function generarId(prefijo: string): string {
 export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const { sesion } = usarSesion()
   const [datos, setDatos] = useState<DatosPrototipo>(crearDatosIniciales)
+
+  const [estadoListas, setEstadoListas] = useState<EstadoListas>(() =>
+    crearEstadoListas(apiDisponible()),
+  )
+  // Contador por lista: si llegan respuestas fuera de orden, solo cuenta la última petición.
+  const versionesCarga = useRef<Record<ListaAlmacen, number>>(
+    Object.fromEntries(LISTAS_ALMACEN.map((lista) => [lista, 0])) as Record<ListaAlmacen, number>,
+  )
+
+  const actualizarEstadoLista = useCallback((lista: ListaAlmacen, estado: EstadoLista) => {
+    setEstadoListas((prev) => ({ ...prev, [lista]: estado }))
+  }, [])
+
+  /**
+   * Pide una lista a la API y la publica en cuanto llega, sin esperar a las demás.
+   * `silencioso` (sondeo de alertas, evento de programas) no muestra «Cargando…», pero sí
+   * registra el error para que la vista ofrezca reintentar.
+   */
+  const cargarLista = useCallback(
+    async (lista: ListaAlmacen, opciones: { silencioso?: boolean } = {}) => {
+      if (!apiDisponible()) return
+      const version = ++versionesCarga.current[lista]
+      if (!opciones.silencioso) {
+        actualizarEstadoLista(lista, { cargando: true, error: null })
+      }
+      try {
+        const cargador: () => Promise<DatosPrototipo[ListaAlmacen]> = cargadoresListas[lista]
+        const valor = await conUnReintento(cargador)
+        if (version !== versionesCarga.current[lista]) return
+        setDatos((prev) => ({ ...prev, [lista]: valor }))
+        actualizarEstadoLista(lista, { cargando: false, error: null })
+      } catch {
+        if (version !== versionesCarga.current[lista]) return
+        actualizarEstadoLista(lista, { cargando: false, error: MENSAJES_ERROR_LISTA[lista] })
+      }
+    },
+    [actualizarEstadoLista],
+  )
 
   const cargarDatos = useCallback(async () => {
     const local = leerAlmacenLocal() ?? crearDatosIniciales()
@@ -140,6 +247,7 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         evidencias: [],
         plantillas: [],
       })
+      setEstadoListas(crearEstadoListas(false))
       return
     }
 
@@ -147,54 +255,17 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const [evResult, plantillasResult, anexosResult, alertasResult, programasResult] =
-      await Promise.allSettled([
-        // Sincronización inicial para KPIs; los listados tabulares usan paginación propia (10).
-        listarEvidenciasApi({ limite: 100 }),
-        listarPlantillasApi(),
-        listarVigenciasApi(),
-        listarNotificacionesApi(),
-        listarProgramasApi(),
-      ])
-
-    const evResp =
-      evResult.status === 'fulfilled'
-        ? evResult.value
-        : { datos: [] as Evidencia[], total: 0, pagina: 1, limite: 100 }
-    const plantillas = plantillasResult.status === 'fulfilled' ? plantillasResult.value : []
-    const anexos = anexosResult.status === 'fulfilled' ? anexosResult.value : []
-    const alertas = alertasResult.status === 'fulfilled' ? alertasResult.value : []
-    const programas = programasResult.status === 'fulfilled' ? programasResult.value : []
-
-    const evidencias: Evidencia[] = evResp.datos.map((e) => mapearEvidenciaDesdeApi(e))
-
-    const anexosMapeados: AnexoVigencia[] = (anexos as AnexoVigencia[]).map((a) => ({
-      ...a,
-      fechaVencimiento:
-        typeof a.fechaVencimiento === 'string'
-          ? a.fechaVencimiento.slice(0, 10)
-          : a.fechaVencimiento,
-    }))
-
-    const alertasMapeadas = mapearAlertasDesdeApi(
-      alertas as {
-        id: string
-        mensaje: string
-        leida: boolean
-        createdAt: string
-        tipo?: string
-      }[],
-    )
-
+    // Las listas de la API empiezan vacías y se rellenan una a una al resolver cada petición.
     setDatos({
       ...local,
-      programas,
-      evidencias,
-      plantillas,
-      anexosVigencia: anexosMapeados,
-      alertas: alertasMapeadas,
+      programas: [],
+      evidencias: [],
+      plantillas: [],
+      anexosVigencia: [],
+      alertas: [],
     })
-  }, [sesion?.usuarioId])
+    await Promise.all(LISTAS_ALMACEN.map((lista) => cargarLista(lista)))
+  }, [sesion?.usuarioId, cargarLista])
 
   useEffect(() => {
     if (!sesion?.usuarioId) {
@@ -206,23 +277,15 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     void cargarDatos()
   }, [sesion?.usuarioId, cargarDatos])
 
-  const recargarAlertas = useCallback(async () => {
-    if (!apiDisponible()) return
-    try {
-      const alertas = await listarNotificacionesApi()
-      const alertasMapeadas = mapearAlertasDesdeApi(alertas)
-      setDatos((prev) => ({ ...prev, alertas: alertasMapeadas }))
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[SIAC] No se pudieron cargar notificaciones:', error)
-      }
-    }
-  }, [])
+  const recargarLista = useCallback(
+    (lista: ListaAlmacen) => cargarLista(lista),
+    [cargarLista],
+  )
 
-  useEffect(() => {
-    if (!apiDisponible() || !sesion?.usuarioId) return
-    void recargarAlertas()
-  }, [sesion?.usuarioId, recargarAlertas])
+  const recargarAlertas = useCallback(
+    () => cargarLista('alertas', { silencioso: true }),
+    [cargarLista],
+  )
 
   useEffect(() => {
     if (!apiDisponible()) return
@@ -235,12 +298,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return suscribirProgramasActualizados(() => {
-      if (!apiDisponible()) return
-      void listarProgramasApi().then((programas) => {
-        setDatos((prev) => ({ ...prev, programas }))
-      })
+      void cargarLista('programas', { silencioso: true })
     })
-  }, [])
+  }, [cargarLista])
 
   const persistir = useCallback((actualizador: (prev: DatosPrototipo) => DatosPrototipo) => {
     setDatos((prev) => {
@@ -556,6 +616,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
   const valor = useMemo(
     () => ({
       datos,
+      estadoListas,
+      recargarLista,
       crearEvidencia,
       actualizarEvidencia,
       eliminarEvidencia,
@@ -581,6 +643,8 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     }),
     [
       datos,
+      estadoListas,
+      recargarLista,
       crearEvidencia,
       actualizarEvidencia,
       eliminarEvidencia,
