@@ -20,6 +20,7 @@ import { RolUsuario } from '@prisma/client';
 import { PlantillasService } from './plantillas.service';
 import { CrearPlantillaDto, ActualizarPlantillaDto } from './dto/plantilla.dto';
 import { Roles, RolesGuard } from '../common/guards/roles.guard';
+import { crearPipeTipoTramite } from './pipes/tipo-tramite.pipe';
 
 @Controller('plantillas')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -29,7 +30,7 @@ export class PlantillasController {
   @Get()
   listar(
     @Request() req: { user: { rol: RolUsuario } },
-    @Query('tipoTramite') tipoTramite?: TipoTramitePlantilla,
+    @Query('tipoTramite', crearPipeTipoTramite()) tipoTramite?: TipoTramitePlantilla,
   ) {
     return this.plantillasService.listar(req.user.rol, tipoTramite);
   }
