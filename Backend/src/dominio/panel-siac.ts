@@ -27,8 +27,8 @@ export const UMBRALES_SEMAFORO_AVANCE_DEFECTO: UmbralesSemaforoAvance = {
 
 /**
  * Umbrales de vigencia de la resolución MEN (T-010.2/T-007.3a, configurables en `ConfiguracionSIAC`).
- * Decisión PO (13/10): vigencia 7 años; amarillo al iniciar el año 6 (24 meses antes del fin);
- * rojo 18 meses antes del fin; «Vencido» al terminar.
+ * Regla vigente (20/10/2026): vigencia 7 años; amarillo 12 meses antes del fin (inicio del año 7);
+ * rojo 6 meses antes del fin; «Vencido» al terminar. Antes eran 24/18 (PO 13/10).
  */
 export interface UmbralesSemaforoVigencia {
   aniosVigencia: number;
@@ -38,8 +38,8 @@ export interface UmbralesSemaforoVigencia {
 
 export const UMBRALES_SEMAFORO_VIGENCIA_DEFECTO: UmbralesSemaforoVigencia = {
   aniosVigencia: 7,
-  mesesAvisoVigencia: 24,
-  mesesRojoVigencia: 18,
+  mesesAvisoVigencia: 12,
+  mesesRojoVigencia: 6,
 };
 
 export type UmbralesSemaforo = UmbralesSemaforoAvance & UmbralesSemaforoVigencia;
@@ -51,7 +51,7 @@ export const UMBRALES_SEMAFORO_DEFECTO: UmbralesSemaforo = {
 
 /**
  * Sin resolución registrada el semáforo de vigencia es gris («Sin vigencia»), nunca verde.
- * «Vencido» (fin de los 7 años) es distinto de «Rojo» (ventana de 18 meses antes del fin).
+ * «Vencido» (fin de los 7 años) es distinto de «Rojo» (ventana de 6 meses antes del fin).
  */
 export type ColorSemaforoVigencia = ColorSemaforo | 'Vencido' | 'SinVigencia';
 

@@ -84,7 +84,7 @@ Sin `POWERBI_CLIENT_ID`, el modo embebido permanece simulado. En producción se 
 ## HU-007 (cierre 16/10/2026): vigencias y alertas
 
 Decisiones del PO (13/10): vigencia de registro de 7 años; **verde** hasta el fin del año 5;
-**amarillo** al iniciar el año 6 (24 meses antes del fin); **rojo** 18 meses antes del fin;
+**amarillo** al iniciar el año 7 (12 meses antes del fin); **rojo** 6 meses antes del fin (regla 20/10/2026; antes 24/18);
 **Vencido** al terminar (distinto de Rojo); **gris (SinVigencia)** sin resolución MEN.
 Umbrales configurables en `ConfiguracionSIAC` (`mesesAvisoVigencia=24`, `mesesRojoVigencia=18`)
 y relectura en cada corrida del cron/panel: cambiarlos no exige redeploy.

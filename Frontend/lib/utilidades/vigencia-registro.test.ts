@@ -30,10 +30,10 @@ describe('vigencia-registro', () => {
     expect(calcularSemaforoAvance(54)).toBe('Rojo')
   })
 
-  it('usa los umbrales del PO: aviso 24 meses y rojo 18 meses', () => {
-    expect(MESES_AVISO_VIGENCIA).toBe(24)
-    expect(MESES_ROJO_VIGENCIA).toBe(18)
-    expect(ANIOS_VIGENCIA_AMARILLO).toBe(5)
+  it('usa los umbrales vigentes: aviso 12 meses y rojo 6 meses', () => {
+    expect(MESES_AVISO_VIGENCIA).toBe(12)
+    expect(MESES_ROJO_VIGENCIA).toBe(6)
+    expect(ANIOS_VIGENCIA_AMARILLO).toBe(6)
   })
 
   it('sin fecha de resolución es «SinVigencia» (gris), nunca verde', () => {
@@ -42,13 +42,13 @@ describe('vigencia-registro', () => {
     expect(mensajeAlertaVigencia(null, 'Derecho')).toBeNull()
   })
 
-  it('CA1: resolución 2020-01-01 → verde hasta 31/12/2024, amarillo desde 01/01/2025, rojo desde 01/07/2025 y vencido desde 01/01/2027', () => {
+  it('CA1: resolución 2020-01-01 → verde hasta 31/12/2025, amarillo desde 01/01/2026, rojo desde 01/07/2026 y vencido desde 01/01/2027', () => {
     const fecha = '2020-01-01T00:00:00.000Z'
     expect(calcularFechaFinVigencia(fecha).toISOString()).toBe('2027-01-01T00:00:00.000Z')
-    expect(calcularSemaforoVigencia(fecha, new Date('2024-12-31T23:59:59Z'))).toBe('Verde')
-    expect(calcularSemaforoVigencia(fecha, new Date('2025-01-01T00:00:00Z'))).toBe('Amarillo')
-    expect(calcularSemaforoVigencia(fecha, new Date('2025-06-30T23:59:59Z'))).toBe('Amarillo')
-    expect(calcularSemaforoVigencia(fecha, new Date('2025-07-01T00:00:00Z'))).toBe('Rojo')
+    expect(calcularSemaforoVigencia(fecha, new Date('2025-12-31T23:59:59Z'))).toBe('Verde')
+    expect(calcularSemaforoVigencia(fecha, new Date('2026-01-01T00:00:00Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia(fecha, new Date('2026-06-30T23:59:59Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia(fecha, new Date('2026-07-01T00:00:00Z'))).toBe('Rojo')
     expect(calcularSemaforoVigencia(fecha, new Date('2026-12-31T23:59:59Z'))).toBe('Rojo')
     expect(calcularSemaforoVigencia(fecha, new Date('2027-01-01T00:00:00Z'))).toBe('Vencido')
   })
@@ -56,11 +56,13 @@ describe('vigencia-registro', () => {
   it('resolución 2020-03-01 → fin 2027-03-01 y rojo el 2026-10-06', () => {
     expect(calcularFechaFinVigencia('2020-03-01T00:00:00.000Z').toISOString()).toBe('2027-03-01T00:00:00.000Z')
     expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-10-06T12:00:00Z'))).toBe('Rojo')
-    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2025-02-28T12:00:00Z'))).toBe('Verde')
-    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2025-03-01T00:00:00Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-02-28T12:00:00Z'))).toBe('Verde')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-03-01T00:00:00Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-08-31T23:59:59Z'))).toBe('Amarillo')
+    expect(calcularSemaforoVigencia('2020-03-01T00:00:00.000Z', new Date('2026-09-01T00:00:00Z'))).toBe('Rojo')
   })
 
-  it('marca amarillo a partir del año 5 cumplido (24 meses antes del fin)', () => {
+  it('marca amarillo a partir del año 6 cumplido (12 meses antes del fin)', () => {
     const referencia = new Date('2026-01-01')
     const inicio = new Date(referencia)
     inicio.setFullYear(inicio.getFullYear() - ANIOS_VIGENCIA_AMARILLO)
@@ -89,7 +91,7 @@ describe('vigencia-registro', () => {
     expect(demoVigenciaFinalizada(inicioDemo, alFinal)).toBe(true)
   })
 
-  it('demo 5 min: amarillo a ~214 s, rojo a ~236 s y vencido a 300 s', () => {
+  it('demo 5 min: amarillo a ~258 s, rojo a ~279 s y vencido a 300 s', () => {
     const fechaResolucion = '2020-01-01T00:00:00.000Z'
     const inicioDemo = 1_700_000_000_000
     const s = (segundos: number) =>
@@ -99,9 +101,10 @@ describe('vigencia-registro', () => {
       )
     expect(s(0)).toBe('Verde')
     expect(s(214)).toBe('Verde')
-    expect(s(215)).toBe('Amarillo')
-    expect(s(235)).toBe('Amarillo')
-    expect(s(236)).toBe('Rojo')
+    expect(s(257)).toBe('Verde')
+    expect(s(258)).toBe('Amarillo')
+    expect(s(278)).toBe('Amarillo')
+    expect(s(279)).toBe('Rojo')
     expect(s(299)).toBe('Rojo')
     expect(s(300)).toBe('Vencido')
   })

@@ -25,14 +25,14 @@ import {
   obtenerUmbralesVigenciaApi,
 } from '@/lib/servicios/configuracion.servicio'
 
-const UMBRALES = { aniosVigencia: 7, mesesAvisoVigencia: 24, mesesRojoVigencia: 18 }
+const UMBRALES = { aniosVigencia: 7, mesesAvisoVigencia: 12, mesesRojoVigencia: 6 }
 
 const obtenerMock = vi.mocked(obtenerUmbralesVigenciaApi)
 const actualizarMock = vi.mocked(actualizarUmbralesVigenciaApi)
 
 async function esperarCarga() {
   await waitFor(() => {
-    expect(screen.getByLabelText('Aviso amarillo (meses)')).toHaveValue(24)
+    expect(screen.getByLabelText('Aviso amarillo (meses)')).toHaveValue(12)
   })
 }
 
@@ -48,7 +48,7 @@ describe('TarjetaUmbralesSemaforo (T-007.3a)', () => {
     render(<TarjetaUmbralesSemaforo />)
 
     await esperarCarga()
-    expect(screen.getByLabelText('Rojo (meses)')).toHaveValue(18)
+    expect(screen.getByLabelText('Rojo (meses)')).toHaveValue(6)
     expect(screen.getByText(/vigencia completa de 7 años/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar umbrales' })).toBeEnabled()
   })
@@ -60,7 +60,7 @@ describe('TarjetaUmbralesSemaforo (T-007.3a)', () => {
 
     const aviso = screen.getByLabelText('Aviso amarillo (meses)')
     await usuario.clear(aviso)
-    await usuario.type(aviso, '10')
+    await usuario.type(aviso, '5')
     await usuario.click(screen.getByRole('button', { name: 'Guardar umbrales' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

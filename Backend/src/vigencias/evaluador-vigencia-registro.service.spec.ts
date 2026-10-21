@@ -17,12 +17,12 @@ describe('Evaluador vigencia registro (escala demo 300 s = 7 años)', () => {
     expect(calcularSemaforoVigencia(fechaResolucion, ref, umbrales)).toBe('Verde');
   });
 
-  it('amarillo a los ~214 s (5/7) y rojo a los ~236 s (5,5/7) de la demo', () => {
+  it('amarillo a los ~258 s (6/7) y rojo a los ~279 s (6,5/7) de la demo', () => {
     const inicio = Date.now();
     const enAmarillo = calcularReferenciaDemoVigencia(
       fechaResolucion,
       inicio,
-      inicio + Math.ceil(duracionSeg * (5 / 7)) * 1000,
+      inicio + Math.ceil(duracionSeg * (6 / 7)) * 1000,
       duracionSeg,
       7,
     );
@@ -31,7 +31,7 @@ describe('Evaluador vigencia registro (escala demo 300 s = 7 años)', () => {
     const enRojo = calcularReferenciaDemoVigencia(
       fechaResolucion,
       inicio,
-      inicio + Math.ceil(duracionSeg * (5.5 / 7)) * 1000,
+      inicio + Math.ceil(duracionSeg * (6.5 / 7)) * 1000,
       duracionSeg,
       7,
     );
@@ -109,7 +109,8 @@ describe('evaluarTodasLasEntidades (CA2: 1 aviso por destinatario y sin duplicad
 
   beforeEach(() => {
     clavesCreadas.clear();
-    jest.useFakeTimers().setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
+    // Fin de vigencia 2027-03-01: el 2026-10-01 faltan 5 meses (< 6) → Rojo.
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-01T12:00:00.000Z'));
   });
 
   afterEach(() => {

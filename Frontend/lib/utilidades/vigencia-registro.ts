@@ -2,13 +2,13 @@ import type { SemaforoPrograma, SemaforoVigencia } from '@/lib/tipos'
 
 /** Valores por defecto; el backend los lee de `ConfiguracionSIAC` (T-010.2) y manda el semáforo ya calculado. */
 export const ANIOS_VIGENCIA_REGISTRO = 7
-/** PO 13/10: amarillo desde 24 meses antes del fin (inicio del año 6). */
-export const MESES_AVISO_VIGENCIA = 24
-/** PO 13/10: rojo 18 meses antes del fin. */
-export const MESES_ROJO_VIGENCIA = 18
-/** §0 Demo acelerada: 300 s de reloj ≈ 7 años de vigencia (amarillo ≈214 s, rojo ≈236 s). */
+/** Regla vigente (20/10/2026): amarillo desde 12 meses antes del fin (inicio del año 7). */
+export const MESES_AVISO_VIGENCIA = 12
+/** Regla vigente (20/10/2026): rojo 6 meses antes del fin. */
+export const MESES_ROJO_VIGENCIA = 6
+/** §0 Demo acelerada: 300 s de reloj ≈ 7 años de vigencia (amarillo ≈258 s, rojo ≈279 s). */
 export const DURACION_DEMO_VIGENCIA_MS = 300 * 1000
-/** Año desde el que el semáforo pasa a amarillo (7 años − 24 meses = año 5 cumplido). */
+/** Año desde el que el semáforo pasa a amarillo (7 años − 12 meses = año 6 cumplido). */
 export const ANIOS_VIGENCIA_AMARILLO = (ANIOS_VIGENCIA_REGISTRO * 12 - MESES_AVISO_VIGENCIA) / 12
 export const ANIOS_VIGENCIA_ROJO = (ANIOS_VIGENCIA_REGISTRO * 12 - MESES_ROJO_VIGENCIA) / 12
 
@@ -53,7 +53,7 @@ export function calcularFechaFinVigencia(fechaResolucion: Date | string): Date {
 
 /**
  * Misma regla que `panel-siac.ts` del backend: sin resolución → «SinVigencia» (gris), nunca verde;
- * «Vencido» cuando pasan los 7 años, distinto de «Rojo» (18 meses antes del fin).
+ * «Vencido» cuando pasan los 7 años, distinto de «Rojo» (6 meses antes del fin).
  */
 export function calcularSemaforoVigencia(
   fechaResolucion: Date | string | null | undefined,

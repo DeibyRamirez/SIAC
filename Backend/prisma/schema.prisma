@@ -424,10 +424,10 @@ model ConfiguracionSIAC {
   avanceMinimoAmarillo Int      @default(55)
   /// Años de vigencia de la resolución MEN.
   aniosVigencia        Int      @default(7)
-  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo (PO 13/10: 24).
-  mesesAvisoVigencia   Int      @default(24)
-  /// Meses antes del fin de vigencia en que el semáforo pasa a rojo (PO 13/10: 18). T-007.3a.
-  mesesRojoVigencia    Int      @default(18)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a amarillo (regla vigente: 12).
+  mesesAvisoVigencia   Int      @default(12)
+  /// Meses antes del fin de vigencia en que el semáforo pasa a rojo (regla vigente: 6). T-007.3a.
+  mesesRojoVigencia    Int      @default(6)
   updatedAt            DateTime @default(now()) @updatedAt
 }
 

@@ -24,7 +24,7 @@ export class ConfiguracionSiacService {
     const fila = await this.prisma.configuracionSIAC.findUnique({ where: { id: 'global' } });
     if (!fila) {
       this.logger.warn(
-        'No existe la fila "global" en ConfiguracionSIAC; se usan los umbrales por defecto (100/55, 7 años, aviso 24 meses, rojo 18).',
+        'No existe la fila "global" en ConfiguracionSIAC; se usan los umbrales por defecto (100/55, 7 años, aviso 12 meses, rojo 6).',
       );
       this.umbrales = UMBRALES_SEMAFORO_DEFECTO;
       return this.umbrales;

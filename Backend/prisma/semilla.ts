@@ -97,8 +97,8 @@ async function main() {
       avanceMinimoVerde: 100,
       avanceMinimoAmarillo: 55,
       aniosVigencia: 7,
-      mesesAvisoVigencia: 24,
-      mesesRojoVigencia: 18,
+      mesesAvisoVigencia: 12,
+      mesesRojoVigencia: 6,
     },
   });
 
