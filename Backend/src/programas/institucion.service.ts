@@ -31,8 +31,9 @@ export class InstitucionService {
     if (!institucion) throw new NotFoundException('Institución no configurada.');
 
     const progreso = await this.avanceProceso.calcularProgresoInstitucion(institucion.id);
+    // Los borradores son privados de su autor: no entran en los conteos institucionales.
     const evidencias = await this.prisma.evidencia.findMany({
-      where: { institucionId: institucion.id },
+      where: { institucionId: institucion.id, estado: { not: EstadoEvidencia.Borrador } },
       select: { estado: true },
     });
 

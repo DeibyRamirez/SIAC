@@ -66,33 +66,47 @@ export class ServicioAlcancePrograma {
 }
 
 /**
- * RN-001 ajustada.
- * El borrador de un documento ya revisado se reconoce por el historial
- * (aún no existe `numeroRevisionActual`; llega con T-003.3).
+ * Regla de borradores (20/10/2026): un documento en estado Borrador solo lo ve quien lo subió
+ * (`autorId`), sin excepción para Administrador ni SuperAdmin. Se combina con el alcance por rol.
+ */
+export function filtroBorradorSoloAutor(usuarioId: string): Prisma.EvidenciaWhereInput {
+  return {
+    OR: [{ estado: { not: EstadoEvidencia.Borrador } }, { autorId: usuarioId }],
+  };
+}
+
+/** ¿Puede este usuario ver la evidencia según la regla de borradores? */
+export function puedeVerBorrador(
+  evidencia: { estado: EstadoEvidencia; autorId: string },
+  usuarioId: string,
+): boolean {
+  return evidencia.estado !== EstadoEvidencia.Borrador || evidencia.autorId === usuarioId;
+}
+
+/**
+ * RN-001 ajustada: alcance por rol (programas asignados / responsable institucional) más la
+ * regla de borradores solo visibles para su autor.
  */
 export function construirFiltroVisibilidad(
   usuario: UsuarioAlcance,
   programasAsignados: string[],
   responsableProcesoInstitucional = false,
 ): Prisma.EvidenciaWhereInput {
-  if (usuario.rol === RolUsuario.SuperAdmin) {
+  const alcance = construirFiltroAlcanceRol(usuario, programasAsignados, responsableProcesoInstitucional);
+  if (alcance === null) return { id: { in: [] } };
+  return { AND: [alcance, filtroBorradorSoloAutor(usuario.id)] };
+}
+
+function construirFiltroAlcanceRol(
+  usuario: UsuarioAlcance,
+  programasAsignados: string[],
+  responsableProcesoInstitucional: boolean,
+): Prisma.EvidenciaWhereInput | null {
+  if (usuario.rol === RolUsuario.SuperAdmin || usuario.rol === RolUsuario.Administrador) {
     return {};
   }
 
-  if (usuario.rol === RolUsuario.Administrador) {
-    return {
-      OR: [
-        { estado: { not: EstadoEvidencia.Borrador } },
-        {
-          historial: {
-            some: { estado: { not: EstadoEvidencia.Borrador } },
-          },
-        },
-      ],
-    };
-  }
-
-  if (usuario.rol === RolUsuario.Cargador) {
+  if (usuario.rol === RolUsuario.Cargador || usuario.rol === RolUsuario.Revisor) {
     const condiciones: Prisma.EvidenciaWhereInput[] = [];
     if (programasAsignados.length > 0) {
       condiciones.push({ programaId: { in: programasAsignados } });
@@ -100,33 +114,14 @@ export function construirFiltroVisibilidad(
     if (responsableProcesoInstitucional) {
       condiciones.push({ institucionId: { not: null } });
     }
-    if (condiciones.length === 0) {
-      return { id: { in: [] } };
-    }
-    return {
-      autorId: usuario.id,
-      OR: condiciones,
-    };
+    if (condiciones.length === 0) return null;
+    // El Cargador solo ve lo que él mismo subió; el Revisor ve lo de su alcance (sin borradores ajenos).
+    return usuario.rol === RolUsuario.Cargador
+      ? { autorId: usuario.id, OR: condiciones }
+      : { OR: condiciones };
   }
 
-  if (usuario.rol === RolUsuario.Revisor) {
-    const condiciones: Prisma.EvidenciaWhereInput[] = [];
-    if (programasAsignados.length > 0) {
-      condiciones.push({ programaId: { in: programasAsignados } });
-    }
-    if (responsableProcesoInstitucional) {
-      condiciones.push({ institucionId: { not: null } });
-    }
-    if (condiciones.length === 0) {
-      return { id: { in: [] } };
-    }
-    return {
-      estado: { not: EstadoEvidencia.Borrador },
-      OR: condiciones,
-    };
-  }
-
-  return { id: { in: [] } };
+  return null;
 }
 
 export function rolPuedeDictaminar(rol: RolUsuario): boolean {

@@ -69,6 +69,7 @@ import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.ser
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 
 import {
+  puedeVerBorrador,
   rolPuedeDictaminar,
   ServicioAlcancePrograma,
 } from '../common/alcance/servicio-alcance-programa';
@@ -1543,6 +1544,12 @@ export class DocumentosService {
 
   ) {
 
+    // Regla de borradores: solo su autor los ve, también frente a Administrador y SuperAdmin.
+    // Cubre detalle, historial, versiones, comentarios, comparación y descargas/URL firmadas.
+    if (!puedeVerBorrador(evidencia, usuario.id)) {
+      throw new ForbiddenException('El borrador solo lo consulta quien lo subió.');
+    }
+
     if (this.esSuperAdmin(usuario)) return;
 
 
@@ -1579,21 +1586,6 @@ export class DocumentosService {
 
 
 
-    if (usuario.rol === RolUsuario.Administrador && evidencia.estado === EstadoEvidencia.Borrador) {
-
-      const yaRevisado = await this.evidenciaRepo.tieneHistorialDistintoDeBorrador(evidencia.id);
-
-      if (!yaRevisado) {
-
-        throw new ForbiddenException(
-
-          'El administrador no consulta borradores que nunca se enviaron a revisión.',
-
-        );
-
-      }
-
-    }
 
   }
 

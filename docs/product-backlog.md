@@ -37,7 +37,7 @@
 
 | ID | Regla | HU relacionadas |
 |----|-------|-----------------|
-| RN-001 | El Administrador no accede a borradores ni rechazados (el rol Par Académico se eliminó el 20/10/2026; T-006.4 descartada) | HU-002, HU-004, HU-011 |
+| RN-001 | Un documento en Borrador solo lo ve quien lo subió (ni Administrador ni SuperAdmin, en listados, búsqueda, conteos, historial ni descargas; regla del 20/10/2026, RLS pendiente). El Administrador no accede a rechazados ajenos. El rol Par Académico se eliminó el 20/10/2026 (T-006.4 descartada) | HU-002, HU-004, HU-011 |
 | RN-003 | Programa con anexo infraestructura vencido → semáforo rojo | HU-007, HU-010 |
 
 ---

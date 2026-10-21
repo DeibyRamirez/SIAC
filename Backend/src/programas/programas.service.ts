@@ -59,10 +59,14 @@ export class ProgramaRepositorio {
       .then((anexos) => anexos.map((anexo) => conEstadoCalculado(anexo)));
   }
 
+  /**
+   * Conteos agregados del panel: los borradores son privados de su autor, así que no se cuentan
+   * (no se revela que existen). Cada usuario ve sus propios borradores en su listado.
+   */
   agruparEvidenciasPorEstado(programaIds: string[]) {
     return this.prisma.evidencia.groupBy({
       by: ['programaId', 'estado'],
-      where: { programaId: { in: programaIds } },
+      where: { programaId: { in: programaIds }, estado: { not: EstadoEvidencia.Borrador } },
       _count: { _all: true },
     });
   }
@@ -88,9 +92,10 @@ export class ProgramaRepositorio {
     });
   }
 
+  /** Igual que los conteos agregados: sin borradores (privados de su autor). */
   listarEstadosEvidencia(programaId: string) {
     return this.prisma.evidencia.findMany({
-      where: { programaId },
+      where: { programaId, estado: { not: EstadoEvidencia.Borrador } },
       select: { estado: true },
     });
   }

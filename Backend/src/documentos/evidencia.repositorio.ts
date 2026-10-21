@@ -483,26 +483,6 @@ export class EvidenciaRepositorio {
 
 
 
-  tieneHistorialDistintoDeBorrador(evidenciaId: string) {
-
-    return this.prisma.historialEvidencia.findFirst({
-
-      where: {
-
-        evidenciaId,
-
-        estado: { not: EstadoEvidencia.Borrador },
-
-      },
-
-      select: { id: true },
-
-    });
-
-  }
-
-
-
   buscarPrograma(id: string) {
 
     return this.prisma.programa.findUnique({
