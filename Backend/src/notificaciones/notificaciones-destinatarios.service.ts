@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
+import { idsGestionYRevisores } from './destinatarios-alertas';
 
 @Injectable()
 export class NotificacionesDestinatariosService {
@@ -28,13 +29,11 @@ export class NotificacionesDestinatariosService {
     return institucionales.map((r) => r.id);
   }
 
-  async idsAdministradores(): Promise<string[]> {
-    const usuarios = await this.prisma.usuario.findMany({
-      where: {
-        rol: RolUsuario.Administrador,
-      },
-      select: { id: true },
-    });
-    return usuarios.map((u) => u.id);
+  /**
+   * Avisos de gestión (avance del programa): Administrador y SuperAdmin activos más los Revisores
+   * activos asignados al programa. Sin Par académico (rol eliminado en HU-011).
+   */
+  idsGestionYRevisores(programaId: string): Promise<string[]> {
+    return idsGestionYRevisores(this.prisma, programaId);
   }
 }
