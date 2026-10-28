@@ -215,6 +215,24 @@ export function calcularSemaforoVigencia(
   return 'Verde';
 }
 
+/** Umbral de aviso de vigencia (coincide con `UmbralVigenciaCorreo`). */
+export type UmbralAvisoVigencia = 'amarillo' | 'rojo' | 'vencido';
+
+/** Orden de los avisos de vigencia: cada color incluye los anteriores. */
+export const ORDEN_UMBRALES_VIGENCIA: readonly UmbralAvisoVigencia[] = ['amarillo', 'rojo', 'vencido'];
+
+/**
+ * Umbrales de aviso alcanzados por un semáforo, en orden (Amarillo → Rojo → Vencido).
+ * Ej.: «Vencido» devuelve los tres para que un aviso intermedio perdido (un tick tardío en la
+ * demo acelerada) se recupere; la clave idempotente evita repetir los ya enviados.
+ */
+export function umbralesVigenciaAlcanzados(semaforo: ColorSemaforoVigencia): UmbralAvisoVigencia[] {
+  if (semaforo === 'Amarillo') return ['amarillo'];
+  if (semaforo === 'Rojo') return ['amarillo', 'rojo'];
+  if (semaforo === 'Vencido') return [...ORDEN_UMBRALES_VIGENCIA];
+  return [];
+}
+
 /**
  * Segundos que faltan para «Vencido»: en la demo se cuenta la duración de la simulación;
  * en tiempo real, el tiempo hasta el fin de la vigencia.

@@ -166,3 +166,79 @@ describe('evaluarTodasLasEntidades (CA2: 1 aviso por destinatario y sin duplicad
     expect(despacho.notificar).not.toHaveBeenCalled();
   });
 });
+
+describe('Modo prueba: recuperación de avisos intermedios (fix A)', () => {
+  const inicioDemo = Date.parse('2026-10-27T15:00:00.000Z');
+
+  function crearServicio(opciones: { conSesion: boolean; segundosTranscurridos: number }) {
+    const claves = new Set<string>();
+    const prisma = {
+      programa: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'p1',
+            nombre: 'Derecho',
+            fechaResolucion: new Date('2025-01-15T00:00:00.000Z'),
+            resoluciones: [{ id: 'res-1' }],
+          },
+        ]),
+      },
+      institucion: { findFirst: jest.fn().mockResolvedValue(null) },
+      usuario: {
+        findMany: jest.fn().mockImplementation(async ({ where }: { where: { rol: unknown } }) => {
+          const rol = where.rol as { in?: RolUsuario[] };
+          return rol?.in ? [{ id: 'admin1' }, { id: 'super1' }] : [{ id: 'rev1' }];
+        }),
+      },
+    };
+    const despacho = {
+      notificar: jest.fn().mockImplementation(async (evento: { claveEvento: string }) => {
+        if (claves.has(evento.claveEvento)) return { creada: false };
+        claves.add(evento.claveEvento);
+        return { creada: true };
+      }),
+    };
+    const sesion = { alcance: 'Programa', entidadId: 'p1', inicioAtMs: inicioDemo };
+    const demo = {
+      modoPruebaActivo: () => true,
+      obtenerSesion: (_alcance: string, id: string) => (opciones.conSesion && id === 'p1' ? sesion : null),
+      duracionPruebaSeg: () => 300,
+      listarSesionesActivas: () => (opciones.conSesion ? [sesion] : []),
+    };
+    const servicio = new EvaluadorVigenciaRegistroService(
+      prisma as never,
+      { cargar: jest.fn().mockResolvedValue(UMBRALES_SEMAFORO_DEFECTO) } as never,
+      despacho as never,
+      demo as never,
+      { get: () => false } as never,
+    );
+    const ahora = new Date(inicioDemo + opciones.segundosTranscurridos * 1000);
+    return { servicio, despacho, claves, ahora };
+  }
+
+  it('si el tick llega ya en Vencido, envía Amarillo, Rojo y Vencido en orden, una vez por destinatario', async () => {
+    const { servicio, despacho, ahora } = crearServicio({ conSesion: true, segundosTranscurridos: 305 });
+
+    await servicio.evaluarTodasLasEntidades(ahora);
+    await servicio.evaluarTodasLasEntidades(ahora);
+
+    const tipos = despacho.notificar.mock.calls.slice(0, 9).map((c) => c[0].tipo);
+    expect(tipos).toEqual([
+      ...Array(3).fill('vigencia_amarilla'),
+      ...Array(3).fill('vigencia_roja'),
+      ...Array(3).fill('vigencia_vencida'),
+    ]);
+    const creadas = await Promise.all(despacho.notificar.mock.results.map((r) => r.value));
+    expect(creadas.filter((r: { creada: boolean }) => r.creada)).toHaveLength(9);
+  });
+
+  it('en Rojo sin haber pasado por Amarillo, recupera el Amarillo', async () => {
+    const { servicio, despacho, ahora } = crearServicio({ conSesion: true, segundosTranscurridos: 285 });
+
+    await servicio.evaluarTodasLasEntidades(ahora);
+
+    expect(new Set(despacho.notificar.mock.calls.map((c) => c[0].tipo))).toEqual(
+      new Set(['vigencia_amarilla', 'vigencia_roja']),
+    );
+  });
+});

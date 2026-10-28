@@ -9,6 +9,7 @@ import {
   calcularReferenciaDemoVigencia,
   calcularSemaforoVigencia,
   UmbralesSemaforoVigencia,
+  umbralesVigenciaAlcanzados,
 } from '../dominio/panel-siac';
 import { claveVigencia } from '../notificaciones/claves-evento';
 import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
@@ -173,10 +174,35 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
       input.referencia,
       input.umbrales,
     );
-    if (semaforo === 'Verde' || semaforo === 'SinVigencia') return;
+    // A (27/10): en la demo acelerada cada color dura ~21 s; si un tick llega tarde se recuperan
+    // los avisos anteriores que falten (Amarillo → Rojo → Vencido). La clave idempotente evita
+    // repetir los ya enviados. Con reloj real (ventanas de meses) solo se avisa el color actual,
+    // para no enviar avisos atrasados de una ventana que ya terminó.
+    const umbralesAviso = input.tokenDemo
+      ? umbralesVigenciaAlcanzados(semaforo)
+      : umbralesVigenciaAlcanzados(semaforo).slice(-1);
+    if (umbralesAviso.length === 0) return;
 
-    const umbral: UmbralVigenciaCorreo =
-      semaforo === 'Amarillo' ? 'amarillo' : semaforo === 'Rojo' ? 'rojo' : 'vencido';
+    const destinatarios = await this.obtenerDestinatarios(input.programaId);
+    for (const umbral of umbralesAviso) {
+      await this.avisarUmbral(input, umbral, destinatarios);
+    }
+  }
+
+  private async avisarUmbral(
+    input: {
+      alcance: AlcancePaqueteVigencia;
+      entidadId: string;
+      nombre: string;
+      fechaResolucion: Date;
+      umbrales: UmbralesSemaforoVigencia;
+      programaId?: string;
+      resolucionId: string;
+      tokenDemo?: string;
+    },
+    umbral: UmbralVigenciaCorreo,
+    destinatarios: string[],
+  ): Promise<void> {
     const tipo =
       umbral === 'amarillo'
         ? 'vigencia_amarilla'
@@ -206,7 +232,6 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
 
-    const destinatarios = await this.obtenerDestinatarios(input.programaId);
     for (const usuarioId of destinatarios) {
       await this.notificacionesDespacho.notificar({
         claveEvento: claveVigencia({
