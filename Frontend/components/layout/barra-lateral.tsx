@@ -79,7 +79,7 @@ function itemsSuperAdmin(): ItemNavegacion[] {
   return [
     { href: '/superadmin', etiqueta: 'Panel SuperAdmin', icono: ShieldCheck },
     { href: '/superadmin/usuarios', etiqueta: 'Gestión de usuarios', icono: Users },
-    { href: '/cargador', etiqueta: 'Módulo cargador', icono: Files },
+    { href: '/cargador', etiqueta: 'Módulo profesor', icono: Files },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja revisor', icono: FileCheck2, mostrarBadge: true },
     { href: '/administrador', etiqueta: 'Módulo administrador', icono: LayoutDashboard },
   ]

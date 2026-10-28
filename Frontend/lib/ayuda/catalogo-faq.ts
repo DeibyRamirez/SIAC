@@ -34,7 +34,7 @@ export const CATALOGO_FAQ: EntradaFaq[] = [
     categoria: 'general',
     pregunta: '¿Qué hace cada rol?',
     respuesta:
-      'El Cargador sube documentos guía y anexos de vigencia. El Revisor dictamina evidencias en revisión. El Administrador configura programas, vigencias y métricas. El SuperAdmin gestiona usuarios globales.',
+      'El Profesor (rol Cargador) sube documentos guía y anexos de vigencia. El Revisor dictamina evidencias en revisión. El Administrador configura programas, vigencias y métricas. El SuperAdmin gestiona usuarios globales.',
   },
   {
     id: 'g1-g4',

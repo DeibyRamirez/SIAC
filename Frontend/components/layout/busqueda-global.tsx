@@ -17,7 +17,7 @@ const rutasBusqueda = [
   { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', grupo: 'Administrador' },
   { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', grupo: 'Administrador' },
   { href: '/administrador/bandeja-revision', etiqueta: 'Bandeja de revisión', grupo: 'Administrador' },
-  { href: '/cargador', etiqueta: 'Inicio cargador', grupo: 'Cargador' },
+  { href: '/cargador', etiqueta: 'Inicio profesor', grupo: 'Cargador' },
   { href: '/cargador/evidencias/nueva', etiqueta: 'Cargar evidencia', grupo: 'Cargador' },
   { href: '/cargador/evidencias', etiqueta: 'Mis evidencias', grupo: 'Cargador' },
   { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', grupo: 'Revisor' },

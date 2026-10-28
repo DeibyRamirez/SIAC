@@ -915,10 +915,10 @@ function ContenidoDictamen() {
         titulo={usaChecklist ? '¿Registrar el documento como «Cumple»?' : '¿Aprobar documento?'}
         descripcion={
           usaChecklistInstitucional
-            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el cargador será notificado.'
+            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el profesor será notificado.'
             : usaChecklistPrograma
-              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el cargador será notificado.'
-              : 'El cargador será notificado de la aprobación.'
+              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el profesor será notificado.'
+              : 'El profesor será notificado de la aprobación.'
         }
         etiquetaConfirmar={usaChecklist ? 'Sí, registrar' : 'Sí, aprobar'}
         cargando={procesando}
@@ -932,8 +932,8 @@ function ContenidoDictamen() {
           usaChecklist
             ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
             : comentariosInline.filter((c) => c.body.trim()).length > 0
-              ? `El documento quedará «Con observaciones» y el cargador verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
-              : 'El documento quedará «Con observaciones» y el cargador verá el texto de corrección para subir una versión corregida.'
+              ? `El documento quedará «Con observaciones» y el profesor verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
+              : 'El documento quedará «Con observaciones» y el profesor verá el texto de corrección para subir una versión corregida.'
         }
         etiquetaConfirmar="Sí, enviar"
         variant="destructive"

@@ -1,5 +1,6 @@
 'use client'
 
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -179,7 +180,7 @@ function ContenidoUsuarios() {
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {r}
+                    {nombreVisibleRol(r)}
                   </option>
                 ))}
               </select>
@@ -222,7 +223,7 @@ function ContenidoUsuarios() {
                 <TableRow key={usuario.id}>
                   <TableCell className="font-medium">{usuario.nombre}</TableCell>
                   <TableCell>{usuario.correo}</TableCell>
-                  <TableCell>{usuario.rol}</TableCell>
+                  <TableCell>{nombreVisibleRol(usuario.rol)}</TableCell>
                   <TableCell>
                     <Badge variant={usuario.activo ? 'default' : 'secondary'}>
                       {usuario.activo ? 'Activo' : 'Inactivo'}

@@ -1,5 +1,6 @@
 'use client'
 
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { Building2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -82,7 +83,7 @@ function ContenidoAsignacion() {
       <EncabezadoPagina
         etiqueta="HU-011"
         titulo="Asignación de programas"
-        descripcion="Asigne programas académicos (G1/G2) y el proceso institucional único (G3/G4) a cargadores y revisores. Los roles se gestionan en superadministrador."
+        descripcion="Asigne programas académicos (G1/G2) y el proceso institucional único (G3/G4) a profesores y revisores. Los roles se gestionan en superadministrador."
       />
 
       {cargando ? <p className="text-sm text-muted-foreground">Cargando usuarios…</p> : null}
@@ -98,7 +99,7 @@ function ContenidoAsignacion() {
               <div className="min-w-0 flex-1 space-y-2">
                 <p className="font-semibold text-primary">{usuario.nombre}</p>
                 <p className="truncate text-sm text-muted-foreground">{usuario.correo}</p>
-                <Badge variant="secondary">{usuario.rol}</Badge>
+                <Badge variant="secondary">{nombreVisibleRol(usuario.rol)}</Badge>
                 {usuario.rol === 'Cargador' || usuario.rol === 'Revisor' ? (
                   <div className="space-y-2">
                     <ListaProgramasAsignados programas={usuario.programasAsignados ?? []} />
@@ -118,7 +119,7 @@ function ContenidoAsignacion() {
                   </Button>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    La asignación de programas aplica solo a cargadores y revisores.
+                    La asignación de programas aplica solo a profesores y revisores.
                   </p>
                 )}
               </div>

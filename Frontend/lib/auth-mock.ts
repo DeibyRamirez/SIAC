@@ -64,7 +64,7 @@ export function prefijoRol(rol: RolUsuario): string {
 export function etiquetaRol(rol: RolUsuario): string {
   switch (rol) {
     case 'Cargador':
-      return 'Cargador de evidencias'
+      return 'Profesor'
     case 'Revisor':
       return 'Revisora de calidad'
     case 'Administrador':

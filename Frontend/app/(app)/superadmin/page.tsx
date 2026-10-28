@@ -25,7 +25,7 @@ export default function SuperAdminPage() {
           />
           <TarjetaAcceso
             href="/cargador"
-            titulo="Módulo cargador"
+            titulo="Módulo profesor"
             descripcion="Evidencias, plantillas y carga documental."
             icono={Files}
           />

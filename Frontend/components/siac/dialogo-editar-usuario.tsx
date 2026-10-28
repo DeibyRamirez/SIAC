@@ -1,5 +1,6 @@
 'use client'
 
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -69,7 +70,7 @@ export function DialogoEditarUsuario({
     if (!usuario) return ''
     const partes: string[] = [`Nombre: ${nombre.trim()}`]
     if (rol !== rolOriginal) {
-      partes.push(`Rol: ${rolOriginal} → ${rol}`)
+      partes.push(`Rol: ${nombreVisibleRol(rolOriginal)} → ${nombreVisibleRol(rol)}`)
     }
     if (contrasena.trim().length > 0) {
       partes.push('Se actualizará la contraseña.')
@@ -150,7 +151,7 @@ export function DialogoEditarUsuario({
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {nombreVisibleRol(r)}
                     </option>
                   ))}
                 </select>

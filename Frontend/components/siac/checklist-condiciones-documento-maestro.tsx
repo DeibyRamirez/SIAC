@@ -125,7 +125,7 @@ export function ChecklistCondicionesDocumentoMaestro({
                       codigosConError.includes(def.codigo) &&
                         'border-destructive ring-2 ring-destructive/30',
                     )}
-                    placeholder="Observaciones para el cargador (obligatorio si debe corregir)."
+                    placeholder="Observaciones para el profesor (obligatorio si debe corregir)."
                     value={estado.observacion}
                     disabled={deshabilitado}
                     aria-invalid={codigosConError.includes(def.codigo) || undefined}

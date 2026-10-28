@@ -123,7 +123,7 @@ function ContenidoMisRevisiones() {
       <EncabezadoPagina
         etiqueta="Flujo de aprobación"
         titulo="Mis revisiones"
-        descripcion="Historial de evidencias enviadas a revisión, incluyendo reenvíos tras corrección del cargador."
+        descripcion="Historial de evidencias enviadas a revisión, incluyendo reenvíos tras corrección del profesor."
         accion={
           <Link href="/revisor/bandeja">
             <Button variant="outline">Ir a bandeja</Button>

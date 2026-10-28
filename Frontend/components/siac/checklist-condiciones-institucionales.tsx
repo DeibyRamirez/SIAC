@@ -125,7 +125,7 @@ export function ChecklistCondicionesInstitucionales({
                       codigosConError.includes(def.codigo) &&
                         'border-destructive ring-2 ring-destructive/30',
                     )}
-                    placeholder="Observación para el cargador"
+                    placeholder="Observación para el profesor"
                     value={estado.observacion}
                     disabled={deshabilitado}
                     aria-invalid={codigosConError.includes(def.codigo) || undefined}
