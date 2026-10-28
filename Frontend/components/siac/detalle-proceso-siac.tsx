@@ -483,7 +483,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         <CardContent className="space-y-3 pt-6">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              {esInstitucion ? 'Avance institucional' : 'Avance de acreditación'}
+              {esInstitucion ? 'Avance institucional' : 'Registro calificado'}
             </span>
             <span className="font-semibold text-esmeralda">{avanceMostrado}%</span>
           </div>
