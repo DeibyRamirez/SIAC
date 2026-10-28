@@ -57,13 +57,15 @@ export interface OpcionesAppE2E {
   correoNulo?: boolean;
   /** Proveedor de correo en memoria para verificar asuntos, cuerpos y enlaces. */
   correoMemoria?: CorreoMemoriaProveedor;
+  /** Activa VIGENCIA_MODO_PRUEBA para probar la demo acelerada (por defecto desactivado). */
+  modoPruebaVigencia?: boolean;
 }
 
 /** Levanta la API completa (mismo prefijo, pipes y filtro que main.ts) con Storage en memoria. */
 export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<ContextoE2E> {
   // El .env local no debe alterar los E2E (demo de vigencia ni correo real). Deben fijarse ANTES
   // de importar AppModule: ConfigModule.forRoot congela el .env y las factorías al importarlo.
-  process.env.VIGENCIA_MODO_PRUEBA = 'false';
+  process.env.VIGENCIA_MODO_PRUEBA = opciones.modoPruebaVigencia ? 'true' : 'false';
   process.env.CORREO_CANAL = 'ninguno';
   const { AppModule } = await import('../../src/app.module');
   verificarBaseDeDatosDesechable();
