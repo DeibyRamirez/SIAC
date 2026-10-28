@@ -694,6 +694,14 @@ export class DocumentosService {
     }
   }
 
+  /**
+   * Usabilidad (periodos): periodos con documentos visibles para el usuario. El frontend muestra
+   * los del año actual y futuros como vigentes y el resto como «Históricos».
+   */
+  async listarPeriodosConDatos(): Promise<{ periodos: string[] }> {
+    return { periodos: await this.evidenciaRepo.listarPeriodosConDatos() };
+  }
+
   async eliminar(id: string, usuario: UsuarioToken) {
 
     const evidencia = await this.obtenerPorId(id, usuario);

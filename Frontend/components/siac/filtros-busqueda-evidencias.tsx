@@ -17,13 +17,15 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import type { CodigoDocumentoGuia } from '@/lib/tipos'
 import { ETIQUETAS_GUIA } from '@/lib/utilidades/catalogo-tramites-siac'
-import { periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { usarPeriodos } from '@/lib/hooks/usar-periodos'
 import { PERIODO_TODOS } from '@/lib/utilidades/parametros-busqueda-url'
 import { OpcionFiltroSemaforo } from '@/components/siac/opcion-filtro-semaforo'
 import { OPCIONES_FILTRO_SEMAFORO_BUSQUEDA } from '@/lib/utilidades/etiquetas-semaforo'
@@ -88,11 +90,12 @@ export function FiltrosBusquedaEvidencias({
   onLimpiar,
   mostrarLimpiar = false,
 }: FiltrosBusquedaEvidenciasProps) {
-  const periodosDisponibles = periodosConActual()
+  // Vigentes (año actual y siguiente) + «Históricos» con documentos; el periodo de la URL siempre se ofrece.
+  const { vigentes, historicos } = usarPeriodos(valores.periodo === PERIODO_TODOS ? null : valores.periodo)
   // `items` permite que el disparador muestre la etiqueta («Todos los periodos») y no el valor interno.
   const opcionesPeriodo = [
     { value: PERIODO_TODOS, label: 'Todos los periodos' },
-    ...periodosDisponibles.map((valor) => ({ value: valor, label: valor })),
+    ...[...vigentes, ...historicos].map((valor) => ({ value: valor, label: valor })),
   ]
 
   return (
@@ -170,11 +173,24 @@ export function FiltrosBusquedaEvidencias({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={PERIODO_TODOS}>Todos los periodos</SelectItem>
-                {periodosDisponibles.map((valor) => (
-                  <SelectItem key={valor} value={valor}>
-                    {valor}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Periodos vigentes</SelectLabel>
+                  {vigentes.map((valor) => (
+                    <SelectItem key={valor} value={valor}>
+                      {valor}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                {historicos.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Históricos</SelectLabel>
+                    {historicos.map((valor) => (
+                      <SelectItem key={valor} value={valor}>
+                        {valor}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
               </SelectContent>
             </Select>
           </CampoFiltro>

@@ -49,6 +49,12 @@ export class DocumentosController {
     return this.documentosService.listar(req.user, query);
   }
 
+  /** Periodos con documentos visibles (la RLS acota por rol y programa). */
+  @Get('periodos')
+  listarPeriodos() {
+    return this.documentosService.listarPeriodosConDatos();
+  }
+
   @Get('conteos')
   conteos(@Request() req: { user: { id: string; rol: RolUsuario } }) {
     return this.documentosService.conteosPorEstado(req.user);

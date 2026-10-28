@@ -17,7 +17,7 @@ import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { periodoAcademicoActual, periodosVigentes } from '@/lib/utilidades/periodo-academico'
 import { obtenerProgresoInstitucionApi } from '@/lib/servicios/institucion.servicio'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import {
@@ -535,8 +535,9 @@ function ContenidoNuevaEvidencia() {
                     onChange={(evento) => setPeriodo(evento.target.value)}
                     className="w-full rounded-lg border border-input px-3 py-2"
                   >
-                    {periodosConActual()
-                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                    {/* Solo periodos del año actual y siguientes; si los metadatos del .docx traen uno pasado, se conserva. */}
+                    {[...new Set([...periodosVigentes(), periodo].filter(Boolean))]
+                      .sort()
                       .map((valor) => (
                         <option key={valor} value={valor}>
                           {valor}

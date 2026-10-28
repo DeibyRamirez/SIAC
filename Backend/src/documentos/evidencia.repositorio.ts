@@ -117,6 +117,16 @@ export class EvidenciaRepositorio {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Periodos distintos con al menos una evidencia visible para el usuario (la RLS filtra). */
+  async listarPeriodosConDatos(): Promise<string[]> {
+    const filas = await this.prisma.evidencia.findMany({
+      distinct: ['periodo'],
+      select: { periodo: true },
+      orderBy: { periodo: 'desc' },
+    });
+    return filas.map((f) => f.periodo).filter((p): p is string => Boolean(p));
+  }
+
 
 
   crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {

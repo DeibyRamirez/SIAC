@@ -304,3 +304,9 @@ export async function listarMisRevisionesRevisorApi(pagina = 1, limite = 20) {
   )
 }
 
+
+/** Periodos con documentos visibles para el usuario (para el grupo «Históricos»). */
+export async function listarPeriodosConDatosApi(): Promise<string[]> {
+  const respuesta = await peticionApi<{ periodos: string[] }>('/evidencias/periodos');
+  return respuesta.periodos;
+}

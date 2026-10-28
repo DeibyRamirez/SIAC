@@ -21,6 +21,8 @@ import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,7 +32,8 @@ import {
   calcularTendenciaMensual,
   filtrarEvidenciasVisiblesAdministrador,
 } from '@/lib/utilidades/metricas-evidencias'
-import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { usarPeriodos } from '@/lib/hooks/usar-periodos'
+import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   listarProgramasApi,
@@ -58,7 +61,7 @@ function ContenidoResumen() {
   const { sesion } = usarSesion()
   const { datos } = usarAlmacen()
   const [periodo, setPeriodo] = useState(periodoAcademicoActual())
-  const periodosDisponibles = periodosConActual()
+  const { vigentes: periodosVigentes, historicos: periodosHistoricos } = usarPeriodos(periodo)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
@@ -162,11 +165,24 @@ function ContenidoResumen() {
             <SelectValue placeholder="Periodo" />
           </SelectTrigger>
           <SelectContent>
-            {periodosDisponibles.map((p) => (
-              <SelectItem key={p} value={p}>
-                Periodo {p}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectLabel>Periodos vigentes</SelectLabel>
+              {periodosVigentes.map((p) => (
+                <SelectItem key={p} value={p}>
+                  Periodo {p}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            {periodosHistoricos.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>Históricos</SelectLabel>
+                {periodosHistoricos.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    Periodo {p}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </div>

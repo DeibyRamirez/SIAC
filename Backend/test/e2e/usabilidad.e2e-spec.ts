@@ -123,4 +123,32 @@ describe('Usabilidad: reemplazo de documento validado y límite de texto', () =>
       ctx.prisma.evidenciaComentario.create({ data: { evidenciaId, numeroVersion: 1, texto: 'a'.repeat(600) } }),
     ).resolves.toBeTruthy();
   });
+
+  it('GET /evidencias/periodos lista los periodos con documentos visibles (Históricos)', async () => {
+    await crearEvidencia(ctx.prisma, {
+      nombre: 'Histórica 2024',
+      autorId: cargadorId,
+      programaId,
+      codigoGuia: CodigoDocumentoGuia.G1,
+      estado: EstadoEvidencia.Validado,
+      periodo: '2024-2',
+    });
+    const { body } = await request(servidor())
+      .get('/api/v1/evidencias/periodos')
+      .set('Authorization', `Bearer ${tokenRevisor}`)
+      .expect(200);
+    expect(body.periodos).toEqual(expect.arrayContaining(['2024-2', '2026-2']));
+    // Revisor sin el programa: la RLS no le muestra esos periodos.
+    const ajeno = await request(servidor())
+      .get('/api/v1/evidencias/periodos')
+      .set('Authorization', `Bearer ${tokenRevisorAjeno}`)
+      .expect(200);
+    expect(ajeno.body.periodos).not.toContain('2024-2');
+    // El documento histórico sigue accesible filtrando por periodo.
+    const filtrado = await request(servidor())
+      .get('/api/v1/evidencias?periodo=2024-2')
+      .set('Authorization', `Bearer ${tokenRevisor}`)
+      .expect(200);
+    expect(JSON.stringify(filtrado.body)).toContain('Histórica 2024');
+  });
 });
