@@ -1,6 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Interval } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { plantillaVigencia, UmbralVigenciaCorreo } from '../correo/plantillas';
 import { mensajeVigencia } from '../correo/plantillas/vigencia';
@@ -19,8 +26,13 @@ import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
 import { VigenciaDemoService } from './vigencia-demo.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
+/** Nombre del intervalo del modo prueba en el SchedulerRegistry. */
+export const NOMBRE_INTERVALO_MODO_PRUEBA = 'vigencia-modo-prueba';
+
 @Injectable()
-export class EvaluadorVigenciaRegistroService implements OnModuleInit {
+export class EvaluadorVigenciaRegistroService
+  implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(EvaluadorVigenciaRegistroService.name);
 
   constructor(
@@ -29,7 +41,8 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     private readonly notificacionesDespacho: NotificacionesDespachoService,
     private readonly demo: VigenciaDemoService,
     private readonly config: ConfigService,
-  ) { }
+    @Optional() private readonly programador?: SchedulerRegistry,
+  ) {}
 
   /** Evita que dos ticks del modo prueba se solapen y dupliquen alertas o correos. */
   private evaluacionPruebaEnCurso = false;
@@ -268,7 +281,24 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     return idsGestionYRevisores(this.prisma, programaId);
   }
 
-  @Interval(10_000)
+  /**
+   * B (27/10): el tick del modo prueba se registra al arrancar con el intervalo de
+   * VIGENCIA_INTERVALO_PRUEBA_SEG (10 s por defecto), no con un valor fijo.
+   */
+  onApplicationBootstrap(): void {
+    if (!this.demo.modoPruebaActivo() || !this.programador) return;
+    const intervaloMs = this.demo.intervaloPruebaSeg() * 1000;
+    const id = setInterval(() => void this.tickModoPrueba(), intervaloMs);
+    this.programador.addInterval(NOMBRE_INTERVALO_MODO_PRUEBA, id);
+    this.logger.log(`Modo prueba de vigencias: evaluación cada ${intervaloMs / 1000} s.`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.programador?.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)) {
+      this.programador.deleteInterval(NOMBRE_INTERVALO_MODO_PRUEBA);
+    }
+  }
+
   async tickModoPrueba(): Promise<void> {
     if (!this.demo.modoPruebaActivo()) return;
     const sesiones = this.demo.listarSesionesActivas();

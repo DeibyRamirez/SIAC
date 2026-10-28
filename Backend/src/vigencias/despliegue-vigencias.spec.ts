@@ -1,9 +1,12 @@
 import { ConfigService } from '@nestjs/config';
-import { CronExpression } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { PrismaService } from '../prisma/prisma.module';
-import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
+import {
+  EvaluadorVigenciaRegistroService,
+  NOMBRE_INTERVALO_MODO_PRUEBA,
+} from './evaluador-vigencia-registro.service';
 import { VigenciaDemoService } from './vigencia-demo.service';
 import { VigenciasService, ZONA_HORARIA_SIAC } from './vigencias.service';
 
@@ -86,5 +89,46 @@ describe('Vigencias en despliegue (Render)', () => {
     );
     expect(ZONA_HORARIA_SIAC).toBe('America/Bogota');
     expect(opciones).toMatchObject({ cronTime: CronExpression.EVERY_DAY_AT_6AM, timeZone: 'America/Bogota' });
+  });
+});
+
+describe('Intervalo configurable del modo prueba (fix B)', () => {
+  it('registra el tick con VIGENCIA_INTERVALO_PRUEBA_SEG y lo elimina al cerrar', () => {
+    jest.useFakeTimers();
+    const programador = new SchedulerRegistry();
+    const demo = { modoPruebaActivo: () => true, intervaloPruebaSeg: () => 4, listarSesionesActivas: () => [] };
+    const evaluador = new EvaluadorVigenciaRegistroService(
+      {} as PrismaService,
+      {} as ConfiguracionSiacService,
+      {} as NotificacionesDespachoService,
+      demo as unknown as VigenciaDemoService,
+      { get: () => undefined } as unknown as ConfigService,
+      programador,
+    );
+    const tick = jest.spyOn(evaluador, 'tickModoPrueba').mockResolvedValue(undefined);
+    try {
+      evaluador.onApplicationBootstrap();
+      expect(programador.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)).toBe(true);
+      jest.advanceTimersByTime(12_000);
+      expect(tick).toHaveBeenCalledTimes(3);
+      evaluador.onModuleDestroy();
+      expect(programador.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('sin modo prueba no registra ningún intervalo', () => {
+    const programador = new SchedulerRegistry();
+    const evaluador = new EvaluadorVigenciaRegistroService(
+      {} as PrismaService,
+      {} as ConfiguracionSiacService,
+      {} as NotificacionesDespachoService,
+      { modoPruebaActivo: () => false } as unknown as VigenciaDemoService,
+      { get: () => undefined } as unknown as ConfigService,
+      programador,
+    );
+    evaluador.onApplicationBootstrap();
+    expect(programador.getIntervals()).toEqual([]);
   });
 });

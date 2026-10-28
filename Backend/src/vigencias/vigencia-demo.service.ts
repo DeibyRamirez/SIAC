@@ -49,8 +49,10 @@ export class VigenciaDemoService {
     return this.config.get<number>('vigenciaDuracionPruebaSeg') ?? 300;
   }
 
+  /** Intervalo del tick del modo prueba (VIGENCIA_INTERVALO_PRUEBA_SEG); 10 s si falta o no es válido. */
   intervaloPruebaSeg(): number {
-    return this.config.get<number>('vigenciaIntervaloPruebaSeg') ?? 10;
+    const valor = this.config.get<number>('vigenciaIntervaloPruebaSeg');
+    return typeof valor === 'number' && Number.isFinite(valor) && valor >= 1 ? valor : 10;
   }
 
   /** Escala de la demo activa (§0): amarillo 5/7 ≈ 214 s, rojo 5,5/7 ≈ 236 s, vencido 300 s. */
