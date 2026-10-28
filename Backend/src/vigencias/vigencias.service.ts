@@ -326,8 +326,8 @@ export class VigenciasService implements OnModuleInit {
   /**
    * T-007.2: único cron diario, 06:00 en Colombia sin depender de la zona del servidor (Render
    * corre en UTC si no se define TZ). `VIGENCIAS_CRON_ZONA` permite otra zona (America/Bogota por defecto).
-   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador/SuperAdmin
-   * activos + Revisores activos del programa del anexo) y
+   * Evalúa anexos D-1 (Administrador/SuperAdmin activos + Revisores activos del programa del
+   * anexo; sin responsable, decisión del PO 27/10) y
    * transiciones de vigencia de registro de programas e institución.
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM, {
@@ -400,50 +400,9 @@ export class VigenciasService implements OnModuleInit {
       fechaVencimiento: fechaVencimientoIso,
     };
 
-    const correoResponsable = anexo.responsable.includes('@')
-      ? anexo.responsable.trim().toLowerCase()
-      : null;
-    const usuarioResponsable = correoResponsable
-      ? await this.prisma.usuario.findUnique({
-          where: { correo: correoResponsable },
-          select: { id: true },
-        })
-      : null;
-
-    if (usuarioResponsable) {
-      await this.notificacionesDespacho.notificar({
-        claveEvento: claveAnexoD1({
-          anexoId: anexo.id,
-          fechaVencimientoIso,
-          usuarioId: usuarioResponsable.id,
-        }),
-        usuarioId: usuarioResponsable.id,
-        mensaje,
-        tipo: 'anexo_vence_manana',
-        asuntoCorreo: plantilla.asunto,
-        metadata,
-        plantilla,
-      });
-    } else if (correoResponsable) {
-      // Responsable sin cuenta: solo correo, con la misma clave idempotente por destinatario.
-      await this.notificacionesDespacho.encolarCorreoExterno({
-        claveEvento: claveAnexoD1({
-          anexoId: anexo.id,
-          fechaVencimientoIso,
-          usuarioId: `externo:${correoResponsable}`,
-        }),
-        destinatarioCorreo: correoResponsable,
-        mensaje,
-        tipo: 'anexo_vence_manana',
-        asuntoCorreo: plantilla.asunto,
-        metadata,
-        plantilla,
-      });
-    }
-
-    // El responsable ya recibió su aviso arriba; no se le duplica si además es Admin o Revisor.
+    // PO 27/10: solo Administrador/SuperAdmin y Revisores activos del programa; el responsable
+    // del anexo (texto libre) ya no recibe aviso propio.
     for (const usuarioId of idsDestinatarios) {
-      if (usuarioId === usuarioResponsable?.id) continue;
       await this.notificacionesDespacho.notificar({
         claveEvento: claveAnexoD1({
           anexoId: anexo.id,

@@ -2,8 +2,8 @@ import { RolUsuario } from '@prisma/client';
 import { VigenciasService } from './vigencias.service';
 
 /**
- * Aviso D-1 de anexos: responsable (si tiene cuenta o correo) + Administrador/SuperAdmin activos +
- * Revisores activos del programa del anexo, una vez por destinatario.
+ * Aviso D-1 de anexos (PO 27/10): Administrador/SuperAdmin activos + Revisores activos del
+ * programa del anexo, una vez por destinatario. El responsable del anexo no recibe aviso propio.
  */
 describe('VigenciasService · destinatarios del aviso D-1 de anexos', () => {
   const anexo = {
@@ -37,14 +37,15 @@ describe('VigenciasService · destinatarios del aviso D-1 de anexos', () => {
     return { despacho, ejecutar, usuarioFindMany };
   }
 
-  it('avisa al responsable, a Administrador, SuperAdmin y al Revisor del programa', async () => {
+  it('avisa a Administrador, SuperAdmin y al Revisor del programa; nunca al responsable', async () => {
     const { despacho, ejecutar, usuarioFindMany } = crear({ responsableId: 'cargador', revisores: ['rev-p1'] });
 
     await ejecutar();
 
     const destinos = despacho.notificar.mock.calls.map((c) => c[0].usuarioId);
-    expect(destinos).toEqual(['cargador', 'admin', 'super', 'rev-p1']);
-    expect(new Set(despacho.notificar.mock.calls.map((c) => c[0].claveEvento)).size).toBe(4);
+    expect(destinos).toEqual(['admin', 'super', 'rev-p1']);
+    expect(destinos).not.toContain('cargador');
+    expect(new Set(despacho.notificar.mock.calls.map((c) => c[0].claveEvento)).size).toBe(3);
     expect(despacho.notificar.mock.calls.every((c) => c[0].tipo === 'anexo_vence_manana')).toBe(true);
     // Los Revisores se filtran por el programa del anexo.
     expect(usuarioFindMany).toHaveBeenCalledWith({
@@ -53,22 +54,12 @@ describe('VigenciasService · destinatarios del aviso D-1 de anexos', () => {
     });
   });
 
-  it('no duplica el aviso cuando el responsable es además Revisor del programa', async () => {
-    const { despacho, ejecutar } = crear({ responsableId: 'rev-p1', revisores: ['rev-p1'] });
-
-    await ejecutar();
-
-    expect(despacho.notificar.mock.calls.map((c) => c[0].usuarioId)).toEqual(['rev-p1', 'admin', 'super']);
-  });
-
-  it('responsable sin cuenta: correo externo y aviso in-app solo a gestión y revisores', async () => {
+  it('responsable sin cuenta: no se encola correo externo', async () => {
     const { despacho, ejecutar } = crear({ responsableId: null, revisores: [] });
 
     await ejecutar();
 
-    expect(despacho.encolarCorreoExterno).toHaveBeenCalledWith(
-      expect.objectContaining({ destinatarioCorreo: 'cargador@cuac.edu.co' }),
-    );
+    expect(despacho.encolarCorreoExterno).not.toHaveBeenCalled();
     expect(despacho.notificar.mock.calls.map((c) => c[0].usuarioId)).toEqual(['admin', 'super']);
   });
 });

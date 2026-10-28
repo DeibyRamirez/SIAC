@@ -12,8 +12,8 @@ import { diaCalendarioLocal } from '../../src/vigencias/vigencias.service';
 
 /**
  * Aviso D-1 de anexos (pendientes 20/10, ítem 2): con un anexo que vence mañana, el cron crea
- * 1 alerta in-app y 1 fila de outbox por cada Administrador, SuperAdmin y Revisor del programa,
- * además del responsable. Un Revisor de otro programa no recibe nada. Reejecutar no duplica.
+ * 1 alerta in-app y 1 fila de outbox por cada Administrador, SuperAdmin y Revisor del programa.
+ * El responsable (Cargador) y un Revisor de otro programa no reciben nada (PO 27/10). Reejecutar no duplica.
  * Corre con la API conectada como siac_app: el despacho usa la ruta de sistema de la RLS.
  */
 describe('Anexo D-1: el aviso llega al Revisor del programa (HU-007)', () => {
@@ -73,17 +73,19 @@ describe('Anexo D-1: el aviso llega al Revisor del programa (HU-007)', () => {
     await ctx.app.close();
   });
 
-  it('crea alerta y correo para Admin, SuperAdmin, Revisor del programa y responsable; no para otro Revisor', async () => {
+  it('crea alerta y correo para Admin, SuperAdmin y Revisor del programa; no para el responsable ni otro Revisor', async () => {
     await request(ctx.app.getHttpServer())
       .post('/api/v1/vigencias/ejecutar-cron')
       .set('Authorization', `Bearer ${tokenAdmin}`)
       .expect(201);
 
-    for (const destinatario of [ids.revisor, ids.admin, ids.super, ids.cargador]) {
+    for (const destinatario of [ids.revisor, ids.admin, ids.super]) {
       expect(await alertasD1(destinatario)).toBe(1);
       expect(await salidasD1(destinatario)).toBe(1);
     }
     expect(await alertasD1(ids.revisorOtro)).toBe(0);
+    expect(await alertasD1(ids.cargador)).toBe(0);
+    expect(await salidasD1(ids.cargador)).toBe(0);
 
     // El Revisor ve su aviso por la API (RLS: alertas propias).
     const { token: tokenRevisor } = await iniciarSesion(ctx.app, 'Revisor');

@@ -139,7 +139,7 @@ describe('Notificaciones in-app (AlertaInApp)', () => {
     expect(avanceBd?.metadata).toMatchObject({ programaId, umbral: 'amarillo' });
   });
 
-  it('anexo D-1: el cron crea alerta para el responsable registrado y no duplica al reejecutar', async () => {
+  it('anexo D-1: el cron crea alerta para el Administrador y no duplica al reejecutar', async () => {
     await request(servidor())
       .post('/api/v1/vigencias/con-archivo')
       .set('Authorization', `Bearer ${tokenAdmin}`)
