@@ -4,6 +4,7 @@ import {
   IsString,
   IsEnum,
 } from 'class-validator';
+import { MaxTextoLargo } from '../../common/validacion/limites-texto';
 import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 
 export class CrearEvidenciaDto {
@@ -56,6 +57,7 @@ export class DictaminarEvidenciaDto {
 
   @IsString()
   @IsOptional()
+  @MaxTextoLargo('Las observaciones')
   observaciones?: string;
 }
 

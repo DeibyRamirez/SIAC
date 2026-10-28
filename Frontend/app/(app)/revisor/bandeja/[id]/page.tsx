@@ -29,7 +29,7 @@ import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import {
   CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
   TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
@@ -784,7 +784,7 @@ function ContenidoDictamen() {
                                 «{comentario.quote}»
                               </p>
                             )}
-                            <Textarea
+                            <TextareaConContador
                               className="min-h-[64px] text-sm"
                               placeholder="Escribe tu comentario…"
                               value={textoEdicionComentario}
@@ -861,7 +861,7 @@ function ContenidoDictamen() {
 
               <label className="block space-y-2 text-sm">
                 <span className="font-medium">Observaciones</span>
-                <Textarea
+                <TextareaConContador
                   value={observacionesGenerales}
                   onChange={(e) => setObservacionesGenerales(e.target.value)}
                   placeholder="Observaciones si envías a corrección."

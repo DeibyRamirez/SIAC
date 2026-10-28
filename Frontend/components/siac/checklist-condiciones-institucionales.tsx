@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import {
   CONDICIONES_INSTITUCIONALES,
   type CodigoCondicionInstitucional,
@@ -119,7 +119,7 @@ export function ChecklistCondicionesInstitucionales({
               </div>
               {estado.decision === 'corregir' && (
                 <>
-                  <Textarea
+                  <TextareaConContador
                     className={cn(
                       'mt-3',
                       codigosConError.includes(def.codigo) &&

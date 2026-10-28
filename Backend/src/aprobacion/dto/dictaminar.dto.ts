@@ -15,6 +15,7 @@ import {
   CodigoCondicionInstitucional,
   EstadoEvidencia,
 } from '@prisma/client';
+import { MaxTextoLargo } from '../../common/validacion/limites-texto';
 import { etiquetaCondicion } from '../../dominio/condiciones-documento-maestro';
 import { etiquetaCondicionInstitucional } from '../../dominio/condiciones-institucionales';
 
@@ -65,6 +66,7 @@ export class CondicionDictamenDto {
   @ObservacionObligatoriaSiNoCumple((codigo) =>
     etiquetaCondicion(codigo as CodigoCondicionDocumentoMaestro),
   )
+  @MaxTextoLargo('La observación')
   observacion?: string;
 }
 
@@ -78,6 +80,7 @@ export class CondicionInstitucionalDictamenDto {
   @ObservacionObligatoriaSiNoCumple((codigo) =>
     etiquetaCondicionInstitucional(codigo as CodigoCondicionInstitucional),
   )
+  @MaxTextoLargo('La observación')
   observacion?: string;
 }
 
@@ -99,6 +102,7 @@ export class ComentarioInlineDto {
   cita?: string;
 
   @IsString()
+  @MaxTextoLargo('El comentario')
   texto!: string;
 
   @IsString()
@@ -113,6 +117,7 @@ export class DictaminarDto {
 
   @IsString()
   @IsOptional()
+  @MaxTextoLargo('Las observaciones')
   observaciones?: string;
 
   @IsArray()

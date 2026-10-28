@@ -12,7 +12,7 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import {
   obtenerDiffVersionesApi,
   type DiffVersionesApi,
@@ -293,7 +293,7 @@ export function ComparadorVersionesDocx({
                   >
                     {editandoId === comentario.id ? (
                       <div className="space-y-2">
-                        <Textarea
+                        <TextareaConContador
                           className="min-h-[64px] text-sm"
                           value={textoEdicion}
                           onChange={(e) => setTextoEdicion(e.target.value)}
@@ -350,7 +350,7 @@ export function ComparadorVersionesDocx({
 
                 {hunkComentando === hunk.id ? (
                   <div className="space-y-2">
-                    <Textarea
+                    <TextareaConContador
                       className="min-h-[64px] text-sm"
                       placeholder="Comentario sobre este cambio agregado."
                       value={textoNuevo}
