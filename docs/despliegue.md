@@ -141,7 +141,8 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `CORREO_CANAL` | Sí | `resend` (o `smtp` con el servidor institucional) |
 | `RESEND_API_KEY` | Sí con Resend | Clave de Resend |
 | `CORREO_DESDE` | Sí | Remitente en un dominio verificado en Resend (alias `CORREO_REMITENTE`) |
-| `RESEND_CORREO_SANDBOX` | No | Redirige todos los correos a una cuenta (si no hay dominio verificado) |
+| `RESEND_CORREO_SANDBOX` | No | Redirige todos los correos a una cuenta (si no hay dominio verificado); el log registra el destino real |
+| `CORREO_DESTINATARIOS_PERMITIDOS` | No | Solo fuera de producción: lista separada por comas; el outbox marca **Descartado** lo que no esté en ella. En producción se ignora (aviso al arrancar) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USUARIO` / `SMTP_CONTRASENA` / `SMTP_FROM` | Solo con `smtp` | Servidor institucional |
 | `POWERBI_CLIENT_ID` / `POWERBI_WORKSPACE_ID` / `POWERBI_REPORT_ID` / `POWERBI_REPORT_ID_ESTUDIANTES` | No | App Owns Data (bloqueado sin credenciales Azure) |
 | `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | URL `https://app.powerbi.com/view?r=...` |
@@ -149,8 +150,8 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `CARRERAS_IMAGENES_BASE_URL` | No | Si falta: `FRONTEND_URL` |
 | `TI_API_URL` / `TI_API_TOKEN` | No | Integración TI |
 | `VIGENCIA_MODO_PRUEBA` | No | `true` solo en staging (ver sección 6) |
-| `VIGENCIA_DURACION_PRUEBA_SEG` | No | `300` = prueba de 5 min (por defecto `420` = 7 min) |
-| `VIGENCIA_INTERVALO_PRUEBA_SEG` | No | Se lee en la configuración pero hoy ningún código la usa: el evaluador corre cada 10 s fijo (`@Interval(10_000)`) |
+| `VIGENCIA_DURACION_PRUEBA_SEG` | No | Duración de la demo; por defecto `300` (5 min). Es la fuente única: el frontend la lee de `demo/iniciar` y `demo/estado`. Se rechaza (400) si algún color dura menos de dos ticks (mínimo 280 s con tick de 10 s) |
+| `VIGENCIA_INTERVALO_PRUEBA_SEG` | No | Intervalo del evaluador del modo prueba; por defecto `10` s (se registra con `SchedulerRegistry` al arrancar) |
 | `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION` | No | `true` solo en staging; sin ella el modo prueba bloquea el arranque con `NODE_ENV=production` |
 | `PORT` | — | Lo inyecta Render; no declararla |
 
@@ -172,10 +173,12 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 
 - `@nestjs/schedule` (`ScheduleModule.forRoot()` en `AppModule`) corre **dentro del proceso web** de Render; no hace falta un Cron Job aparte. Solo se ejecuta mientras el servicio está despierto: en el plan `free` depende del keep-alive (sección 2.1); en `starter` está siempre encendido. Debe haber **una** sola instancia.
 - `VigenciasService.actualizarVigenciasDiarias` corre a las **06:00 America/Bogota** (`@Cron(..., { timeZone: 'America/Bogota' })`), independientemente de la zona del servidor. `diaCalendarioLocal` usa la zona del proceso; con `TZ=America/Bogota` coincide con Colombia (y aun sin TZ, a las 06:00 Bogotá = 11:00 UTC el «mañana» es el mismo día).
-- Modo prueba (`VIGENCIA_MODO_PRUEBA=true`): un evaluador cada 10 s recorre las sesiones demo activas (en memoria) y genera alertas `vigencia_amarilla` / `vigencia_vencida` + correo. Las sesiones se pierden al reiniciar o redeplegar.
+- Modo prueba (`VIGENCIA_MODO_PRUEBA=true`): un evaluador cada 10 s recorre las sesiones demo activas (en memoria) y genera alertas `vigencia_amarilla` / `vigencia_roja` / `vigencia_vencida` + correo. Si un tick llega tarde, recupera los colores intermedios perdidos (cada aviso una sola vez). Los correos de la demo llevan `[PRUEBA]` en el asunto y la fecha simulada. Las sesiones se pierden al reiniciar o redeplegar; el frontend lo detecta con `demo/estado` y detiene la barra. El botón «Iniciar prueba de vigencia» solo aparece si `demo/estado` responde `modoPrueba=true`.
+- Destinatarios de los avisos de vigencia (y del aviso D-1 de anexos), decisión del PO del 27/10/2026: Administradores, SuperAdmin y Revisores activos vinculados al programa. **No** hay responsable ni se avisa al Cargador. El enlace del correo y de la campana depende del rol (Revisor → `/revisor`; alcance institucional → `/administrador/programas/institucion?institucionId=…`).
+- El cron real de las 06:00 evalúa con reloj real todas las entidades, incluidas las que no tienen sesión demo.
 - Con `NODE_ENV=production` el modo prueba está **bloqueado por diseño** (el arranque falla). Para verificarlo en un despliegue de staging se añadió una bandera explícita: `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true` (con un aviso en el log). Sin la bandera el comportamiento es el de siempre. **Decisión del PO**: habilitarla en el despliegue de verificación o mantener el bloqueo.
 - Para la prueba de 5 min: `VIGENCIA_MODO_PRUEBA=true`, `VIGENCIA_DURACION_PRUEBA_SEG=300`, `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true` en Render y `NEXT_PUBLIC_DEMO_VIGENCIA_7MIN=true` en Vercel (redeploy de ambos). Al terminar, quitar las cuatro.
-- Duplicados: no existe aún una tabla outbox con clave única (está planificada en `docs/todo-sprint3.md`, C-4). Hoy la deduplicación es por consulta previa de `AlertaInApp` (mismo usuario, tipo, umbral y entidad) antes de notificar; con **una sola instancia** y el tick protegido contra solapamiento (añadido en este cambio) no se duplican alertas ni correos. Con varias instancias sí podrían duplicarse.
+- Duplicados: los correos pasan por la tabla outbox `NotificacionSalida` con `claveEvento` única (y `AlertaInApp` también usa `claveEvento`), así que repetir el tick, el cron o varias instancias no duplica alertas ni correos. El procesador del outbox corre cada minuto con lease y reintentos con espera creciente. Sin canal de correo (`CORREO_CANAL=ninguno`) las filas quedan **Descartado** y el arranque lo advierte.
 
 ## 7. Checklist posterior al despliegue
 
@@ -188,7 +191,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | 5 | Descargar la evidencia / plantilla | Descarga desde URL firmada de Supabase |
 | 6 | Enviar a revisión y dictaminar como Revisor | Notificación **in-app** (campana) para el destinatario |
 | 7 | Correo de la misma notificación | Llega vía Resend (o a `RESEND_CORREO_SANDBOX`); el enlace apunta al dominio de Vercel |
-| 8 | Prueba de vigencia de 5 min (solo si se habilitó la bandera) | Al ~88 % del tiempo alerta amarilla y al 100 % vencida, una sola vez por usuario, in-app y correo |
+| 8 | Prueba de vigencia de 5 min (solo si se habilitó la bandera) | Con umbrales 12/6: al ~86 % del tiempo (≈257 s) alerta amarilla, al ~93 % (≈279 s) roja y al 100 % vencida; 3 avisos por destinatario (Admin/SuperAdmin/Revisor del programa), una sola vez, in-app y correo con `[PRUEBA]` |
 | 9 | Dashboards (`/administrador/dashboard`) | Los informes «Publicar en la web» cargan en el iframe (CSP `frame-src https://app.powerbi.com`) |
 | 10 | Logs de Render al día siguiente | `Ejecutando cron de vigencias...` a las 06:00 hora Colombia |
 
