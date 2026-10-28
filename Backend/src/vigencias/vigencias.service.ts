@@ -24,7 +24,10 @@ import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigenc
 import { plantillaAnexoVenceManana } from '../correo/plantillas';
 import { mensajeAnexoVenceManana } from '../correo/plantillas/anexos';
 import { claveAnexoD1 } from '../notificaciones/claves-evento';
-import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
+import {
+  DestinatarioAlerta,
+  destinatariosGestionYRevisores,
+} from '../notificaciones/destinatarios-alertas';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
@@ -363,11 +366,11 @@ export class VigenciasService implements OnModuleInit {
     if (anexos.length === 0) return;
 
     // Gestión (Administrador/SuperAdmin) es la misma para todos; los Revisores dependen del programa.
-    const destinatariosPorPrograma = new Map<string, string[]>();
+    const destinatariosPorPrograma = new Map<string, DestinatarioAlerta[]>();
     for (const anexo of anexos) {
       let destinatarios = destinatariosPorPrograma.get(anexo.programaId);
       if (!destinatarios) {
-        destinatarios = await idsGestionYRevisores(this.prisma, anexo.programaId);
+        destinatarios = await destinatariosGestionYRevisores(this.prisma, anexo.programaId);
         destinatariosPorPrograma.set(anexo.programaId, destinatarios);
       }
       await this.avisarAnexoD1(anexo, destinatarios);
@@ -382,7 +385,7 @@ export class VigenciasService implements OnModuleInit {
       responsable: string;
       programaId: string;
     },
-    idsDestinatarios: string[],
+    destinatarios: DestinatarioAlerta[],
   ): Promise<void> {
     const fechaVencimientoIso = new Date(anexo.fechaVencimiento).toISOString();
     const datos = {
@@ -393,7 +396,6 @@ export class VigenciasService implements OnModuleInit {
       anexoId: anexo.id,
     };
     const mensaje = mensajeAnexoVenceManana(datos);
-    const plantilla = plantillaAnexoVenceManana(datos);
     const metadata = {
       anexoId: anexo.id,
       programaId: anexo.programaId,
@@ -402,7 +404,9 @@ export class VigenciasService implements OnModuleInit {
 
     // PO 27/10: solo Administrador/SuperAdmin y Revisores activos del programa; el responsable
     // del anexo (texto libre) ya no recibe aviso propio.
-    for (const usuarioId of idsDestinatarios) {
+    for (const { id: usuarioId, rol } of destinatarios) {
+      // J (27/10): enlace del correo según el rol del destinatario.
+      const plantilla = plantillaAnexoVenceManana({ ...datos, rolDestinatario: rol });
       await this.notificacionesDespacho.notificar({
         claveEvento: claveAnexoD1({
           anexoId: anexo.id,

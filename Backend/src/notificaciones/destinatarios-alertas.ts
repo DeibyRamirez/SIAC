@@ -17,6 +17,48 @@ export interface PrismaDestinatarios {
  * El rol Par académico ya no existe (HU-011), así que nunca forma parte de la lista.
  * Devuelve ids únicos, en orden estable: primero gestión y después revisores.
  */
+/** Destinatario con el rol que decide el enlace del correo (gestión o Revisor). */
+export interface DestinatarioAlerta {
+  id: string;
+  rol: 'Administrador' | 'Revisor';
+}
+
+/**
+ * Igual que `idsGestionYRevisores`, pero indicando si el destinatario es de gestión
+ * (Administrador/SuperAdmin, mismo enlace) o Revisor (fix J: enlace por rol).
+ */
+export async function destinatariosGestionYRevisores(
+  prisma: PrismaDestinatarios,
+  programaId?: string | null,
+): Promise<DestinatarioAlerta[]> {
+  const gestion = await prisma.usuario.findMany({
+    where: {
+      activo: true,
+      rol: { in: [RolUsuario.Administrador, RolUsuario.SuperAdmin] },
+    },
+    select: { id: true },
+  });
+  const revisores = await prisma.usuario.findMany({
+    where: programaId
+      ? { activo: true, rol: RolUsuario.Revisor, usuarioProgramas: { some: { programaId } } }
+      : { activo: true, rol: RolUsuario.Revisor },
+    select: { id: true },
+  });
+  const vistos = new Set<string>();
+  const resultado: DestinatarioAlerta[] = [];
+  for (const [lista, rol] of [
+    [gestion, 'Administrador'],
+    [revisores, 'Revisor'],
+  ] as const) {
+    for (const { id } of lista) {
+      if (vistos.has(id)) continue;
+      vistos.add(id);
+      resultado.push({ id, rol });
+    }
+  }
+  return resultado;
+}
+
 export async function idsGestionYRevisores(
   prisma: PrismaDestinatarios,
   programaId?: string | null,

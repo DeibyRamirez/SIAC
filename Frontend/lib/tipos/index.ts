@@ -181,6 +181,9 @@ export interface AnexoVigencia {
 export interface MetadataNotificacion {
   evidenciaId?: string
   programaId?: string
+  institucionId?: string
+  /** Aviso generado por la demo acelerada de vigencia. */
+  prueba?: boolean
   anexoId?: string
   umbral?: string
   avance?: number

@@ -5,6 +5,7 @@ import {
   plantillaRevisionPendiente,
   plantillaVigencia,
   anioInicioVentanaRenovacion,
+  rutaVigenciasPorRol,
 } from './index';
 
 /** Base fija para que los snapshots no dependan del entorno de quien corre Jest. */
@@ -56,6 +57,18 @@ describe('plantillas de correo (T-007.3h, C-5)', () => {
     expect(anioInicioVentanaRenovacion(7, 12)).toBe(7);
     expect(anioInicioVentanaRenovacion(7, 24)).toBe(6);
     expect(anioInicioVentanaRenovacion(5, 18)).toBe(4);
+  });
+
+  it('enlace por rol: Revisor a su resumen, institucional con institucionId (fix J)', () => {
+    expect(plantillaVigencia('rojo', { ...DATOS_VIGENCIA, rolDestinatario: 'Revisor' }).texto).toContain(
+      'https://siac.test/revisor',
+    );
+    expect(plantillaVigencia('rojo', { ...DATOS_VIGENCIA, rolDestinatario: 'Administrador' }).texto).toContain(
+      'https://siac.test/administrador/vigencias?programaId=prog-1',
+    );
+    expect(rutaVigenciasPorRol('SuperAdmin', { institucionId: 'inst-cuac' })).toBe(
+      '/administrador/programas/institucion?institucionId=inst-cuac',
+    );
   });
 
   it('anexo_vence_manana', () => {

@@ -19,7 +19,10 @@ import {
   umbralesVigenciaAlcanzados,
 } from '../dominio/panel-siac';
 import { claveVigencia } from '../notificaciones/claves-evento';
-import { idsGestionYRevisores } from '../notificaciones/destinatarios-alertas';
+import {
+  DestinatarioAlerta,
+  destinatariosGestionYRevisores,
+} from '../notificaciones/destinatarios-alertas';
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { PrismaService } from '../prisma/prisma.module';
 import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
@@ -226,7 +229,7 @@ export class EvaluadorVigenciaRegistroService
       tokenDemo?: string;
     },
     umbral: UmbralVigenciaCorreo,
-    destinatarios: string[],
+    destinatarios: DestinatarioAlerta[],
   ): Promise<void> {
     const tipo =
       umbral === 'amarillo'
@@ -251,7 +254,6 @@ export class EvaluadorVigenciaRegistroService
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
     const mensaje = mensajeVigencia(datosPlantilla, umbral);
-    const plantilla = plantillaVigencia(umbral, datosPlantilla);
     const metadata = {
       umbral,
       fechaFin: fechaFinIso,
@@ -261,7 +263,9 @@ export class EvaluadorVigenciaRegistroService
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
 
-    for (const usuarioId of destinatarios) {
+    for (const { id: usuarioId, rol } of destinatarios) {
+      // J (27/10): el enlace del correo depende del rol (el Revisor no entra a /administrador).
+      const plantilla = plantillaVigencia(umbral, { ...datosPlantilla, rolDestinatario: rol });
       await this.notificacionesDespacho.notificar({
         claveEvento: claveVigencia({
           entidadId: input.entidadId,
@@ -282,8 +286,8 @@ export class EvaluadorVigenciaRegistroService
   }
 
   /** Administrador/SuperAdmin activos + Revisores activos del programa (todos si es institucional). */
-  private obtenerDestinatarios(programaId?: string): Promise<string[]> {
-    return idsGestionYRevisores(this.prisma, programaId);
+  private obtenerDestinatarios(programaId?: string): Promise<DestinatarioAlerta[]> {
+    return destinatariosGestionYRevisores(this.prisma, programaId);
   }
 
   /**

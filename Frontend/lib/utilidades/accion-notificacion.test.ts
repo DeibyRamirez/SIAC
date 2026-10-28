@@ -44,12 +44,10 @@ describe('resolverAccionNotificacion', () => {
       href: '/administrador/vigencias',
       etiqueta: 'Ver vigencias',
     })
+    // Fix J: el Revisor no tiene acceso a /administrador/*; va a su resumen.
     expect(
       resolverAccionNotificacion('vigencia_amarilla', { programaId: 'prog-1' }, 'Revisor'),
-    ).toEqual({
-      href: '/administrador/vigencias?programaId=prog-1',
-      etiqueta: 'Ver vigencias',
-    })
+    ).toEqual({ href: '/revisor', etiqueta: 'Abrir resumen' })
     expect(resolverAccionNotificacion('vigencia', { anexoId: 'an-1' }, 'Cargador')).toBeNull()
   })
 
@@ -60,6 +58,15 @@ describe('resolverAccionNotificacion', () => {
     expect(
       resolverAccionNotificacion('anexo_vence_manana', { anexoId: 'an-1' }, 'SuperAdmin'),
     ).toEqual({ href: '/administrador/vigencias', etiqueta: 'Ver vigencias' })
+  })
+
+  it('vigencia institucional lleva al proceso institucional con institucionId', () => {
+    expect(
+      resolverAccionNotificacion('vigencia_vencida', { institucionId: 'inst-cuac' }, 'Administrador'),
+    ).toEqual({
+      href: '/administrador/programas/institucion?institucionId=inst-cuac',
+      etiqueta: 'Ver proceso institucional',
+    })
   })
 
   it('sin metadata válida no navega', () => {

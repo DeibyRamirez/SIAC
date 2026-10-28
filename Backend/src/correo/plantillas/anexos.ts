@@ -7,6 +7,7 @@ import {
   textoCtaPlano,
   urlFrontend,
 } from './comun';
+import { RolDestinatarioVigencia, rutaVigenciasPorRol } from './vigencia';
 
 export interface DatosAnexoCorreo {
   titulo: string;
@@ -15,13 +16,14 @@ export interface DatosAnexoCorreo {
   fechaVencimientoIso: string;
   programaId?: string;
   anexoId: string;
+  /** Rol del destinatario: decide el enlace profundo (fix J). */
+  rolDestinatario?: RolDestinatarioVigencia;
 }
 
 function enlaceAnexo(datos: DatosAnexoCorreo): EnlaceCta {
-  const base = `${urlFrontend()}/administrador/vigencias`;
   return {
-    href: datos.programaId ? `${base}?programaId=${datos.programaId}` : base,
-    texto: 'Revisar el certificado en SIAC',
+    href: `${urlFrontend()}${rutaVigenciasPorRol(datos.rolDestinatario, { programaId: datos.programaId })}`,
+    texto: datos.rolDestinatario === 'Revisor' ? 'Abrir SIAC' : 'Revisar el certificado en SIAC',
   };
 }
 
