@@ -206,7 +206,7 @@ Revisar evidencia: https://siac.test/revisor/bandeja/ev-1",
 
 exports[`plantillas de correo (T-007.3h, C-5) vigencia_amarilla 1`] = `
 {
-  "asunto": "[SIAC] Inicio de ventana de renovación",
+  "asunto": "[SIAC] Derecho: inicio de ventana de renovación",
   "html": "<!DOCTYPE html>
 <html lang="es">
 <body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
@@ -214,7 +214,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_amarilla 1`] = `
     <tr>
       <td style="padding:24px 28px 8px">
         <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
-        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Ventana de renovación abierta</h1>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Ventana de renovación abierta: Derecho</h1>
       </td>
     </tr>
     <tr>
@@ -224,7 +224,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_amarilla 1`] = `
     </tr>
     <tr>
       <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
-        <p style="margin:0">La vigencia de registro de Derecho entró en ventana de renovación (año 6 de 7; amarillo desde 24 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda.</p>
+        <p style="margin:0">La vigencia de registro de Derecho entró en ventana de renovación (año 7 de 7; amarillo desde 12 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.</p>
         <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
         <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
       </td>
@@ -232,7 +232,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_amarilla 1`] = `
   </table>
 </body>
 </html>",
-  "texto": "La vigencia de registro de Derecho entró en ventana de renovación (año 6 de 7; amarillo desde 24 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda.
+  "texto": "La vigencia de registro de Derecho entró en ventana de renovación (año 7 de 7; amarillo desde 12 meses antes del fin, 2027-01-01). Inicie el proceso SIAC de renovación cuando corresponda. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.
 
 Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
 }
@@ -240,7 +240,7 @@ Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog
 
 exports[`plantillas de correo (T-007.3h, C-5) vigencia_roja 1`] = `
 {
-  "asunto": "[SIAC] Ventana roja de vigencia",
+  "asunto": "[SIAC] Derecho: vigencia en ventana roja",
   "html": "<!DOCTYPE html>
 <html lang="es">
 <body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
@@ -248,7 +248,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_roja 1`] = `
     <tr>
       <td style="padding:24px 28px 8px">
         <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
-        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia en ventana roja</h1>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia en ventana roja: Derecho</h1>
       </td>
     </tr>
     <tr>
@@ -258,7 +258,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_roja 1`] = `
     </tr>
     <tr>
       <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
-        <p style="margin:0">La vigencia de registro de Derecho entró en ventana roja (18 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo.</p>
+        <p style="margin:0">La vigencia de registro de Derecho entró en ventana roja (6 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.</p>
         <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
         <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
       </td>
@@ -266,7 +266,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_roja 1`] = `
   </table>
 </body>
 </html>",
-  "texto": "La vigencia de registro de Derecho entró en ventana roja (18 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo.
+  "texto": "La vigencia de registro de Derecho entró en ventana roja (6 meses antes del fin, 2027-01-01). El proceso SIAC de renovación debe continuar a tiempo. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.
 
 Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
 }
@@ -274,7 +274,7 @@ Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog
 
 exports[`plantillas de correo (T-007.3h, C-5) vigencia_vencida 1`] = `
 {
-  "asunto": "[SIAC] Vigencia de registro vencida",
+  "asunto": "[SIAC] Derecho: vigencia de registro vencida",
   "html": "<!DOCTYPE html>
 <html lang="es">
 <body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A3B74">
@@ -282,7 +282,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_vencida 1`] = `
     <tr>
       <td style="padding:24px 28px 8px">
         <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#1CBCA6">SIAC · CUAC</p>
-        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia de registro vencida</h1>
+        <h1 style="margin:12px 0 0;font-size:20px;font-weight:700">Vigencia de registro vencida: Derecho</h1>
       </td>
     </tr>
     <tr>
@@ -292,7 +292,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_vencida 1`] = `
     </tr>
     <tr>
       <td style="padding:16px 28px 28px;font-size:15px;line-height:1.55;color:#334155">
-        <p style="margin:0">La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación.</p>
+        <p style="margin:0">La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.</p>
         <p style="margin:24px 0 0"><a href="https://siac.test/administrador/vigencias?programaId=prog-1" style="display:inline-block;padding:10px 18px;background:#0A3B74;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Ver vigencias en SIAC</a></p>
         <p style="margin:28px 0 0;font-size:12px;color:#64748b">Recordatorio de vigencia del SIAC para que el proceso de renovación continúe a tiempo.</p>
       </td>
@@ -300,7 +300,7 @@ exports[`plantillas de correo (T-007.3h, C-5) vigencia_vencida 1`] = `
   </table>
 </body>
 </html>",
-  "texto": "La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación.
+  "texto": "La vigencia de registro de Derecho ha superado los 7 años (fin 2027-01-01). Inicie el proceso de renovación. Resolución MEN: 2020-01-01; fin de vigencia: 2027-01-01.
 
 Ver vigencias en SIAC: https://siac.test/administrador/vigencias?programaId=prog-1",
 }

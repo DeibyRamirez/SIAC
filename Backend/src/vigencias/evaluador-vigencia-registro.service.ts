@@ -219,6 +219,7 @@ export class EvaluadorVigenciaRegistroService
       entidadId: string;
       nombre: string;
       fechaResolucion: Date;
+      referencia: Date;
       umbrales: UmbralesSemaforoVigencia;
       programaId?: string;
       resolucionId: string;
@@ -243,6 +244,9 @@ export class EvaluadorVigenciaRegistroService
       mesesAvisoVigencia: input.umbrales.mesesAvisoVigencia,
       mesesRojoVigencia: input.umbrales.mesesRojoVigencia,
       fechaFinIso,
+      // H (27/10): fecha de la resolución y, en la demo, la fecha simulada ([PRUEBA] en el asunto).
+      fechaResolucionIso: input.fechaResolucion.toISOString(),
+      ...(input.tokenDemo ? { fechaSimuladaIso: input.referencia.toISOString() } : {}),
       ...(input.programaId ? { programaId: input.programaId } : {}),
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
@@ -252,6 +256,7 @@ export class EvaluadorVigenciaRegistroService
       umbral,
       fechaFin: fechaFinIso,
       aniosVigencia: input.umbrales.aniosVigencia,
+      ...(input.tokenDemo ? { prueba: true } : {}),
       ...(input.programaId ? { programaId: input.programaId } : {}),
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };

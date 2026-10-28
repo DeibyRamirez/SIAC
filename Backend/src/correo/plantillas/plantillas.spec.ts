@@ -4,6 +4,7 @@ import {
   plantillaDictamen,
   plantillaRevisionPendiente,
   plantillaVigencia,
+  anioInicioVentanaRenovacion,
 } from './index';
 
 /** Base fija para que los snapshots no dependan del entorno de quien corre Jest. */
@@ -12,29 +13,49 @@ process.env.SIAC_URL_FRONTEND = 'https://siac.test';
 const DATOS_VIGENCIA = {
   nombreEntidad: 'Derecho',
   aniosVigencia: 7,
-  mesesAvisoVigencia: 24,
-  mesesRojoVigencia: 18,
+  mesesAvisoVigencia: 12,
+  mesesRojoVigencia: 6,
   fechaFinIso: '2027-01-01T00:00:00.000Z',
+  fechaResolucionIso: '2020-01-01T00:00:00.000Z',
   programaId: 'prog-1',
 };
 
 describe('plantillas de correo (T-007.3h, C-5)', () => {
   it('vigencia_amarilla', () => {
     const plantilla = plantillaVigencia('amarillo', DATOS_VIGENCIA);
-    expect(plantilla.asunto).toBe('[SIAC] Inicio de ventana de renovación');
+    expect(plantilla.asunto).toBe('[SIAC] Derecho: inicio de ventana de renovación');
+    expect(plantilla.texto).toContain('año 7 de 7');
+    expect(plantilla.texto).toContain('Resolución MEN: 2020-01-01');
     expect(plantilla).toMatchSnapshot();
   });
 
   it('vigencia_roja', () => {
     const plantilla = plantillaVigencia('rojo', DATOS_VIGENCIA);
-    expect(plantilla.asunto).toBe('[SIAC] Ventana roja de vigencia');
+    expect(plantilla.asunto).toBe('[SIAC] Derecho: vigencia en ventana roja');
     expect(plantilla).toMatchSnapshot();
   });
 
   it('vigencia_vencida', () => {
     const plantilla = plantillaVigencia('vencido', DATOS_VIGENCIA);
-    expect(plantilla.asunto).toBe('[SIAC] Vigencia de registro vencida');
+    expect(plantilla.asunto).toBe('[SIAC] Derecho: vigencia de registro vencida');
     expect(plantilla).toMatchSnapshot();
+  });
+
+  it('vigencia en demo: [PRUEBA] en el asunto, fecha simulada y sin fecha de fin contradictoria', () => {
+    const plantilla = plantillaVigencia('vencido', {
+      ...DATOS_VIGENCIA,
+      fechaSimuladaIso: '2027-01-01T00:00:00.000Z',
+    });
+    expect(plantilla.asunto).toBe('[PRUEBA] [SIAC] Derecho: vigencia de registro vencida');
+    expect(plantilla.texto).toContain('fecha simulada 2027-01-01');
+    expect(plantilla.texto).not.toMatch(/ha superado/);
+    expect(plantilla.html).toContain('Vigencia · PRUEBA');
+  });
+
+  it('año de inicio de la ventana amarilla según umbrales', () => {
+    expect(anioInicioVentanaRenovacion(7, 12)).toBe(7);
+    expect(anioInicioVentanaRenovacion(7, 24)).toBe(6);
+    expect(anioInicioVentanaRenovacion(5, 18)).toBe(4);
   });
 
   it('anexo_vence_manana', () => {
