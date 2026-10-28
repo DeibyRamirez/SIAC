@@ -64,9 +64,13 @@ export class VigenciasController {
   @Post('demo/iniciar')
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
   async iniciarDemo(@Body() dto: IniciarDemoVigenciaDto) {
-    const sesion = this.vigenciaDemo.iniciar(dto.alcance, dto.entidadId);
+    const sesion = await this.vigenciaDemo.iniciar(dto.alcance, dto.entidadId);
     await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades(new Date(), { soloSesionesDemo: true });
-    return { inicioAtMs: sesion.inicioAtMs };
+    return {
+      inicioAtMs: sesion.inicioAtMs,
+      duracionSeg: this.vigenciaDemo.duracionPruebaSeg(),
+      intervaloSeg: this.vigenciaDemo.intervaloPruebaSeg(),
+    };
   }
 
   @Post('demo/detener')

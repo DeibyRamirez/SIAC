@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import {
@@ -7,6 +7,7 @@ import {
   calcularSemaforoVigencia,
   ColorSemaforoVigencia,
   EscalaDemoVigencia,
+  validarDuracionDemoVigencia,
 } from '../dominio/panel-siac';
 import { PrismaService } from '../prisma/prisma.module';
 import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
@@ -20,6 +21,11 @@ export interface SesionDemoVigencia {
 export interface EstadoDemoVigencia {
   modoPrueba: boolean;
   activa: boolean;
+  /** Inicio de la sesión en el servidor (null si no hay sesión: terminó o se perdió al reiniciar). */
+  inicioAtMs: number | null;
+  /** Fuente única de la duración de la demo (VIGENCIA_DURACION_PRUEBA_SEG). */
+  duracionSeg: number;
+  intervaloSeg: number;
   semaforoVigencia: ColorSemaforoVigencia;
   segundosRestantes: number;
   fraccion: number;
@@ -45,8 +51,10 @@ export class VigenciaDemoService {
     return this.config.get<boolean>('vigenciaModoPrueba') === true;
   }
 
+  /** Duración de la demo (VIGENCIA_DURACION_PRUEBA_SEG); 300 s si falta o no es válida. */
   duracionPruebaSeg(): number {
-    return this.config.get<number>('vigenciaDuracionPruebaSeg') ?? 300;
+    const valor = this.config.get<number>('vigenciaDuracionPruebaSeg');
+    return typeof valor === 'number' && Number.isFinite(valor) && valor > 0 ? valor : 300;
   }
 
   /** Intervalo del tick del modo prueba (VIGENCIA_INTERVALO_PRUEBA_SEG); 10 s si falta o no es válido. */
@@ -55,7 +63,10 @@ export class VigenciaDemoService {
     return typeof valor === 'number' && Number.isFinite(valor) && valor >= 1 ? valor : 10;
   }
 
-  /** Escala de la demo activa (§0): amarillo 5/7 ≈ 214 s, rojo 5,5/7 ≈ 236 s, vencido 300 s. */
+  /**
+   * Escala de la demo activa (§0). Con umbrales 12/6 y 300 s: amarillo 6/7 ≈ 257 s,
+   * rojo 6,5/7 ≈ 279 s, vencido 300 s (proporcional a los umbrales de BD).
+   */
   escalaSesion(sesion: SesionDemoVigencia): EscalaDemoVigencia {
     return {
       inicioMs: sesion.inicioAtMs,
@@ -67,9 +78,36 @@ export class VigenciaDemoService {
     return `${alcance}:${entidadId}`;
   }
 
-  iniciar(alcance: AlcancePaqueteVigencia, entidadId: string): SesionDemoVigencia {
+  /**
+   * Inicia la demo. Errores 4xx claros (fix E): modo prueba deshabilitado, entidad sin resolución
+   * MEN o duración que deja algún color más corto que dos evaluaciones (fix A).
+   */
+  async iniciar(alcance: AlcancePaqueteVigencia, entidadId: string): Promise<SesionDemoVigencia> {
     if (!this.modoPruebaActivo()) {
-      throw new Error('El modo prueba de vigencia no está habilitado en el servidor.');
+      throw new BadRequestException(
+        'El modo prueba de vigencia no está habilitado en el servidor (VIGENCIA_MODO_PRUEBA).',
+      );
+    }
+    const fechaResolucion = await this.obtenerFechaResolucion(alcance, entidadId);
+    if (!fechaResolucion) {
+      throw new NotFoundException(
+        alcance === 'Programa'
+          ? 'El programa no existe o no tiene resolución MEN registrada.'
+          : 'La institución no existe o no tiene resolución MEN registrada.',
+      );
+    }
+    const umbrales = await this.configuracion.cargar();
+    const validacion = validarDuracionDemoVigencia(
+      this.duracionPruebaSeg(),
+      this.intervaloPruebaSeg(),
+      umbrales,
+    );
+    if (!validacion.valida) {
+      throw new BadRequestException(
+        `VIGENCIA_DURACION_PRUEBA_SEG=${this.duracionPruebaSeg()} deja un color de ` +
+          `${validacion.ventanaMinimaSeg.toFixed(1)} s, menos de dos evaluaciones de ` +
+          `${this.intervaloPruebaSeg()} s. Use al menos ${validacion.duracionMinimaSeg} s.`,
+      );
     }
     const sesion: SesionDemoVigencia = {
       alcance,
@@ -103,6 +141,9 @@ export class VigenciaDemoService {
       return {
         modoPrueba: this.modoPruebaActivo(),
         activa: false,
+        inicioAtMs: null,
+        duracionSeg: this.duracionPruebaSeg(),
+        intervaloSeg: this.intervaloPruebaSeg(),
         semaforoVigencia: 'SinVigencia',
         segundosRestantes: 0,
         fraccion: 0,
@@ -128,6 +169,9 @@ export class VigenciaDemoService {
     return {
       modoPrueba: this.modoPruebaActivo(),
       activa,
+      inicioAtMs: sesion?.inicioAtMs ?? null,
+      duracionSeg: this.duracionPruebaSeg(),
+      intervaloSeg: this.intervaloPruebaSeg(),
       semaforoVigencia,
       segundosRestantes,
       fraccion,

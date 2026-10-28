@@ -233,6 +233,38 @@ export function umbralesVigenciaAlcanzados(semaforo: ColorSemaforoVigencia): Umb
   return [];
 }
 
+/** Resultado de validar la duración de la demo acelerada frente al intervalo del tick. */
+export interface ValidacionDuracionDemoVigencia {
+  valida: boolean;
+  /** Ventana más corta (amarillo o rojo) en segundos reales. */
+  ventanaMinimaSeg: number;
+  /** Duración mínima para que cada color dure al menos dos evaluaciones. */
+  duracionMinimaSeg: number;
+}
+
+/**
+ * Fix A (27/10): cada color de la demo debe durar al menos dos evaluaciones del tick; si no,
+ * el aviso de ese color depende de la recuperación y la barra salta colores.
+ * Ventana amarilla = (mesesAviso − mesesRojo) / (años·12); ventana roja = mesesRojo / (años·12).
+ */
+export function validarDuracionDemoVigencia(
+  duracionSeg: number,
+  intervaloSeg: number,
+  umbrales: UmbralesSemaforoVigencia,
+): ValidacionDuracionDemoVigencia {
+  const mesesTotales = umbrales.aniosVigencia * 12;
+  const fraccionAmarillo = (umbrales.mesesAvisoVigencia - umbrales.mesesRojoVigencia) / mesesTotales;
+  const fraccionRojo = umbrales.mesesRojoVigencia / mesesTotales;
+  const fraccionMinima = Math.min(fraccionAmarillo, fraccionRojo);
+  const ventanaMinimaSeg = duracionSeg * fraccionMinima;
+  const duracionMinimaSeg = fraccionMinima > 0 ? Math.ceil((2 * intervaloSeg) / fraccionMinima) : Infinity;
+  return {
+    valida: fraccionMinima > 0 && ventanaMinimaSeg >= 2 * intervaloSeg,
+    ventanaMinimaSeg,
+    duracionMinimaSeg,
+  };
+}
+
 /**
  * Segundos que faltan para «Vencido»: en la demo se cuenta la duración de la simulación;
  * en tiempo real, el tiempo hasta el fin de la vigencia.
