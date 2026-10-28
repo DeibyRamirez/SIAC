@@ -45,7 +45,10 @@ import {
   type TipoTramiteSIAC,
 } from '@/lib/utilidades/catalogo-tramites-siac'
 import {
+  DURACION_DEMO_VIGENCIA_MS,
   claveSessionDemoVigencia,
+  etiquetaDuracionDemoVigencia,
+  sesionDemoVigenciaTerminada,
   calcularSemaforoVigencia,
   mensajeAlertaVigencia,
 } from '@/lib/utilidades/vigencia-registro'
@@ -130,6 +133,10 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   const [demoVigenciaActiva, setDemoVigenciaActiva] = useState(false)
   const [inicioDemoVigenciaMs, setInicioDemoVigenciaMs] = useState<number | null>(null)
   const [semaforoServidor, setSemaforoServidor] = useState<SemaforoVigencia | null>(null)
+  /** Duración de la demo que informa el servidor (fuente única: VIGENCIA_DURACION_PRUEBA_SEG). */
+  const [duracionDemoMs, setDuracionDemoMs] = useState(DURACION_DEMO_VIGENCIA_MS)
+  /** null = aún no se sabe; el botón solo aparece si el servidor confirma modoPrueba=true. */
+  const [modoPruebaServidor, setModoPruebaServidor] = useState<boolean | null>(null)
 
   const tramitesPrograma = CATALOGO_TRAMITES_SIAC.filter((item) => item.alcance === 'Programa')
   const tramitesInstitucion = CATALOGO_TRAMITES_SIAC.filter(
@@ -194,28 +201,20 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
   const alcanceDemo: AlcancePaqueteVigencia = esInstitucion ? 'Institucion' : 'Programa'
   const idEntidadDemo = programa?.id ?? entidadId
 
-  const iniciarDemoVigencia = useCallback(async () => {
-    const ahora = Date.now()
-    try {
-      sessionStorage.setItem(claveSessionDemoVigencia(idResolucion), String(ahora))
-    } catch {
-      /* privado / sin storage */
-    }
-    setInicioDemoVigenciaMs(ahora)
-    setDemoVigenciaActiva(true)
-    setSemaforoServidor(null)
-    if (apiDisponible() && idEntidadDemo) {
+  const guardarInicioLocal = useCallback(
+    (inicioMs: number) => {
       try {
-        const respuesta = await iniciarDemoVigenciaApi(idEntidadDemo, alcanceDemo)
-        setInicioDemoVigenciaMs(respuesta.inicioAtMs)
-        await recargarAlertas()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo iniciar la prueba en el servidor.')
+        sessionStorage.setItem(claveSessionDemoVigencia(idResolucion), String(inicioMs))
+      } catch {
+        /* privado / sin storage */
       }
-    }
-  }, [alcanceDemo, idEntidadDemo, idResolucion, recargarAlertas])
+      setInicioDemoVigenciaMs(inicioMs)
+      setDemoVigenciaActiva(true)
+    },
+    [idResolucion],
+  )
 
-  const detenerDemoVigencia = useCallback(async () => {
+  const limpiarDemoLocal = useCallback(() => {
     try {
       sessionStorage.removeItem(claveSessionDemoVigencia(idResolucion))
     } catch {
@@ -224,6 +223,50 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     setDemoVigenciaActiva(false)
     setInicioDemoVigenciaMs(null)
     setSemaforoServidor(null)
+  }, [idResolucion])
+
+  // Fix E: el servidor dice si el modo prueba está activo y cuánto dura la demo.
+  useEffect(() => {
+    if (!apiDisponible() || !idEntidadDemo || !programa?.fechaResolucion) {
+      setModoPruebaServidor(null)
+      return
+    }
+    let cancelado = false
+    obtenerEstadoDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+      .then((estado) => {
+        if (cancelado) return
+        setModoPruebaServidor(estado.modoPrueba)
+        if (estado.duracionSeg > 0) setDuracionDemoMs(estado.duracionSeg * 1000)
+      })
+      .catch(() => {
+        if (!cancelado) setModoPruebaServidor(false)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [alcanceDemo, idEntidadDemo, programa?.fechaResolucion])
+
+  const iniciarDemoVigencia = useCallback(async () => {
+    setSemaforoServidor(null)
+    if (!apiDisponible() || !idEntidadDemo) {
+      // Sin API (datos de ejemplo): demo solo visual con la duración por defecto.
+      guardarInicioLocal(Date.now())
+      return
+    }
+    try {
+      const respuesta = await iniciarDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+      setDuracionDemoMs(respuesta.duracionSeg * 1000)
+      guardarInicioLocal(respuesta.inicioAtMs)
+      await recargarAlertas()
+    } catch (err) {
+      // 400 (modo prueba apagado o duración inválida) / 404 (sin resolución): mensaje claro y sin barra.
+      limpiarDemoLocal()
+      toast.error(err instanceof Error ? err.message : 'No se pudo iniciar la prueba en el servidor.')
+    }
+  }, [alcanceDemo, guardarInicioLocal, idEntidadDemo, limpiarDemoLocal, recargarAlertas])
+
+  const detenerDemoVigencia = useCallback(async () => {
+    limpiarDemoLocal()
     if (apiDisponible() && idEntidadDemo) {
       try {
         await detenerDemoVigenciaApi(idEntidadDemo, alcanceDemo)
@@ -231,7 +274,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         /* la UI local ya se detuvo */
       }
     }
-  }, [alcanceDemo, entidadId, idResolucion])
+  }, [alcanceDemo, idEntidadDemo, limpiarDemoLocal])
 
   useEffect(() => {
     if (!programa?.fechaResolucion) {
@@ -269,6 +312,15 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     const consultar = async () => {
       try {
         const estado = await obtenerEstadoDemoVigenciaApi(idEntidadDemo, alcanceDemo)
+        setModoPruebaServidor(estado.modoPrueba)
+        if (sesionDemoVigenciaTerminada(estado)) {
+          // Fix D: la sesión ya no existe en el servidor (detenida, API reiniciada o modo prueba apagado).
+          limpiarDemoLocal()
+          toast.info('La prueba de vigencia terminó en el servidor.', { id: `demo-vigencia-fin-${idResolucion}` })
+          return
+        }
+        if (estado.inicioAtMs !== null) setInicioDemoVigenciaMs(estado.inicioAtMs)
+        if (estado.duracionSeg > 0) setDuracionDemoMs(estado.duracionSeg * 1000)
         if (alcanceDemo === 'Programa') {
           const vigencia = await obtenerVigenciaProgramaApi(idEntidadDemo)
           setSemaforoServidor(vigencia.semaforo)
@@ -284,7 +336,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
     // §0: barra y campana con polling de 5 s en modo prueba.
     const id = window.setInterval(() => void consultar(), 5_000)
     return () => window.clearInterval(id)
-  }, [alcanceDemo, demoVigenciaActiva, idEntidadDemo, recargarAlertas])
+  }, [alcanceDemo, demoVigenciaActiva, idEntidadDemo, idResolucion, limpiarDemoLocal, recargarAlertas])
 
   const conteos = programa?.conteosEstado
     ? {
@@ -362,11 +414,14 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
         />
       ) : null}
 
-      {vigenciaActiva && programa.fechaResolucion && puedeAdministrar ? (
+      {vigenciaActiva &&
+      programa.fechaResolucion &&
+      puedeAdministrar &&
+      (demoVigenciaActiva || !apiDisponible() || modoPruebaServidor === true) ? (
         <div className="flex flex-wrap items-center gap-2">
           {!demoVigenciaActiva ? (
             <Button type="button" variant="outline" size="sm" onClick={iniciarDemoVigencia}>
-              Iniciar prueba de vigencia (5 min)
+              Iniciar prueba de vigencia ({etiquetaDuracionDemoVigencia(duracionDemoMs)})
             </Button>
           ) : (
             <Button type="button" variant="outline" size="sm" onClick={detenerDemoVigencia}>
@@ -384,6 +439,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
           fechaResolucion={programa.fechaResolucion}
           nombreEntidad={programa.nombre}
           inicioDemoMs={inicioDemoVigenciaMs}
+          duracionDemoMs={duracionDemoMs}
           semaforoServidor={semaforoServidor ?? undefined}
         />
       ) : null}

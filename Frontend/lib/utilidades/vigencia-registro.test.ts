@@ -13,6 +13,8 @@ import {
   calcularSemaforoVigencia,
   claveSessionDemoVigencia,
   demoVigenciaFinalizada,
+  etiquetaDuracionDemoVigencia,
+  sesionDemoVigenciaTerminada,
   fraccionDemoVigenciaTranscurrida,
   hayDemoVigenciaEnCurso,
   mensajeAlertaVigencia,
@@ -140,5 +142,35 @@ describe('vigencia-registro', () => {
     expect(hayDemoVigenciaEnCurso()).toBe(true)
     sessionStorage.clear()
     expect(hayDemoVigenciaEnCurso()).toBe(false)
+  })
+})
+
+describe('demo de vigencia con duración del servidor', () => {
+  it('la fracción y el fin usan la duración informada (420 s)', () => {
+    const inicio = 1_000_000
+    expect(fraccionDemoVigenciaTranscurrida(inicio, inicio + 210_000, 420_000)).toBeCloseTo(0.5)
+    expect(demoVigenciaFinalizada(inicio, inicio + 300_000, 420_000)).toBe(false)
+    expect(demoVigenciaFinalizada(inicio, inicio + 420_000, 420_000)).toBe(true)
+  })
+
+  it('sin duración usa 300 s por defecto', () => {
+    expect(demoVigenciaFinalizada(0, 300_000)).toBe(true)
+  })
+
+  it('la referencia demo llega al fin de la vigencia al terminar la duración', () => {
+    const ref = calcularReferenciaDemoVigencia('2020-01-01T00:00:00.000Z', 0, 420_000, 420_000)
+    expect(ref.toISOString()).toBe('2027-01-01T00:00:00.000Z')
+  })
+
+  it('detecta sesión terminada o modo prueba apagado', () => {
+    expect(sesionDemoVigenciaTerminada({ modoPrueba: true, activa: true })).toBe(false)
+    expect(sesionDemoVigenciaTerminada({ modoPrueba: true, activa: false })).toBe(true)
+    expect(sesionDemoVigenciaTerminada({ modoPrueba: false, activa: true })).toBe(true)
+  })
+
+  it('etiqueta la duración del botón', () => {
+    expect(etiquetaDuracionDemoVigencia(300_000)).toBe('5 min')
+    expect(etiquetaDuracionDemoVigencia(420_000)).toBe('7 min')
+    expect(etiquetaDuracionDemoVigencia(280_000)).toBe('4 min 40 s')
   })
 })

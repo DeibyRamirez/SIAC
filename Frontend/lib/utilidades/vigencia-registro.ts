@@ -6,9 +6,12 @@ export const ANIOS_VIGENCIA_REGISTRO = 7
 export const MESES_AVISO_VIGENCIA = 12
 /** Regla vigente (20/10/2026): rojo 6 meses antes del fin. */
 export const MESES_ROJO_VIGENCIA = 6
-/** §0 Demo acelerada: 300 s de reloj ≈ 7 años de vigencia (amarillo ≈258 s, rojo ≈279 s). */
+/**
+ * §0 Demo acelerada: duración por defecto si el servidor no informa `duracionSeg`
+ * (VIGENCIA_DURACION_PRUEBA_SEG, 300 s ≈ 7 años: amarillo ≈257 s, rojo ≈279 s).
+ */
 export const DURACION_DEMO_VIGENCIA_MS = 300 * 1000
-/** Año desde el que el semáforo pasa a amarillo (7 años − 12 meses = año 6 cumplido). */
+/** Años cumplidos desde los que el semáforo pasa a amarillo (7 años − 12 meses = 6, es decir, inicio del año 7). */
 export const ANIOS_VIGENCIA_AMARILLO = (ANIOS_VIGENCIA_REGISTRO * 12 - MESES_AVISO_VIGENCIA) / 12
 export const ANIOS_VIGENCIA_ROJO = (ANIOS_VIGENCIA_REGISTRO * 12 - MESES_ROJO_VIGENCIA) / 12
 
@@ -113,31 +116,54 @@ export function hayDemoVigenciaEnCurso(): boolean {
   return false
 }
 
-/** Fracción 0..1 del tiempo de demo ya transcurrido (5 min). */
+/** Fracción 0..1 del tiempo de demo ya transcurrido (duración informada por el servidor). */
 export function fraccionDemoVigenciaTranscurrida(
   inicioDemoMs: number,
   ahoraMs: number = Date.now(),
+  duracionMs: number = DURACION_DEMO_VIGENCIA_MS,
 ): number {
   const transcurrido = Math.max(0, ahoraMs - inicioDemoMs)
-  return Math.min(1, transcurrido / DURACION_DEMO_VIGENCIA_MS)
+  return Math.min(1, transcurrido / Math.max(1, duracionMs))
 }
 
 /**
- * Mapea el reloj de la demo (5 min) a una fecha «como si» hubieran pasado hasta 7 años desde la resolución.
+ * Mapea el reloj de la demo (duración del servidor) a una fecha «como si» hubieran pasado hasta 7 años desde la resolución.
  */
 export function calcularReferenciaDemoVigencia(
   fechaResolucion: Date | string,
   inicioDemoMs: number,
   ahoraMs: number = Date.now(),
+  duracionMs: number = DURACION_DEMO_VIGENCIA_MS,
 ): Date {
   const inicio =
     typeof fechaResolucion === 'string' ? new Date(fechaResolucion) : fechaResolucion
   const fin = calcularFechaFinVigencia(fechaResolucion)
   const duracionVigenciaMs = fin.getTime() - inicio.getTime()
-  const fraccion = fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs)
+  const fraccion = fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs, duracionMs)
   return new Date(inicio.getTime() + duracionVigenciaMs * fraccion)
 }
 
-export function demoVigenciaFinalizada(inicioDemoMs: number, ahoraMs: number = Date.now()): boolean {
-  return fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs) >= 1
+export function demoVigenciaFinalizada(
+  inicioDemoMs: number,
+  ahoraMs: number = Date.now(),
+  duracionMs: number = DURACION_DEMO_VIGENCIA_MS,
+): boolean {
+  return fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahoraMs, duracionMs) >= 1
+}
+
+/**
+ * Lectura de GET /vigencias/demo/estado: decide si la barra local debe detenerse porque el
+ * servidor ya no tiene la sesión (se detuvo, se reinició la API o se apagó el modo prueba).
+ */
+export function sesionDemoVigenciaTerminada(estado: { modoPrueba: boolean; activa: boolean }): boolean {
+  return !estado.modoPrueba || !estado.activa
+}
+
+/** Texto del botón de la demo según la duración del servidor: «5 min», «7 min», «4 min 40 s». */
+export function etiquetaDuracionDemoVigencia(duracionMs: number): string {
+  const totalSeg = Math.max(0, Math.round(duracionMs / 1000))
+  const min = Math.floor(totalSeg / 60)
+  const seg = totalSeg % 60
+  if (min === 0) return `${seg} s`
+  return seg === 0 ? `${min} min` : `${min} min ${seg} s`
 }

@@ -144,6 +144,12 @@ export interface PaqueteVigenciaRegistro {
 export interface EstadoDemoVigencia {
   modoPrueba: boolean
   activa: boolean
+  /** Marca de inicio de la sesión demo en el servidor; null si no hay sesión. */
+  inicioAtMs: number | null
+  /** Duración de la demo según VIGENCIA_DURACION_PRUEBA_SEG (fuente única). */
+  duracionSeg: number
+  /** Intervalo del tick según VIGENCIA_INTERVALO_PRUEBA_SEG. */
+  intervaloSeg: number
   semaforoVigencia: SemaforoVigencia
   segundosRestantes: number
   fraccion: number
