@@ -13,7 +13,9 @@ export function CargadorGlobal({ visible, mensaje, progreso }: CargadorGlobalPro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/75 backdrop-blur-md"
+      data-testid="cargador-global"
+      // z-[300]: por encima de la barra superior (z-[100]) y sus menús (z-[200]).
+      className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-background/75 backdrop-blur-md"
       role="status"
       aria-live="polite"
       aria-busy="true"

@@ -44,9 +44,19 @@ export function debeMostrarCargaGlobal(metodo: string, ruta: string): boolean {
   return true
 }
 
-export function obtenerMensajeCarga(metodo: string, ruta: string): string {
-  if (ruta.includes('enviar-revision')) return 'Enviando a revisión…'
-  if (ruta.includes('/archivo')) return 'Subiendo documento…'
-  if (ruta.includes('/dictamen')) return 'Registrando dictamen…'
+/**
+ * Mensaje real de la fase según la operación (no siempre «Guardando…»). Con archivo adjunto
+ * (FormData) la fase es la subida; las rutas conocidas dicen qué hace el servidor.
+ */
+export function obtenerMensajeCarga(metodo: string, ruta: string, cuerpo?: unknown): string {
+  const conArchivo = typeof FormData !== 'undefined' && cuerpo instanceof FormData
+  if (ruta.includes('/reemplazo-documento')) return 'Subiendo archivo y guardando la versión nueva…'
+  if (ruta.includes('enviar-revision')) return 'Enviando a revisión y notificando al revisor…'
+  if (ruta.includes('/dictamen')) return 'Validando el dictamen y notificando…'
+  if (ruta.includes('/vigencias/demo/iniciar')) return 'Iniciando la prueba de vigencia…'
+  if (ruta.includes('/vigencias/demo/detener')) return 'Deteniendo la prueba de vigencia…'
+  if (ruta.includes('/ejecutar-cron')) return 'Evaluando vigencias y notificando…'
+  if (ruta.includes('/notificaciones') || ruta.includes('/alertas')) return 'Actualizando notificaciones…'
+  if (conArchivo || ruta.includes('/archivo')) return 'Subiendo archivo…'
   return mensajePorMetodo(metodo)
 }

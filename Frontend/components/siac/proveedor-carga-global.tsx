@@ -31,6 +31,9 @@ export function ProveedorCargaGlobal({ children }: { children: React.ReactNode }
     progreso: 0,
   })
   const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Operaciones en curso: la capa solo se oculta cuando terminan todas (fases encadenadas). */
+  const activasRef = useRef(0)
+  const ocultarRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const detenerAnimacion = useCallback(() => {
     if (intervaloRef.current) {
@@ -41,8 +44,14 @@ export function ProveedorCargaGlobal({ children }: { children: React.ReactNode }
 
   const iniciarCarga = useCallback(
     (mensaje = 'Procesando…') => {
+      activasRef.current += 1
+      if (ocultarRef.current) {
+        clearTimeout(ocultarRef.current)
+        ocultarRef.current = null
+      }
       detenerAnimacion()
-      setEstado({ visible: true, mensaje, progreso: 12 })
+      // La fase nueva reemplaza el mensaje (p. ej. «Subiendo archivo…» → «Enviando a revisión…»).
+      setEstado((prev) => ({ visible: true, mensaje, progreso: prev.visible ? prev.progreso : 12 }))
       intervaloRef.current = setInterval(() => {
         setEstado((prev) => {
           if (!prev.visible) return prev
@@ -55,10 +64,13 @@ export function ProveedorCargaGlobal({ children }: { children: React.ReactNode }
   )
 
   const finalizarCarga = useCallback(() => {
+    activasRef.current = Math.max(0, activasRef.current - 1)
+    if (activasRef.current > 0) return
     detenerAnimacion()
     setEstado((prev) => ({ ...prev, progreso: 100 }))
-    window.setTimeout(() => {
-      setEstado({ visible: false, mensaje: 'Procesando…', progreso: 0 })
+    ocultarRef.current = setTimeout(() => {
+      ocultarRef.current = null
+      if (activasRef.current === 0) setEstado({ visible: false, mensaje: 'Procesando…', progreso: 0 })
     }, 220)
   }, [detenerAnimacion])
 

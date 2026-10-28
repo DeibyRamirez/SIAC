@@ -31,7 +31,7 @@ export async function peticionApi<T>(
   const metodo = (opciones.method ?? 'GET').toUpperCase();
   const mostrarCarga = debeMostrarCargaGlobal(metodo, ruta);
   if (mostrarCarga) {
-    notificarInicioCarga(obtenerMensajeCarga(metodo, ruta));
+    notificarInicioCarga(obtenerMensajeCarga(metodo, ruta, opciones.body));
   }
 
   try {

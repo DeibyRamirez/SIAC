@@ -557,7 +557,7 @@ function ContenidoNuevaEvidencia() {
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button type="submit" disabled={enviando || extrayendo}>
-                    {enviando ? 'Guardando…' : 'Guardar borrador'}
+                    {enviando ? 'Subiendo archivo…' : 'Guardar borrador'}
                   </Button>
                   <Button
                     type="button"
