@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificacionSalida } from '@prisma/client';
 import { CorreoService } from '../correo/correo.service';
+import { CorreoSinCanalError } from '../correo/proveedor-correo.port';
 import { destinatarioPermitidoEnDesarrollo } from '../correo/filtrar-destinatarios-permitidos';
 import { PrismaService } from '../prisma/prisma.module';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
@@ -33,6 +34,7 @@ const LOTE_POR_TANDA = 50;
  * - Fallo: `intentos++`, `ultimoError` y backoff `CORREO_REINTENTO_BASE_SEGUNDOS · 2^(n-1)`;
  *   al llegar a `CORREO_MAX_INTENTOS` la fila queda Fallido. La alerta in-app nunca se revierte.
  * - En desarrollo, destinatario fuera de `CORREO_DESTINATARIOS_PERMITIDOS` → Descartado.
+ * - Sin canal de correo (`CORREO_CANAL` vacío/«ninguno»/no válido) → Descartado (fix K).
  * Esta tabla es la bitácora del CA3.
  */
 @Injectable()
@@ -135,6 +137,11 @@ export class ProcesadorNotificacionesSalidaService {
       });
       return 'enviados';
     } catch (error) {
+      // Fix K: sin canal no hubo envío; la fila queda Descartado (no Enviado ni en reintento).
+      if (error instanceof CorreoSinCanalError) {
+        await this.descartar(fila.id, error.message);
+        return 'descartados';
+      }
       const motivo = recortar((error as Error)?.message ?? String(error));
       if (intentos >= maxIntentos) {
         await this.prisma.notificacionSalida.update({

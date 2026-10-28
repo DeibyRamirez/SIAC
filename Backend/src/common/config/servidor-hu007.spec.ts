@@ -30,7 +30,7 @@ describe('validarEntornoProduccion (HU-007: vigencias y correo)', () => {
     expect(errores.join(' ')).toMatch(/SMTP_HOST/);
   });
 
-  it('CORREO_CANAL=resend completo y canal por defecto (ninguno) no generan errores', () => {
+  it('CORREO_CANAL=resend completo y canal por defecto (ninguno) no generan errores; sin canal se advierte (fix K)', () => {
     expect(
       validarEntornoProduccion({
         ...completo,
@@ -39,7 +39,15 @@ describe('validarEntornoProduccion (HU-007: vigencias y correo)', () => {
         CORREO_DESDE: 'SIAC <x@y.co>',
       }).errores,
     ).toEqual([]);
-    expect(validarEntornoProduccion(completo)).toEqual({ errores: [], advertencias: [] });
+    const sinCanal = validarEntornoProduccion(completo);
+    expect(sinCanal.errores).toEqual([]);
+    expect(sinCanal.advertencias).toEqual([expect.stringMatching(/CORREO_CANAL vacío/)]);
+  });
+
+  it('CORREO_CANAL no válido se advierte (fix K)', () => {
+    expect(validarEntornoProduccion({ ...completo, CORREO_CANAL: 'resned' }).advertencias).toEqual([
+      expect.stringMatching(/no es válido/),
+    ]);
   });
 
   it('advierte que CORREO_DESTINATARIOS_PERMITIDOS no aplica en producción', () => {

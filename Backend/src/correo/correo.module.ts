@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CorreoService } from './correo.service';
 import { CorreoNuloProveedor } from './correo-nulo.proveedor';
 import { PROVEEDOR_CORREO, ProveedorCorreo } from './proveedor-correo.port';
 import { ResendProveedorCorreo } from './resend.proveedor';
 import { SmtpProveedorCorreo } from './smtp.proveedor';
-import { resolverCanalCorreo } from './resolver-canal-correo';
+import { advertenciasCanalCorreo, resolverCanalCorreo } from './resolver-canal-correo';
 import { validarConfiguracionCorreo } from './validar-configuracion-correo';
 
 @Module({
@@ -16,6 +16,13 @@ import { validarConfiguracionCorreo } from './validar-configuracion-correo';
       inject: [ConfigService],
       useFactory: (config: ConfigService): ProveedorCorreo => {
         const canal = resolverCanalCorreo(config);
+        // Fix K: fuera de producción avisa de un CORREO_CANAL no válido; en producción lo hace
+        // validarEntornoProduccion al arrancar (main.ts), junto con el canal ausente.
+        if (process.env.NODE_ENV !== 'production') {
+          for (const advertencia of advertenciasCanalCorreo(config.get<string>('CORREO_CANAL'), process.env.NODE_ENV)) {
+            new Logger('CorreoModule').warn(advertencia);
+          }
+        }
         // T-007.3f: smtp exige SMTP_HOST y remitente; resend exige RESEND_API_KEY y remitente.
         // El remitente puede venir por CORREO_DESDE o, de respaldo, CORREO_REMITENTE / SMTP_FROM.
         validarConfiguracionCorreo(canal, {

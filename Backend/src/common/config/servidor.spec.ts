@@ -62,6 +62,9 @@ describe('validarEntornoProduccion', () => {
     FRONTEND_URL: 'https://siac.vercel.app',
     S3_USAR_ALMACEN_LOCAL: 'false',
     TZ: 'America/Bogota',
+    CORREO_CANAL: 'resend',
+    RESEND_API_KEY: 're_prueba',
+    CORREO_DESDE: 'SIAC <notificaciones@siac.test>',
   };
 
   it('no revisa nada fuera de producción', () => {

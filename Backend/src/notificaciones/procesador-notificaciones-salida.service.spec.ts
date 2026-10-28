@@ -1,3 +1,4 @@
+import { CorreoNuloProveedor } from '../correo/correo-nulo.proveedor';
 import { CorreoMemoriaProveedor } from '../../test/utilidades/correo-memoria';
 import { ProcesadorNotificacionesSalidaService } from './procesador-notificaciones-salida.service';
 
@@ -133,6 +134,21 @@ describe('ProcesadorNotificacionesSalidaService', () => {
       asunto: '[SIAC] Inicio de ventana de renovación',
     });
     expect(prisma.filas[0]).toMatchObject({ estado: 'Enviado', intentos: 1, enviadoAt: ahora });
+  });
+
+  it('fix K: sin canal de correo (proveedor nulo) la fila queda Descartado, no Enviado', async () => {
+    prisma.filas.push(crearFila());
+    const servicio = crearServicio(prisma, proveedor, {
+      nodeEnv: 'production',
+      correoMaxIntentos: 3,
+      correoReintentoBaseSegundos: 30,
+    }, new CorreoNuloProveedor());
+
+    const resumen = await servicio.procesarPendientes(ahora);
+
+    expect(resumen).toMatchObject({ enviados: 0, descartados: 1, pendientes: 0 });
+    expect(prisma.filas[0]).toMatchObject({ estado: 'Descartado', enviadoAt: null });
+    expect(prisma.filas[0].ultimoError).toMatch(/Sin canal de correo/);
   });
 
   it('CA3: al agotar CORREO_MAX_INTENTOS la fila queda Fallido con ultimoError (alerta intacta)', async () => {
