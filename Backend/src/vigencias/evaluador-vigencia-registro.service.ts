@@ -54,8 +54,13 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
    * Evalúa vigencia de registro MEN (programas e institución) en la fecha de referencia.
    * T-007.3a: relee los umbrales de BD en cada corrida (cambiar mesesRojoVigencia no exige redeploy).
    * T-007.2: 1 aviso por destinatario (Administrador/SuperAdmin/Revisor activos) por transición.
+   * C (27/10): el cron diario evalúa con reloj real las entidades sin sesión demo aunque el modo
+   * prueba esté activo; el tick del modo prueba (`soloSesionesDemo`) solo mira las sesiones.
    */
-  async evaluarTodasLasEntidades(referencia: Date = new Date()): Promise<void> {
+  async evaluarTodasLasEntidades(
+    referencia: Date = new Date(),
+    opciones: { soloSesionesDemo?: boolean } = {},
+  ): Promise<void> {
     return ejecutarComoSistema(async () => {
       const umbrales = await this.configuracion.cargar();
 
@@ -80,6 +85,7 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
           programa.fechaResolucion,
           umbrales,
           referencia,
+          opciones.soloSesionesDemo === true,
         );
         if (!evaluacion) continue;
         await this.evaluarEntidad({
@@ -115,6 +121,7 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
           institucion.fechaResolucion,
           umbrales,
           referencia,
+          opciones.soloSesionesDemo === true,
         );
         if (evaluacion) {
           await this.evaluarEntidad({
@@ -140,10 +147,12 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     fechaResolucion: Date,
     umbrales: UmbralesSemaforoVigencia,
     ahora: Date,
+    soloSesionesDemo: boolean,
   ): { referencia: Date; tokenDemo?: string } | null {
-    const sesion = this.demo.obtenerSesion(alcance, entidadId);
-    if (this.demo.modoPruebaActivo()) {
-      if (!sesion) return null;
+    const sesion = this.demo.modoPruebaActivo()
+      ? this.demo.obtenerSesion(alcance, entidadId)
+      : null;
+    if (sesion) {
       return {
         referencia: calcularReferenciaDemoVigencia(
           fechaResolucion,
@@ -155,6 +164,8 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
         tokenDemo: String(sesion.inicioAtMs),
       };
     }
+    // Sin sesión demo: el tick del modo prueba no la evalúa; el cron diario sí, con reloj real.
+    if (soloSesionesDemo) return null;
     return { referencia: ahora };
   }
 
@@ -267,7 +278,7 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     if (this.evaluacionPruebaEnCurso) return;
     this.evaluacionPruebaEnCurso = true;
     try {
-      await this.evaluarTodasLasEntidades();
+      await this.evaluarTodasLasEntidades(new Date(), { soloSesionesDemo: true });
     } catch (error) {
       this.logger.error(`Error en evaluador de vigencia (modo prueba): ${error}`);
     } finally {

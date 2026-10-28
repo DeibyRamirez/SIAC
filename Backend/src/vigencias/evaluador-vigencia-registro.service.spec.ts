@@ -241,4 +241,27 @@ describe('Modo prueba: recuperación de avisos intermedios (fix A)', () => {
       new Set(['vigencia_amarilla', 'vigencia_roja']),
     );
   });
+
+  it('fix C: con modo prueba activo, el cron diario avisa con reloj real a las entidades sin sesión', async () => {
+    const { servicio, despacho } = crearServicio({ conSesion: false, segundosTranscurridos: 0 });
+    // Reloj real 2031-10-01: fin 2032-01-15, faltan < 6 meses → Rojo (solo el color actual).
+    jest.useFakeTimers().setSystemTime(new Date('2031-10-01T12:00:00.000Z'));
+    try {
+      await servicio.evaluarTodasLasEntidades();
+    } finally {
+      jest.useRealTimers();
+    }
+    const eventos = despacho.notificar.mock.calls.map((c) => c[0]);
+    expect(eventos).toHaveLength(3);
+    expect(eventos.every((e) => e.tipo === 'vigencia_roja')).toBe(true);
+    expect(eventos.every((e) => !e.claveEvento.includes(':demo-'))).toBe(true);
+  });
+
+  it('fix C: el tick del modo prueba (soloSesionesDemo) ignora las entidades sin sesión', async () => {
+    const { servicio, despacho } = crearServicio({ conSesion: false, segundosTranscurridos: 0 });
+
+    await servicio.evaluarTodasLasEntidades(new Date('2031-10-01T12:00:00.000Z'), { soloSesionesDemo: true });
+
+    expect(despacho.notificar).not.toHaveBeenCalled();
+  });
 });

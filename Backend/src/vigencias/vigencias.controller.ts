@@ -65,7 +65,7 @@ export class VigenciasController {
   @Roles(RolUsuario.Administrador, RolUsuario.SuperAdmin)
   async iniciarDemo(@Body() dto: IniciarDemoVigenciaDto) {
     const sesion = this.vigenciaDemo.iniciar(dto.alcance, dto.entidadId);
-    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
+    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades(new Date(), { soloSesionesDemo: true });
     return { inicioAtMs: sesion.inicioAtMs };
   }
 
