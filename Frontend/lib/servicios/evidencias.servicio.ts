@@ -77,6 +77,19 @@ export async function subirVersionArchivoApi(
   });
 }
 
+/** Revisor/Administrador: reemplaza el documento aunque esté validado (se conserva la versión anterior). */
+export async function reemplazarDocumentoGestionApi(
+  id: string,
+  archivo: File,
+): Promise<Evidencia> {
+  const formData = new FormData();
+  formData.append('archivo', archivo);
+  return peticionApi<Evidencia>(`/evidencias/${id}/reemplazo-documento`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 export async function eliminarEvidenciaApi(id: string): Promise<void> {
   return peticionApi<void>(`/evidencias/${id}`, { method: 'DELETE' });
 }

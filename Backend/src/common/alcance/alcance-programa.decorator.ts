@@ -16,7 +16,8 @@ export interface OpcionesAlcancePrograma {
    * escritura: solo SuperAdmin pasa sin asignación.
    * Si se omite, GET y HEAD son lectura.
    */
-  modo?: 'lectura' | 'escritura';
+  /** `gestion`: escritura de Revisor/Administrador; el Administrador no requiere asignación. */
+  modo?: 'lectura' | 'escritura' | 'gestion';
 }
 
 export const AlcancePrograma = (opciones: OpcionesAlcancePrograma = {}) =>

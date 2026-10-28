@@ -518,6 +518,60 @@ export class DocumentosService {
 
 
 
+    return this.guardarNuevaVersion(
+      evidencia,
+      versionRegistro,
+      archivo,
+      usuario,
+      `Versión ${(evidencia.version ?? 1) + 1} cargada`,
+    );
+
+  }
+
+
+
+  /**
+   * Usabilidad: Revisor y Administrador pueden subir o reemplazar el documento aunque ya esté
+   * validado. Se conserva la versión anterior en EvidenciaVersion (quién la subió y cuándo), el
+   * estado no cambia y el historial registra quién reemplazó y en qué estado. Sigue sujeto a la RLS
+   * (el Borrador ajeno no es visible) y al alcance del programa (Revisor asignado).
+   */
+  async reemplazarDocumentoGestion(
+    id: string,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+  ) {
+    this.validarArchivo(archivo);
+    if (
+      usuario.rol !== RolUsuario.Revisor &&
+      usuario.rol !== RolUsuario.Administrador &&
+      !this.esSuperAdmin(usuario)
+    ) {
+      throw new ForbiddenException('Solo Revisor o Administrador pueden reemplazar el documento.');
+    }
+    const evidencia = await this.obtenerPorId(id, usuario);
+    if (evidencia.estado === EstadoEvidencia.Borrador) {
+      throw new BadRequestException('El borrador lo gestiona su autor; envíelo a revisión primero.');
+    }
+    const versionRegistro = await this.evidenciaRepo.buscarVersion(id, evidencia.version ?? 1);
+    const nuevaVersion = (evidencia.version ?? 1) + 1;
+    return this.guardarNuevaVersion(
+      evidencia,
+      versionRegistro,
+      archivo,
+      usuario,
+      `Documento reemplazado por ${usuario.rol} (versión ${nuevaVersion}, estado ${evidencia.estado} conservado)`,
+    );
+  }
+
+  /** Registra la versión nueva, conserva la anterior y deja constancia en el historial. */
+  private async guardarNuevaVersion(
+    evidencia: Awaited<ReturnType<DocumentosService['obtenerPorId']>>,
+    versionRegistro: { nombreArchivo?: string | null } | null,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+    textoHistorial: string,
+  ) {
     const nuevaVersion = (evidencia.version ?? 1) + 1;
 
     // El nombre del archivo no se renombra al subir correcciones: se conserva el
@@ -529,7 +583,7 @@ export class DocumentosService {
 
     const contextoClave = await this.contextoAlmacenamientoEvidencia(evidencia);
     const clave = this.almacenamiento.generarClaveEvidencia(
-      id,
+      evidencia.id,
       nombreArchivoOriginal,
       nuevaVersion,
       contextoClave,
@@ -555,7 +609,7 @@ export class DocumentosService {
 
       await this.evidenciaRepo.registrarVersion({
 
-        evidenciaId: id,
+        evidenciaId: evidencia.id,
 
         numero: nuevaVersion,
 
@@ -573,7 +627,7 @@ export class DocumentosService {
 
 
 
-      await this.evidenciaRepo.actualizar(id, {
+      await this.evidenciaRepo.actualizar(evidencia.id, {
 
         nombreArchivo: nombreArchivoOriginal,
 
@@ -607,11 +661,11 @@ export class DocumentosService {
 
       await this.evidenciaRepo.registrarHistorial(
 
-        id,
+        evidencia.id,
 
         evidencia.estado,
 
-        `Versión ${nuevaVersion} cargada`,
+        textoHistorial,
 
         usuario.id,
 
@@ -619,7 +673,7 @@ export class DocumentosService {
 
 
 
-      const actualizada = await this.evidenciaRepo.buscarPorId(id);
+      const actualizada = await this.evidenciaRepo.buscarPorId(evidencia.id);
 
       if (!actualizada) throw new NotFoundException('Evidencia no encontrada tras la nueva versión.');
 
@@ -629,19 +683,16 @@ export class DocumentosService {
 
       await this.evidenciaRepo
 
-        .eliminarVersion(id, nuevaVersion)
+        .eliminarVersion(evidencia.id, nuevaVersion)
 
         .catch(() => undefined);
 
-      await this.evidenciaRepo.actualizar(id, snapshotAnterior).catch(() => undefined);
+      await this.evidenciaRepo.actualizar(evidencia.id, snapshotAnterior).catch(() => undefined);
 
       throw err;
 
     }
-
   }
-
-
 
   async eliminar(id: string, usuario: UsuarioToken) {
 

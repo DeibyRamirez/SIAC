@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
+import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -39,6 +41,7 @@ export default function DetalleEvidenciaAdminPage() {
 function ContenidoDetalleAdmin() {
   const params = useParams<{ id: string }>()
   const { datos } = usarAlmacen()
+  const { sesion } = usarSesion()
   const [evidencia, setEvidencia] = useState<Evidencia | null>(null)
   const [urlDocumento, setUrlDocumento] = useState<string | undefined>()
   const [cargando, setCargando] = useState(true)
@@ -99,7 +102,7 @@ function ContenidoDetalleAdmin() {
       <EncabezadoPagina
         etiqueta="Consulta documental"
         titulo={evidencia.nombre}
-        descripcion="Visualización de evidencia. Solo lectura."
+        descripcion="Visualización de evidencia. Puede reemplazar el documento; la versión anterior queda en el historial."
         accion={
           <Link href="/administrador/busqueda">
             <Button variant="outline">Volver al listado</Button>
@@ -110,6 +113,12 @@ function ContenidoDetalleAdmin() {
       <div className="flex flex-wrap gap-2">
         <InsigniaEstado estado={evidencia.estado} />
         <Badge variant="secondary">Versión {versionActual}</Badge>
+        <BotonReemplazarDocumento
+          evidenciaId={evidencia.id}
+          estado={evidencia.estado}
+          rol={sesion?.rol}
+          onReemplazado={() => window.location.reload()}
+        />
       </div>
 
       {error && (

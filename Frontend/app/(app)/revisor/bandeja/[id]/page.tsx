@@ -23,6 +23,7 @@ import {
 import { BarraAccionesDictamenRevisor } from '@/components/siac/barra-acciones-dictamen-revisor'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
+import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
@@ -704,6 +705,12 @@ function ContenidoDictamen() {
                 <p>{formatearFecha(evidencia.fechaCarga)}</p>
               </div>
             </div>
+            <BotonReemplazarDocumento
+              evidenciaId={evidencia.id}
+              estado={evidencia.estado}
+              rol="Revisor"
+              onReemplazado={() => window.location.reload()}
+            />
             <HistorialVersionesEvidencia
               evidenciaId={evidencia.id}
               versionActiva={versionActual}

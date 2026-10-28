@@ -201,6 +201,19 @@ export class DocumentosController {
     return this.documentosService.reemplazarArchivo(id, archivo, req.user);
   }
 
+  /** Usabilidad: Revisor/Administrador reemplazan el documento aunque esté validado (versionado). */
+  @Post(':id/reemplazo-documento')
+  @Roles(RolUsuario.Revisor, RolUsuario.Administrador)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'gestion' })
+  @UseInterceptors(FileInterceptor('archivo'))
+  reemplazarDocumentoGestion(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.reemplazarDocumentoGestion(id, archivo, req.user);
+  }
+
   @Delete(':id')
   @Roles(RolUsuario.Cargador)
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
