@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoInforme } from '@/components/siac/esqueletos'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
 import {
@@ -130,13 +133,14 @@ function InformePowerBiPublico({
     <div className="tarjeta-visual overflow-hidden bg-white">
       <div className="border-b px-4 py-3 text-sm text-muted-foreground">
         Informe Power BI · {informe.titulo}
-        {estadoCarga === 'cargando' ? (
-          <span className="ml-2 text-xs" role="status">
-            Cargando informe…
-          </span>
-        ) : null}
       </div>
       <div className="relative aspect-[4/3] w-full sm:aspect-video">
+        {estadoCarga === 'cargando' ? (
+          <div className="absolute inset-0 z-10 bg-white" role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">Cargando informe…</span>
+            <Skeleton className="h-full w-full rounded-none" />
+          </div>
+        ) : null}
         <iframe
           key={intento}
           title={`Informe Power BI — ${informe.titulo}`}
@@ -189,12 +193,9 @@ function InformePowerBiEmbebidoSimulado({
   return (
     <div className="space-y-4">
       {cargandoEmbed ? (
-        <div
-          className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-muted-foreground"
-          role="status"
-        >
-          Preparando informe de Power BI…
-        </div>
+        <RegionCarga texto="Preparando informe de Power BI…">
+          <EsqueletoInforme />
+        </RegionCarga>
       ) : null}
 
       {mostrarIframe ? (

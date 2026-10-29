@@ -1,6 +1,6 @@
 'use client'
 
-import { EsqueletoTabla } from '@/components/siac/esqueletos'
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -210,7 +210,7 @@ export function ContenidoBusquedaEvidencias({
       />
 
       {cargando ? (
-        <EsqueletoTabla filas={6} columnas={7} />
+        <MensajeCargando texto="Cargando resultados…" filas={6} columnas={7} />
       ) : evidencias.length === 0 ? (
         <PanelVacio mensaje="No se encontraron evidencias.">
           {hayFiltrosActivos ? (

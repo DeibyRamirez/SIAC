@@ -77,6 +77,89 @@ export function EsqueletoTarjetas({ cantidad = 4, alto = 'h-28', columnas = 'sm:
   )
 }
 
+/** Pila de campos (etiqueta + control). `columnas` reproduce la rejilla del formulario real. */
+export function EsqueletoCampos({
+  campos = 3,
+  columnas = 'grid-cols-1',
+}: {
+  campos?: number
+  columnas?: string
+}) {
+  return (
+    <div className={cn('grid gap-4', columnas)} data-esqueleto="campos">
+      {Array.from({ length: campos }, (_, i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Filas horizontales (versiones, usuarios, etapas del trámite). */
+export function EsqueletoFilas({ filas = 4 }: { filas?: number }) {
+  return (
+    <div className="space-y-3" data-esqueleto="filas">
+      {Array.from({ length: filas }, (_, i) => (
+        <div key={i} className="flex items-center justify-between gap-3 rounded-xl border bg-white p-4">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <Skeleton className="h-8 w-24 shrink-0 rounded-lg" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Vista previa de un documento: título y líneas de párrafo. */
+export function EsqueletoDocumento({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn('space-y-3 rounded-xl border bg-white p-6', className)}
+      data-esqueleto="documento"
+      aria-hidden="true"
+    >
+      <Skeleton className="mx-auto h-4 w-2/3" />
+      {Array.from({ length: 8 }, (_, i) => (
+        <Skeleton key={i} className={cn('h-3', i % 4 === 3 ? 'w-4/5' : 'w-full')} />
+      ))}
+    </div>
+  )
+}
+
+/** Marco del informe, con la misma proporción que el iframe de Power BI. */
+export function EsqueletoInforme() {
+  return (
+    <div className="tarjeta-visual overflow-hidden bg-white" data-esqueleto="informe">
+      <div className="border-b px-4 py-3">
+        <Skeleton className="h-4 w-56" />
+      </div>
+      <Skeleton className="aspect-[4/3] w-full rounded-none sm:aspect-video" />
+    </div>
+  )
+}
+
+/** Fila de búsqueda y selectores, sin la tarjeta grande de filtros avanzados. */
+export function EsqueletoBarraFiltros({
+  campos = 2,
+  busqueda = true,
+}: {
+  campos?: number
+  busqueda?: boolean
+}) {
+  return (
+    <div className="flex flex-wrap gap-3" data-esqueleto="barra-filtros">
+      {busqueda ? <Skeleton className="h-9 w-full max-w-md" /> : null}
+      {Array.from({ length: campos }, (_, i) => (
+        <Skeleton key={i} className="h-9 w-40" />
+      ))}
+    </div>
+  )
+}
+
 /** Formulario en tarjeta con etiquetas y campos. */
 export function EsqueletoFormulario({ campos = 5 }: { campos?: number }) {
   return (

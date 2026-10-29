@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas } from '@/components/siac/esqueletos'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import {
   ResumenObservacionesPorCondicion,
@@ -25,17 +27,6 @@ interface PanelDetalleRevisionRevisorProps {
   resolverEtiqueta?: (codigo: string) => string
   tituloChecklist?: string
   onCerrar: () => void
-}
-
-function EsqueletoDetalle() {
-  return (
-    <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Cargando observaciones">
-      <div className="h-4 w-2/3 rounded bg-muted" />
-      <div className="h-24 rounded-xl bg-muted" />
-      <div className="h-16 rounded-lg bg-muted" />
-      <div className="h-16 rounded-lg bg-muted" />
-    </div>
-  )
 }
 
 export function PanelDetalleRevisionRevisor({
@@ -79,7 +70,9 @@ export function PanelDetalleRevisionRevisor({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {cargando ? (
-          <EsqueletoDetalle />
+          <RegionCarga texto="Cargando observaciones…">
+            <EsqueletoFilas filas={3} />
+          </RegionCarga>
         ) : modo === 'programa' || modo === 'institucional' ? (
           <div className="space-y-3">
             {evaluaciones.some((ev) => !ev.cumple) ? (

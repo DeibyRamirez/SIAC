@@ -1,6 +1,7 @@
 'use client'
 
-import { EsqueletoTabla } from '@/components/siac/esqueletos'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoDocumento } from '@/components/siac/esqueletos'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ImageIcon,
@@ -168,7 +169,9 @@ export function ComparadorVersionesDocx({
 
   if (cargando) {
     return (
-      <EsqueletoTabla filas={5} columnas={2} />
+      <RegionCarga texto="Comparando versiones…">
+        <EsqueletoDocumento />
+      </RegionCarga>
     )
   }
 

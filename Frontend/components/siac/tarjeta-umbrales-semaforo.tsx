@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { usarSesion } from '@/components/auth/proveedor-sesion'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoCampos } from '@/components/siac/esqueletos'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -98,6 +100,11 @@ export function TarjetaUmbralesSemaforo() {
           El aviso debe ser mayor que el rojo; los cambios aplican al siguiente cálculo, sin
           redeploy.
         </p>
+        {cargando ? (
+          <RegionCarga texto="Cargando umbrales…">
+            <EsqueletoCampos campos={2} columnas="sm:grid-cols-2" />
+          </RegionCarga>
+        ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="umbral-aviso">Aviso amarillo (meses)</Label>
@@ -109,7 +116,6 @@ export function TarjetaUmbralesSemaforo() {
               max={MAX_MESES_UMBRAL_VIGENCIA}
               value={mesesAviso}
               onChange={(evento) => setMesesAviso(evento.target.value)}
-              disabled={cargando}
             />
           </div>
           <div className="space-y-2">
@@ -122,10 +128,10 @@ export function TarjetaUmbralesSemaforo() {
               max={MAX_MESES_UMBRAL_VIGENCIA}
               value={mesesRojo}
               onChange={(evento) => setMesesRojo(evento.target.value)}
-              disabled={cargando}
             />
           </div>
         </div>
+        )}
         {error ? (
           <p role="alert" className="text-sm text-coral">
             {error}

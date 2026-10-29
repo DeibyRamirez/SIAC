@@ -1,6 +1,7 @@
 'use client'
 
-import { EsqueletoTabla } from '@/components/siac/esqueletos'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas } from '@/components/siac/esqueletos'
 import { useMemo } from 'react'
 import { CheckCircle2, Clock, AlertTriangle, CircleDashed } from 'lucide-react'
 
@@ -131,7 +132,9 @@ export function PanelAvanceEtapasSIAC({
         )}
 
         {programaId && cargando && (
-          <EsqueletoTabla filas={4} columnas={3} />
+          <RegionCarga texto="Cargando el avance del trámite…">
+            <EsqueletoFilas filas={3} />
+          </RegionCarga>
         )}
 
         {programaId && progreso && !cargando && (
