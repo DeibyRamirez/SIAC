@@ -1,6 +1,7 @@
 'use client'
 
-import { EsqueletoTabla } from '@/components/siac/esqueletos'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas } from '@/components/siac/esqueletos'
 import { useEffect, useState } from 'react'
 import { Download, GitCompare, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -82,7 +83,11 @@ export function HistorialVersionesEvidencia({
   }
 
   if (cargando) {
-    return <EsqueletoTabla filas={3} columnas={4} />
+    return (
+      <RegionCarga texto="Cargando versiones…">
+        <EsqueletoFilas filas={3} />
+      </RegionCarga>
+    )
   }
 
   if (versiones.length === 0) {

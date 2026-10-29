@@ -120,7 +120,7 @@ function ContenidoMisEvidencias() {
       </div>
 
       {cargando ? (
-        <MensajeCargando texto="Cargando evidencias…" />
+        <MensajeCargando texto="Cargando evidencias…" filas={6} columnas={7} />
       ) : error ? (
         <MensajeErrorCarga mensaje={error} onReintentar={() => void cargarEvidencias()} />
       ) : evidencias.length === 0 ? (

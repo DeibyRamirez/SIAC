@@ -6,6 +6,8 @@ import { FileCheck2 } from 'lucide-react'
 
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas, EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina, PanelVacio, TarjetaAcceso } from '@/components/siac/tarjeta-acceso'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,12 +31,15 @@ function ContenidoInicioRevisor() {
   const [programas, setProgramas] = useState<Programa[]>([])
   const [conteos, setConteos] = useState({ enRevision: 0, cumple: 0, conObservaciones: 0 })
   const [error, setError] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(true)
 
   const cargarInicio = useCallback(async () => {
     if (!apiDisponible()) {
       setError('El inicio del revisor requiere la API. No se usan datos de prueba.')
+      setCargando(false)
       return
     }
+    setCargando(true)
     try {
       const [lista, resumen] = await Promise.all([
         listarProgramasApi(),
@@ -50,6 +55,8 @@ function ContenidoInicioRevisor() {
     } catch {
       setProgramas([])
       setError('No se pudo cargar la bandeja de sus programas.')
+    } finally {
+      setCargando(false)
     }
   }, [])
 
@@ -65,6 +72,16 @@ function ContenidoInicioRevisor() {
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
+      {cargando ? (
+        <RegionCarga texto="Cargando el resumen…">
+          <div className="space-y-6">
+            <EsqueletoTarjetas cantidad={3} columnas="sm:grid-cols-2 lg:grid-cols-3" />
+            <EsqueletoTarjetas cantidad={1} alto="h-24" columnas="grid-cols-1" />
+            <EsqueletoFilas filas={4} />
+          </div>
+        </RegionCarga>
+      ) : (
+      <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <TarjetaKpi titulo="Pendientes" valor={conteos.enRevision} icono={FileCheck2} acento="coral" />
         <TarjetaKpi titulo="Cumplen" valor={conteos.cumple} acento="esmeralda" />
@@ -108,6 +125,8 @@ function ContenidoInicioRevisor() {
           </Link>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   )
 }
