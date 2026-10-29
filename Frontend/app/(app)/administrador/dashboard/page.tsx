@@ -10,6 +10,8 @@ import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
 import { PanelConfiguracionInformesPowerBi } from '@/components/siac/panel-configuracion-informes-powerbi'
 import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-powerbi'
+import { TableroInsercionPowerBi } from '@/components/siac/tablero-insercion-powerbi'
+import { TarjetaInsercionPowerBi } from '@/components/siac/tarjeta-insercion-powerbi'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -39,6 +41,7 @@ function ContenidoDashboard() {
   const verPowerBi = puedeVerInformesPowerBi(sesion?.rol)
   const { evidencias, programas } = datos
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
+  const [versionInsercion, setVersionInsercion] = useState(0)
 
   const cargarAvance = useCallback(async () => {
     if (!apiDisponible()) return
@@ -159,6 +162,8 @@ function ContenidoDashboard() {
 
         {verPowerBi ? (
           <TabsContent value="powerbi" className="space-y-6">
+            <TarjetaInsercionPowerBi onCambio={() => setVersionInsercion((valor) => valor + 1)} />
+            <TableroInsercionPowerBi version={versionInsercion} />
             <RejillaInformesPowerBi />
             <PanelConfiguracionInformesPowerBi />
           </TabsContent>

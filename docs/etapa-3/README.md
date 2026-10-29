@@ -44,7 +44,10 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | PATCH | `/api/v1/notificaciones/:id/leida` | Alertas in-app |
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
 | GET/PUT | `/api/v1/powerbi/informes` | HU-009 (URLs públicas por categoría) |
-| GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido, T-009.2) |
+| GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido simulado; no cambia si el interruptor está apagado) |
+| GET/PATCH | `/api/v1/powerbi/insercion` | HU-009 (interruptor, workspace y report; sin secretos) |
+| POST | `/api/v1/powerbi/probar-conexion` | HU-009 (prueba Azure y Power BI; no devuelve el token) |
+| GET | `/api/v1/powerbi/token-insercion` | HU-009 (token de solo lectura, máximo 60 min, caché >5 min) |
 | CRUD | `/api/v1/estructura/*` | Estructura normativa |
 
 ### Entorno de desarrollo (Postgres + correo)
@@ -62,16 +65,18 @@ Tareas de infra **canceladas** respecto a Supabase remoto: INF-01 (buckets), INF
 ### Variables de entorno — Power BI / cifras (HU-009)
 
 ```env
-# Azure App Owns Data (producción)
+# Azure App Owns Data (producción). Sin valores en el repositorio.
+POWERBI_TENANT_ID=
 POWERBI_CLIENT_ID=
 POWERBI_CLIENT_SECRET=
-POWERBI_TENANT_ID=
+# La ruta simulada /powerbi/embed-token sigue leyendo estas variables.
+# El token real usa el id de área de trabajo y el id de informe guardados en el panel.
 POWERBI_WORKSPACE_ID=
-POWERBI_REPORT_ID_ESTUDIANTES=<id-del-informe>   # opcional
+POWERBI_REPORT_ID_ESTUDIANTES=
 
 ```
 
-Sin `POWERBI_CLIENT_ID`, el modo embebido permanece simulado. En producción se usa **modo público**: iframe con URL de `ConfiguracionInformePowerBi` (panel admin en el dashboard). Los datos del informe vienen del Excel maestro refrescado en Power BI Service (ver ADR-009 y ADR-010).
+Sin el interruptor `powerbi_embed_habilitado` (por defecto apagado), el dashboard sigue en modo público. Encenderlo sin las tres variables y sin los dos identificadores del panel no activa el informe: se muestra «Configuración incompleta». Los datos del informe vienen del Excel maestro refrescado en Power BI Service (ver ADR-009 y ADR-010).
 
 ### Checklist manual — Dashboard de métricas (Power BI)
 
