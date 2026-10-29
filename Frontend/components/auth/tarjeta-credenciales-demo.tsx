@@ -1,5 +1,6 @@
 'use client'
 
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { Copy, ShieldCheck, Upload, UserCheck, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -54,7 +55,7 @@ export function TarjetaCredencialesDemo() {
             <div className="mb-3 flex items-center gap-2">
               <Icono className="size-4 shrink-0 text-primary" />
               <div>
-                <p className="text-sm font-semibold text-foreground">{usuario.rol}</p>
+                <p className="text-sm font-semibold text-foreground">{nombreVisibleRol(usuario.rol)}</p>
                 <p className="text-xs text-muted-foreground">{usuario.nombre}</p>
               </div>
             </div>

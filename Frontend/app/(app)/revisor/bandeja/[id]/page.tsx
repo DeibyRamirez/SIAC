@@ -862,7 +862,7 @@ function ContenidoDictamen() {
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Al enviar a corrección, estos comentarios se envían al cargador.
+                  Al enviar a corrección, estos comentarios se envían al profesor.
                 </p>
               </div>
 
@@ -930,7 +930,7 @@ function ContenidoDictamen() {
         titulo={usaChecklist ? '¿Registrar «Con observaciones»?' : '¿Enviar a corrección?'}
         descripcion={
           usaChecklist
-            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
+            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El profesor verá las observaciones por condición y podrá subir una versión corregida.`
             : comentariosInline.filter((c) => c.body.trim()).length > 0
               ? `El documento quedará «Con observaciones» y el profesor verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
               : 'El documento quedará «Con observaciones» y el profesor verá el texto de corrección para subir una versión corregida.'

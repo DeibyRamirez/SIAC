@@ -34,7 +34,7 @@ function ContenidoInicioCargador() {
   return (
     <div className="space-y-6">
       <EncabezadoPagina
-        etiqueta="Rol cargador"
+        etiqueta="Rol profesor"
         titulo={`${obtenerSaludo()}, ${sesion?.nombre.split(' ')[0]}`}
         descripcion="Accede rápidamente a la carga de evidencias, plantillas oficiales y el estado de tus documentos."
       />
