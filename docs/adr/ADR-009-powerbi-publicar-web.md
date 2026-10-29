@@ -26,7 +26,8 @@ HU-009 pide mostrar dentro de SIAC los informes Power BI de la Corporación Univ
 - **Fuente de datos de los informes:** Excel (u origen equivalente) fuera de SIAC → refresco programado en Power BI Service. SIAC **no** almacena filas de cifras institucionales en Postgres; solo las URL de embed en `ConfiguracionInformePowerBi`.
 - La pestaña Power BI solo la ven Administrador y SuperAdmin.
 - La CSP del frontend solo agrega `frame-src 'self' https://app.powerbi.com`.
-- `POWERBI_MODO=embebido` conserva la ruta simulada actual (`/powerbi/embed-token`) y queda bloqueado hasta tener las credenciales Azure; no se construye el token real.
+- `POWERBI_MODO=embebido` conserva la ruta simulada actual (`/powerbi/embed-token`).
+- El token real (App Owns Data) queda detrás del interruptor `powerbi_embed_habilitado` en `ConfiguracionSIAC`, apagado por defecto. Apagado, el dashboard público no cambia. Encendido y con `POWERBI_TENANT_ID`, `POWERBI_CLIENT_ID`, `POWERBI_CLIENT_SECRET` más los id de área de trabajo e informe del panel, `GET /api/v1/powerbi/token-insercion` emite un token de solo lectura de máximo 60 minutos. El secreto no sale del backend ni se escribe en el repositorio.
 
 ## Advertencia de seguridad
 

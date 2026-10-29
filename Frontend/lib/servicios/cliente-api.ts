@@ -10,6 +10,7 @@ export class ErrorApi extends Error {
   constructor(
     mensaje: string,
     public codigoEstado: number,
+    public codigo?: string,
   ) {
     super(mensaje);
     this.name = 'ErrorApi';
@@ -43,9 +44,16 @@ export async function peticionApi<T>(
 
     if (!respuesta.ok) {
       const error = await respuesta.json().catch(() => ({ message: 'Error desconocido' }));
+      const codigo =
+        typeof error.codigo === 'string'
+          ? error.codigo
+          : typeof error.error === 'string' && error.error.startsWith('POWERBI_')
+            ? error.error
+            : undefined;
       throw new ErrorApi(
         Array.isArray(error.message) ? error.message.join(', ') : (error.message ?? `HTTP ${respuesta.status}`),
         respuesta.status,
+        codigo,
       );
     }
 
