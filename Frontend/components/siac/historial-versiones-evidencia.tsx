@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 import { useEffect, useState } from 'react'
 import { Download, GitCompare, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -81,7 +82,7 @@ export function HistorialVersionesEvidencia({
   }
 
   if (cargando) {
-    return <p className="text-sm text-muted-foreground">Cargando historial de versiones…</p>
+    return <EsqueletoTabla filas={3} columnas={4} />
   }
 
   if (versiones.length === 0) {

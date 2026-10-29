@@ -19,8 +19,8 @@ vi.mock('@/components/auth/proveedor-sesion', () => ({
   usarSesion: () => ({ sesion: { rol: rolSesion }, cargando: false }),
 }))
 
-vi.mock('@/components/auth/pantalla-cargando-siac', () => ({
-  PantallaCargandoSiac: () => <div>Cargando SIAC</div>,
+vi.mock('@/components/siac/esqueletos-paginas', () => ({
+  EsqueletoPaginaApp: () => <div>Cargando SIAC</div>,
 }))
 
 function renderizarDashboard() {

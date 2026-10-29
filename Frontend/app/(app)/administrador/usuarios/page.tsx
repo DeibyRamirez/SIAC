@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { Building2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -86,7 +87,7 @@ function ContenidoAsignacion() {
         descripcion="Asigne programas académicos (G1/G2) y el proceso institucional único (G3/G4) a profesores y revisores. Los roles se gestionan en superadministrador."
       />
 
-      {cargando ? <p className="text-sm text-muted-foreground">Cargando usuarios…</p> : null}
+      {cargando ? <EsqueletoTabla filas={6} columnas={4} /> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {!cargando && !error && usuarios.length === 0 ? (
         <PanelVacio mensaje="No hay usuarios para asignar." />
@@ -238,7 +239,7 @@ function DialogoAsignacion({
           <DialogTitle>Alcance de {usuario?.nombre}</DialogTitle>
         </DialogHeader>
         {cargando ? (
-          <p className="text-sm text-muted-foreground">Cargando asignación…</p>
+          <EsqueletoTabla filas={4} columnas={2} />
         ) : (
           <div className="space-y-4">
             <ul className="max-h-64 space-y-2 overflow-y-auto">

@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -354,7 +355,7 @@ export function DetalleProcesoSIAC({ entidadId, esInstitucion = false }: Detalle
       }
 
   if (cargando) {
-    return <p className="text-sm text-muted-foreground">Cargando…</p>
+    return <EsqueletoContenidoPagina tipo="proceso" />
   }
 
   if (!programa || !progreso) {

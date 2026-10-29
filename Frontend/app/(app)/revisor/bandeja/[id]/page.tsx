@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -289,7 +290,7 @@ function ContenidoDictamen() {
   const textoPuntajePreview = `${puntajePreview.puntaje}/${puntajePreview.total}`
 
   if (cargando) {
-    return <p className="text-sm text-muted-foreground">Cargando evidencia…</p>
+    return <EsqueletoContenidoPagina tipo="detalle" />
   }
 
   if (!evidencia) {

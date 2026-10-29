@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 import { useCallback, useEffect, useState } from 'react'
 
 import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
@@ -107,7 +108,7 @@ export function ContenidoBandejaRevision({
       />
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando bandeja…</p>
+        <EsqueletoTabla filas={6} columnas={6} />
       ) : error ? (
         <PanelVacio mensaje={error} />
       ) : evidencias.length === 0 ? (

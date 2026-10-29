@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { PantallaCargandoSiac } from '@/components/auth/pantalla-cargando-siac'
+import { EsqueletoPaginaApp } from '@/components/siac/esqueletos-paginas'
 import {
   prefijoRol,
   rutaPermitidaSuperAdmin,
@@ -64,7 +64,8 @@ export function GuardiaSesion({
       (sesion.rol === 'SuperAdmin' && rutaPermitidaSuperAdmin(pathname)))
 
   if (cargando || !accesoPermitido) {
-    return <PantallaCargandoSiac />
+    // Mismo marco y bloques que la página que se abre (antes: pantalla completa genérica).
+    return <EsqueletoPaginaApp ruta={pathname} />
   }
 
   return <>{children}</>

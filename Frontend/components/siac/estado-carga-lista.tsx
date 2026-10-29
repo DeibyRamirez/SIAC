@@ -1,19 +1,17 @@
 'use client'
 
-import { AlertCircle, Loader2, RotateCw } from 'lucide-react'
+import { AlertCircle, RotateCw } from 'lucide-react'
+
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 
 import { Button } from '@/components/ui/button'
 
-/** Aviso accesible mientras se pide una lista a la API. */
-export function MensajeCargando({ texto }: { texto: string }) {
+/** Carga de una lista: esqueleto de tabla con la misma forma que la lista (texto solo para lectores). */
+export function MensajeCargando({ texto, filas = 6, columnas = 5 }: { texto: string; filas?: number; columnas?: number }) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex items-center justify-center gap-2 rounded-xl border border-dashed bg-white p-10 text-sm text-muted-foreground"
-    >
-      <Loader2 className="size-4 animate-spin" aria-hidden />
-      {texto}
+    <div role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">{texto}</span>
+      <EsqueletoTabla filas={filas} columnas={columnas} />
     </div>
   )
 }

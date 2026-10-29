@@ -1,10 +1,11 @@
 'use client'
 
+import { EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { useEffect, useState } from 'react'
 import { Download, Eye, FileText, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
+import { MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
 import { ModalVisualizadorDocumento } from '@/components/siac/modal-visualizador-documento'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -67,7 +68,12 @@ export function RejillaPlantillas({
   }
 
   if (cargando && plantillas.length === 0) {
-    return <MensajeCargando texto="Cargando plantillas…" />
+    return (
+      <div role="status" aria-live="polite" aria-busy="true">
+        <span className="sr-only">Cargando plantillas…</span>
+        <EsqueletoTarjetas cantidad={6} alto="h-36" columnas="sm:grid-cols-2 xl:grid-cols-3" />
+      </div>
+    )
   }
 
   if (error && plantillas.length === 0) {

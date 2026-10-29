@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 import { useMemo } from 'react'
 import { CheckCircle2, Clock, AlertTriangle, CircleDashed } from 'lucide-react'
 
@@ -130,7 +131,7 @@ export function PanelAvanceEtapasSIAC({
         )}
 
         {programaId && cargando && (
-          <p className="text-sm text-muted-foreground">Calculando avance del proceso…</p>
+          <EsqueletoTabla filas={4} columnas={3} />
         )}
 
         {programaId && progreso && !cargando && (

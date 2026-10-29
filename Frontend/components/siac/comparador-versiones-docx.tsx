@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoTabla } from '@/components/siac/esqueletos'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ImageIcon,
@@ -167,7 +168,7 @@ export function ComparadorVersionesDocx({
 
   if (cargando) {
     return (
-      <p className="text-sm text-muted-foreground">Comparando versiones…</p>
+      <EsqueletoTabla filas={5} columnas={2} />
     )
   }
 
