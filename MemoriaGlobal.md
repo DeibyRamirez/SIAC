@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-10-16 |
+| **Última actualización** | 2026-10-29 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -62,7 +62,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | ORM | Prisma 6 → Supabase PostgreSQL |
 | Auth | JWT + Passport, dominio `@uniautonoma.edu.co` |
 | Storage | Por defecto en dev: disco `Backend/almacen-local` (`S3_USAR_ALMACEN_LOCAL=true`); producción opcional Supabase S3 |
-| Docs API | Swagger en `/api/docs` |
+| Docs API | OpenAPI 3 en `docs/contrato-api/openapi.json`. Swagger UI en `/api/docs` solo si `NODE_ENV` no es `production` |
 | Cron | `@nestjs/schedule` — vigencias 06:00 America/Bogota |
 
 ### Módulos implementados
@@ -484,6 +484,12 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-10-29 — Contrato OpenAPI de la API
+
+- [Docs] `docs/contrato-api/openapi.json` y `docs/contrato-api/README.md`: los endpoints existentes, roles, errores, paginación y el contrato de lectura Power BI (`v_powerbi_puntajes`, rol `siac_powerbi_lectura`, seis dominios).
+- [Backend] Decoradores de Swagger en controladores y DTOs. La interfaz `/api/docs` no se monta cuando `NODE_ENV=production`. La prueba `contrato-openapi.spec.ts` compara el documento generado con el archivo exportado.
+- [Sin cambio de comportamiento] Ningún endpoint cambió de ruta, validación ni código de estado.
 
 ### 2026-10-21 — Row Level Security (plan-rls aprobado por el PO)
 
