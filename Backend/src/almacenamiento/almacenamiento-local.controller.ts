@@ -8,15 +8,27 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AlmacenamientoService } from './almacenamiento.service';
+import { ApiContrato, MIME_DOCX_SIAC } from '../openapi/api-contrato';
 
+@ApiTags('Almacenamiento')
 @Controller('almacen-local')
 @UseGuards(AuthGuard('jwt'))
 export class AlmacenamientoLocalController {
   constructor(private readonly almacenamiento: AlmacenamientoService) {}
 
   @Get('*path')
+  @ApiContrato({
+    resumen: 'Sirve un archivo del disco local',
+    roles: ['autenticado'],
+    binario: MIME_DOCX_SIAC,
+    tambien: [404],
+    detalle:
+      'Solo existe si S3_USAR_ALMACEN_LOCAL=true. En otro modo responde 404. ' +
+      'La clave va en el resto de la ruta. Rechaza «..». PDF y DOCX fijan el Content-Type.',
+  })
   servirArchivo(@Req() req: Request, @Res() res: Response) {
     const estado = this.almacenamiento.obtenerEstadoConexion();
     if (estado.modo !== 'local') {
