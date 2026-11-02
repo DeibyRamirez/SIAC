@@ -318,6 +318,12 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-10-29 — Esqueletos de carga por vista
+
+- [Frontend] `esqueletos-paginas.tsx` distingue el esqueleto de cada ruta (resumen, inicios, métricas, búsqueda, bandejas, listado, historial, detalle, proceso, formulario, plantillas, catálogo, vigencias, usuarios y asignación).
+- [Frontend] Los estados de carga del cliente reutilizan `Esqueleto*` con `role="status"` y `aria-busy`.
+- [Tests] Vitest 44 archivos / 242 tests; `next build` OK.
+
 ### 2026-10-16 — S3-HU007: vigencias y alertas al 100 % (frontend)
 
 - [Frontend] `lib/utilidades/vigencia-registro.ts`: umbrales PO (aviso 24 / rojo 18), `Vencido` distinto de `Rojo`, demo de 5 min (`DURACION_DEMO_VIGENCIA_MS=300_000`) y `hayDemoVigenciaEnCurso()` para el polling.

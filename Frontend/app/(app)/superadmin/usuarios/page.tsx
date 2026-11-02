@@ -8,6 +8,7 @@ import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { DialogoEditarUsuario } from '@/components/siac/dialogo-editar-usuario'
 import { CampoContrasena } from '@/components/siac/campo-contrasena'
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -203,7 +204,7 @@ function ContenidoUsuarios() {
       </Card>
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando usuarios…</p>
+        <MensajeCargando texto="Cargando usuarios…" filas={6} columnas={5} />
       ) : usuarios.length === 0 ? (
         <PanelVacio mensaje="No hay usuarios registrados o la API no está disponible." />
       ) : (

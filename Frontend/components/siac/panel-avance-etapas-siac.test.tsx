@@ -66,4 +66,21 @@ describe('PanelAvanceEtapasSIAC', () => {
     const valoresBarra = screen.getAllByText('100%')
     expect(valoresBarra.length).toBeGreaterThanOrEqual(2)
   })
+
+  it('mientras carga el trámite muestra filas esqueleto y anuncia la espera', () => {
+    const { container } = render(
+      <PanelAvanceEtapasSIAC
+        programas={[programa]}
+        programaId="prog-derecho"
+        onCambiarPrograma={() => {}}
+        progreso={null}
+        cargando
+      />,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando el avance del trámite…')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelector('[data-esqueleto="filas"]')).not.toBeNull()
+    expect(screen.queryByText(/avance global/)).not.toBeInTheDocument()
+  })
 })

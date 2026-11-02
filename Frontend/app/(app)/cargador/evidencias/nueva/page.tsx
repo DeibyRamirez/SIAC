@@ -13,6 +13,8 @@ import {
 } from '@/components/siac/paso-seleccion-contexto-carga'
 import { SelectorTramiteCargaEvidencia } from '@/components/siac/selector-tramite-carga-evidencia'
 import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoCampos } from '@/components/siac/esqueletos'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -430,7 +432,9 @@ function ContenidoNuevaEvidencia() {
             />
 
             {cargandoProgreso ? (
-              <p className="text-sm text-muted-foreground">Cargando trámite y guías disponibles…</p>
+              <RegionCarga texto="Cargando trámite y guías disponibles…">
+                <EsqueletoCampos campos={3} />
+              </RegionCarga>
             ) : null}
 
             {errorProgreso && contextoListo && !cargandoProgreso ? (

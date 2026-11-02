@@ -4,6 +4,7 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { Download, GitCompare, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { EsqueletoDocumento } from '@/components/siac/esqueletos'
 import { VisorDocxPreview } from '@/components/siac/visor-docx-preview'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { esUrlPdf } from '@/lib/constantes/documentos'
@@ -235,11 +236,14 @@ export function VisorDocumentoInline({
           </div>
         )}
         {usarPreviewDocx && descargando && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
-            <div className="flex flex-col items-center gap-2 text-sm font-medium text-primary">
-              <Loader2 className="size-6 animate-spin" />
-              Preparando documento…
-            </div>
+          <div
+            className="absolute inset-0 z-20 overflow-hidden bg-white"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span className="sr-only">Preparando documento…</span>
+            <EsqueletoDocumento className="h-full rounded-none border-0" />
           </div>
         )}
       </div>

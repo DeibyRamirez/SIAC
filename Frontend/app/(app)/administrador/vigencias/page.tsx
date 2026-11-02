@@ -8,7 +8,8 @@ import { toast } from 'sonner'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
-import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
+import { MensajeErrorCarga, RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoTabla, EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { PanelPaquetesVigenciaRegistro } from '@/components/siac/panel-paquetes-vigencia-registro'
 import { TarjetaUmbralesSemaforo } from '@/components/siac/tarjeta-umbrales-semaforo'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
@@ -64,6 +65,7 @@ function ContenidoVigencias() {
   const [anexos, setAnexos] = useState<AnexoVigencia[]>([])
   const [cargandoAnexos, setCargandoAnexos] = useState(true)
   const [errorAnexos, setErrorAnexos] = useState<string | null>(null)
+  const [cargandoPaquetes, setCargandoPaquetes] = useState(true)
   const [pagina, setPagina] = useState(1)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [paquetes, setPaquetes] = useState<PaqueteVigenciaRegistro[]>([])
@@ -86,14 +88,18 @@ function ContenidoVigencias() {
   const cargarPaquetes = useCallback(async () => {
     if (!apiDisponible()) {
       setPaquetes([])
+      setCargandoPaquetes(false)
       return
     }
+    setCargandoPaquetes(true)
     try {
       const lista = await listarPaquetesRegistroVigenciaApi(programaIdUrl ?? undefined)
       setPaquetes(lista)
     } catch (err) {
       setPaquetes([])
       toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los paquetes de vigencia.')
+    } finally {
+      setCargandoPaquetes(false)
     }
   }, [programaIdUrl])
 
@@ -178,12 +184,30 @@ function ContenidoVigencias() {
         </div>
       )}
 
-      <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+      {cargandoPaquetes ? (
+        <RegionCarga texto="Cargando paquetes de vigencia…">
+          <div className="space-y-4">
+            <EsqueletoTarjetas cantidad={3} alto="h-24" columnas="sm:grid-cols-3" />
+            <EsqueletoTabla filas={4} columnas={5} />
+          </div>
+        </RegionCarga>
+      ) : (
+        <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+      )}
 
       <TarjetaUmbralesSemaforo />
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-primary">Certificados y anexos</h2>
+        {anexos.length === 0 && cargandoAnexos ? (
+          <RegionCarga texto="Cargando vigencias…">
+            <div className="space-y-4">
+              <EsqueletoTarjetas cantidad={3} alto="h-24" columnas="sm:grid-cols-3" />
+              <EsqueletoTabla filas={6} columnas={5} />
+            </div>
+          </RegionCarga>
+        ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-3">
           {(['Vigente', 'Proximo', 'Vencido'] as const).map((estado) => {
             const total = anexos.filter((anexo) => anexo.estado === estado).length
@@ -202,7 +226,6 @@ function ContenidoVigencias() {
             )
           })}
         </div>
-      </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-primary/10 bg-white/60">
@@ -221,13 +244,7 @@ function ContenidoVigencias() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {anexos.length === 0 && cargandoAnexos ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="p-4">
-                      <MensajeCargando texto="Cargando vigencias…" />
-                    </TableCell>
-                  </TableRow>
-                ) : anexos.length === 0 && errorAnexos ? (
+                {anexos.length === 0 && errorAnexos ? (
                   <TableRow>
                     <TableCell colSpan={5} className="p-4">
                       <MensajeErrorCarga
@@ -288,6 +305,9 @@ function ContenidoVigencias() {
           onCambiarPagina={setPagina}
         />
       )}
+        </>
+        )}
+      </div>
 
     </div>
   )
