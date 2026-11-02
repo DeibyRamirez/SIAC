@@ -318,6 +318,10 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-10-29 — HU-009: token de inserción de Power BI
+
+- [Frontend] Tarjeta «Power BI» y tablero con token en el dashboard del administrador. Con el interruptor apagado la rejilla pública no cambia. La renovación usa `setAccessToken` y el fallo muestra «No se pudo cargar el tablero» con «Reintentar». El secreto no se muestra ni se guarda en `localStorage`.
+
 ### 2026-10-29 — Esqueletos de carga por vista
 
 - [Frontend] `esqueletos-paginas.tsx` distingue el esqueleto de cada ruta (resumen, inicios, métricas, búsqueda, bandejas, listado, historial, detalle, proceso, formulario, plantillas, catálogo, vigencias, usuarios y asignación).

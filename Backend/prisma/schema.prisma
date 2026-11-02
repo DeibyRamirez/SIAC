@@ -428,6 +428,12 @@ model ConfiguracionSIAC {
   mesesAvisoVigencia   Int      @default(12)
   /// Meses antes del fin de vigencia en que el semáforo pasa a rojo (regla vigente: 6). T-007.3a.
   mesesRojoVigencia    Int      @default(6)
+  /// HU-009: inserción con token (App Owns Data). Apagado, el dashboard sigue como está.
+  powerbiEmbedHabilitado Boolean @default(false) @map("powerbi_embed_habilitado")
+  /// Id del área de trabajo de Power BI. No es un secreto; se edita en el panel.
+  powerbiWorkspaceId     String?  @db.VarChar(36)
+  /// Id del informe de Power BI. No es un secreto; se edita en el panel.
+  powerbiReportId        String?  @db.VarChar(36)
   updatedAt            DateTime @default(now()) @updatedAt
 }
 
