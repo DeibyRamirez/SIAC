@@ -11,6 +11,7 @@ import {
   type ModoDetalleRevisionRevisor,
 } from '@/components/siac/panel-detalle-revision-revisor'
 import type { EvaluacionCondicionResumenItem } from '@/components/siac/resumen-observaciones-por-condicion'
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -132,7 +133,7 @@ function ContenidoMisRevisiones() {
       />
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando historial…</p>
+        <MensajeCargando texto="Cargando historial…" filas={6} columnas={7} />
       ) : filas.length === 0 ? (
         <PanelVacio mensaje="Aún no hay envíos a revisión registrados." />
       ) : (

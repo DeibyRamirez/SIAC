@@ -27,6 +27,7 @@ import { HistorialVersionesEvidencia } from '@/components/siac/historial-version
 import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
+import { Skeleton } from '@/components/ui/skeleton'
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -640,9 +641,12 @@ function ContenidoDictamen() {
               anotacionesCambios={diffVersiones?.lineas}
               pieCambios={
                 cargandoDiff ? (
-                  <p className="text-xs text-muted-foreground">
-                    Comparando versiones…
-                  </p>
+                  <div className="flex items-center gap-2" role="status" aria-live="polite" aria-busy="true">
+                    <span className="sr-only">Comparando versiones…</span>
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
                 ) : errorDiff ? (
                   <p className="text-xs text-red-700">{errorDiff}</p>
                 ) : diffVersiones ? (

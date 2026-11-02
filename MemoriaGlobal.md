@@ -495,6 +495,12 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Docs] `.env.example`, `render.yaml` y `docs/despliegue.md` nombran las variables sin valores. ADR-009: el modo público sigue siendo el de defecto.
 - [Pruebas] Jest 64 suites / 537 tests; Vitest 48 archivos / 233 tests; `pnpm build` de backend y frontend OK. Las llamadas a Azure y Power BI van mockeadas. E2E no se ejecutó aquí: no hay Postgres local.
 
+### 2026-10-29 — Esqueletos de carga alineados con cada vista
+
+- [Frontend] Cada ruta con datos asíncronos usa un `Esqueleto*` con la misma estructura que la página (resumen, inicio de profesor y revisor, accesos de superadmin, métricas, búsqueda, bandeja, listado, historial, detalle, proceso, formulario, plantillas, catálogo, vigencias, usuarios y asignación).
+- [Frontend] Los estados de carga del cliente (listas, vigencias, trámite, informe, vista previa y avance) anuncian la espera con `role="status"` y `aria-busy`, sin párrafo suelto ni spinner de página.
+- [Pruebas] Vitest cubre el tipo de esqueleto por ruta y que no queden párrafos planos de carga.
+
 ### 2026-10-21 — Row Level Security (plan-rls aprobado por el PO)
 
 - [BD] Migración `20261021000000_rls_roles_funciones`:
