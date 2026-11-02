@@ -11,6 +11,8 @@ import {
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas, EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { EstructuraNormativaPanel } from '@/components/siac/estructura-normativa-panel'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
@@ -59,7 +61,7 @@ export default function ResumenAdministradorPage() {
 
 function ContenidoResumen() {
   const { sesion } = usarSesion()
-  const { datos } = usarAlmacen()
+  const { datos, estadoListas } = usarAlmacen()
   const [periodo, setPeriodo] = useState(periodoAcademicoActual())
   const { vigentes: periodosVigentes, historicos: periodosHistoricos } = usarPeriodos(periodo)
   const [programas, setProgramas] = useState<Programa[]>([])
@@ -67,9 +69,14 @@ function ContenidoResumen() {
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
+  const [cargandoResumen, setCargandoResumen] = useState(true)
 
   const cargarResumen = useCallback(async () => {
-    if (!apiDisponible()) return
+    if (!apiDisponible()) {
+      setCargandoResumen(false)
+      return
+    }
+    setCargandoResumen(true)
     try {
       const [lista, resumen] = await Promise.all([
         listarProgramasApi(),
@@ -83,6 +90,8 @@ function ContenidoResumen() {
     } catch {
       setProgramas([])
       setAvanceInstitucional(null)
+    } finally {
+      setCargandoResumen(false)
     }
   }, [])
 
@@ -121,6 +130,8 @@ function ContenidoResumen() {
   const avanceHero =
     avanceInstitucional ??
     (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : 0)
+  const esperandoEvidencias = estadoListas.evidencias.cargando && datos.evidencias.length === 0
+  const mostrarEsqueleto = cargandoResumen || esperandoEvidencias
 
   useEffect(() => {
     async function cargarProgreso() {
@@ -187,6 +198,17 @@ function ContenidoResumen() {
         </Select>
       </div>
 
+      {mostrarEsqueleto ? (
+        <RegionCarga texto="Cargando el resumen…">
+          <div className="space-y-6">
+            <EsqueletoTarjetas cantidad={1} alto="h-40" columnas="grid-cols-1" />
+            <EsqueletoTarjetas />
+            <EsqueletoTarjetas cantidad={2} alto="h-64" columnas="xl:grid-cols-2" />
+            <EsqueletoFilas filas={3} />
+          </div>
+        </RegionCarga>
+      ) : (
+        <>
       <TarjetaHeroAcreditacion
         avance={avanceHero}
         evidenciasValidadas={validadas}
@@ -236,6 +258,8 @@ function ContenidoResumen() {
         progreso={progresoProceso}
         cargando={cargandoProgreso}
       />
+        </>
+      )}
 
       {/* <EstructuraNormativaPanel /> */}
     </div>

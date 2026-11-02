@@ -5,7 +5,8 @@ import { ClipboardCheck, FileCheck2, Files } from 'lucide-react'
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
-import { MensajeCargando, MensajeErrorCarga } from '@/components/siac/estado-carga-lista'
+import { MensajeCargando, MensajeErrorCarga, RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina, TarjetaAcceso } from '@/components/siac/tarjeta-acceso'
@@ -39,11 +40,17 @@ function ContenidoInicioCargador() {
         descripcion="Accede rápidamente a la carga de evidencias, plantillas oficiales y el estado de tus documentos."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <TarjetaKpi titulo="Mis documentos" valor={misEvidencias.length} icono={Files} acento="cyan" />
-        <TarjetaKpi titulo="En borrador" valor={borradores} icono={ClipboardCheck} acento="ocre" />
-        <TarjetaKpi titulo="Cumplen o validados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
-      </div>
+      {estadoListas.evidencias.cargando && misEvidencias.length === 0 ? (
+        <RegionCarga texto="Cargando el resumen…">
+          <EsqueletoTarjetas cantidad={3} columnas="md:grid-cols-3" />
+        </RegionCarga>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <TarjetaKpi titulo="Mis documentos" valor={misEvidencias.length} icono={Files} acento="cyan" />
+          <TarjetaKpi titulo="En borrador" valor={borradores} icono={ClipboardCheck} acento="ocre" />
+          <TarjetaKpi titulo="Cumplen o validados" valor={validadas} icono={FileCheck2} acento="esmeralda" />
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <TarjetaAcceso
@@ -73,7 +80,7 @@ function ContenidoInicioCargador() {
       {misEvidencias.length > 0 ? (
         <TablaEvidencias evidencias={misEvidencias.slice(0, 5)} mostrarHora />
       ) : estadoListas.evidencias.cargando ? (
-        <MensajeCargando texto="Cargando evidencias…" />
+        <MensajeCargando texto="Cargando evidencias…" filas={5} columnas={6} />
       ) : estadoListas.evidencias.error ? (
         <MensajeErrorCarga
           mensaje={estadoListas.evidencias.error}

@@ -6,13 +6,22 @@ import { EsqueletoTabla } from '@/components/siac/esqueletos'
 
 import { Button } from '@/components/ui/button'
 
-/** Carga de una lista: esqueleto de tabla con la misma forma que la lista (texto solo para lectores). */
-export function MensajeCargando({ texto, filas = 6, columnas = 5 }: { texto: string; filas?: number; columnas?: number }) {
+/** Región accesible de carga: el texto lo anuncian los lectores; los hijos son el esqueleto visual. */
+export function RegionCarga({ texto, children }: { texto: string; children: React.ReactNode }) {
   return (
     <div role="status" aria-live="polite" aria-busy="true">
       <span className="sr-only">{texto}</span>
-      <EsqueletoTabla filas={filas} columnas={columnas} />
+      {children}
     </div>
+  )
+}
+
+/** Carga de una lista: esqueleto de tabla con la misma forma que la lista (texto solo para lectores). */
+export function MensajeCargando({ texto, filas = 6, columnas = 5 }: { texto: string; filas?: number; columnas?: number }) {
+  return (
+    <RegionCarga texto={texto}>
+      <EsqueletoTabla filas={filas} columnas={columnas} />
+    </RegionCarga>
   )
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { EsqueletoTabla } from '@/components/siac/esqueletos'
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { useCallback, useEffect, useState } from 'react'
 
 import { BarraHerramientasTabla } from '@/components/siac/barra-herramientas-tabla'
@@ -108,7 +108,7 @@ export function ContenidoBandejaRevision({
       />
 
       {cargando ? (
-        <EsqueletoTabla filas={6} columnas={6} />
+        <MensajeCargando texto="Cargando la bandeja…" filas={6} columnas={6} />
       ) : error ? (
         <PanelVacio mensaje={error} />
       ) : evidencias.length === 0 ? (

@@ -35,21 +35,48 @@ function carpetasConPagina(dir: string): string[] {
 
 const ESPERADO: Array<[string, TipoEsqueletoPagina]> = [
   ['/administrador', 'resumen'],
-  ['/cargador', 'resumen'],
+  ['/cargador', 'inicio-cargador'],
+  ['/revisor', 'inicio-revisor'],
+  ['/superadmin', 'accesos'],
+  ['/administrador/dashboard', 'metricas'],
+  ['/administrador/estructura', 'resumen'],
   ['/administrador/busqueda', 'busqueda'],
+  ['/administrador/evidencias', 'busqueda'],
   ['/administrador/vigencias', 'vigencias'],
-  ['/administrador/usuarios', 'usuarios'],
-  ['/administrador/programas', 'tarjetas'],
+  ['/administrador/usuarios', 'asignacion'],
+  ['/superadmin/usuarios', 'usuarios'],
+  ['/administrador/programas', 'catalogo'],
   ['/administrador/programas/id', 'proceso'],
+  ['/administrador/programas/institucion', 'proceso'],
   ['/cargador/evidencias/nueva', 'formulario'],
   ['/cargador/evidencias/id', 'detalle'],
   ['/revisor/bandeja/id', 'detalle'],
-  ['/cargador/evidencias', 'tabla'],
+  ['/cargador/evidencias', 'listado'],
   ['/revisor/bandeja', 'tabla'],
+  ['/revisor/revisiones', 'historial'],
+  ['/administrador/bandeja-revision', 'tabla'],
+  ['/administrador/plantillas', 'tarjetas'],
+  ['/cargador/plantillas/categoria', 'tarjetas'],
 ]
 
 const TIPOS: TipoEsqueletoPagina[] = [
-  'resumen', 'busqueda', 'tabla', 'detalle', 'proceso', 'formulario', 'tarjetas', 'vigencias', 'usuarios',
+  'resumen',
+  'inicio-cargador',
+  'inicio-revisor',
+  'accesos',
+  'metricas',
+  'busqueda',
+  'tabla',
+  'listado',
+  'historial',
+  'detalle',
+  'proceso',
+  'formulario',
+  'tarjetas',
+  'catalogo',
+  'vigencias',
+  'usuarios',
+  'asignacion',
 ]
 
 describe('loading.tsx de cada página', () => {
@@ -92,10 +119,21 @@ describe('EsqueletoContenidoPagina', () => {
 
   it('las listas muestran filtros y tabla; el detalle, su bloque', () => {
     const { container, unmount } = render(<EsqueletoContenidoPagina tipo="tabla" />)
+    expect(container.querySelector('[data-esqueleto="barra-filtros"]')).not.toBeNull()
     expect(container.querySelector('[data-esqueleto="tabla"]')).not.toBeNull()
     unmount()
     const d = render(<EsqueletoContenidoPagina tipo="detalle" />)
     expect(d.container.querySelector('[data-esqueleto="detalle"]')).not.toBeNull()
+  })
+
+  it('la asignación usa filas de tarjetas y el alta de usuarios conserva el formulario', () => {
+    const { container, unmount } = render(<EsqueletoContenidoPagina tipo="asignacion" />)
+    expect(container.querySelector('[data-esqueleto="filas"]')).not.toBeNull()
+    expect(container.querySelector('[data-esqueleto="tabla"]')).toBeNull()
+    unmount()
+    const usuarios = render(<EsqueletoContenidoPagina tipo="usuarios" />)
+    expect(usuarios.container.querySelector('[data-esqueleto="campos"]')).not.toBeNull()
+    expect(usuarios.container.querySelector('[data-esqueleto="tabla"]')).not.toBeNull()
   })
 })
 
@@ -105,7 +143,8 @@ describe('EsqueletoPaginaApp', () => {
     expect(container.querySelectorAll('[data-esqueleto="shell"]')).toHaveLength(1)
     expect(container.querySelector('.panel-sidebar')).not.toBeNull()
     expect(container.querySelectorAll('.panel-topbar')).toHaveLength(1)
-    expect(screen.getByTestId('esqueleto-tabla')).toBeInTheDocument()
+    expect(screen.getByTestId('esqueleto-listado')).toBeInTheDocument()
+    expect(container.querySelector('[data-esqueleto="tabla"]')).not.toBeNull()
   })
 })
 
@@ -119,7 +158,7 @@ describe('estados de carga en el cliente', () => {
     )
     expect(screen.queryByText('contenido')).not.toBeInTheDocument()
     expect(container.querySelector('[data-esqueleto="shell"]')).not.toBeNull()
-    expect(screen.getByTestId('esqueleto-tabla')).toBeInTheDocument()
+    expect(screen.getByTestId('esqueleto-listado')).toBeInTheDocument()
   })
 
   it('MensajeCargando pinta una tabla esqueleto y conserva el texto accesible', () => {
@@ -133,6 +172,26 @@ describe('estados de carga en el cliente', () => {
       const fuente = fs.readFileSync(path.join(DIR_APP, rel, 'page.tsx'), 'utf8')
       expect(fuente).not.toMatch(/<p[^>]*>Cargando evidencia…<\/p>/)
       expect(fuente).toContain('<EsqueletoContenidoPagina tipo="detalle" />')
+    }
+  })
+
+  it('no queda un párrafo suelto de carga en las vistas', () => {
+    const raices = [DIR_APP, path.join(__dirname)]
+    const archivos: string[] = []
+    const recorrer = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const ruta = path.join(dir, e.name)
+        if (e.isDirectory()) recorrer(ruta)
+        else if (e.name.endsWith('.tsx') && !e.name.includes('.test.')) archivos.push(ruta)
+      }
+    }
+    raices.forEach(recorrer)
+    expect(archivos.length).toBeGreaterThan(10)
+    for (const archivo of archivos) {
+      const fuente = fs.readFileSync(archivo, 'utf8')
+      expect(fuente, archivo).not.toMatch(
+        /<p[^>]*>\s*(Cargando|Generando vista previa|Preparando (informe|documento))/,
+      )
     }
   })
 })
