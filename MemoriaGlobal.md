@@ -82,7 +82,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Integracion | `/integracion` | UPSERT maestros TI |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
-| Power BI | `/powerbi`, `/powerbi/embed-token` | URLs públicas (CRUD) y embed por categoría |
+| Power BI | `/powerbi`, `/powerbi/embed-token`, `/powerbi/insercion`, `/powerbi/token-insercion` | URLs públicas y, si el interruptor está encendido, token de inserción |
 | Estructura | `/estructura` | CRUD etapas/carpetas/docs |
 | Almacenamiento | (servicio) | Supabase S3 |
 
@@ -406,6 +406,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
 - [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
 - [x] T-010.2 dominio `panel-siac.ts` con pesos renovación programa **50/50** (G1/G2), institución 85/15 (G3/G4) y umbrales en `ConfiguracionSIAC`; tests unitarios
+- [x] HU-009 token de inserción de Power BI: interruptor `powerbi_embed_habilitado` apagado por defecto; encendido sin credenciales no activa el informe
 - [x] Avance institucional admin: `GET /programas/avance-institucional` (promedio igualitario de programas activos); ciclo manual `POST /programas/:id/iniciar-ciclo-renovacion` + `Programa.inicioCicloTramiteAt`
 - [x] Sync carreras CUAC → `Programa` (`idExterno`, `origenDato: API`); bajas del catálogo → `activo: false`
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
@@ -471,6 +472,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | Semáforos UI: etiquetas de negocio + color (`etiquetas-semaforo.ts`) | Frontend |
 | [x] | Frontend 100% API real (paneles, búsqueda, plantillas y evidencias sin semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
+| [x] | HU-009 token de inserción Power BI (interruptor apagado por defecto, caché y renovación) | Backend + Frontend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
 
 ### P2 — Futuro
@@ -487,9 +489,17 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ### 2026-10-29 — Contrato OpenAPI de la API
 
-- [Docs] `docs/contrato-api/openapi.json` y `docs/contrato-api/README.md`: los endpoints existentes, roles, errores, paginación y el contrato de lectura Power BI (`v_powerbi_puntajes`, rol `siac_powerbi_lectura`, seis dominios).
+- [Docs] `docs/contrato-api/openapi.json` y `docs/contrato-api/README.md`: los endpoints existentes, roles, errores, paginación y el contrato de lectura Power BI (`v_powerbi_puntajes`, rol `siac_powerbi_lectura`, seis dominios). Incluye la inserción con token (`/powerbi/insercion`, `/powerbi/probar-conexion`, `/powerbi/token-insercion`) sin el secreto de Azure.
 - [Backend] Decoradores de Swagger en controladores y DTOs. La interfaz `/api/docs` no se monta cuando `NODE_ENV=production`. La prueba `contrato-openapi.spec.ts` compara el documento generado con el archivo exportado.
 - [Sin cambio de comportamiento] Ningún endpoint cambió de ruta, validación ni código de estado.
+
+### 2026-10-29 — HU-009: token de inserción de Power BI
+
+- [BD] Migración `20261029120000_powerbi_insercion`: en `ConfiguracionSIAC`, `powerbi_embed_habilitado` (default false), `powerbiWorkspaceId` y `powerbiReportId`. No se otorgan a `siac_powerbi_lectura`; las políticas RLS de la tabla no cambian. Los umbrales del semáforo no se tocan al guardar la inserción.
+- [Backend] `GET/PATCH /api/v1/powerbi/insercion`, `POST /api/v1/powerbi/probar-conexion` y `GET /api/v1/powerbi/token-insercion` (Administrador y SuperAdmin). Token de solo lectura, máximo 60 minutos, caché en memoria mientras queden más de 5 minutos, tiempo de espera de 10 s y 503 `POWERBI_NO_DISPONIBLE`. Secretos solo en `POWERBI_TENANT_ID`, `POWERBI_CLIENT_ID` y `POWERBI_CLIENT_SECRET`. El cambio del interruptor queda en el log con el id del usuario, sin secretos ni tokens.
+- [Frontend] Tarjeta «Power BI» en el dashboard del administrador. Apagado, la rejilla pública sigue igual. Encendido sin credenciales completas muestra «Configuración incompleta» y no incrusta. Encendido y completo usa `powerbi-client`, renueva con `setAccessToken` unos 5 minutos antes del vencimiento (y al volver a la pestaña) y, si Power BI falla, «No se pudo cargar el tablero» con «Reintentar». El token no se guarda en `localStorage`.
+- [Docs] `.env.example`, `render.yaml` y `docs/despliegue.md` nombran las variables sin valores. ADR-009: el modo público sigue siendo el de defecto.
+- [Pruebas] Jest 64 suites / 537 tests; Vitest 48 archivos / 233 tests; `pnpm build` de backend y frontend OK. Las llamadas a Azure y Power BI van mockeadas. E2E no se ejecutó aquí: no hay Postgres local.
 
 ### 2026-10-29 — Esqueletos de carga alineados con cada vista
 

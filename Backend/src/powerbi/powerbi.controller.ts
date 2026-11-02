@@ -1,15 +1,20 @@
-import { Body, Controller, Get, Param, Put, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolUsuario } from '@prisma/client';
 import { PowerBiService } from './powerbi.service';
 import { Roles, RolesGuard } from '../common/guards/roles.guard';
 import { ActualizarInformePowerBiDto } from './dto/actualizar-informe-powerbi.dto';
+import { ActualizarInsercionPowerBiDto } from './dto/actualizar-insercion-powerbi.dto';
+import { TokenInsercionPowerBiService } from './token-insercion-powerbi.service';
 import { ApiContrato } from '../openapi/api-contrato';
 import {
+  ConfiguracionInsercionPowerBiDto,
   EmbedTokenRespuestaDto,
   InformePowerBiMetadatosDto,
   InformePowerBiUrlDto,
+  ResultadoPruebaConexionPowerBiDto,
+  TokenInsercionPowerBiDto,
 } from '../openapi/modelos-respuesta';
 
 const ROLES_INFORMES: RolUsuario[] = [RolUsuario.Administrador, RolUsuario.SuperAdmin];
@@ -18,7 +23,74 @@ const ROLES_INFORMES: RolUsuario[] = [RolUsuario.Administrador, RolUsuario.Super
 @Controller('powerbi')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class PowerBiController {
-  constructor(private readonly powerBiService: PowerBiService) {}
+  constructor(
+    private readonly powerBiService: PowerBiService,
+    private readonly tokenInsercion: TokenInsercionPowerBiService,
+  ) {}
+
+  @Get('insercion')
+  @Roles(...ROLES_INFORMES)
+  @ApiContrato({
+    resumen: 'Configuración de la inserción con token (sin secretos)',
+    roles: ['Administrador', 'SuperAdmin'],
+    respuesta: ConfiguracionInsercionPowerBiDto,
+    sinValidacion: true,
+    detalle:
+      'No devuelve POWERBI_CLIENT_SECRET. secretoConfigurado indica si la variable tiene valor. ' +
+      'activo es verdadero solo con el interruptor encendido y la configuración completa.',
+  })
+  obtenerInsercion() {
+    return this.tokenInsercion.obtenerConfiguracion();
+  }
+
+  @Patch('insercion')
+  @Roles(...ROLES_INFORMES)
+  @ApiContrato({
+    resumen: 'Actualiza el interruptor y los identificadores del informe',
+    roles: ['Administrador', 'SuperAdmin'],
+    respuesta: ConfiguracionInsercionPowerBiDto,
+    detalle:
+      'El cambio queda en el log de auditoría con el id del usuario, sin secretos ni tokens. ' +
+      'Encender el interruptor sin credenciales completas no activa el informe. ' +
+      'Una cadena vacía borra workspaceId o reportId.',
+  })
+  actualizarInsercion(
+    @Body() dto: ActualizarInsercionPowerBiDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    return this.tokenInsercion.actualizar(dto, req.user?.id);
+  }
+
+  @Post('probar-conexion')
+  @Roles(...ROLES_INFORMES)
+  @ApiContrato({
+    resumen: 'Prueba la entidad de servicio contra Azure y Power BI',
+    roles: ['Administrador', 'SuperAdmin'],
+    respuesta: ResultadoPruebaConexionPowerBiDto,
+    tambien: [503],
+    detalle:
+      'No devuelve el token. Tiempo de espera de unos 10 segundos. ' +
+      '400 si la configuración está incompleta. 503 POWERBI_NO_DISPONIBLE si Azure o Power BI no responden.',
+  })
+  probarConexion() {
+    return this.tokenInsercion.probarConexion();
+  }
+
+  @Get('token-insercion')
+  @Roles(...ROLES_INFORMES)
+  @ApiContrato({
+    resumen: 'Token de inserción de solo lectura (máximo 60 minutos)',
+    roles: ['Administrador', 'SuperAdmin'],
+    respuesta: TokenInsercionPowerBiDto,
+    tambien: [503],
+    detalle:
+      'Requiere el interruptor encendido. Reutiliza la caché en memoria mientras al token le queden más de 5 minutos. ' +
+      '403 si la inserción está apagada. 400 si la configuración está incompleta. ' +
+      'La respuesta incluye el token de inserción; el secreto de Azure no sale del servidor.',
+  })
+  obtenerTokenInsercion() {
+    return this.tokenInsercion.obtenerTokenInsercion();
+  }
 
   @Get('informes')
   @Roles(...ROLES_INFORMES)

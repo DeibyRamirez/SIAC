@@ -213,6 +213,61 @@ export class InformePowerBiUrlDto {
   urlHash!: string;
 }
 
+export class ConfiguracionInsercionPowerBiDto {
+  @ApiProperty()
+  habilitado!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  workspaceId!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  reportId!: string | null;
+
+  @ApiProperty({
+    description: 'Verdadero solo si POWERBI_CLIENT_SECRET tiene valor. Nunca se devuelve el secreto.',
+  })
+  secretoConfigurado!: boolean;
+
+  @ApiProperty()
+  configuracionCompleta!: boolean;
+
+  @ApiProperty({
+    description: 'El informe embebido solo se activa con el interruptor encendido y la configuración completa.',
+  })
+  activo!: boolean;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Nombres de variables o campos que faltan. Sin valores.',
+  })
+  faltantes!: string[];
+}
+
+export class ResultadoPruebaConexionPowerBiDto {
+  @ApiProperty({ example: true })
+  correcto!: true;
+
+  @ApiProperty({ format: 'date-time' })
+  expiraEn!: string;
+}
+
+export class TokenInsercionPowerBiDto {
+  @ApiProperty({ description: 'Token de inserción de solo lectura. No es el secreto de Azure.' })
+  token!: string;
+
+  @ApiProperty()
+  embedUrl!: string;
+
+  @ApiProperty()
+  reportId!: string;
+
+  @ApiProperty({
+    format: 'date-time',
+    description: 'Instante ISO 8601 en que el token deja de ser válido para el cliente.',
+  })
+  expiraEn!: string;
+}
+
 export class EmbedTokenRespuestaDto {
   @ApiProperty()
   embedUrl!: string;

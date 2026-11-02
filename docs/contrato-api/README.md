@@ -179,6 +179,10 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | GET | `/api/v1/powerbi/informes` | Administrador, SuperAdmin | Lista el catálogo de informes y si cada URL pública está configurada |
 | PUT | `/api/v1/powerbi/informes/{categoriaId}` | Administrador, SuperAdmin | Guarda la URL de «Publicar en la web» |
 | GET | `/api/v1/powerbi/informes/{categoriaId}/url` | Administrador, SuperAdmin | Devuelve la URL pública de una categoría |
+| GET | `/api/v1/powerbi/insercion` | Administrador, SuperAdmin | Configuración de la inserción con token, sin secretos |
+| PATCH | `/api/v1/powerbi/insercion` | Administrador, SuperAdmin | Actualiza el interruptor y los identificadores del informe |
+| POST | `/api/v1/powerbi/probar-conexion` | Administrador, SuperAdmin | Prueba Azure y Power BI sin devolver el token |
+| GET | `/api/v1/powerbi/token-insercion` | Administrador, SuperAdmin | Token de inserción de solo lectura, máximo 60 minutos |
 | GET | `/api/v1/programas` | autenticado | Lista programas con semáforo, según el alcance del usuario |
 | POST | `/api/v1/programas` | Administrador, SuperAdmin | Crea un programa |
 | GET | `/api/v1/programas/avance-institucional` | Administrador, SuperAdmin | Calcula el avance institucional |
@@ -215,7 +219,7 @@ El detalle de cada operación (campos, ejemplos y códigos) está en [`openapi.j
 
 ## Contrato de datos para Power BI
 
-Este contrato de **lectura** no es un endpoint HTTP nuevo. Power BI no pide filas a `/api/v1`. Lee PostgreSQL con un rol propio. Los endpoints `/api/v1/powerbi/*` y `/api/v1/metricas/token` solo administran la URL pública del informe y el token de embebido; no consultan la vista.
+Este contrato de **lectura** no es un endpoint HTTP nuevo. Power BI no pide filas a `/api/v1`. Lee PostgreSQL con un rol propio. `/api/v1/powerbi/informes`, `/api/v1/powerbi/embed-token` y `/api/v1/metricas/token` administran la URL pública y el token de embebido. `/api/v1/powerbi/insercion`, `/api/v1/powerbi/probar-conexion` y `/api/v1/powerbi/token-insercion` configuran y entregan el token de inserción. Ninguno consulta la vista.
 
 ### Quién puede leer
 

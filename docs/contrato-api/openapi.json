@@ -68,6 +68,25 @@
         ],
         "type": "object"
       },
+      "ActualizarInsercionPowerBiDto": {
+        "properties": {
+          "habilitado": {
+            "description": "Enciende la inserción con token. Apagado, el dashboard conserva el comportamiento actual.",
+            "type": "boolean"
+          },
+          "reportId": {
+            "description": "Id del informe (UUID). Cadena vacía lo borra. No es un secreto.",
+            "example": "22222222-2222-2222-2222-222222222222",
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "Id del área de trabajo (UUID). Cadena vacía lo borra. No es un secreto.",
+            "example": "11111111-1111-1111-1111-111111111111",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ActualizarInstitucionDto": {
         "properties": {
           "tipoTramiteActivo": {
@@ -392,6 +411,49 @@
         "required": [
           "codigo",
           "cumple"
+        ],
+        "type": "object"
+      },
+      "ConfiguracionInsercionPowerBiDto": {
+        "properties": {
+          "activo": {
+            "description": "El informe embebido solo se activa con el interruptor encendido y la configuración completa.",
+            "type": "boolean"
+          },
+          "configuracionCompleta": {
+            "type": "boolean"
+          },
+          "faltantes": {
+            "description": "Nombres de variables o campos que faltan. Sin valores.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "habilitado": {
+            "type": "boolean"
+          },
+          "reportId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "secretoConfigurado": {
+            "description": "Verdadero solo si POWERBI_CLIENT_SECRET tiene valor. Nunca se devuelve el secreto.",
+            "type": "boolean"
+          },
+          "workspaceId": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "habilitado",
+          "workspaceId",
+          "reportId",
+          "secretoConfigurado",
+          "configuracionCompleta",
+          "activo",
+          "faltantes"
         ],
         "type": "object"
       },
@@ -983,6 +1045,23 @@
         ],
         "type": "object"
       },
+      "ResultadoPruebaConexionPowerBiDto": {
+        "properties": {
+          "correcto": {
+            "example": true,
+            "type": "boolean"
+          },
+          "expiraEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correcto",
+          "expiraEn"
+        ],
+        "type": "object"
+      },
       "ResultadoSincronizacionDto": {
         "properties": {
           "origen": {
@@ -1008,6 +1087,32 @@
           "usuarios",
           "vinculos",
           "origen"
+        ],
+        "type": "object"
+      },
+      "TokenInsercionPowerBiDto": {
+        "properties": {
+          "embedUrl": {
+            "type": "string"
+          },
+          "expiraEn": {
+            "description": "Instante ISO 8601 en que el token deja de ser válido para el cliente.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "reportId": {
+            "type": "string"
+          },
+          "token": {
+            "description": "Token de inserción de solo lectura. No es el secreto de Azure.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "embedUrl",
+          "reportId",
+          "expiraEn"
         ],
         "type": "object"
       },
@@ -7298,6 +7403,312 @@
           }
         ],
         "summary": "Devuelve la URL pública de una categoría",
+        "tags": [
+          "Power BI"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      }
+    },
+    "/api/v1/powerbi/insercion": {
+      "get": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nNo devuelve POWERBI_CLIENT_SECRET. secretoConfigurado indica si la variable tiene valor. activo es verdadero solo con el interruptor encendido y la configuración completa.",
+        "operationId": "PowerBiController_obtenerInsercion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracionInsercionPowerBiDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Configuración de la inserción con token (sin secretos)",
+        "tags": [
+          "Power BI"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      },
+      "patch": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nEl cambio queda en el log de auditoría con el id del usuario, sin secretos ni tokens. Encender el interruptor sin credenciales completas no activa el informe. Una cadena vacía borra workspaceId o reportId.",
+        "operationId": "PowerBiController_actualizarInsercion",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarInsercionPowerBiDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracionInsercionPowerBiDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Actualiza el interruptor y los identificadores del informe",
+        "tags": [
+          "Power BI"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      }
+    },
+    "/api/v1/powerbi/probar-conexion": {
+      "post": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nNo devuelve el token. Tiempo de espera de unos 10 segundos. 400 si la configuración está incompleta. 503 POWERBI_NO_DISPONIBLE si Azure o Power BI no responden.",
+        "operationId": "PowerBiController_probarConexion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoPruebaConexionPowerBiDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Dependencia no disponible. El filtro reescribe el cuerpo al sobre de error."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Prueba la entidad de servicio contra Azure y Power BI",
+        "tags": [
+          "Power BI"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      }
+    },
+    "/api/v1/powerbi/token-insercion": {
+      "get": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nRequiere el interruptor encendido. Reutiliza la caché en memoria mientras al token le queden más de 5 minutos. 403 si la inserción está apagada. 400 si la configuración está incompleta. La respuesta incluye el token de inserción; el secreto de Azure no sale del servidor.",
+        "operationId": "PowerBiController_obtenerTokenInsercion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenInsercionPowerBiDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Dependencia no disponible. El filtro reescribe el cuerpo al sobre de error."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Token de inserción de solo lectura (máximo 60 minutos)",
         "tags": [
           "Power BI"
         ],

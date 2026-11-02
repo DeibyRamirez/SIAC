@@ -111,6 +111,16 @@ export class FiltroExcepcionHttp implements ExceptionFilter {
       error,
     };
 
+    if (excepcion instanceof HttpException) {
+      const cuerpo = excepcion.getResponse();
+      if (typeof cuerpo === 'object' && cuerpo !== null) {
+        const codigo = (cuerpo as Record<string, unknown>).codigo;
+        if (typeof codigo === 'string' && /^[A-Z0-9_]{1,64}$/.test(codigo)) {
+          payload.codigo = codigo;
+        }
+      }
+    }
+
     if (esDesarrollo && codigoEstado === HttpStatus.INTERNAL_SERVER_ERROR && excepcion instanceof Error) {
       payload.detalle = excepcion.message;
     }
