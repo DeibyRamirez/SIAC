@@ -12,6 +12,7 @@ import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { motivoRechazoPdf } from '../dominio/archivo-pdf';
 import { calcularFechaFinVigencia, calcularSemaforoVigencia } from '../dominio/panel-siac';
+import { periodoDeFechaCalendario } from '../dominio/periodo-academico';
 import { PrismaService } from '../prisma/prisma.module';
 import { AvanceProcesoSIACService, ProgresoProcesoSIAC } from './avance-proceso-siac.service';
 import { CargarResolucionDto } from './dto/cargar-resolucion.dto';
@@ -125,7 +126,7 @@ export class ResolucionMenService {
             nombre: `Resolución MEN n.º ${numero} — ${input.nombreEntidad}`,
             tipoEvidencia: TipoEvidencia.ResolucionMen,
             estado: EstadoEvidencia.Validado,
-            periodo: periodoDeFecha(fechaResolucion),
+            periodo: periodoDeFechaCalendario(dto.fechaResolucion),
             autorId: usuario.id,
             nombreArchivo,
             rutaArchivo: clave,
@@ -189,7 +190,3 @@ export class ResolucionMenService {
   }
 }
 
-/** Periodo académico (AAAA-1 o AAAA-2) de la fecha de la resolución. */
-function periodoDeFecha(fecha: Date): string {
-  return `${fecha.getUTCFullYear()}-${fecha.getUTCMonth() < 6 ? 1 : 2}`;
-}

@@ -1,7 +1,12 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.module';
-import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
+import { CodigoDocumentoGuia, EstadoEvidencia, RolUsuario } from '@prisma/client';
+import {
+  mensajePeriodoInvalido,
+  motivoBloqueoCargaPeriodo,
+  REGEX_PERIODO_ACADEMICO,
+} from '../dominio/periodo-academico';
 
 interface FilaExcel {
   fila: number;
@@ -20,6 +25,7 @@ export class IngestaService {
   async parsearExcel(
     buffer: Buffer,
     autorId: string,
+    rol: RolUsuario,
   ): Promise<{
     registrosProcesados: number;
     registrosExitosos: number;
@@ -62,6 +68,15 @@ export class IngestaService {
       }
       if (!datos.periodo) {
         errores.push({ fila: numeroFila, motivo: "Campo 'periodo' vacío" });
+        continue;
+      }
+      if (!REGEX_PERIODO_ACADEMICO.test(datos.periodo)) {
+        errores.push({ fila: numeroFila, motivo: mensajePeriodoInvalido(datos.periodo) });
+        continue;
+      }
+      const bloqueoPeriodo = motivoBloqueoCargaPeriodo(rol, datos.periodo);
+      if (bloqueoPeriodo) {
+        errores.push({ fila: numeroFila, motivo: bloqueoPeriodo });
         continue;
       }
       if (!datos.codigoGuia || !CODIGOS_GUIA.includes(datos.codigoGuia)) {

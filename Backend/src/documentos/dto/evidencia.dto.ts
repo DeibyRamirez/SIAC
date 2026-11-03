@@ -4,9 +4,14 @@ import {
   IsOptional,
   IsString,
   IsEnum,
+  Matches,
 } from 'class-validator';
 import { MaxTextoLargo } from '../../common/validacion/limites-texto';
 import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
+import {
+  MENSAJE_FORMATO_PERIODO,
+  REGEX_PERIODO_ACADEMICO,
+} from '../../dominio/periodo-academico';
 
 export class CrearEvidenciaDto {
   @ApiProperty()
@@ -20,9 +25,14 @@ export class CrearEvidenciaDto {
   @IsOptional()
   programaId?: string;
 
-  @ApiProperty({ example: '2026-1', description: 'Periodo académico YYYY-1 o YYYY-2.' })
+  @ApiProperty({
+    example: '2026-1',
+    pattern: '^\\d{4}-[12]$',
+    description: 'Periodo académico AAAA-1 o AAAA-2.',
+  })
   @IsString()
   @IsNotEmpty()
+  @Matches(REGEX_PERIODO_ACADEMICO, { message: MENSAJE_FORMATO_PERIODO })
   periodo!: string;
 
   @ApiPropertyOptional()
@@ -51,9 +61,10 @@ export class ActualizarEvidenciaDto {
   @IsOptional()
   nombre?: string;
 
-  @ApiPropertyOptional({ example: '2026-1' })
+  @ApiPropertyOptional({ example: '2026-1', pattern: '^\\d{4}-[12]$' })
   @IsString()
   @IsOptional()
+  @Matches(REGEX_PERIODO_ACADEMICO, { message: MENSAJE_FORMATO_PERIODO })
   periodo?: string;
 
   @ApiPropertyOptional()

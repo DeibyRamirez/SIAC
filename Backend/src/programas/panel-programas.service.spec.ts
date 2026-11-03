@@ -10,6 +10,7 @@ interface ProgramaFalso {
   fechaResolucion: Date | null;
   activo: boolean;
   urlImagen: null;
+  inicioCicloTramiteAt?: Date | null;
 }
 
 interface EvidenciaFalsa {
@@ -19,6 +20,7 @@ interface EvidenciaFalsa {
   puntajeActual: number | null;
   totalCondicionesActual: number | null;
   updatedAt: Date;
+  createdAt?: Date;
   periodo: string;
 }
 
@@ -150,6 +152,81 @@ describe('PanelProgramasService (T-010.1)', () => {
     expect(respuesta.total).toBe(25);
     expect(respuesta.totalPaginas).toBe(3);
     expect(respuesta.datos).toHaveLength(5);
+  });
+
+  it('el semestre compara por igualdad: 2026-1 no arrastra 2026-10', async () => {
+    const { servicio } = crearServicio(
+      [programa(1)],
+      [
+        {
+          programaId: 'p01',
+          codigoGuia: 'G1',
+          estado: EstadoEvidencia.Cumple,
+          puntajeActual: 1,
+          totalCondicionesActual: 9,
+          updatedAt: new Date('2026-12-01'),
+          periodo: '2026-10',
+        },
+        {
+          programaId: 'p01',
+          codigoGuia: 'G1',
+          estado: EstadoEvidencia.Cumple,
+          puntajeActual: 9,
+          totalCondicionesActual: 9,
+          updatedAt: new Date('2026-06-01'),
+          periodo: '2026-1',
+        },
+      ],
+    );
+    await servicio.onModuleInit();
+
+    const { datos } = await servicio.listarPanel({ semestre: '2026-1' }, ADMIN);
+    const g1 = datos[0].documentos.find((d) => d.codigoGuia === 'G1')!;
+
+    expect(g1.puntaje).toBe(9);
+    expect(datos[0].semestre).toBe('2026-1');
+    expect(datos[0].avancePorcentual).toBe(100);
+  });
+
+  it('en 2027-2, elegir 2026-2 conserva cifras y semáforo de 2026-2 aunque el ciclo ya sea posterior', async () => {
+    const { servicio } = crearServicio(
+      [{ ...programa(1), inicioCicloTramiteAt: new Date('2027-01-15T00:00:00-05:00') }],
+      [
+        {
+          programaId: 'p01',
+          codigoGuia: 'G1',
+          estado: EstadoEvidencia.Cumple,
+          puntajeActual: 9,
+          totalCondicionesActual: 9,
+          updatedAt: new Date('2026-11-01'),
+          createdAt: new Date('2026-08-01T12:00:00-05:00'),
+          periodo: '2026-2',
+        },
+        {
+          programaId: 'p01',
+          codigoGuia: 'G1',
+          estado: EstadoEvidencia.ConObservaciones,
+          puntajeActual: 1,
+          totalCondicionesActual: 9,
+          updatedAt: new Date('2027-09-01'),
+          createdAt: new Date('2027-08-01T12:00:00-05:00'),
+          periodo: '2027-2',
+        },
+      ],
+    );
+    await servicio.onModuleInit();
+
+    const historico = await servicio.listarPanel({ semestre: '2026-2' }, ADMIN);
+    const vigente = await servicio.listarPanel({ semestre: '2027-2' }, ADMIN);
+    const g1Historico = historico.datos[0].documentos.find((d) => d.codigoGuia === 'G1')!;
+    const g1Vigente = vigente.datos[0].documentos.find((d) => d.codigoGuia === 'G1')!;
+
+    expect(historico.datos[0].semestre).toBe('2026-2');
+    expect(g1Historico.puntaje).toBe(9);
+    expect(historico.datos[0].avancePorcentual).toBe(100);
+    expect(historico.datos[0].semaforoAvance).toBe('Verde');
+    expect(g1Vigente.puntaje).toBe(1);
+    expect(vigente.datos[0].semaforoAvance).toBe('Rojo');
   });
 });
 

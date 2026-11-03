@@ -120,6 +120,28 @@ describe('ResolucionMenService', () => {
     });
   });
 
+  it('el 1 de julio queda en el segundo semestre de Bogotá y el 30 de junio en el primero', async () => {
+    await servicio.cargarParaPrograma(
+      'p1',
+      { ...dto, fechaResolucion: '2026-07-01' },
+      archivo(),
+      usuario,
+    );
+    expect(tx.evidencia.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ periodo: '2026-2' }),
+    });
+
+    await servicio.cargarParaPrograma(
+      'p1',
+      { ...dto, fechaResolucion: '2026-06-30' },
+      archivo(),
+      usuario,
+    );
+    expect(tx.evidencia.create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ periodo: '2026-1' }),
+    });
+  });
+
   it('si falla la BD elimina el archivo subido; si falla Storage responde 502', async () => {
     tx.resolucionMen.create.mockRejectedValueOnce(new Error('fallo BD'));
     await expect(servicio.cargarParaPrograma('p1', dto, archivo(), usuario)).rejects.toThrow('fallo BD');

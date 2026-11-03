@@ -36,6 +36,11 @@ import { AvanceProgramaService } from '../programas/avance-programa.service';
 import { AvanceProcesoSIACService } from '../programas/avance-proceso-siac.service';
 import { codigosGuiaPermitidos } from '../programas/catalogo-tramites-siac';
 import { validarNuevaCargaEvidencia } from '../dominio/reglas-carga-evidencia';
+import {
+  mensajePeriodoInvalido,
+  motivoBloqueoCargaPeriodo,
+  REGEX_PERIODO_ACADEMICO,
+} from '../dominio/periodo-academico';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 import { transicionPermitida } from '../dominio/maquina-estados-evidencia';
 
@@ -143,6 +148,7 @@ export class DocumentosService {
   ) {
 
     this.validarArchivo(archivo);
+    this.exigirPeriodoCargable(dto.periodo, usuario);
 
     const requiereChecklistLegacy =
       dto.requiereChecklistMaestro === 'true' ||
@@ -359,6 +365,18 @@ export class DocumentosService {
 
   }
 
+  /**
+   * Profesor (Cargador) no sube a un periodo cerrado. Revisor, Administrador y SuperAdmin sí.
+   * Decisión reversible: quitar esta llamada deja el comportamiento anterior.
+   */
+  private exigirPeriodoCargable(periodo: string, usuario: UsuarioToken): void {
+    if (!REGEX_PERIODO_ACADEMICO.test(periodo)) {
+      throw new BadRequestException(mensajePeriodoInvalido(periodo));
+    }
+    const motivo = motivoBloqueoCargaPeriodo(usuario.rol, periodo);
+    if (motivo) throw new BadRequestException(motivo);
+  }
+
 
 
   async listar(usuario: UsuarioToken, query: FiltrosEvidenciaDto) {
@@ -443,7 +461,7 @@ export class DocumentosService {
 
     this.verificarEdicion(evidencia, usuario);
 
-
+    if (dto.periodo) this.exigirPeriodoCargable(dto.periodo, usuario);
 
     return this.evidenciaRepo.actualizar(id, dto);
 

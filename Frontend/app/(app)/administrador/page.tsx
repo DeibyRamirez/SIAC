@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -34,15 +35,17 @@ import {
   calcularTendenciaMensual,
   filtrarEvidenciasVisiblesAdministrador,
 } from '@/lib/utilidades/metricas-evidencias'
+import { usarPeriodoActual } from '@/lib/hooks/usar-periodo-actual'
 import { usarPeriodos } from '@/lib/hooks/usar-periodos'
-import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
+import { periodoSeleccionado } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { listarEvidenciasCompletasDePeriodo } from '@/lib/servicios/evidencias.servicio'
 import {
   listarProgramasApi,
   obtenerAvanceInstitucionalApi,
 } from '@/lib/servicios/programas.servicio'
 import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
-import type { Programa } from '@/lib/tipos'
+import type { Evidencia, Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import {
   obtenerProgresoProgramaApi,
@@ -62,8 +65,15 @@ export default function ResumenAdministradorPage() {
 function ContenidoResumen() {
   const { sesion } = usarSesion()
   const { datos, estadoListas } = usarAlmacen()
-  const [periodo, setPeriodo] = useState(periodoAcademicoActual())
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const periodoEnUrl = searchParams.get('periodo')
+  const { periodo: periodoVigente, listo: periodoListo } = usarPeriodoActual()
+  const periodo = periodoSeleccionado(periodoEnUrl, periodoVigente)
   const { vigentes: periodosVigentes, historicos: periodosHistoricos } = usarPeriodos(periodo)
+  const [evidenciasRemotas, setEvidenciasRemotas] = useState<Evidencia[] | null>(null)
+  const [periodoConsultado, setPeriodoConsultado] = useState<string | null>(null)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
@@ -97,10 +107,42 @@ function ContenidoResumen() {
 
   usarCargaConSesion(cargarResumen)
 
-  const evidenciasPeriodo = useMemo(
-    () => datos.evidencias.filter((e) => e.periodo === periodo),
-    [datos.evidencias, periodo],
-  )
+  useEffect(() => {
+    if (!periodoListo || periodoEnUrl === periodo) return
+    const siguientes = new URLSearchParams(searchParams.toString())
+    siguientes.set('periodo', periodo)
+    router.replace(`${pathname}?${siguientes.toString()}`, { scroll: false })
+  }, [periodoListo, periodoEnUrl, periodo, pathname, router, searchParams])
+
+  useEffect(() => {
+    if (!apiDisponible()) return
+    let vivo = true
+    listarEvidenciasCompletasDePeriodo(periodo)
+      .then((lista) => {
+        if (!vivo) return
+        setEvidenciasRemotas(lista)
+        setPeriodoConsultado(periodo)
+      })
+      .catch(() => {
+        if (!vivo) return
+        setEvidenciasRemotas(null)
+        setPeriodoConsultado(periodo)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [periodo])
+
+  function cambiarPeriodo(valor: string) {
+    const siguientes = new URLSearchParams(searchParams.toString())
+    siguientes.set('periodo', valor)
+    router.replace(`${pathname}?${siguientes.toString()}`, { scroll: false })
+  }
+
+  const evidenciasPeriodo = useMemo(() => {
+    if (periodoConsultado === periodo && evidenciasRemotas) return evidenciasRemotas
+    return datos.evidencias.filter((evidencia) => evidencia.periodo === periodo)
+  }, [periodoConsultado, periodo, evidenciasRemotas, datos.evidencias])
 
   const evidenciasPanelAdmin = useMemo(
     () => filtrarEvidenciasVisiblesAdministrador(evidenciasPeriodo),
@@ -171,7 +213,7 @@ function ContenidoResumen() {
           titulo={`${obtenerSaludo()}, ${primerNombre}`}
           descripcion="Estado general del aseguramiento de calidad en todas las carreras."
         />
-        <Select value={periodo} onValueChange={manejarCambioSelect(setPeriodo)}>
+        <Select value={periodo} onValueChange={manejarCambioSelect(cambiarPeriodo)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Periodo" />
           </SelectTrigger>

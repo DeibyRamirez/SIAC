@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-10-29 |
+| **Última actualización** | 2026-11-03 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -486,6 +486,14 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-03 — Periodos académicos: formato, Bogotá y conservación histórica
+
+- [Backend] `periodo` de alta y actualización exige `AAAA-1` o `AAAA-2`. La ingesta Excel rechaza otro formato con error en español y no guarda esa fila. No hay migración: `pnpm datos:contar-periodos-invalidos` (o el SQL del script) solo cuenta filas fuera de formato.
+- [Backend] El periodo vigente se calcula en `America/Bogota` (`Backend/src/dominio/periodo-academico.ts`). `GET /api/v1/documentos/periodos/actual` lo publica. `GET /api/v1/documentos/periodos` lista los periodos con documentos, incluidos los cerrados. La resolución MEN usa el mismo criterio sobre la fecha calendario.
+- [Backend] El panel filtra el semestre por igualdad exacta. Si se pide un periodo, entran todas sus evidencias aunque el ciclo vigente haya empezado después. El Profesor (rol `Cargador`) no puede crear evidencias ni filas de Excel en un periodo anterior al vigente; Revisor, Administrador y SuperAdmin sí. Es reversible: quitar `exigirPeriodoCargable` y el chequeo de `motivoBloqueoCargaPeriodo` en la ingesta.
+- [Frontend] El resumen del administrador persiste el periodo en `?periodo=` y ofrece los periodos con datos más los del año actual y el siguiente. La carga de evidencia no sustituye el periodo elegido si el `.docx` trae otro: muestra un aviso y la persona decide.
+- [Sin prisma:deploy] No se agregó migración.
 
 ### 2026-10-29 — Contrato OpenAPI de la API
 

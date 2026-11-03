@@ -246,10 +246,9 @@ export class PanelProgramasService implements OnModuleInit {
     const anexosPorPrograma = this.agrupar(anexos, (a) => a.programaId);
     const inicioCicloPorPrograma = new Map(programas.map((p) => [p.id, p.inicioCicloTramiteAt]));
     const evidenciasPorPrograma = this.agrupar(
-      evidencias.filter((e) => {
-        const inicio = inicioCicloPorPrograma.get(e.programaId ?? '');
-        return inicio ? e.createdAt.getTime() >= inicio.getTime() : true;
-      }),
+      evidencias.filter((e) =>
+        this.evidenciaCuentaEnPeriodo(e, query.semestre, inicioCicloPorPrograma),
+      ),
       (e) => e.programaId ?? '',
     );
 
@@ -309,7 +308,7 @@ export class PanelProgramasService implements OnModuleInit {
     const pesos = this.pesosPorTramite.get(input.tipoTramite) ?? new Map();
 
     const evidenciasFiltradas = input.semestre
-      ? input.evidencias.filter((e) => e.periodo.includes(input.semestre!))
+      ? input.evidencias.filter((e) => e.periodo === input.semestre)
       : input.evidencias;
 
     const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof input.evidencias)[0]>();
@@ -442,6 +441,20 @@ export class PanelProgramasService implements OnModuleInit {
     }
 
     return where;
+  }
+
+  /**
+   * Con semestre explícito se conservan todas las evidencias de ese periodo, aunque el ciclo
+   * vigente haya empezado después. Sin semestre se mantiene el recorte al ciclo actual.
+   */
+  private evidenciaCuentaEnPeriodo(
+    evidencia: { periodo: string; programaId: string | null; createdAt: Date },
+    semestre: string | undefined,
+    inicioCicloPorPrograma: { get(id: string): Date | null | undefined },
+  ): boolean {
+    if (semestre) return evidencia.periodo === semestre;
+    const inicio = inicioCicloPorPrograma.get(evidencia.programaId ?? '');
+    return inicio ? evidencia.createdAt.getTime() >= inicio.getTime() : true;
   }
 
   private estadosRevisados(): EstadoEvidencia[] {
