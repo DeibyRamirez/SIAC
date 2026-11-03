@@ -21,6 +21,7 @@ import { AcreditacionModule } from './acreditacion/acreditacion.module';
 import { MetricasModule } from './metricas/metricas.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { SaludModule } from './salud/salud.module';
+import { CifrasInstitucionalesModule } from './cifras-institucionales/cifras-institucionales.module';
 import { MiddlewareContextoRls } from './prisma/middleware-contexto-rls';
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { MiddlewareContextoRls } from './prisma/middleware-contexto-rls';
     AcreditacionModule,
     MetricasModule,
     SaludModule,
+    CifrasInstitucionalesModule,
   ],
 })
 export class AppModule implements NestModule {

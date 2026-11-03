@@ -86,7 +86,7 @@ Si class-validator devuelve una lista de mensajes, el filtro la une con `, `. Fu
 | 503 | `GET /api/v1/salud` cuando el ping a la base supera 3 s o no conecta. El filtro reescribe ese fallo al sobre de error; el cuerpo de éxito sí es `{ estado, baseDatos, latenciaBdMs, marcaTiempo }`. |
 | 500 | Error no controlado, esquema desactualizado (Prisma `P2022`) u otro código de Prisma. |
 
-No hay límite de tasa: la API no responde 429.
+Límite de tasa solo en la API de cifras institucionales (`x-api-key`): 30 `POST` y 120 `GET` por minuto y por clave. Al superarlo responde 429 con mensaje en español. El resto de la API no tiene límite de tasa.
 
 `GET /api/v1/salud` y `POST /api/v1/auth/google` no declaran 400 porque no validan un cuerpo.
 
@@ -159,6 +159,11 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | GET | `/api/v1/institucion/progreso` | Administrador, SuperAdmin, Cargador, Revisor | Progreso del trámite institucional |
 | POST | `/api/v1/institucion/resolucion` | Administrador, SuperAdmin | Carga la resolución MEN de la institución (PDF) |
 | GET | `/api/v1/institucion/resumen` | Administrador, SuperAdmin, Cargador, Revisor | Resumen institucional |
+| POST | `/api/v1/integracion/cifras-institucionales/{categoria}/envios` | api-key | Reemplaza las cifras de un periodo o de una sede. 400 con `{ filasOk, filasError, errores }` si hay filas inválidas; 413 si hay más de 5000; 429 si se supera la tasa |
+| GET | `/api/v1/integracion/cifras-institucionales/{categoria}` | api-key | Lista paginada (`pagina`, `limite`) sin columnas personales. Filtros `periodo` o `sede` según la categoría. 429 si se supera la tasa |
+| POST | `/api/v1/integracion/claves` | SuperAdmin | Crea un integrador y devuelve la clave en claro una sola vez |
+| GET | `/api/v1/integracion/claves` | SuperAdmin | Lista integradores sin la clave y sin el hash |
+| POST | `/api/v1/integracion/claves/{id}/revocar` | SuperAdmin | Revoca la clave |
 | GET | `/api/v1/integracion/estado-storage` | Administrador, SuperAdmin | Estado de la conexión de almacenamiento y de cada bucket |
 | POST | `/api/v1/integracion/sincronizar` | Administrador | Sincroniza programas, usuarios y vínculos desde la API de TI |
 | POST | `/api/v1/integracion/sincronizar-carreras` | Administrador, SuperAdmin | Sincroniza el catálogo de carreras desde la API externa |
@@ -227,7 +232,7 @@ Este contrato de **lectura** no es un endpoint HTTP nuevo. Power BI no pide fila
 |-------|--------|
 | Rol | `siac_powerbi_lectura` |
 | Atributos | `NOLOGIN` hasta que operaciones lo habilite, `NOBYPASSRLS`, `default_transaction_read_only = on` |
-| Objeto | `SELECT` sobre `v_powerbi_puntajes` y las columnas que esa vista necesita |
+| Objeto | `SELECT` sobre `v_powerbi_puntajes`, las ocho vistas `v_powerbi_*` de cifras y las columnas que esas vistas necesitan |
 | Vista | `security_invoker = true`: aplica los permisos y la RLS de quien consulta |
 | Fuera de alcance | `Usuario`, contraseñas, correos, autor, revisor, observaciones, nombres de archivo, borradores y cualquier `INSERT`/`UPDATE`/`DELETE` |
 
@@ -286,16 +291,28 @@ El contrato de datos cubre solo estos dominios, alineados con el catálogo de in
 
 Esas variables son conteos, metros cuadrados o capacidad. **Ninguna de las seis usa unidad porcentaje.** Si más adelante una cifra de estos dominios fuera una tasa, se expresará como número de 0 a 100 con un decimal (unidad `porcentaje`), nunca como fracción entre 0 y 1.
 
-`bienestar` y `relaciones-entorno` siguen en el catálogo HTTP de informes (ocho `categoriaId` al guardar una URL). Quedan **fuera** de este contrato de datos. La hoja LM del Excel maestro tampoco entra: no pertenece a SIAC.
+`bienestar` y `relaciones-entorno` siguen en el catálogo HTTP de informes (ocho `categoriaId` al guardar una URL) y ahora también tienen vista de clave/valor. La hoja LM del Excel no pertenece a SIAC.
 
-Los seis dominios no tienen filas en Postgres. Las tablas de cifras se retiraron (`20261013230000_eliminar_cifras_institucionales`). Hoy el informe se alimenta del Excel maestro y SIAC solo embebe la URL. La única lectura SQL autorizada para `siac_powerbi_lectura` es `v_powerbi_puntajes`.
+Camino 2 guarda las filas en Postgres (migración `20261103160000_camino_2_cifras_institucionales`). `siac_powerbi_lectura` también puede leer, solo con `SELECT`:
 
-No existe `GET /api/v1/powerbi/datos/{dominio}`. No se implementa hasta que el responsable del producto apruebe un feed.
+| Vista | Qué omite |
+|-------|-----------|
+| `v_powerbi_estudiantes` | `nombre_estudiante`, `codigo_estudiante` |
+| `v_powerbi_profesores` | `nombre_profesor` |
+| `v_powerbi_egresados` | `nombre_egresado` |
+| `v_powerbi_investigacion` | — |
+| `v_powerbi_aseguramiento` | — |
+| `v_powerbi_infraestructura` | — (`direccion` es de la sede) |
+| `v_powerbi_bienestar` | — (clave/valor; la hoja no está en el xlsx) |
+| `v_powerbi_relaciones_entorno` | — (clave/valor; la hoja no está en el xlsx) |
 
-### Lo que SIAC todavía no tiene
+El Excel maestro ya no es el destino de la ingesta. Sigue siendo la fuente de columnas y valores permitidos. La hoja LM no entra.
 
-- Filas de estudiantes, profesores o egresados (no hay documento, correo ni teléfono de personas en la vista ni en un feed).
-- Series históricas de las variables de los seis dominios dentro de Postgres.
-- Un periodo `YYYY-1` / `YYYY-2` ligado a esas variables: el periodo de la vista es el del documento guía, no el de la matrícula.
-- Porcentajes de deserción o permanencia en este contrato (esas tasas están en bienestar, que queda fuera).
-- Paginación `pagina` / `tamano` para la vista: no hay API de filas. Si se aprueba un feed, el tamaño por defecto sería 100 y el máximo 500, con `{ datos, pagina, tamano, total }`, pero eso no forma parte del comportamiento actual.
+No existe `GET /api/v1/powerbi/datos/{dominio}`. La lectura HTTP de filas es `GET /api/v1/integracion/cifras-institucionales/{categoria}` con `x-api-key`, paginada con `pagina` y `limite` (defecto 1 y 20, máximo 500) y respuesta `{ datos, total, pagina, limite }`. Tampoco incluye las columnas personales de la tabla anterior.
+
+### Lo que estas vistas no hacen
+
+- No publican documento, correo ni teléfono. El nombre y el código de estudiante, y los nombres de profesor y de egresado, se guardan si el integrador los envía y no salen en el GET ni en las vistas.
+- Un envío sustituye el periodo o la sede: no acumula otra serie del mismo ámbito.
+- `v_powerbi_puntajes` sigue siendo el puntaje de los documentos guía. Su periodo no es el de la matrícula.
+- Las vistas SQL no se paginan. La paginación `pagina` / `limite` es solo del GET de integración.

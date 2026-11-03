@@ -259,7 +259,7 @@ SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
 
 ### 9.3 Power BI (`siac_powerbi_lectura`)
 
-- Solo puede leer `v_powerbi_puntajes`. No tiene acceso a `Usuario` ni a columnas personales y su sesión es de solo lectura.
+- Puede leer `v_powerbi_puntajes` y las vistas `v_powerbi_*` de cifras institucionales. No tiene acceso a `Usuario`, al hash de las claves ni a columnas personales (`nombreEstudiante`, `codigoEstudiante`, `nombreProfesor`, `nombreEgresado`). Su sesión es de solo lectura.
 - Conexión desde Power BI Desktop o el gateway con el conector PostgreSQL:
   - servidor `aws-0-<region>.pooler.supabase.com:5432` (modo sesión);
   - base `postgres`;

@@ -45,6 +45,7 @@ const ESPERADO: Array<[string, TipoEsqueletoPagina]> = [
   ['/administrador/vigencias', 'vigencias'],
   ['/administrador/usuarios', 'asignacion'],
   ['/superadmin/usuarios', 'usuarios'],
+  ['/superadmin/integradores', 'usuarios'],
   ['/administrador/programas', 'catalogo'],
   ['/administrador/programas/id', 'proceso'],
   ['/administrador/programas/institucion', 'proceso'],

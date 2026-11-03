@@ -7,7 +7,7 @@ import { RolUsuario } from '@prisma/client';
  * - `enTransaccion`: dentro de una transacción interactiva el contexto ya se fijó al inicio.
  * Sin rol no se fija nada y la RLS no devuelve filas (fallar cerrado).
  */
-export type RolContextoRls = RolUsuario | 'sistema';
+export type RolContextoRls = RolUsuario | 'sistema' | 'integracion';
 
 export interface ContextoRls {
   usuarioId?: string;
