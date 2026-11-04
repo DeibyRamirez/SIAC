@@ -182,8 +182,8 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | GET | `/api/v1/plantillas/{id}/descargar` | autenticado | URL firmada de la plantilla |
 | GET | `/api/v1/powerbi/embed-token` | Administrador, SuperAdmin | Token o URL de embebido |
 | GET | `/api/v1/powerbi/informes` | Administrador, SuperAdmin | Lista el catálogo de informes y si cada URL pública está configurada |
-| PUT | `/api/v1/powerbi/informes/{categoriaId}` | Administrador, SuperAdmin | Guarda la URL de «Publicar en la web» |
-| GET | `/api/v1/powerbi/informes/{categoriaId}/url` | Administrador, SuperAdmin | Devuelve la URL pública de una categoría |
+| PUT | `/api/v1/powerbi/informes/{categoriaId}` | Administrador, SuperAdmin | Guarda la URL de «Publicar en la web» o el enlace seguro reportEmbed |
+| GET | `/api/v1/powerbi/informes/{categoriaId}/url` | Administrador, SuperAdmin | Devuelve la URL configurada de una categoría |
 | GET | `/api/v1/powerbi/insercion` | Administrador, SuperAdmin | Configuración de la inserción con token, sin secretos |
 | PATCH | `/api/v1/powerbi/insercion` | Administrador, SuperAdmin | Actualiza el interruptor y los identificadores del informe |
 | POST | `/api/v1/powerbi/probar-conexion` | Administrador, SuperAdmin | Prueba Azure y Power BI sin devolver el token |

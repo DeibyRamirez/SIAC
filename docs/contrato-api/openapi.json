@@ -59,7 +59,7 @@
       "ActualizarInformePowerBiDto": {
         "properties": {
           "urlPublica": {
-            "description": "URL pública de Power BI o código iframe pegado desde «Publicar en la web».",
+            "description": "URL de «Publicar en la web» (https://app.powerbi.com/view?r=...) o enlace seguro reportEmbed (reportId y ctid). También acepta el iframe pegado desde Power BI.",
             "example": "https://app.powerbi.com/view?r=eyJrIjoiLi4uIn0",
             "type": "string"
           }
@@ -8086,7 +8086,7 @@
     },
     "/api/v1/powerbi/informes/{categoriaId}": {
       "put": {
-        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nSolo acepta https://app.powerbi.com/view?r=... La respuesta no repite la URL, solo el hash.",
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nAcepta https://app.powerbi.com/view?r=... o https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). groupId, si viene, debe ser un GUID. autoAuth es opcional y solo puede valer true. Rechaza otros hosts, puertos, userinfo y parámetros de más. La respuesta no repite la URL, solo el hash.",
         "operationId": "PowerBiController_actualizarUrl",
         "parameters": [
           {
@@ -8165,7 +8165,7 @@
             "jwt": []
           }
         ],
-        "summary": "Guarda la URL de «Publicar en la web»",
+        "summary": "Guarda la URL de «Publicar en la web» o el enlace seguro reportEmbed",
         "tags": [
           "Power BI"
         ],
@@ -8256,7 +8256,7 @@
             "jwt": []
           }
         ],
-        "summary": "Devuelve la URL pública de una categoría",
+        "summary": "Devuelve la URL configurada de una categoría",
         "tags": [
           "Power BI"
         ],

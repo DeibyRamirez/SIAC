@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-11-03 |
+| **Última actualización** | 2026-11-04 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -117,7 +117,7 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-005 | Copia local maestros + adapter integracion |
 | ADR-006 | Alertas in-app obligatorias; correo espejo del mensaje |
 | ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
-| ADR-009 | Power BI «Publicar en la web» (`POWERBI_MODO=publico`); App Owns Data (`embebido`) bloqueado hasta credenciales Azure. **Informes públicos sin autenticación** |
+| ADR-009 | Power BI «Publicar en la web» (`/view?r=`) y enlace seguro `reportEmbed` (login Microsoft y licencia Pro). App Owns Data (`embebido`) sigue bloqueado hasta credenciales Azure. |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
@@ -486,6 +486,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-04 — Power BI: enlaces seguros reportEmbed
+
+- [Backend/Frontend] `ConfiguracionInformePowerBi` y el panel del dashboard aceptan, además de `https://app.powerbi.com/view?r=`, enlaces `https://app.powerbi.com/reportEmbed` con `reportId` y `ctid` (GUID), `groupId` opcional y `autoAuth` opcional (`true`). Se rechazan otros hosts, puertos, userinfo, esquemas y parámetros.
+- [Frontend] El iframe distingue el aviso público de «Publicar en la web» y el aviso de inicio de sesión de Microsoft para reportEmbed.
+- [Frontend] CSP `frame-src` suma `login.microsoftonline.com`, sus subdominios, `login.microsoft.com`, `*.msauth.net` y `*.msftauth.net` para que el login quepa en el iframe. El backend no usa Helmet.
+- [Sin prisma:deploy] No hay cambio de esquema.
 
 ### 2026-11-03 — Camino 2: API de cifras institucionales en Postgres
 

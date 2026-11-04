@@ -9,7 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { categoriasInformesPowerBi } from '@/lib/informes-powerbi'
-import { extraerUrlPublicaPowerBi } from '@/lib/powerbi/configuracion-powerbi'
+import {
+  AVISO_ENLACE_PUBLICO_POWERBI,
+  AVISO_ENLACE_SEGURO_POWERBI,
+  clasificarUrlInformePowerBi,
+  extraerUrlPublicaPowerBi,
+} from '@/lib/powerbi/configuracion-powerbi'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   actualizarUrlInformePowerBiApi,
@@ -44,7 +49,9 @@ export function PanelConfiguracionInformesPowerBi() {
       return
     }
     if (!extraerUrlPublicaPowerBi(valor)) {
-      toast.error('URL no válida. Use «Publicar en la web» de Power BI.')
+      toast.error(
+        'URL no válida. Use https://app.powerbi.com/view?r=... o un enlace seguro reportEmbed con reportId y ctid.',
+      )
       return
     }
     setGuardando(categoriaId)
@@ -89,7 +96,8 @@ export function PanelConfiguracionInformesPowerBi() {
           <CardTitle className="text-base">Actualizar informes Power BI</CardTitle>
           <p className="text-sm text-muted-foreground">
             Las URL se almacenan en la base de datos con hash de integridad. Solo administradores
-            autenticados pueden consultarlas; no se exponen en el código del navegador.
+            autenticados pueden consultarlas; no se exponen en el código del navegador. Puede pegar
+            un enlace público de «Publicar en la web» o un enlace seguro reportEmbed.
           </p>
         </div>
         <Button
@@ -108,6 +116,10 @@ export function PanelConfiguracionInformesPowerBi() {
       <CardContent className="space-y-4">
         {categoriasInformesPowerBi.map((informe) => {
           const meta = mapaMeta.get(informe.id)
+          const valor = entrada[informe.id] ?? ''
+          const urlDetectada = extraerUrlPublicaPowerBi(valor)
+          const tipoDetectado = urlDetectada ? clasificarUrlInformePowerBi(urlDetectada) : null
+          const avisoId = `pbi-aviso-${informe.id}`
           return (
             <div
               key={informe.id}
@@ -126,12 +138,29 @@ export function PanelConfiguracionInformesPowerBi() {
               </Label>
               <Input
                 id={`pbi-${informe.id}`}
-                placeholder="https://app.powerbi.com/view?r=..."
-                value={entrada[informe.id] ?? ''}
+                placeholder="https://app.powerbi.com/view?r=... o reportEmbed?reportId=...&ctid=..."
+                value={valor}
+                aria-describedby={tipoDetectado ? avisoId : undefined}
                 onChange={(e) =>
                   setEntrada((prev) => ({ ...prev, [informe.id]: e.target.value }))
                 }
               />
+              {tipoDetectado === 'publico' ? (
+                <div id={avisoId} className="space-y-1">
+                  <p className="text-xs font-medium text-ocre">Enlace público</p>
+                  <p role="note" className="text-xs text-ocre">
+                    {AVISO_ENLACE_PUBLICO_POWERBI}
+                  </p>
+                </div>
+              ) : null}
+              {tipoDetectado === 'seguro' ? (
+                <div id={avisoId} className="space-y-1">
+                  <p className="text-xs font-medium text-primary">Enlace seguro</p>
+                  <p role="note" className="text-xs text-primary">
+                    {AVISO_ENLACE_SEGURO_POWERBI}
+                  </p>
+                </div>
+              ) : null}
               <Button
                 type="button"
                 size="sm"

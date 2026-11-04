@@ -146,7 +146,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USUARIO` / `SMTP_CONTRASENA` / `SMTP_FROM` | Solo con `smtp` | Servidor institucional |
 | `POWERBI_TENANT_ID` / `POWERBI_CLIENT_ID` / `POWERBI_CLIENT_SECRET` | No | Entidad de servicio de Azure. Sin valores en el repo; si faltan, el interruptor no activa el informe. El secreto no se muestra en el panel |
 | `POWERBI_WORKSPACE_ID` / `POWERBI_REPORT_ID` / `POWERBI_REPORT_ID_ESTUDIANTES` | No | Solo la ruta simulada `/powerbi/embed-token`. El informe con token usa los id del panel de Administrador |
-| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | URL `https://app.powerbi.com/view?r=...` |
+| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | URL `https://app.powerbi.com/view?r=...` o `reportEmbed` con `reportId` y `ctid` |
 | `CARRERAS_API_URL` | No | Catálogo de carreras (tiene valor por defecto) |
 | `CARRERAS_IMAGENES_BASE_URL` | No | Si falta: `FRONTEND_URL` |
 | `TI_API_URL` / `TI_API_TOKEN` | No | Integración TI |
@@ -193,7 +193,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | 6 | Enviar a revisión y dictaminar como Revisor | Notificación **in-app** (campana) para el destinatario |
 | 7 | Correo de la misma notificación | Llega vía Resend (o a `RESEND_CORREO_SANDBOX`); el enlace apunta al dominio de Vercel |
 | 8 | Prueba de vigencia de 5 min (solo si se habilitó la bandera) | Con umbrales 12/6: al ~86 % del tiempo (≈257 s) alerta amarilla, al ~93 % (≈279 s) roja y al 100 % vencida; 3 avisos por destinatario (Admin/SuperAdmin/Revisor del programa), una sola vez, in-app y correo con `[PRUEBA]` |
-| 9 | Dashboards (`/administrador/dashboard`) | Los informes «Publicar en la web» cargan en el iframe (CSP `frame-src https://app.powerbi.com`) |
+| 9 | Dashboards (`/administrador/dashboard`) | Los informes cargan en el iframe. CSP `frame-src`: `app.powerbi.com` y el login de Microsoft (`login.microsoftonline.com`, `login.microsoft.com`, `*.msauth.net`, `*.msftauth.net`) para `reportEmbed` |
 | 10 | Logs de Render al día siguiente | `Ejecutando cron de vigencias...` a las 06:00 hora Colombia |
 
 ## 8. Decisiones pendientes del PO

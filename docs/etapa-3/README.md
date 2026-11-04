@@ -226,7 +226,7 @@ No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se
 - [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
 - [ ] Cron actualiza semáforo vigencias
 - [ ] Alerta in-app en vencimiento próximo
-- [ ] Power BI: informes con «Publicar en la web» y botón «Reintentar» si el iframe falla (ADR-009); embed token pendiente de credenciales Azure
+- [ ] Power BI: informes con «Publicar en la web» o enlace seguro `reportEmbed`, y botón «Reintentar» si el iframe falla (ADR-009); embed token pendiente de credenciales Azure
 - [ ] Tests unitarios auth pasan
 
 ## Flujo BPM
