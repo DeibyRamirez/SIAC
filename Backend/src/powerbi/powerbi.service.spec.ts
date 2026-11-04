@@ -32,9 +32,17 @@ function crearServicio(
   return new PowerBiService(config, prisma as never);
 }
 
+const REPORT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const CTID = '0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b';
+const URL_SEGURA = `https://app.powerbi.com/reportEmbed?reportId=${REPORT}&autoAuth=true&ctid=${CTID}`;
+
 describe('normalizarUrlPublicaPowerBi', () => {
   it('acepta una URL de Publicar en la web', () => {
     expect(normalizarUrlPublicaPowerBi(`  ${URL_PRUEBA} `)).toBe(URL_PRUEBA);
+  });
+
+  it('acepta un enlace seguro reportEmbed', () => {
+    expect(normalizarUrlPublicaPowerBi(URL_SEGURA)).toBe(URL_SEGURA);
   });
 
   it.each([
@@ -43,6 +51,9 @@ describe('normalizarUrlPublicaPowerBi', () => {
     'http://app.powerbi.com/view?r=abc',
     'https://app.powerbi.com/view?r=',
     'https://app.powerbi.com/reportEmbed?reportId=abc',
+    'https://app.powerbi.com:443/view?r=abc',
+    'https://user@app.powerbi.com/view?r=abc',
+    'javascript:alert(1)',
     'https://ejemplo.com/view?r=abc',
   ])('rechaza %p devolviendo cadena vacía', (valor) => {
     expect(normalizarUrlPublicaPowerBi(valor)).toBe('');
@@ -109,5 +120,42 @@ describe('PowerBiService · estudiantes', () => {
     await expect(crearServicio({}).obtenerEmbedToken('bienestar')).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+});
+
+describe('PowerBiService · guardar URL', () => {
+  function servicioConUpsert() {
+    const upsert = jest.fn().mockImplementation(({ create }: { create: { categoriaId: string; urlHash: string } }) =>
+      Promise.resolve({
+        categoriaId: create.categoriaId,
+        urlHash: create.urlHash,
+        activo: true,
+        updatedAt: new Date('2026-11-04T00:00:00.000Z'),
+      }),
+    );
+    const prisma = {
+      configuracionInformePowerBi: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        upsert,
+      },
+    };
+    const config = { get: () => undefined } as unknown as ConfigService;
+    return { servicio: new PowerBiService(config, prisma as never), upsert };
+  }
+
+  it('persiste reportEmbed y rechaza javascript', async () => {
+    const { servicio, upsert } = servicioConUpsert();
+    const meta = await servicio.guardarUrlPublica('estudiantes', URL_SEGURA, 'usuario-1');
+    expect(meta.configurado).toBe(true);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { categoriaId: 'estudiantes' },
+        create: expect.objectContaining({ urlPublica: URL_SEGURA, actualizadoPorId: 'usuario-1' }),
+      }),
+    );
+    await expect(
+      servicio.guardarUrlPublica('estudiantes', 'javascript:alert(1)', 'usuario-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

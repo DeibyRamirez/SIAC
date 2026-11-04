@@ -1,9 +1,26 @@
 /**
- * HU-009 (T-009.3): solo se declara `frame-src` para permitir los informes de
- * «Publicar en la web» de Power BI. No se agrega ninguna otra directiva, así que el resto
- * de la política del navegador no cambia (no se relaja nada que existiera).
+ * HU-009: solo se declara `frame-src`. El informe (Publicar en la web y reportEmbed)
+ * carga desde app.powerbi.com. reportEmbed con autoAuth puede navegar ese mismo
+ * iframe al inicio de sesión de Microsoft; sin estos orígenes el navegador bloquea
+ * el login. No se agregan script-src, style-src ni comodines de microsoft.com.
+ * El backend no usa Helmet, así que no hay otra CSP que ajustar.
+ *
+ * - https://app.powerbi.com — documento del informe
+ * - https://login.microsoftonline.com y https://*.login.microsoftonline.com — login
+ *   de la organización (incluye device.login.microsoftonline.com)
+ * - https://login.microsoft.com — redirección de la cuenta Microsoft
+ * - https://*.msauth.net y https://*.msftauth.net — el login a veces sustituye
+ *   el documento del iframe por estos hosts
  */
-const politicaSeguridadContenido = "frame-src 'self' https://app.powerbi.com"
+const politicaSeguridadContenido = [
+  "frame-src 'self'",
+  'https://app.powerbi.com',
+  'https://login.microsoftonline.com',
+  'https://*.login.microsoftonline.com',
+  'https://login.microsoft.com',
+  'https://*.msauth.net',
+  'https://*.msftauth.net',
+].join(' ')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

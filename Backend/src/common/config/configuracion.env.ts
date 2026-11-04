@@ -1,23 +1,13 @@
+import { analizarUrlInformePowerBi } from '../../powerbi/validar-url-informe';
 import { resolverPuerto } from './servidor';
 
-const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r=';
-
 /**
- * Valida una URL opcional de «Publicar en la web» de Power BI (HU-009).
- * Devuelve la URL limpia si empieza por https://app.powerbi.com/view?r= y trae `r`;
- * en otro caso devuelve '' (sin configurar o inválida).
+ * Valida una URL opcional de informe Power BI (HU-009).
+ * Acepta «Publicar en la web» (`/view?r=`) y el enlace seguro `reportEmbed`.
+ * En otro caso devuelve '' (sin configurar o inválida).
  */
 export function normalizarUrlPublicaPowerBi(valor: string | undefined | null): string {
-  const limpia = valor?.trim() ?? '';
-  if (!limpia.startsWith(PREFIJO_URL_PUBLICA_POWERBI)) return '';
-  try {
-    const url = new URL(limpia);
-    return url.hostname === 'app.powerbi.com' && url.pathname === '/view' && url.searchParams.get('r')
-      ? limpia
-      : '';
-  } catch {
-    return '';
-  }
+  return analizarUrlInformePowerBi(valor)?.url ?? '';
 }
 
 export const configuracionEnv = () => {

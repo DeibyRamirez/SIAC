@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
 import {
+  AVISO_ENLACE_PUBLICO_POWERBI,
+  AVISO_ENLACE_SEGURO_POWERBI,
   obtenerModoPowerBi,
   TIEMPO_MAXIMO_CARGA_INFORME_MS,
   type ModoPowerBi,
@@ -73,7 +75,7 @@ function AvisoInformeIndisponible({
 
 type EstadoCargaIframe = 'cargando' | 'cargado' | 'fallido'
 
-/** Modo `publico`: iframe con la URL de «Publicar en la web» de la categoría. */
+/** Modo `publico`: iframe con la URL guardada (`/view` o `reportEmbed`). */
 function InformePowerBiPublico({
   informe,
   tiempoMaximoCargaMs,
@@ -131,8 +133,17 @@ function InformePowerBiPublico({
 
   return (
     <div className="tarjeta-visual overflow-hidden bg-white">
-      <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-        Informe Power BI · {informe.titulo}
+      <div className="border-b px-4 py-3 text-sm">
+        <p className="text-muted-foreground">Informe Power BI · {informe.titulo}</p>
+        <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-primary">
+          {estadoUrl.tipo === 'seguro' ? 'Enlace seguro' : 'Enlace público'}
+        </p>
+        <p
+          className={estadoUrl.tipo === 'seguro' ? 'mt-2 text-muted-foreground' : 'mt-2 text-ocre'}
+          role="note"
+        >
+          {estadoUrl.tipo === 'seguro' ? AVISO_ENLACE_SEGURO_POWERBI : AVISO_ENLACE_PUBLICO_POWERBI}
+        </p>
       </div>
       <div className="relative aspect-[4/3] w-full sm:aspect-video">
         {estadoCarga === 'cargando' ? (

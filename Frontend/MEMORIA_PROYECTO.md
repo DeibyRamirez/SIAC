@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-09-08 |
+| **Última actualización** | 2026-11-04 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`backend/package.json`) |
 | **Rama activa** | Simulación SIAC — implementación completa |
@@ -317,6 +317,10 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 ---
 
 ## 14. Registro de cambios (changelog de memoria)
+
+### 2026-11-04 — Enlaces seguros reportEmbed en el dashboard
+
+- [Frontend] El panel y el iframe aceptan `reportEmbed` (GUID de `reportId` y `ctid`) además de «Publicar en la web». Cada tipo muestra su aviso. La CSP `frame-src` incluye el login de Microsoft.
 
 ### 2026-11-03 — Periodo vigente en Bogotá y aviso del .docx
 
