@@ -22,6 +22,7 @@ const rutasBusqueda = [
   { href: '/cargador/evidencias', etiqueta: 'Mis evidencias', grupo: 'Profesor' },
   { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', grupo: 'Revisor' },
   { href: '/superadmin', etiqueta: 'Panel SuperAdmin', grupo: 'SuperAdmin' },
+  { href: '/superadmin/integradores', etiqueta: 'Claves de integración', grupo: 'SuperAdmin' },
 ]
 
 function rutaDetalleEvidencia(rol: RolUsuario, id: string): string {

@@ -487,6 +487,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
+### 2026-11-03 — Camino 2: API de cifras institucionales en Postgres
+
+- [Decisión] ADR-010: el almacén es Postgres. Reemplaza la opción B1 (escribir el Excel) por concurrencia, transacciones y el GET. El xlsx queda como fuente de validación. `bienestar` y `relaciones-entorno` no tienen hoja: usan clave/valor.
+- [BD] Migración `20261103160000_camino_2_cifras_institucionales`: `Integrador` (hash SHA-256), ocho tablas de cifras, RLS, funciones `siac.integradores_activos` y `siac.marcar_uso_integrador`, y vistas `v_powerbi_*` con `GRANT SELECT` solo para `siac_powerbi_lectura`. Sin columnas personales en esas vistas.
+- [Backend] `POST/GET /api/v1/integracion/cifras-institucionales/:categoria` con `x-api-key`, reemplazo transaccional del periodo o de la sede, y claves solo para SuperAdmin. Tope 5.000 filas y tasa 30 POST / 120 GET por minuto.
+- [Frontend] Sección de SuperAdmin para crear, listar y revocar claves. La clave se muestra una sola vez.
+
 ### 2026-11-03 — Periodos académicos: formato, Bogotá y conservación histórica
 
 - [Backend] `periodo` de alta y actualización exige `AAAA-1` o `AAAA-2`. La ingesta Excel rechaza otro formato con error en español y no guarda esa fila. No hay migración: `pnpm datos:contar-periodos-invalidos` (o el SQL del script) solo cuenta filas fuera de formato.

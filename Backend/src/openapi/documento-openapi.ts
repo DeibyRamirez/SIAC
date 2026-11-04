@@ -13,10 +13,20 @@ export function configuracionOpenApi() {
       'Sistema Interno de Aseguramiento de la Calidad — CUAC. ' +
         'Contrato OpenAPI 3 de los endpoints existentes. ' +
         'Las rutas incluyen el prefijo /api/v1. ' +
-        'La autenticación es Bearer JWT, salvo los endpoints marcados como públicos. ' +
+        'La autenticación es Bearer JWT, salvo los endpoints públicos y los de cifras institucionales (cabecera x-api-key). ' +
         'El detalle de roles, errores, paginación y el contrato de datos Power BI está en docs/contrato-api/README.md.',
     )
     .setVersion('1.0')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description:
+          'Clave de un integrador. Se entrega una sola vez al crearla y no se vuelve a mostrar. No se registra en logs.',
+      },
+      'api-key',
+    )
     .addBearerAuth(
       {
         type: 'http',
@@ -41,6 +51,8 @@ export function configuracionOpenApi() {
     .addTag('Estructura', 'Árbol de etapas, carpetas y documentos requeridos.')
     .addTag('Acreditación', 'Alias de lectura de etapas.')
     .addTag('Integración', 'Sincronización del catálogo institucional.')
+    .addTag('Cifras institucionales', 'Recepción y lectura de cifras por categoría, con clave de integrador.')
+    .addTag('Claves de integración', 'Alta, listado y revocación de claves. Solo SuperAdmin.')
     .addTag('Configuración', 'Umbrales del semáforo de vigencia.')
     .addTag('Salud', 'Health check público.')
     .addTag('Almacenamiento', 'Descarga del disco local de desarrollo.')

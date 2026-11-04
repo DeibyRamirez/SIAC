@@ -16,6 +16,8 @@ import {
   ApiOperation,
   ApiProduces,
   ApiQuery,
+  ApiResponse,
+  ApiSecurity,
   ApiServiceUnavailableResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -28,13 +30,17 @@ export type RolContrato =
   | 'Cargador'
   | 'Revisor'
   | 'Administrador'
-  | 'SuperAdmin';
+  | 'SuperAdmin'
+  | 'api-key';
 
 const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 function textoRoles(roles: readonly RolContrato[]): string {
   if (roles.length === 1 && roles[0] === 'publico') {
     return 'Acceso público: no envía la cabecera Authorization.';
+  }
+  if (roles.length === 1 && roles[0] === 'api-key') {
+    return 'Autenticación con la cabecera x-api-key de un integrador activo. No usa JWT.';
   }
   if (roles.includes('autenticado')) {
     return 'Cualquier usuario con sesión válida.';
@@ -56,13 +62,16 @@ export function ApiContrato(opciones: {
   descripcionRespuesta?: string;
   /** POST que Nest responde con 201 (sin @HttpCode). */
   creacion?: boolean;
+  /** Autenticación por cabecera x-api-key, sin JWT. */
+  claveApi?: boolean;
   /** El endpoint no valida cuerpo ni consulta, así que no declara 400. */
   sinValidacion?: boolean;
   /** Respuesta binaria (StreamableFile o tubería con @Res). */
   binario?: string;
-  tambien?: Array<401 | 404 | 409 | 501 | 502 | 503>;
+  tambien?: Array<401 | 404 | 409 | 413 | 429 | 501 | 502 | 503>;
 }) {
   const publico = opciones.roles.length === 1 && opciones.roles[0] === 'publico';
+  const claveApi = Boolean(opciones.claveApi);
   const decoradores: Array<ClassDecorator | MethodDecorator | PropertyDecorator> = [
     ApiOperation({
       summary: opciones.resumen,
@@ -71,7 +80,8 @@ export function ApiContrato(opciones: {
     ApiExtension('x-siac-roles', [...opciones.roles]),
   ];
 
-  if (!publico) decoradores.push(ApiBearerAuth('jwt'));
+  if (claveApi) decoradores.push(ApiSecurity('api-key'));
+  else if (!publico) decoradores.push(ApiBearerAuth('jwt'));
 
   const descOk = opciones.descripcionRespuesta ?? 'Resultado de la operación.';
   if (opciones.binario) {
@@ -98,7 +108,9 @@ export function ApiContrato(opciones: {
   }
 
   const codigos = new Set<number>(opciones.tambien ?? []);
-  if (!publico) {
+  if (claveApi) {
+    codigos.add(401);
+  } else if (!publico) {
     codigos.add(401);
     codigos.add(403);
   }
@@ -116,7 +128,9 @@ export function ApiContrato(opciones: {
   if (codigos.has(401)) {
     decoradores.push(
       ApiUnauthorizedResponse({
-        description: 'Token ausente, vencido, credenciales inválidas o usuario inactivo.',
+        description: claveApi
+          ? 'Clave de API ausente, revocada o no válida.'
+          : 'Token ausente, vencido, credenciales inválidas o usuario inactivo.',
         type: ErrorHttpDto,
       }),
     );
@@ -133,6 +147,24 @@ export function ApiContrato(opciones: {
     decoradores.push(
       ApiNotFoundResponse({
         description: 'El recurso no existe o el archivo no está disponible.',
+        type: ErrorHttpDto,
+      }),
+    );
+  }
+  if (codigos.has(413)) {
+    decoradores.push(
+      ApiResponse({
+        status: 413,
+        description: 'El lote supera el máximo de 5000 registros.',
+        type: ErrorHttpDto,
+      }),
+    );
+  }
+  if (codigos.has(429)) {
+    decoradores.push(
+      ApiResponse({
+        status: 429,
+        description: 'Demasiadas solicitudes para esta clave. El límite se cuenta por minuto.',
         type: ErrorHttpDto,
       }),
     );

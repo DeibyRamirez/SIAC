@@ -25,6 +25,10 @@ export const USUARIOS_SEMILLA = {
     correo: 'admin.planeacion@uniautonoma.edu.co',
     contrasena: CLAVES_SEMILLA.Administrador,
   },
+  SuperAdmin: {
+    correo: 'superadmin@uniautonoma.edu.co',
+    contrasena: CLAVES_SEMILLA.SuperAdmin,
+  },
 } as const;
 
 export interface ContextoE2E {
@@ -143,7 +147,16 @@ export async function limpiarDatosNegocio(prisma: PrismaService): Promise<void> 
       "Evidencia",
       "AnexoVigencia",
       "UsuarioPrograma",
-      "Programa"
+      "Programa",
+      "CifraEstudiante",
+      "CifraProfesor",
+      "CifraEgresado",
+      "CifraInvestigacion",
+      "CifraAseguramiento",
+      "CifraInfraestructura",
+      "CifraBienestar",
+      "CifraRelacionEntorno",
+      "Integrador"
     CASCADE
   `);
   await prisma.usuario.deleteMany({ where: { correo: { endsWith: '@e2e.siac.test' } } });

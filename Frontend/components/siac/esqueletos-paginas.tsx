@@ -40,6 +40,7 @@ const REGLAS: Array<[RegExp, TipoEsqueletoPagina]> = [
   [/^\/administrador\/evidencias$/, 'busqueda'],
   [/^\/administrador\/vigencias/, 'vigencias'],
   [/^\/superadmin\/usuarios/, 'usuarios'],
+  [/^\/superadmin\/integradores/, 'usuarios'],
   [/^\/administrador\/usuarios/, 'asignacion'],
   [/^\/administrador\/programas\/.+/, 'proceso'],
   [/^\/administrador\/programas$/, 'catalogo'],

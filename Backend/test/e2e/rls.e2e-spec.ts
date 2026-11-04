@@ -268,6 +268,10 @@ describe('RLS en PostgreSQL (siac_app y siac_powerbi_lectura)', () => {
 
       await expect(powerbi.$queryRaw`SELECT count(*) FROM "Usuario"`).rejects.toThrow(/permission denied/);
       await expect(powerbi.$queryRaw`SELECT "autorId" FROM "Evidencia"`).rejects.toThrow(/permission denied/);
+      await expect(powerbi.$queryRaw`SELECT "id" FROM "v_powerbi_estudiantes"`).resolves.toEqual([]);
+      await expect(
+        powerbi.$queryRaw`SELECT "nombreEstudiante" FROM "CifraEstudiante"`,
+      ).rejects.toThrow(/permission denied/);
       await expect(
         powerbi.$executeRaw`UPDATE "Programa" SET "nombre" = 'x'`,
       ).rejects.toThrow(/read-only|permission denied/);

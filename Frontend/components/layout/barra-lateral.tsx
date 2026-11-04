@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   FileCheck2,
   Files,
+  KeyRound,
   LayoutDashboard,
   Settings,
   ShieldCheck,
@@ -79,6 +80,7 @@ function itemsSuperAdmin(): ItemNavegacion[] {
   return [
     { href: '/superadmin', etiqueta: 'Panel SuperAdmin', icono: ShieldCheck },
     { href: '/superadmin/usuarios', etiqueta: 'Gestión de usuarios', icono: Users },
+    { href: '/superadmin/integradores', etiqueta: 'Claves de integración', icono: KeyRound },
     { href: '/cargador', etiqueta: 'Módulo profesor', icono: Files },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja revisor', icono: FileCheck2, mostrarBadge: true },
     { href: '/administrador', etiqueta: 'Módulo administrador', icono: LayoutDashboard },
