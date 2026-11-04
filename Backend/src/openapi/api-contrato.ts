@@ -10,12 +10,14 @@ import {
   ApiExtension,
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiNotImplementedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiProduces,
   ApiQuery,
+  ApiSecurity,
   ApiServiceUnavailableResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -28,7 +30,8 @@ export type RolContrato =
   | 'Cargador'
   | 'Revisor'
   | 'Administrador'
-  | 'SuperAdmin';
+  | 'SuperAdmin'
+  | 'integrador';
 
 const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -38,6 +41,12 @@ function textoRoles(roles: readonly RolContrato[]): string {
   }
   if (roles.includes('autenticado')) {
     return 'Cualquier usuario con sesión válida.';
+  }
+  if (roles.includes('integrador')) {
+    return (
+      `Roles: ${roles.join(', ')}. ` +
+      'El integrador se autentica con la cabecera x-api-key. SuperAdmin atraviesa las listas JWT.'
+    );
   }
   return (
     `Roles: ${roles.join(', ')}. ` +
@@ -60,6 +69,10 @@ export function ApiContrato(opciones: {
   sinValidacion?: boolean;
   /** Respuesta binaria (StreamableFile o tubería con @Res). */
   binario?: string;
+  /** jwt (defecto), apiKey (x-api-key) o ambas (OR). */
+  auth?: 'jwt' | 'apiKey' | 'jwtOApiKey';
+  /** DELETE u otra operación sin cuerpo (204). */
+  sinCuerpo?: boolean;
   tambien?: Array<401 | 404 | 409 | 501 | 502 | 503>;
 }) {
   const publico = opciones.roles.length === 1 && opciones.roles[0] === 'publico';
@@ -71,10 +84,14 @@ export function ApiContrato(opciones: {
     ApiExtension('x-siac-roles', [...opciones.roles]),
   ];
 
-  if (!publico) decoradores.push(ApiBearerAuth('jwt'));
+  const auth = opciones.auth ?? (publico ? undefined : 'jwt');
+  if (auth === 'jwt' || auth === 'jwtOApiKey') decoradores.push(ApiBearerAuth('jwt'));
+  if (auth === 'apiKey' || auth === 'jwtOApiKey') decoradores.push(ApiSecurity('apiKey'));
 
   const descOk = opciones.descripcionRespuesta ?? 'Resultado de la operación.';
-  if (opciones.binario) {
+  if (opciones.sinCuerpo) {
+    decoradores.push(ApiNoContentResponse({ description: descOk }));
+  } else if (opciones.binario) {
     decoradores.push(
       ApiProduces(opciones.binario),
       ApiOkResponse({
@@ -116,7 +133,12 @@ export function ApiContrato(opciones: {
   if (codigos.has(401)) {
     decoradores.push(
       ApiUnauthorizedResponse({
-        description: 'Token ausente, vencido, credenciales inválidas o usuario inactivo.',
+        description:
+          auth === 'apiKey'
+            ? 'Cabecera x-api-key ausente o inválida.'
+            : auth === 'jwtOApiKey'
+              ? 'Token JWT o cabecera x-api-key ausente o inválidos.'
+              : 'Token ausente, vencido, credenciales inválidas o usuario inactivo.',
         type: ErrorHttpDto,
       }),
     );

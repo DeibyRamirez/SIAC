@@ -207,7 +207,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 
 ## 9. RLS: roles `siac_app` y `siac_powerbi_lectura` (21/10/2026)
 
-Las migraciones `20261021000000_rls_roles_funciones` y `20261021000100_rls_politicas` activan RLS (ENABLE + FORCE) en las 22 tablas. Crean los dos roles **sin LOGIN ni contraseña**: el acceso se habilita a mano en cada entorno. El diseño está en `plan-rls.md`.
+Las migraciones `20261021000000_rls_roles_funciones` y `20261021000100_rls_politicas` activan RLS (ENABLE + FORCE) en las tablas de negocio. `20261104090000_camino2_cifras_institucionales` suma 10 tablas de Camino 2 (claves, envíos y 8 `Cifra*`) con la misma RLS. Crean los dos roles **sin LOGIN ni contraseña**: el acceso se habilita a mano en cada entorno. El diseño está en `plan-rls.md`.
 
 - La API debe conectarse como `siac_app`, que no tiene `BYPASSRLS`.
 - `DIRECT_URL` (migraciones, semilla y scripts de mantenimiento) sigue con el dueño `postgres`.
@@ -239,7 +239,7 @@ SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
    -- esperado: siac_app y siac_powerbi_lectura con rolcanlogin = true y rolbypassrls = false
    SELECT count(*) FROM pg_class
    WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' AND relrowsecurity AND relforcerowsecurity;
-   -- esperado: 22 (todas salvo _prisma_migrations)
+   -- esperado: 32 (todas salvo _prisma_migrations)
    ```
 4. **Render → Environment → `DATABASE_URL`**: cambiar solo el usuario y la contraseña (mismo host, puerto 6543 y parámetros):
    `postgresql://siac_app.<ref>:<contraseña-siac_app>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1`
@@ -259,7 +259,7 @@ SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
 
 ### 9.3 Power BI (`siac_powerbi_lectura`)
 
-- Solo puede leer `v_powerbi_puntajes`. No tiene acceso a `Usuario` ni a columnas personales y su sesión es de solo lectura.
+- Puede leer `v_powerbi_puntajes` y `v_powerbi_cifras_*`. No tiene acceso a `Usuario`, a `ClaveIntegracion` ni a columnas de nombre personal, y su sesión es de solo lectura.
 - Conexión desde Power BI Desktop o el gateway con el conector PostgreSQL:
   - servidor `aws-0-<region>.pooler.supabase.com:5432` (modo sesión);
   - base `postgres`;
@@ -276,7 +276,7 @@ SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
   ALTER ROLE siac_app NOLOGIN;
   ALTER ROLE siac_powerbi_lectura NOLOGIN;
   ```
-- **Quitar la RLS del todo** (no recomendado): `ALTER TABLE "<tabla>" NO FORCE ROW LEVEL SECURITY; ALTER TABLE "<tabla>" DISABLE ROW LEVEL SECURITY;` en las 22 tablas, mediante una migración nueva. Nunca editar las migraciones ya aplicadas.
+- **Quitar la RLS del todo** (no recomendado): `ALTER TABLE "<tabla>" NO FORCE ROW LEVEL SECURITY; ALTER TABLE "<tabla>" DISABLE ROW LEVEL SECURITY;` en las 32 tablas, mediante una migración nueva. Nunca editar las migraciones ya aplicadas.
 
 ### 9.5 Desarrollo local y CI
 

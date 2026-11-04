@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-10-29 |
+| **Última actualización** | 2026-11-03 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -80,6 +80,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Notificaciones | `/notificaciones` | AlertaInApp |
 | Acreditacion | `/acreditacion` | Checklist normativo |
 | Integracion | `/integracion` | UPSERT maestros TI |
+| Cifras institucionales | `/integracion/cifras-institucionales` | Camino 2: claves `x-api-key` y lotes JSON hacia Postgres |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
 | Power BI | `/powerbi`, `/powerbi/embed-token`, `/powerbi/insercion`, `/powerbi/token-insercion` | URLs públicas y, si el interruptor está encendido, token de inserción |
@@ -93,6 +94,8 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 **Enums clave:** `RolUsuario` (`Cargador`, `Revisor`, `Administrador`, `SuperAdmin`; `ParAcademico` eliminado el 20/10/2026), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
 
 **Campos maestros TI:** `idExterno`, `origenDato`, `fechaSincronizacion` en Usuario y Programa.
+
+**Camino 2 (cifras institucionales):** `ClaveIntegracion`, `EnvioCifras` y ocho tablas `Cifra*` (estudiantes, profesores, egresados, investigación, aseguramiento, infraestructura, bienestar, relaciones con el entorno). Power BI lee `v_powerbi_cifras_*` (sin nombres personales) con `siac_powerbi_lectura`. Total de tablas con RLS ENABLE+FORCE: **32**.
 
 ### Catálogo externo vs dominio SIAC (ADR-005)
 
@@ -119,6 +122,7 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
 | ADR-009 | Power BI «Publicar en la web» (`POWERBI_MODO=publico`); App Owns Data (`embebido`) bloqueado hasta credenciales Azure. **Informes públicos sin autenticación** |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
+| ADR-010 | Camino 2: API JSON → Postgres (`Cifra*`) → vistas `v_powerbi_cifras_*`. Camino 1 (Excel) no se toca. Data API cerrada. |
 
 ### Brechas backend pendientes
 
@@ -486,6 +490,12 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-03 — Camino 2: API de cifras institucionales a Postgres
+
+- [BD] Migración `20261104090000_camino2_cifras_institucionales`: `ClaveIntegracion`, `EnvioCifras`, ocho tablas `Cifra*` y vistas `v_powerbi_cifras_*` (sin nombres personales). RLS ENABLE+FORCE. `siac_powerbi_lectura` lee las vistas, no `ClaveIntegracion`. Data API sigue cerrada.
+- [Backend] `POST/GET/PATCH/DELETE /api/v1/integracion/cifras-institucionales/claves` (JWT Admin). `POST .../{categoriaId}/envios` con `x-api-key` (reemplazo por periodo o sede, máximo 5000 filas, 400 `CIFRAS_LOTE_INVALIDO` sin escribir). `GET .../esquema` y `GET .../datos` (Admin o clave).
+- [Docs] ADR-010 aceptada (B3). Guía y colección Postman en `docs/camino-2-api-cifras-institucionales.md` y `docs/postman/camino-2-cifras.postman_collection.json`. Camino 1 (Excel embebido) no se toca.
 
 ### 2026-10-29 — Contrato OpenAPI de la API
 

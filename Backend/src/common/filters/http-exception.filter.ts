@@ -118,6 +118,10 @@ export class FiltroExcepcionHttp implements ExceptionFilter {
         if (typeof codigo === 'string' && /^[A-Z0-9_]{1,64}$/.test(codigo)) {
           payload.codigo = codigo;
         }
+        const errores = (cuerpo as Record<string, unknown>).errores;
+        if (Array.isArray(errores)) {
+          payload.errores = errores;
+        }
       }
     }
 

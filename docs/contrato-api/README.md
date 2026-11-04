@@ -32,6 +32,8 @@ Authorization: Bearer <token>
 
 El token lo entrega `POST /api/v1/auth/login`. El cuerpo es `{ correo, contrasena }`. El correo debe ser del dominio institucional (`DOMINIO_INSTITUCIONAL`, por defecto `uniautonoma.edu.co`). Una cuenta inactiva recibe 401 y no obtiene token. La contraseña del login exige al menos 4 caracteres; al crear o cambiar un usuario la política es otra: mínimo 8 caracteres, con letras, una mayúscula, un número y un símbolo.
 
+Los envíos de cifras de Camino 2 no usan JWT: llevan `x-api-key` emitida por `POST /api/v1/integracion/cifras-institucionales/claves`. El secreto se hashea (SHA-256) y solo se muestra al crearlo. Guía y colección Postman: [`docs/camino-2-api-cifras-institucionales.md`](../camino-2-api-cifras-institucionales.md) y [`docs/postman/camino-2-cifras.postman_collection.json`](../postman/camino-2-cifras.postman_collection.json).
+
 El JWT incluye `sub` (id), `correo` y `rol`. En cada petición `JwtStrategy` vuelve a leer el usuario: si no existe o está inactivo, responde 401. La respuesta de login y de `GET /api/v1/auth/perfil` no incluye la contraseña ni su hash.
 
 `POST /api/v1/auth/google` responde **501**. OAuth institucional sigue pendiente (ADR-003).
@@ -163,6 +165,13 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | POST | `/api/v1/integracion/sincronizar` | Administrador | Sincroniza programas, usuarios y vínculos desde la API de TI |
 | POST | `/api/v1/integracion/sincronizar-carreras` | Administrador, SuperAdmin | Sincroniza el catálogo de carreras desde la API externa |
 | POST | `/api/v1/integracion/sincronizar-csv` | Administrador | Sincroniza programas desde un CSV |
+| GET | `/api/v1/integracion/cifras-institucionales/claves` | Administrador, SuperAdmin | Lista las claves de integración (sin el secreto) |
+| POST | `/api/v1/integracion/cifras-institucionales/claves` | Administrador, SuperAdmin | Crea una clave; el secreto en claro solo aparece aquí |
+| PATCH | `/api/v1/integracion/cifras-institucionales/claves/{id}` | Administrador, SuperAdmin | Activa, revoca o cambia las categorías de una clave |
+| DELETE | `/api/v1/integracion/cifras-institucionales/claves/{id}` | Administrador, SuperAdmin | Revoca una clave (queda inactiva) |
+| GET | `/api/v1/integracion/cifras-institucionales/{categoriaId}/datos` | Administrador, SuperAdmin, integrador | Lee cifras paginadas sin nombres personales |
+| POST | `/api/v1/integracion/cifras-institucionales/{categoriaId}/envios` | integrador | Reemplaza el lote de un periodo (o sede) |
+| GET | `/api/v1/integracion/cifras-institucionales/{categoriaId}/esquema` | Administrador, SuperAdmin, integrador | Esquema de columnas de la categoría |
 | GET | `/api/v1/metricas/token` | Administrador | Token de embebido Power BI (alias de /powerbi/embed-token) |
 | GET | `/api/v1/notificaciones` | autenticado | Lista las alertas en la aplicación del usuario |
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | autenticado | Marca como leídas las alertas del usuario |
@@ -219,7 +228,12 @@ El detalle de cada operación (campos, ejemplos y códigos) está en [`openapi.j
 
 ## Contrato de datos para Power BI
 
-Este contrato de **lectura** no es un endpoint HTTP nuevo. Power BI no pide filas a `/api/v1`. Lee PostgreSQL con un rol propio. `/api/v1/powerbi/informes`, `/api/v1/powerbi/embed-token` y `/api/v1/metricas/token` administran la URL pública y el token de embebido. `/api/v1/powerbi/insercion`, `/api/v1/powerbi/probar-conexion` y `/api/v1/powerbi/token-insercion` configuran y entregan el token de inserción. Ninguno consulta la vista.
+Power BI lee PostgreSQL con el rol `siac_powerbi_lectura`. Hay dos conjuntos de vistas:
+
+- `v_powerbi_puntajes`: puntajes de documentos guía (G1/G3).
+- `v_powerbi_cifras_*`: filas de Camino 2 (estudiantes, profesores, egresados, investigación, aseguramiento, infraestructura, bienestar, relaciones con el entorno), **sin nombres personales**.
+
+`/api/v1/powerbi/informes`, `/api/v1/powerbi/embed-token` y `/api/v1/metricas/token` administran la URL pública y el token de embebido (Camino 1). `/api/v1/integracion/cifras-institucionales/...` escribe y lee el hub Postgres (Camino 2). La Data API de Supabase (PostgREST) sigue cerrada.
 
 ### Quién puede leer
 
@@ -227,7 +241,7 @@ Este contrato de **lectura** no es un endpoint HTTP nuevo. Power BI no pide fila
 |-------|--------|
 | Rol | `siac_powerbi_lectura` |
 | Atributos | `NOLOGIN` hasta que operaciones lo habilite, `NOBYPASSRLS`, `default_transaction_read_only = on` |
-| Objeto | `SELECT` sobre `v_powerbi_puntajes` y las columnas que esa vista necesita |
+| Objeto | `SELECT` sobre `v_powerbi_puntajes`, `v_powerbi_cifras_*` y las columnas no personales que esas vistas necesitan |
 | Vista | `security_invoker = true`: aplica los permisos y la RLS de quien consulta |
 | Fuera de alcance | `Usuario`, contraseñas, correos, autor, revisor, observaciones, nombres de archivo, borradores y cualquier `INSERT`/`UPDATE`/`DELETE` |
 
@@ -288,14 +302,10 @@ Esas variables son conteos, metros cuadrados o capacidad. **Ninguna de las seis 
 
 `bienestar` y `relaciones-entorno` siguen en el catálogo HTTP de informes (ocho `categoriaId` al guardar una URL). Quedan **fuera** de este contrato de datos. La hoja LM del Excel maestro tampoco entra: no pertenece a SIAC.
 
-Los seis dominios no tienen filas en Postgres. Las tablas de cifras se retiraron (`20261013230000_eliminar_cifras_institucionales`). Hoy el informe se alimenta del Excel maestro y SIAC solo embebe la URL. La única lectura SQL autorizada para `siac_powerbi_lectura` es `v_powerbi_puntajes`.
-
-No existe `GET /api/v1/powerbi/datos/{dominio}`. No se implementa hasta que el responsable del producto apruebe un feed.
+Camino 1 sigue alimentando los informes embebidos desde el Excel maestro. Camino 2 escribe las mismas ocho categorías en tablas `Cifra*` y las expone en `v_powerbi_cifras_*`. `GET /api/v1/integracion/cifras-institucionales/{categoriaId}/datos` pagina esas filas (default 100, tope 500) **sin nombres**. Power BI Desktop/Service debe usar el conector PostgreSQL, no `https://<ref>.supabase.co/rest/v1`.
 
 ### Lo que SIAC todavía no tiene
 
-- Filas de estudiantes, profesores o egresados (no hay documento, correo ni teléfono de personas en la vista ni en un feed).
-- Series históricas de las variables de los seis dominios dentro de Postgres.
-- Un periodo `YYYY-1` / `YYYY-2` ligado a esas variables: el periodo de la vista es el del documento guía, no el de la matrícula.
-- Porcentajes de deserción o permanencia en este contrato (esas tasas están en bienestar, que queda fuera).
-- Paginación `pagina` / `tamano` para la vista: no hay API de filas. Si se aprueba un feed, el tamaño por defecto sería 100 y el máximo 500, con `{ datos, pagina, tamano, total }`, pero eso no forma parte del comportamiento actual.
+- Documento de identidad, correo o teléfono de personas en las vistas ni en el feed HTTP.
+- Escritura automática al Excel maestro (Camino 1 y Camino 2 conviven; no se sincronizan solos).
+- PostgREST / Data API de Supabase para estas tablas (sigue revocada a `anon`/`authenticated`).

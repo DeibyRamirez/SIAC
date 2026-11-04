@@ -13,7 +13,8 @@ export function configuracionOpenApi() {
       'Sistema Interno de Aseguramiento de la Calidad — CUAC. ' +
         'Contrato OpenAPI 3 de los endpoints existentes. ' +
         'Las rutas incluyen el prefijo /api/v1. ' +
-        'La autenticación es Bearer JWT, salvo los endpoints marcados como públicos. ' +
+        'La autenticación es Bearer JWT, salvo los endpoints marcados como públicos ' +
+        'y los de cifras institucionales de Camino 2 (cabecera x-api-key). ' +
         'El detalle de roles, errores, paginación y el contrato de datos Power BI está en docs/contrato-api/README.md.',
     )
     .setVersion('1.0')
@@ -25,6 +26,16 @@ export function configuracionOpenApi() {
         description: 'Token devuelto por POST /api/v1/auth/login. Cabecera: Authorization: Bearer <token>.',
       },
       'jwt',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description:
+          'Clave de un sistema integrador (FEAT, SIGA, …). La emite POST /api/v1/integracion/cifras-institucionales/claves.',
+      },
+      'apiKey',
     )
     .addTag('Autenticación', 'Inicio de sesión y perfil.')
     .addTag('Usuarios', 'Cuentas, roles y alcance por programa.')
@@ -41,6 +52,7 @@ export function configuracionOpenApi() {
     .addTag('Estructura', 'Árbol de etapas, carpetas y documentos requeridos.')
     .addTag('Acreditación', 'Alias de lectura de etapas.')
     .addTag('Integración', 'Sincronización del catálogo institucional.')
+    .addTag('Cifras institucionales', 'Camino 2: lotes JSON de sistemas externos hacia Postgres.')
     .addTag('Configuración', 'Umbrales del semáforo de vigencia.')
     .addTag('Salud', 'Health check público.')
     .addTag('Almacenamiento', 'Descarga del disco local de desarrollo.')

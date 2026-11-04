@@ -1,57 +1,71 @@
-# Camino 2 — API de cifras institucionales (guía para integradores)
+# Camino 2 — API de cifras institucionales (implementada)
 
-> **Estado:** contrato y flujo definidos en [ADR-010](adr/ADR-010-camino-2-api-cifras-institucionales.md).  
-> **Los endpoints descritos aquí aún no están implementados** tras la retirada del módulo `/api/v1/cifras` (octubre 2026).
+> **Estado:** implementado (migración `20261104090000_camino2_cifras_institucionales`, ADR-010 aceptada).  
+> Camino 1 (Excel maestro → Power BI → URL embebida) **no cambia**. Camino 2 es un segundo alimento: JSON → PostgreSQL → vistas de solo lectura.
 
-## Qué usa SIAC hoy (Camino 1)
+## Dos caminos hacia el dashboard
 
-1. Excel maestro (p. ej. en Google Drive o servidor institucional) con una hoja por categoría.
-2. Power BI Desktop/Service conectado a ese Excel y refresco programado.
-3. SIAC muestra el informe con la URL pública guardada en `ConfiguracionInformePowerBi` (panel de administración → dashboard de métricas).
+| Camino | Origen | Qué hace SIAC | Qué lee Power BI |
+|--------|--------|---------------|------------------|
+| 1 | Excel maestro (Drive/servidor) | Guarda la URL de «Publicar en la web» | El archivo Excel |
+| 2 | Sistemas externos (FEAT, SIGA, …) | Valida el lote y reemplaza filas en Postgres | Vistas `v_powerbi_cifras_*` con el rol `siac_powerbi_lectura` |
 
-No hace falta llamar al SIAC para **consultar** cifras: Power BI lee el Excel directamente.
+La Data API de Supabase (`https://<proyecto>.supabase.co/rest/v1`) **no** se abre. El mismo SQL corre en Supabase y en el PostgreSQL de producción.
 
-## Qué se planea (Camino 2)
+## Autenticación
 
-Proyectos externos (SIGA, investigación, etc.) enviarán **lotes JSON** al SIAC. El backend:
+1. Un Administrador inicia sesión (`POST /api/v1/auth/login`) y crea una clave:
 
-1. Valida cada registro contra el esquema de la categoría.
-2. Actualiza el **mismo Excel maestro** que ya alimenta Power BI (opción B1 del ADR-010).
-3. Devuelve resumen `{ filasOk, filasError, errores[] }`.
+```http
+POST /api/v1/integracion/cifras-institucionales/claves
+Authorization: Bearer <jwt>
+Content-Type: application/json
 
-Así se evita mantener una copia en Postgres y una en Excel.
+{ "nombre": "FEAT", "categorias": ["estudiantes"] }
+```
 
-## Catálogo de categorías
+La respuesta incluye `secreto` **una sola vez** (empieza por `siac_live_`). El servidor solo guarda el hash SHA-256.
 
-| `categoriaId` | Hoja en plantilla | Formato del cuerpo `registros` |
-|---------------|-------------------|--------------------------------|
-| `estudiantes` | `estudiantes` | Objetos con claves snake_case de la hoja |
-| `profesores` | `profesores` | Igual |
-| `egresados` | `egresados` | Igual |
-| `investigacion` | `investigacion` | Igual |
-| `aseguramiento` | `aseguramiento` | Igual |
-| `infraestructura` | `infraestructura` | Igual (reemplazo por `sede`) |
-| `bienestar` | `bienestar` | Clave/valor: `clave`, `periodo`, `facultad`, `dimension`, `valor_dimension`, `valor` |
-| `relaciones-entorno` | `relaciones-entorno` | Igual que bienestar |
-
-Fuente de verdad de columnas: **[`plantillas-siac-general.xlsx`](plantillas-siac-general.xlsx)** (encabezados, tipos, obligatoriedad, valores permitidos).
-
-## Reglas comunes
-
-- **Periodo:** `2026-1`, `2026-2` o `2026` según categoría.
-- **Reemplazo de lote:** al aceptar un envío para un periodo (o sede en infraestructura), se sustituyen las filas previas de ese ámbito en el archivo maestro, no se hace append ciego.
-- **Errores:** respuesta HTTP 400 con lista `{ fila, columna?, mensaje }` en español.
-- **Autenticación (prevista):** header `x-api-key` por integrador; clave gestionada por administración TI/SIAC (distinta por proyecto).
-- **Privacidad:** no publicar en APIs de lectura campos personales definidos en la plantilla; el Excel maestro sigue las políticas institucionales de acceso.
-
-## Ejemplo de envío (estudiantes) — ilustrativo
+2. FEAT envía lotes con esa clave:
 
 ```http
 POST /api/v1/integracion/cifras-institucionales/estudiantes/envios
 Content-Type: application/json
-x-api-key: <clave-del-proyecto>
+x-api-key: siac_live_...
+```
 
+## URLs
+
+| Entorno | Base |
+|---------|------|
+| Local | `http://localhost:3001/api/v1` |
+| Swagger (no producción) | `http://localhost:3001/api/docs` |
+| Render | `https://<servicio>.onrender.com/api/v1` |
+| BFF del frontend | `https://sistema-siac.vercel.app/api/v1` (el navegador no llama a Render; Postman sí puede) |
+
+## Endpoints
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| POST | `/integracion/cifras-institucionales/claves` | JWT Administrador |
+| GET | `/integracion/cifras-institucionales/claves` | JWT Administrador |
+| PATCH | `/integracion/cifras-institucionales/claves/{id}` | JWT Administrador |
+| DELETE | `/integracion/cifras-institucionales/claves/{id}` | JWT Administrador (revoca) |
+| GET | `/integracion/cifras-institucionales/{categoriaId}/esquema` | JWT Admin o `x-api-key` |
+| GET | `/integracion/cifras-institucionales/{categoriaId}/datos` | JWT Admin o `x-api-key` |
+| POST | `/integracion/cifras-institucionales/{categoriaId}/envios` | `x-api-key` |
+
+`categoriaId`: `estudiantes`, `profesores`, `egresados`, `investigacion`, `aseguramiento`, `infraestructura`, `bienestar`, `relaciones-entorno`.
+
+## Ejemplo Postman (estudiantes)
+
+**POST** `http://localhost:3001/api/v1/integracion/cifras-institucionales/estudiantes/envios`
+
+Headers: `Content-Type: application/json`, `x-api-key: <secreto>`
+
+```json
 {
+  "periodo": "2026-1",
   "registros": [
     {
       "programa": "Ingeniería Agropecuaria",
@@ -66,9 +80,19 @@ x-api-key: <clave-del-proyecto>
 }
 ```
 
-El campo `nombre_estudiante` es opcional y personal; puede omitirse en integraciones que no lo tengan autorizado.
+`nombre_estudiante` es opcional y personal: se guarda, no sale en `GET .../datos` ni en `v_powerbi_cifras_estudiantes`.
 
-## Ejemplo clave/valor (bienestar) — ilustrativo
+Respuesta 201:
+
+```json
+{ "filasOk": 1, "filasError": 0, "errores": [], "envioId": "..." }
+```
+
+Si una fila es inválida: **400** `{ "statusCode": 400, "codigo": "CIFRAS_LOTE_INVALIDO", "errores": [{ "fila": 1, "columna": "semestre", "mensaje": "..." }] }` y **no se escribe nada**.
+
+El lote **reemplaza** las filas previas de ese periodo (en infraestructura, de esas `sede`). Máximo 5000 filas.
+
+## Ejemplo clave/valor (bienestar)
 
 ```json
 {
@@ -85,13 +109,17 @@ El campo `nombre_estudiante` es opcional y personal; puede omitirse en integraci
 }
 ```
 
-## Próximos pasos de implementación
+## Power BI
 
-1. Confirmar con TI: ruta del Excel maestro, permisos de escritura (Drive API / Graph / SFTP).
-2. Implementar módulo NestJS `integracion-cifras-institucionales` según ADR-010.
-3. Publicar OpenAPI en `/api/docs` y entregar clave API al proyecto piloto.
-4. Validar refresco Power BI sin cambiar URL en SIAC.
+Conectar con el conector PostgreSQL y el usuario `siac_powerbi_lectura` (en Supabase: `siac_powerbi_lectura.<ref>` al pooler 5432). Vistas:
 
-## Historial
+- `v_powerbi_cifras_estudiantes`
+- `v_powerbi_cifras_profesores`
+- `v_powerbi_cifras_egresados`
+- `v_powerbi_cifras_investigacion`
+- `v_powerbi_cifras_aseguramiento`
+- `v_powerbi_cifras_infraestructura`
+- `v_powerbi_cifras_bienestar`
+- `v_powerbi_cifras_relaciones_entorno`
 
-- **S3-03 (retirado):** `POST /api/v1/cifras/:id/ingesta` + Postgres + `GET .../datos` para Power BI Web. Ver [`powerbi-conexion-cifras.md`](powerbi-conexion-cifras.md) (obsoleto).
+Colección Postman: [`docs/postman/camino-2-cifras.postman_collection.json`](postman/camino-2-cifras.postman_collection.json).

@@ -104,6 +104,8 @@ function assertarContrato(documento: OpenAPIObject): void {
   expect(rutas).toContain('/api/v1/salud');
   expect(rutas).toContain('/api/v1/auth/login');
   expect(rutas).toContain('/api/v1/powerbi/informes');
+  expect(rutas).toContain('/api/v1/integracion/cifras-institucionales/claves');
+  expect(rutas).toContain('/api/v1/integracion/cifras-institucionales/{categoriaId}/envios');
 
   const metodosHttp = new Set(['get', 'post', 'put', 'patch', 'delete']);
   for (const ruta of rutas) {
@@ -119,4 +121,8 @@ function assertarContrato(documento: OpenAPIObject): void {
   expect(login?.security ?? []).toEqual([]);
   const perfil = documento.paths['/api/v1/auth/perfil']?.get as { security?: unknown[] } | undefined;
   expect(perfil?.security).toEqual([{ jwt: [] }]);
+  const envioCifras = documento.paths['/api/v1/integracion/cifras-institucionales/{categoriaId}/envios']
+    ?.post as { security?: unknown[] } | undefined;
+  expect(envioCifras?.security).toEqual([{ apiKey: [] }]);
+  expect(documento.components?.securitySchemes).toHaveProperty('apiKey');
 }

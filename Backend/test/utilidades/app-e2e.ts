@@ -133,6 +133,16 @@ export async function iniciarSesion(
 export async function limpiarDatosNegocio(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
+      "CifraEstudiante",
+      "CifraProfesor",
+      "CifraEgresado",
+      "CifraInvestigacion",
+      "CifraAseguramiento",
+      "CifraInfraestructura",
+      "CifraBienestar",
+      "CifraRelacionEntorno",
+      "EnvioCifras",
+      "ClaveIntegracion",
       "EvaluacionCondicionEvidencia",
       "EvaluacionCondicionInstitucionalEvidencia",
       "EvidenciaVersion",

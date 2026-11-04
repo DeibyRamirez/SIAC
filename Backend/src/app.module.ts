@@ -16,6 +16,7 @@ import { PowerBiModule } from './powerbi/powerbi.module';
 import { AlmacenamientoModule } from './almacenamiento/almacenamiento.module';
 import { EstructuraModule } from './estructura/estructura.module';
 import { IntegracionModule } from './integracion/integracion.module';
+import { CifrasInstitucionalesModule } from './cifras-institucionales/cifras-institucionales.module';
 import { IngestaModule } from './ingesta/ingesta.module';
 import { AcreditacionModule } from './acreditacion/acreditacion.module';
 import { MetricasModule } from './metricas/metricas.module';
@@ -41,6 +42,7 @@ import { MiddlewareContextoRls } from './prisma/middleware-contexto-rls';
     PowerBiModule,
     EstructuraModule,
     IntegracionModule,
+    CifrasInstitucionalesModule,
     IngestaModule,
     AcreditacionModule,
     MetricasModule,

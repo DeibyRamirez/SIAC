@@ -356,3 +356,106 @@ export class MarcaLeidaDto {
   @ApiProperty({ description: 'Filas actualizadas por updateMany.' })
   count!: number;
 }
+
+export class ErrorFilaCifrasDto {
+  @ApiProperty({ example: 1 })
+  fila!: number;
+
+  @ApiPropertyOptional({ example: 'semestre' })
+  columna?: string;
+
+  @ApiProperty({ example: 'El semestre debe estar entre 1 y 12.' })
+  mensaje!: string;
+}
+
+export class ResultadoEnvioCifrasDto {
+  @ApiProperty({ example: 12 })
+  filasOk!: number;
+
+  @ApiProperty({ example: 0 })
+  filasError!: number;
+
+  @ApiProperty({ type: [ErrorFilaCifrasDto] })
+  errores!: ErrorFilaCifrasDto[];
+
+  @ApiProperty()
+  envioId!: string;
+}
+
+export class ColumnaEsquemaCifrasDto {
+  @ApiProperty()
+  clave!: string;
+
+  @ApiProperty({ enum: ['texto', 'entero', 'decimal', 'fecha', 'periodo'] })
+  tipo!: string;
+
+  @ApiProperty()
+  obligatorio!: boolean;
+
+  @ApiPropertyOptional()
+  personal?: boolean;
+
+  @ApiProperty()
+  descripcion!: string;
+}
+
+export class EsquemaCategoriaCifrasDto {
+  @ApiProperty({ example: 'estudiantes' })
+  categoriaId!: string;
+
+  @ApiProperty()
+  titulo!: string;
+
+  @ApiProperty({ example: 'periodo_academico' })
+  claveReemplazo!: string;
+
+  @ApiProperty({ type: [ColumnaEsquemaCifrasDto] })
+  columnas!: ColumnaEsquemaCifrasDto[];
+}
+
+export class PaginaDatosCifrasDto {
+  @ApiProperty({ type: 'array', items: { type: 'object', additionalProperties: true } })
+  datos!: Record<string, unknown>[];
+
+  @ApiProperty({ example: 1 })
+  pagina!: number;
+
+  @ApiProperty({ example: 100 })
+  tamano!: number;
+
+  @ApiProperty({ example: 15804 })
+  total!: number;
+}
+
+export class ClaveIntegracionPublicaDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ example: 'FEAT' })
+  nombre!: string;
+
+  @ApiProperty({ example: 'siac_live_a1b2c3d4', description: 'Prefijo visible. El secreto completo no se guarda.' })
+  prefijo!: string;
+
+  @ApiProperty({ type: [String], example: ['estudiantes'] })
+  categorias!: string[];
+
+  @ApiProperty()
+  activa!: boolean;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true, type: String })
+  ultimoUsoAt!: string | Date | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string | Date;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  updatedAt?: string | Date;
+}
+
+export class ClaveIntegracionCreadaDto extends ClaveIntegracionPublicaDto {
+  @ApiProperty({
+    description: 'Secreto en claro. Solo aparece al crear la clave. Guárdelo: no se puede volver a leer.',
+  })
+  secreto!: string;
+}

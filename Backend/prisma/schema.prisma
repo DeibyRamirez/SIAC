@@ -133,7 +133,8 @@ model Usuario {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  usuarioProgramas UsuarioPrograma[]
+  usuarioProgramas         UsuarioPrograma[]
+  clavesIntegracionCreadas ClaveIntegracion[]
 }
 
 model Institucion {
@@ -547,4 +548,209 @@ model ConfiguracionInformePowerBi {
   actualizadoPorId String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+/// Camino 2: clave de un sistema integrador (FEAT, SIGA, …). El secreto en claro no se guarda.
+model ClaveIntegracion {
+  id           String        @id @default(cuid())
+  nombre       String        @db.VarChar(120)
+  prefijo      String        @db.VarChar(24)
+  hash         String        @unique @db.VarChar(64)
+  categorias   String[]
+  activa       Boolean       @default(true)
+  ultimoUsoAt  DateTime?
+  creadaPorId  String
+  creadaPor    Usuario       @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
+  envios       EnvioCifras[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([activa])
+}
+
+/// Auditoría de un lote aceptado. Las filas de cifra se reemplazan; este registro permanece.
+model EnvioCifras {
+  id                 String           @id @default(cuid())
+  categoriaId        String           @db.VarChar(32)
+  periodo            String?          @db.VarChar(10)
+  ambito             String?          @db.VarChar(200)
+  filasOk            Int
+  claveIntegracionId String
+  claveIntegracion   ClaveIntegracion @relation(fields: [claveIntegracionId], references: [id], onDelete: Restrict)
+  createdAt          DateTime         @default(now())
+
+  estudiantes     CifraEstudiante[]
+  profesores      CifraProfesor[]
+  egresados       CifraEgresado[]
+  investigacion   CifraInvestigacion[]
+  aseguramiento   CifraAseguramiento[]
+  infraestructura CifraInfraestructura[]
+  bienestar       CifraBienestar[]
+  relaciones      CifraRelacionEntorno[]
+
+  @@index([categoriaId, periodo])
+  @@index([claveIntegracionId])
+}
+
+model CifraEstudiante {
+  id                 String      @id @default(cuid())
+  nombreEstudiante   String?     @db.VarChar(200)
+  programa           String      @db.VarChar(200)
+  genero             String      @db.VarChar(50)
+  facultad           String      @db.VarChar(200)
+  semestre           Int
+  estrato            Int
+  codigoEstudiante   String      @db.VarChar(50)
+  periodoAcademico   String      @db.VarChar(10)
+  envioId            String?
+  envio              EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([envioId])
+}
+
+model CifraProfesor {
+  id               String       @id @default(cuid())
+  nombreProfesor   String?      @db.VarChar(200)
+  programa         String       @db.VarChar(200)
+  genero           String       @db.VarChar(50)
+  facultad         String       @db.VarChar(200)
+  periodoInicio    String       @db.VarChar(10)
+  periodoFinal     String?      @db.VarChar(10)
+  periodoAcademico String       @db.VarChar(10)
+  estrato          Int
+  envioId          String?
+  envio            EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([envioId])
+}
+
+model CifraEgresado {
+  id               String       @id @default(cuid())
+  nombreEgresado   String?      @db.VarChar(200)
+  programa         String       @db.VarChar(200)
+  genero           String       @db.VarChar(50)
+  facultad         String       @db.VarChar(200)
+  graduadosPeriodo String       @db.VarChar(10)
+  estrato          Int
+  grado            String       @db.VarChar(80)
+  nivel            String       @db.VarChar(80)
+  envioId          String?
+  envio            EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([graduadosPeriodo, facultad, programa])
+  @@index([envioId])
+}
+
+model CifraInvestigacion {
+  id                  String       @id @default(cuid())
+  facultad            String       @db.VarChar(200)
+  grupoInvestigacion  String       @db.VarChar(200)
+  semillero           String       @db.VarChar(200)
+  periodoAcademico    String       @db.VarChar(10)
+  cantidadEstudiantes Int
+  genero              String       @db.VarChar(50)
+  programa            String       @db.VarChar(200)
+  envioId             String?
+  envio               EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad, programa])
+  @@index([envioId])
+}
+
+model CifraAseguramiento {
+  id                    String       @id @default(cuid())
+  periodoAcademico      String       @db.VarChar(10)
+  programas             String       @db.VarChar(200)
+  facultad              String       @db.VarChar(200)
+  grado                 String       @db.VarChar(80)
+  nivel                 String       @db.VarChar(80)
+  acreditados           Int          @default(0)
+  acreditables          Int          @default(0)
+  registrosCalificables Int          @default(0)
+  inicioSiac            DateTime     @db.Date
+  finalizacionSiac      DateTime     @db.Date
+  snies                 String       @db.VarChar(20)
+  envioId               String?
+  envio                 EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([periodoAcademico, facultad])
+  @@index([envioId])
+}
+
+model CifraInfraestructura {
+  id                      String       @id @default(cuid())
+  sede                    String       @db.VarChar(200)
+  direccion               String       @db.VarChar(300)
+  numeroPisos             Int
+  estado                  String       @db.VarChar(50)
+  totalM2AreaConstruida   Decimal      @db.Decimal(12, 2)
+  totalM2AreaTerreno      Decimal      @db.Decimal(12, 2)
+  cantidadSalonesClase    Int
+  areaM2SalonClase        Decimal      @db.Decimal(12, 2)
+  cantidadSalasSistemas   Int
+  areaM2SalasSistemas     Decimal      @db.Decimal(12, 2)
+  cantidadLaboratorios    Int
+  areaM2Laboratorios      Decimal      @db.Decimal(12, 2)
+  cantidadAuditorios      Int
+  areaM2Auditorios        Decimal      @db.Decimal(12, 2)
+  cantidadSalasLectura    Int
+  areaM2SalasLectura      Decimal      @db.Decimal(12, 2)
+  cantidadZonasDeportivas Int
+  areaM2ZonasDeportivas   Decimal      @db.Decimal(12, 2)
+  cantidadCafeterias      Int
+  cantidadZonasEstudio    Int
+  cantidadZonasRecreativas Int
+  envioId                 String?
+  envio                   EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  @@index([sede])
+  @@index([envioId])
+}
+
+model CifraBienestar {
+  id             String       @id @default(cuid())
+  clave          String       @db.VarChar(120)
+  periodo        String       @db.VarChar(10)
+  facultad       String       @db.VarChar(200)
+  dimension      String       @db.VarChar(80)
+  valorDimension String       @db.VarChar(120)
+  valor          Decimal      @db.Decimal(12, 4)
+  envioId        String?
+  envio          EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([periodo, facultad, clave])
+  @@index([envioId])
+}
+
+model CifraRelacionEntorno {
+  id             String       @id @default(cuid())
+  clave          String       @db.VarChar(120)
+  periodo        String       @db.VarChar(10)
+  facultad       String       @db.VarChar(200)
+  dimension      String       @db.VarChar(80)
+  valorDimension String       @db.VarChar(120)
+  valor          Decimal      @db.Decimal(12, 4)
+  envioId        String?
+  envio          EnvioCifras? @relation(fields: [envioId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([periodo, facultad, clave])
+  @@index([envioId])
 }

@@ -16,8 +16,8 @@ describe('cobertura de RLS en las migraciones', () => {
     .map((d) => readFileSync(join(carpeta, d, 'migration.sql'), 'utf8'))
     .join('\n');
 
-  it('el esquema tiene las 22 tablas del plan', () => {
-    expect(modelos).toHaveLength(22);
+  it('el esquema tiene las 32 tablas (22 del plan RLS y 10 de Camino 2)', () => {
+    expect(modelos).toHaveLength(32);
   });
 
   it.each(modelos)('%s: ENABLE + FORCE ROW LEVEL SECURITY y políticas para siac_app', (modelo) => {

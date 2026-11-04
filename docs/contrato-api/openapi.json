@@ -29,6 +29,31 @@
         },
         "type": "object"
       },
+      "ActualizarClaveIntegracionDto": {
+        "properties": {
+          "activa": {
+            "description": "false revoca la clave sin borrarla.",
+            "type": "boolean"
+          },
+          "categorias": {
+            "items": {
+              "enum": [
+                "estudiantes",
+                "profesores",
+                "egresados",
+                "investigacion",
+                "aseguramiento",
+                "infraestructura",
+                "bienestar",
+                "relaciones-entorno"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "ActualizarEstadoProgramaDto": {
         "properties": {
           "activo": {
@@ -327,6 +352,144 @@
         ],
         "type": "object"
       },
+      "ClaveIntegracionCreadaDto": {
+        "properties": {
+          "activa": {
+            "type": "boolean"
+          },
+          "categorias": {
+            "example": [
+              "estudiantes"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "example": "FEAT",
+            "type": "string"
+          },
+          "prefijo": {
+            "description": "Prefijo visible. El secreto completo no se guarda.",
+            "example": "siac_live_a1b2c3d4",
+            "type": "string"
+          },
+          "secreto": {
+            "description": "Secreto en claro. Solo aparece al crear la clave. Guárdelo: no se puede volver a leer.",
+            "type": "string"
+          },
+          "ultimoUsoAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "prefijo",
+          "categorias",
+          "activa",
+          "createdAt",
+          "secreto"
+        ],
+        "type": "object"
+      },
+      "ClaveIntegracionPublicaDto": {
+        "properties": {
+          "activa": {
+            "type": "boolean"
+          },
+          "categorias": {
+            "example": [
+              "estudiantes"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "example": "FEAT",
+            "type": "string"
+          },
+          "prefijo": {
+            "description": "Prefijo visible. El secreto completo no se guarda.",
+            "example": "siac_live_a1b2c3d4",
+            "type": "string"
+          },
+          "ultimoUsoAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "prefijo",
+          "categorias",
+          "activa",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ColumnaEsquemaCifrasDto": {
+        "properties": {
+          "clave": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "obligatorio": {
+            "type": "boolean"
+          },
+          "personal": {
+            "type": "boolean"
+          },
+          "tipo": {
+            "enum": [
+              "texto",
+              "entero",
+              "decimal",
+              "fecha",
+              "periodo"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "tipo",
+          "obligatorio",
+          "descripcion"
+        ],
+        "type": "object"
+      },
       "ComentarioInlineDto": {
         "properties": {
           "anchor": {
@@ -485,6 +648,40 @@
           "cumple",
           "validado",
           "rechazado"
+        ],
+        "type": "object"
+      },
+      "CrearClaveIntegracionDto": {
+        "properties": {
+          "categorias": {
+            "description": "Categorías que esta clave puede escribir.",
+            "example": [
+              "estudiantes"
+            ],
+            "items": {
+              "enum": [
+                "estudiantes",
+                "profesores",
+                "egresados",
+                "investigacion",
+                "aseguramiento",
+                "infraestructura",
+                "bienestar",
+                "relaciones-entorno"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "nombre": {
+            "description": "Nombre del sistema integrador.",
+            "example": "FEAT",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "categorias"
         ],
         "type": "object"
       },
@@ -674,6 +871,48 @@
         ],
         "type": "object"
       },
+      "EnvioCifrasDto": {
+        "properties": {
+          "periodo": {
+            "description": "Periodo del lote (AAAA o AAAA-S). Obligatorio salvo infraestructura.",
+            "example": "2026-1",
+            "type": "string"
+          },
+          "registros": {
+            "description": "Filas en snake_case según el esquema de la categoría. Máximo 5000.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "registros"
+        ],
+        "type": "object"
+      },
+      "ErrorFilaCifrasDto": {
+        "properties": {
+          "columna": {
+            "example": "semestre",
+            "type": "string"
+          },
+          "fila": {
+            "example": 1,
+            "type": "number"
+          },
+          "mensaje": {
+            "example": "El semestre debe estar entre 1 y 12.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fila",
+          "mensaje"
+        ],
+        "type": "object"
+      },
       "ErrorHttpDto": {
         "properties": {
           "detalle": {
@@ -698,6 +937,34 @@
           "statusCode",
           "message",
           "error"
+        ],
+        "type": "object"
+      },
+      "EsquemaCategoriaCifrasDto": {
+        "properties": {
+          "categoriaId": {
+            "example": "estudiantes",
+            "type": "string"
+          },
+          "claveReemplazo": {
+            "example": "periodo_academico",
+            "type": "string"
+          },
+          "columnas": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnaEsquemaCifrasDto"
+            },
+            "type": "array"
+          },
+          "titulo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "categoriaId",
+          "titulo",
+          "claveReemplazo",
+          "columnas"
         ],
         "type": "object"
       },
@@ -888,6 +1155,36 @@
         ],
         "type": "object"
       },
+      "PaginaDatosCifrasDto": {
+        "properties": {
+          "datos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pagina": {
+            "example": 1,
+            "type": "number"
+          },
+          "tamano": {
+            "example": 100,
+            "type": "number"
+          },
+          "total": {
+            "example": 15804,
+            "type": "number"
+          }
+        },
+        "required": [
+          "datos",
+          "pagina",
+          "tamano",
+          "total"
+        ],
+        "type": "object"
+      },
       "PaginaDto": {
         "properties": {
           "datos": {
@@ -1042,6 +1339,34 @@
           "total",
           "pagina",
           "limite"
+        ],
+        "type": "object"
+      },
+      "ResultadoEnvioCifrasDto": {
+        "properties": {
+          "envioId": {
+            "type": "string"
+          },
+          "errores": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorFilaCifrasDto"
+            },
+            "type": "array"
+          },
+          "filasError": {
+            "example": 0,
+            "type": "number"
+          },
+          "filasOk": {
+            "example": 12,
+            "type": "number"
+          }
+        },
+        "required": [
+          "filasOk",
+          "filasError",
+          "errores",
+          "envioId"
         ],
         "type": "object"
       },
@@ -1346,6 +1671,12 @@
       }
     },
     "securitySchemes": {
+      "apiKey": {
+        "description": "Clave de un sistema integrador (FEAT, SIGA, …). La emite POST /api/v1/integracion/cifras-institucionales/claves.",
+        "in": "header",
+        "name": "x-api-key",
+        "type": "apiKey"
+      },
       "jwt": {
         "bearerFormat": "JWT",
         "description": "Token devuelto por POST /api/v1/auth/login. Cabecera: Authorization: Bearer <token>.",
@@ -1356,7 +1687,7 @@
   },
   "info": {
     "contact": {},
-    "description": "Sistema Interno de Aseguramiento de la Calidad — CUAC. Contrato OpenAPI 3 de los endpoints existentes. Las rutas incluyen el prefijo /api/v1. La autenticación es Bearer JWT, salvo los endpoints marcados como públicos. El detalle de roles, errores, paginación y el contrato de datos Power BI está en docs/contrato-api/README.md.",
+    "description": "Sistema Interno de Aseguramiento de la Calidad — CUAC. Contrato OpenAPI 3 de los endpoints existentes. Las rutas incluyen el prefijo /api/v1. La autenticación es Bearer JWT, salvo los endpoints marcados como públicos y los de cifras institucionales de Camino 2 (cabecera x-api-key). El detalle de roles, errores, paginación y el contrato de datos Power BI está en docs/contrato-api/README.md.",
     "title": "SIAC API",
     "version": "1.0"
   },
@@ -5676,6 +6007,621 @@
           "SuperAdmin",
           "Cargador",
           "Revisor"
+        ]
+      }
+    },
+    "/api/v1/integracion/cifras-institucionales/claves": {
+      "get": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.",
+        "operationId": "ClavesIntegracionController_listar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClaveIntegracionPublicaDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Lista las claves de integración (sin el secreto)",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      },
+      "post": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nEl secreto en claro solo aparece en esta respuesta. Guárdelo: no se puede volver a leer.",
+        "operationId": "ClavesIntegracionController_crear",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearClaveIntegracionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaveIntegracionCreadaDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Crea una clave de integración",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      }
+    },
+    "/api/v1/integracion/cifras-institucionales/claves/{id}": {
+      "delete": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nNo borra el registro ni los envíos asociados. El secreto deja de autenticar.",
+        "operationId": "ClavesIntegracionController_revocar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Resultado de la operación."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Revoca una clave (queda inactiva)",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      },
+      "patch": {
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.",
+        "operationId": "ClavesIntegracionController_actualizar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarClaveIntegracionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaveIntegracionPublicaDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Actualiza categorías o activa/revoca una clave",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin"
+        ]
+      }
+    },
+    "/api/v1/integracion/cifras-institucionales/{categoriaId}/datos": {
+      "get": {
+        "description": "Roles: Administrador, SuperAdmin, integrador. El integrador se autentica con la cabecera x-api-key. SuperAdmin atraviesa las listas JWT.\n\nTope 500 filas por página (por defecto 100). No incluye nombre_estudiante ni equivalentes.",
+        "operationId": "CifrasInstitucionalesController_datos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "categoriaId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pagina",
+            "required": false,
+            "schema": {
+              "example": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tamano",
+            "required": false,
+            "schema": {
+              "example": 100,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "periodo",
+            "required": false,
+            "schema": {
+              "example": "2026-1",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDatosCifrasDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token JWT o cabecera x-api-key ausente o inválidos."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Lee cifras paginadas sin nombres personales",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin",
+          "integrador"
+        ]
+      }
+    },
+    "/api/v1/integracion/cifras-institucionales/{categoriaId}/envios": {
+      "post": {
+        "description": "Roles: integrador. El integrador se autentica con la cabecera x-api-key. SuperAdmin atraviesa las listas JWT.\n\nSi una fila es inválida no se escribe nada. Infraestructura reemplaza por sede; el resto, por periodo.",
+        "operationId": "CifrasInstitucionalesController_enviar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "categoriaId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvioCifrasDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoEnvioCifrasDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cabecera x-api-key ausente o inválida."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Reemplaza el lote de un periodo (o sede) con JSON validado",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "integrador"
+        ]
+      }
+    },
+    "/api/v1/integracion/cifras-institucionales/{categoriaId}/esquema": {
+      "get": {
+        "description": "Roles: Administrador, SuperAdmin, integrador. El integrador se autentica con la cabecera x-api-key. SuperAdmin atraviesa las listas JWT.\n\nJWT de Administrador o cabecera x-api-key. Describe tipos, obligatoriedad y campos personales.",
+        "operationId": "CifrasInstitucionalesController_esquema",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "categoriaId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsquemaCategoriaCifrasDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token JWT o cabecera x-api-key ausente o inválidos."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Esquema de columnas de una categoría",
+        "tags": [
+          "Cifras institucionales"
+        ],
+        "x-siac-roles": [
+          "Administrador",
+          "SuperAdmin",
+          "integrador"
         ]
       }
     },
@@ -10528,6 +11474,10 @@
     {
       "description": "Sincronización del catálogo institucional.",
       "name": "Integración"
+    },
+    {
+      "description": "Camino 2: lotes JSON de sistemas externos hacia Postgres.",
+      "name": "Cifras institucionales"
     },
     {
       "description": "Umbrales del semáforo de vigencia.",

@@ -6,7 +6,7 @@ Este documento describía `GET /api/v1/cifras/{categoriaId}/datos` para alimenta
 
 Referencia de campos por categoría: [`plantillas-siac-general.xlsx`](plantillas-siac-general.xlsx) en esta carpeta `docs/`.
 
-Un futuro **Camino 2** (API para proyectos externos) está definido en [ADR-010](adr/ADR-010-camino-2-api-cifras-institucionales.md) y [camino-2-api-cifras-institucionales.md](camino-2-api-cifras-institucionales.md). No reutiliza las tablas `Registro*` / `CifraIndicador` eliminadas del esquema Prisma.
+**Camino 2** (implementado): sistemas externos envían JSON a `/api/v1/integracion/cifras-institucionales/{categoriaId}/envios`. Las filas viven en tablas `Cifra*` y Power BI las lee en `v_powerbi_cifras_*`. Ver [ADR-010](adr/ADR-010-camino-2-api-cifras-institucionales.md) y [camino-2-api-cifras-institucionales.md](camino-2-api-cifras-institucionales.md).
 
 ---
 

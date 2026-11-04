@@ -251,7 +251,7 @@ describe('RLS en PostgreSQL (siac_app y siac_powerbi_lectura)', () => {
 
     afterAll(() => powerbi.$disconnect());
 
-    it('solo lee v_powerbi_puntajes, sin borradores, y no accede a Usuario ni escribe', async () => {
+    it('lee v_powerbi_puntajes y las vistas de cifras, sin borradores, y no accede a Usuario ni escribe', async () => {
       if (!url) throw new Error('Defina DATABASE_URL_POWERBI (rol siac_powerbi_lectura) para esta prueba.');
       await ctx.prisma.evidencia.update({
         where: { id: ids.enviadaB },
@@ -266,6 +266,10 @@ describe('RLS en PostgreSQL (siac_app y siac_powerbi_lectura)', () => {
       expect(visibles).toContain(ids.enviadaB);
       expect(visibles).not.toContain(ids.borradorA1);
 
+      await expect(powerbi.$queryRaw`SELECT * FROM "v_powerbi_cifras_estudiantes"`).resolves.toEqual([]);
+      await expect(powerbi.$queryRaw`SELECT "nombreEstudiante" FROM "CifraEstudiante"`).rejects.toThrow(
+        /permission denied/,
+      );
       await expect(powerbi.$queryRaw`SELECT count(*) FROM "Usuario"`).rejects.toThrow(/permission denied/);
       await expect(powerbi.$queryRaw`SELECT "autorId" FROM "Evidencia"`).rejects.toThrow(/permission denied/);
       await expect(

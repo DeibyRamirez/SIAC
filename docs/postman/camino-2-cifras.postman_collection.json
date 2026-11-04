@@ -1,0 +1,72 @@
+{
+  "info": {
+    "name": "SIAC Camino 2 — cifras institucionales",
+    "description": "Crea una clave con JWT de Administrador y envía lotes con x-api-key. Base local: http://localhost:3001.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api/v1" },
+    { "key": "tokenAdmin", "value": "" },
+    { "key": "apiKey", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login administrador",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"admin.planeacion@uniautonoma.edu.co\",\n  \"contrasena\": \"reemplace-con-la-clave-semilla\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "2. Crear clave FEAT",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"FEAT\",\n  \"categorias\": [\"estudiantes\"]\n}"
+        },
+        "url": "{{baseUrl}}/integracion/cifras-institucionales/claves"
+      }
+    },
+    {
+      "name": "3. Enviar estudiantes",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"periodo\": \"2026-1\",\n  \"registros\": [\n    {\n      \"programa\": \"Ingeniería Agropecuaria\",\n      \"genero\": \"Femenino\",\n      \"facultad\": \"Facultad de Ciencias Agrarias\",\n      \"semestre\": 5,\n      \"estrato\": 2,\n      \"codigo_estudiante\": \"2020002350129\",\n      \"periodo_academico\": \"2026-1\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/integracion/cifras-institucionales/estudiantes/envios"
+      }
+    },
+    {
+      "name": "4. Esquema estudiantes",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": "{{baseUrl}}/integracion/cifras-institucionales/estudiantes/esquema"
+      }
+    },
+    {
+      "name": "5. Leer datos estudiantes",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": "{{baseUrl}}/integracion/cifras-institucionales/estudiantes/datos?pagina=1&tamano=100&periodo=2026-1"
+      }
+    }
+  ]
+}
