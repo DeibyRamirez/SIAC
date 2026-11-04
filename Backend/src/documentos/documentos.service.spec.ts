@@ -905,7 +905,7 @@ describe('DocumentosService · reglas de nueva carga', () => {
         {
           nombre: 'Maestro',
           programaId: 'prog-1',
-          periodo: '2025-1',
+          periodo: '2099-1',
           codigoGuia: CodigoDocumentoGuia.G1,
         },
         archivo,
@@ -915,5 +915,31 @@ describe('DocumentosService · reglas de nueva carga', () => {
 
     expect(repositorio.crear).not.toHaveBeenCalled();
     expect(avanceProceso.calcularProgresoPrograma).toHaveBeenCalledWith('prog-1');
+  });
+
+  it('el Cargador no crea una evidencia en un periodo cerrado', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = {
+      originalname: 'maestro.docx',
+      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 64,
+      buffer: Buffer.from(''),
+    } as Express.Multer.File;
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2020-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+        },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repositorio.crear).not.toHaveBeenCalled();
   });
 });

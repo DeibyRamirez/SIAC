@@ -318,6 +318,10 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 
 ## 14. Registro de cambios (changelog de memoria)
 
+### 2026-11-03 — Periodo vigente en Bogotá y aviso del .docx
+
+- [Frontend] El periodo por defecto sale de `GET /documentos/periodos/actual` (respaldo local en `America/Bogota`). El resumen del administrador guarda la selección en `?periodo=` y pide todas las evidencias de ese periodo. Si el `.docx` trae otro periodo, se muestra un aviso y no se reemplaza el elegido.
+
 ### 2026-10-29 — HU-009: token de inserción de Power BI
 
 - [Frontend] Tarjeta «Power BI» y tablero con token en el dashboard del administrador. Con el interruptor apagado la rejilla pública no cambia. La renovación usa `setAccessToken` y el fallo muestra «No se pudo cargar el tablero» con «Reintentar». El secreto no se muestra ni se guarda en `localStorage`.

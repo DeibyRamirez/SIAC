@@ -34,7 +34,7 @@ export class IngestaController {
   @UseInterceptors(FileInterceptor('archivo'))
   async parsearExcel(
     @UploadedFile() archivo: Express.Multer.File,
-    @Request() req: { user: { id: string } },
+    @Request() req: { user: { id: string; rol: RolUsuario } },
   ) {
     if (!archivo) {
       throw new BadRequestException('Se requiere un archivo Excel (.xlsx).');
@@ -48,6 +48,6 @@ export class IngestaController {
       throw new BadRequestException('Solo se permiten archivos .xlsx');
     }
 
-    return this.ingestaService.parsearExcel(archivo.buffer, req.user.id);
+    return this.ingestaService.parsearExcel(archivo.buffer, req.user.id, req.user.rol);
   }
 }

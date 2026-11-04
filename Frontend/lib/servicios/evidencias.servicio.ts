@@ -2,6 +2,7 @@ import { peticionApi } from './cliente-api';
 import type { CodigoCondicionDocumentoMaestro } from '@/lib/condiciones-documento-maestro';
 import type { CodigoCondicionInstitucional } from '@/lib/condiciones-institucionales';
 import type { CodigoDocumentoGuia, Evidencia, EstadoEvidencia } from '@/lib/tipos';
+import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac';
 
 export interface RespuestaPaginada<T> {
   datos: T[];
@@ -44,6 +45,24 @@ export async function listarEvidenciasApi(filtros: FiltrosEvidenciaApi = {}) {
     if (v !== undefined && v !== '') params.set(k, String(v));
   });
   return peticionApi<RespuestaPaginada<Evidencia>>(`/evidencias?${params}`);
+}
+
+/** Todas las evidencias de un periodo (páginas en paralelo tras la primera). No descarta históricos. */
+export async function listarEvidenciasCompletasDePeriodo(periodo: string): Promise<Evidencia[]> {
+  const limite = 100
+  const primera = await listarEvidenciasApi({ periodo, pagina: 1, limite })
+  const acumulado = primera.datos.map((fila) => mapearEvidenciaDesdeApi(fila))
+  const paginas = Math.max(1, Math.ceil(primera.total / limite))
+  if (paginas === 1) return acumulado
+  const resto = await Promise.all(
+    Array.from({ length: paginas - 1 }, (_, indice) =>
+      listarEvidenciasApi({ periodo, pagina: indice + 2, limite }),
+    ),
+  )
+  for (const pagina of resto) {
+    acumulado.push(...pagina.datos.map((fila) => mapearEvidenciaDesdeApi(fila)))
+  }
+  return acumulado
 }
 
 export async function crearEvidenciaApi(
@@ -305,8 +324,14 @@ export async function listarMisRevisionesRevisorApi(pagina = 1, limite = 20) {
 }
 
 
-/** Periodos con documentos visibles para el usuario (para el grupo «Históricos»). */
+/** Periodos con documentos visibles para el usuario (incluye históricos). */
 export async function listarPeriodosConDatosApi(): Promise<string[]> {
-  const respuesta = await peticionApi<{ periodos: string[] }>('/evidencias/periodos');
+  const respuesta = await peticionApi<{ periodos: string[] }>('/documentos/periodos');
   return respuesta.periodos;
+}
+
+/** Periodo vigente calculado en el servidor (America/Bogota). */
+export async function obtenerPeriodoActualApi(): Promise<string> {
+  const respuesta = await peticionApi<{ periodo: string }>('/documentos/periodos/actual');
+  return respuesta.periodo;
 }

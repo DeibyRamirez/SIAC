@@ -1,7 +1,6 @@
 import mammoth from 'mammoth'
 
 import type { Programa } from '@/lib/tipos'
-import { periodoAcademicoActual } from '@/lib/utilidades/periodo-academico'
 
 export interface MetadatosExtraidosDocx {
   nombreSugerido?: string
@@ -40,14 +39,10 @@ export async function extraerMetadatosDocx(
   })
 
   const programa = buscarProgramaEnTexto(texto, programas)
-  const periodo =
-    buscarPeriodo(texto, archivo.name) ?? periodoAcademicoActual()
 
   return {
     nombreSugerido: nombreDesdeArchivo(archivo.name),
     programaId: programa?.id,
-    periodo,
+    periodo: buscarPeriodo(texto, archivo.name),
   }
 }
-
-export { periodoAcademicoActual }

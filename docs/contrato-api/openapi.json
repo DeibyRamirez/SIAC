@@ -47,6 +47,7 @@
           },
           "periodo": {
             "example": "2026-1",
+            "pattern": "^\\d{4}-[12]$",
             "type": "string"
           },
           "responsable": {
@@ -976,6 +977,43 @@
           "page",
           "limit",
           "totalPaginas"
+        ],
+        "type": "object"
+      },
+      "PeriodoActualDto": {
+        "properties": {
+          "periodo": {
+            "example": "2026-2",
+            "pattern": "^\\d{4}-[12]$",
+            "type": "string"
+          },
+          "zonaHoraria": {
+            "example": "America/Bogota",
+            "type": "string"
+          }
+        },
+        "required": [
+          "periodo",
+          "zonaHoraria"
+        ],
+        "type": "object"
+      },
+      "PeriodosConDatosDto": {
+        "properties": {
+          "periodos": {
+            "description": "Periodos con evidencias visibles, incluidos los ya cerrados. No se ocultan ni se borran.",
+            "example": [
+              "2027-2",
+              "2026-2"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "periodos"
         ],
         "type": "object"
       },
@@ -2250,6 +2288,148 @@
         "x-siac-roles": [
           "SuperAdmin",
           "Administrador"
+        ]
+      }
+    },
+    "/api/v1/documentos/periodos": {
+      "get": {
+        "description": "Cualquier usuario con sesión válida.\n\nIncluye periodos pasados con evidencias. La consulta no borra ni oculta filas. La RLS acota por rol y programa.",
+        "operationId": "PeriodosController_listar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodosConDatosDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Lista periodos que tienen documentos visibles",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "autenticado"
+        ]
+      }
+    },
+    "/api/v1/documentos/periodos/actual": {
+      "get": {
+        "description": "Cualquier usuario con sesión válida.\n\nEl semestre se calcula en el servidor con la zona America/Bogota (ene–jun = 1, jul–dic = 2). No usa el reloj del navegador.",
+        "operationId": "PeriodosController_actual",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodoActualDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Periodo académico vigente en America/Bogota",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "autenticado"
         ]
       }
     },
