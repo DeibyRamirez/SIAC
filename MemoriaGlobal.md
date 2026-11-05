@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-10-16 |
+| **Última actualización** | 2026-11-04 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -484,6 +484,13 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-04 — API pública de programas CUAC (repo externo)
+
+- [API] Catálogo publicado en `https://github.com/BICHO128/api-programas-cuac` y desplegado en Vercel en `https://api-programas-cuac.vercel.app/carreras` (25 programas vigentes: 14 de pregrado y 11 de posgrado). El proyecto es independiente de SIAC; la carpeta local `API/` se retiró del repo.
+- [API] Solo se publican programas con registro SNIES activo; se excluyen inactivos o reemplazados (Ingeniería de Sistemas, Ingeniería de Sistemas Informáticos, Licenciaturas antiguas, Deporte y Actividad Física, técnicos inactivos y Mercadeo sin SNIES). Administración de Empresas se publica una vez (CU027); Ingeniería Ambiental y Sanitaria se excluye por reemplazo con la de Saneamiento; Proyectos de Desarrollo queda con modalidades Presencial y Virtual.
+- [API] Se conservan los `_id` de los 10 programas de la API anterior para que `POST /api/v1/integracion/sincronizar-carreras` actualice en vez de duplicar. El README del repo externo documenta el despliegue en Vercel.
+- [Pendiente] Al sincronizar posgrados, `mapear-carrera-externa.ts` aún fuerza `nivel: 'Pregrado'`; ajustar si se quiere persistir el nivel que ya trae esta API.
 
 ### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
 
