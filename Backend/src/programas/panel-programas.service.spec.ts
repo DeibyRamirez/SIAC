@@ -51,9 +51,17 @@ function crearServicio(
     {} as never,
     configuracion as never,
     {
-      obtenerCatalogo: jest.fn().mockResolvedValue({ respuesta: null, desdeCache: false, degradado: true }),
       baseImagenes: () => 'https://sitio-cuac.vercel.app',
+      obtenerMetadatosPanel: jest.fn().mockResolvedValue({
+        version: '2026-2',
+        degradado: false,
+        revalidando: false,
+        niveles: [],
+        facultades: [],
+        modalidades: [],
+      }),
     } as never,
+    { dispararRevalidacionEnSegundoPlano: jest.fn(), estaRevalidando: () => false } as never,
   );
   return { servicio, prisma };
 }

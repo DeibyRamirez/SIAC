@@ -137,25 +137,34 @@ model Usuario {
 }
 
 model Institucion {
-  id                String          @id @default(cuid())
-  nombre            String          @db.VarChar(200)
-  codigo            String          @unique @db.VarChar(50)
-  tipoTramiteActivo TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
-  fechaResolucion   DateTime?
-  evidencias        Evidencia[]
-  resoluciones      ResolucionMen[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id                        String          @id @default(cuid())
+  nombre                    String          @db.VarChar(200)
+  codigo                    String          @unique @db.VarChar(50)
+  tipoTramiteActivo         TipoTramiteSIAC @default(CondicionesInstitucionalesNuevas)
+  fechaResolucion           DateTime?
+  versionCatalogoCuac       String?         @db.VarChar(20)
+  catalogoCuacActualizadoEn DateTime?
+  evidencias                Evidencia[]
+  resoluciones              ResolucionMen[]
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
 }
 
 model Programa {
   id                  String          @id @default(cuid())
   nombre              String
   codigo              String          @unique
+  codigoCu            String?         @db.VarChar(20)
   codigoSnies         String?         @db.VarChar(20)
+  tituloCuac          String?         @db.VarChar(200)
   nivel               String
   modalidad           String?         @db.VarChar(50)
   duracionSemestres   Int?
+  duracionCuac        String?         @db.VarChar(40)
+  creditosCuac        Int?
+  resolucionCuac      String?         @db.VarChar(30)
+  fechaResolucionCuac DateTime?       @db.Date
+  imagenSlugCuac      String?         @db.VarChar(80)
   facultad            String?         @db.VarChar(200)
   slug                String          @unique @db.VarChar(160)
   urlImagen           String?         @db.VarChar(500)

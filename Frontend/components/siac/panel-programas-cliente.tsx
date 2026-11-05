@@ -67,25 +67,7 @@ function FiltroConEtiqueta({
   )
 }
 
-const CLAVE_SYNC_CARRERAS_SESION = 'siac-sync-carreras-realizado'
 const ESPERA_BUSQUEDA_MS = 400
-
-function syncCarrerasYaRealizadoEnSesion(): boolean {
-  try {
-    return sessionStorage.getItem(CLAVE_SYNC_CARRERAS_SESION) === '1'
-  } catch {
-    return false
-  }
-}
-
-function marcarSyncCarrerasEnSesion(marcar: boolean): void {
-  try {
-    if (marcar) sessionStorage.setItem(CLAVE_SYNC_CARRERAS_SESION, '1')
-    else sessionStorage.removeItem(CLAVE_SYNC_CARRERAS_SESION)
-  } catch {
-    /* quota o modo privado */
-  }
-}
 
 export function mapearFilasPanel(datos: FilaPanelPrograma[]): ProgramaRejilla[] {
   return datos.map((fila) => ({
@@ -141,47 +123,31 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
     return () => clearTimeout(temporizador)
   }, [busqueda, semestre, filtros.q, filtros.semestre, navegar])
 
-  const sincronizarCatalogo = useCallback(
-    async (forzar: boolean) => {
-      if (!puedeAdministrar || !apiDisponible() || sincronizandoRef.current) return
-      if (!forzar && syncCarrerasYaRealizadoEnSesion()) return
-      sincronizandoRef.current = true
-      setSincronizando(true)
-      try {
-        const resultado = await sincronizarCarrerasApi()
-        marcarSyncCarrerasEnSesion(true)
-        const huboCambios =
-          resultado.importados > 0 || resultado.actualizados > 0 || resultado.desactivados > 0
-        if (forzar || huboCambios) {
-          const partes = [
-            `${resultado.importados} importada(s)`,
-            `${resultado.actualizados} actualizada(s)`,
-            `${resultado.totalEnBd} en base de datos`,
-          ]
-          if (resultado.desactivados > 0) partes.push(`${resultado.desactivados} desactivada(s)`)
-          toast.success(`Catálogo guardado: ${partes.join(', ')}.`)
-        }
-        if (huboCambios) router.refresh()
-      } catch (err) {
-        marcarSyncCarrerasEnSesion(false)
-        toast.warning(
-          err instanceof Error
-            ? err.message
-            : 'No se pudo sincronizar el catálogo de carreras. Se muestra la última copia local.',
-        )
-      } finally {
-        sincronizandoRef.current = false
-        setSincronizando(false)
-      }
-    },
-    [puedeAdministrar, router],
-  )
-
-  useEffect(() => {
-    void sincronizarCatalogo(datos.total === 0)
-    // Solo al montar: la sincronización del catálogo se hace una vez por sesión.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeAdministrar])
+  const sincronizarCatalogo = useCallback(async () => {
+    if (!puedeAdministrar || !apiDisponible() || sincronizandoRef.current) return
+    sincronizandoRef.current = true
+    setSincronizando(true)
+    try {
+      const resultado = await sincronizarCarrerasApi()
+      const partes = [
+        `${resultado.importados} importada(s)`,
+        `${resultado.actualizados} actualizada(s)`,
+        `${resultado.totalEnBd} en base de datos`,
+      ]
+      if (resultado.desactivados > 0) partes.push(`${resultado.desactivados} desactivada(s)`)
+      toast.success(`Catálogo actualizado: ${partes.join(', ')}.`)
+      router.refresh()
+    } catch (err) {
+      toast.warning(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo sincronizar el catálogo de carreras. Se muestra la última copia local.',
+      )
+    } finally {
+      sincronizandoRef.current = false
+      setSincronizando(false)
+    }
+  }, [puedeAdministrar, router])
 
   const filas = mapearFilasPanel(datos.datos)
   const catalogo: MetadatosCatalogoCuacPanel | undefined = datos.catalogoCuac
@@ -200,7 +166,7 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
               <Button
                 variant="outline"
                 disabled={sincronizando}
-                onClick={() => void sincronizarCatalogo(true)}
+                onClick={() => void sincronizarCatalogo()}
               >
                 {sincronizando ? 'Sincronizando…' : 'Actualizar catálogo'}
               </Button>
@@ -267,7 +233,7 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
             </Select>
           </FiltroConEtiqueta>
 
-          <FiltroConEtiqueta etiqueta="Semáforo general" id="filtro-semaforo">
+          <FiltroConEtiqueta etiqueta="Estado del avance" id="filtro-semaforo">
             <Select
               value={filtros.semaforo}
               onValueChange={manejarCambioSelect((valor) => navegar({ semaforo: valor }))}
@@ -375,6 +341,12 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
           ) : null}
         </BarraHerramientasTabla>
 
+        {catalogo?.revalidando ? (
+          <p className="text-xs text-muted-foreground" role="status">
+            Actualizando catálogo…
+          </p>
+        ) : null}
+
         {catalogo?.degradado ? (
           <p className="text-xs text-ocre" role="status">
             Catálogo CUAC no disponible en este momento; se muestran los datos locales de SIAC.
@@ -383,7 +355,7 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
 
         <RejillaProgramas
           programas={filas}
-          cargando={cargando}
+          cargando={cargando && filas.length === 0}
           enlaceDetalle={(id) => `/administrador/programas/${id}`}
         />
         {datos.total > 0 && (

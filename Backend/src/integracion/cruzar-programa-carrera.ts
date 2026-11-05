@@ -8,6 +8,7 @@ export interface ProgramaParaCruce {
   id: string;
   nombre: string;
   codigo?: string | null;
+  codigoCu?: string | null;
   codigoSnies?: string | null;
   nivel?: string | null;
   modalidad?: string | null;
@@ -94,6 +95,44 @@ export function extraerMetadatosCatalogo(carreras: CarreraExternaDto[], version?
     niveles: [...niveles].sort((a, b) => a.localeCompare(b, 'es')),
     facultades: [...facultades].sort((a, b) => a.localeCompare(b, 'es')),
     modalidades: [...modalidades].sort((a, b) => a.localeCompare(b, 'es')),
+  };
+}
+
+export function enriquecerFilaDesdePersistencia(
+  fila: FilaPanelDto,
+  programa: ProgramaParaCruce & {
+    tituloCuac?: string | null;
+    duracionCuac?: string | null;
+    creditosCuac?: number | null;
+    resolucionCuac?: string | null;
+    fechaResolucionCuac?: Date | null;
+    imagenSlugCuac?: string | null;
+  },
+  baseImagenes: string,
+): FilaPanelDto {
+  const slug = programa.imagenSlugCuac?.trim();
+  const urlDesdeSlug = slug
+    ? resolverUrlImagenCarrera({ imagen: slug }, baseImagenes)
+    : undefined;
+  const titulo = programa.tituloCuac?.trim() || programa.nombre;
+
+  return {
+    ...fila,
+    nombre: titulo,
+    tituloCatalogo: titulo,
+    duracion: programa.duracionCuac ?? undefined,
+    creditos: programa.creditosCuac ?? undefined,
+    resolucionCatalogo: programa.resolucionCuac ?? undefined,
+    fechaResolucionCatalogo: programa.fechaResolucionCuac
+      ? programa.fechaResolucionCuac.toISOString().slice(0, 10)
+      : undefined,
+    codigoSnies: programa.codigoSnies ?? undefined,
+    codigoCu: programa.codigoCu ?? undefined,
+    nivel: programa.nivel ?? undefined,
+    facultad: programa.facultad ?? undefined,
+    modalidad: programa.modalidad ?? undefined,
+    imagenSlug: slug,
+    urlImagen: programa.urlImagen ?? urlDesdeSlug ?? fila.urlImagen ?? undefined,
   };
 }
 

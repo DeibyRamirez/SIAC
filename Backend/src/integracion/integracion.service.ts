@@ -3,11 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.module';
 import { OrigenDato, RolUsuario, TipoTramiteSIAC } from '@prisma/client';
 import { generarSlug } from '../common/alcance/generar-slug';
-import {
-  mapearCarrerasExternas,
-  ProgramaCatalogoExterno,
-} from './mapear-carrera-externa';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
+import { CatalogoCuacPersistenciaService } from './catalogo-cuac-persistencia.service';
 
 interface ProgramaExterno {
   idExterno: string;
@@ -41,6 +38,7 @@ export class IntegracionService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly clienteCarreras: ClienteCarrerasCuacService,
+    private readonly catalogoCuac: CatalogoCuacPersistenciaService,
   ) {}
 
   async sincronizarDesdeTi(): Promise<{
@@ -95,31 +93,11 @@ export class IntegracionService {
     try {
       this.clienteCarreras.invalidarCache();
       const datos = await this.clienteCarreras.fetchCatalogoRemoto();
-      const baseImagenes = this.clienteCarreras.baseImagenes();
-      const catalogo = mapearCarrerasExternas(datos.carreras, { baseImagenes });
-      const { importados, actualizados } = await this.upsertCatalogoProgramas(
-        catalogo,
-        OrigenDato.API,
-      );
-      const desactivados = await this.desactivarProgramasAusentesDelCatalogo(
-        catalogo.map((item) => item.idExterno),
-      );
-      const totalEnBd = await this.prisma.programa.count({
-        where: { origenDato: OrigenDato.API },
-      });
-
+      const resultado = await this.catalogoCuac.aplicarRespuestaApi(datos);
       this.logger.log(
-        `Carreras sincronizadas: ${importados} nuevas, ${actualizados} actualizadas, ${desactivados} desactivadas (${catalogo.length} en API, ${totalEnBd} en BD).`,
+        `Carreras sincronizadas: ${resultado.importados} nuevas, ${resultado.actualizados} actualizadas, ${resultado.desactivados} desactivadas (${resultado.total} en API, ${resultado.totalEnBd} en BD).`,
       );
-
-      return {
-        importados,
-        actualizados,
-        desactivados,
-        total: catalogo.length,
-        totalEnBd,
-        origen: OrigenDato.API,
-      };
+      return resultado;
     } catch (error) {
       this.logger.error('Fallo sincronización de carreras', error);
       throw new BadGatewayException(
@@ -158,136 +136,6 @@ export class IntegracionService {
     const usuarios = await this.prisma.usuario.count();
     const vinculos = await this.prisma.usuarioPrograma.count();
     return { programas, usuarios, vinculos, origen: OrigenDato.Manual };
-  }
-
-  private async upsertCatalogoProgramas(
-    items: ProgramaCatalogoExterno[],
-    origen: OrigenDato,
-  ): Promise<{ importados: number; actualizados: number }> {
-    let importados = 0;
-    let actualizados = 0;
-    const ahora = new Date();
-
-    for (const item of items) {
-      const datosCatalogo = {
-        nombre: item.nombre,
-        nivel: item.nivel,
-        modalidad: item.modalidad,
-        facultad: item.facultad,
-        duracionSemestres: item.duracionSemestres,
-        urlImagen: item.urlImagen,
-        codigoSnies: item.codigoSnies,
-        activo: item.activo,
-        idExterno: item.idExterno,
-        origenDato: origen,
-        fechaSincronizacion: ahora,
-      };
-
-      const porIdExterno = await this.prisma.programa.findUnique({
-        where: { idExterno: item.idExterno },
-      });
-
-      if (porIdExterno) {
-        await this.prisma.programa.update({
-          where: { id: porIdExterno.id },
-          data: datosCatalogo,
-        });
-        actualizados++;
-        continue;
-      }
-
-      const porCodigo = await this.prisma.programa.findUnique({
-        where: { codigo: item.codigo },
-      });
-
-      if (porCodigo) {
-        await this.prisma.programa.update({
-          where: { id: porCodigo.id },
-          data: datosCatalogo,
-        });
-        actualizados++;
-        continue;
-      }
-
-      const porSlug = await this.prisma.programa.findUnique({
-        where: { slug: item.slug },
-      });
-
-      if (porSlug) {
-        await this.prisma.programa.update({
-          where: { id: porSlug.id },
-          data: datosCatalogo,
-        });
-        actualizados++;
-        continue;
-      }
-
-      const slugLibre = await this.resolverSlugEnBaseDeDatos(item.slug, item.idExterno, item.nombre);
-
-      await this.prisma.programa.create({
-        data: {
-          codigo: item.codigo,
-          nombre: item.nombre,
-          slug: slugLibre,
-          nivel: item.nivel,
-          modalidad: item.modalidad,
-          facultad: item.facultad,
-          duracionSemestres: item.duracionSemestres,
-          urlImagen: item.urlImagen,
-          activo: item.activo,
-          idExterno: item.idExterno,
-          origenDato: origen,
-          fechaSincronizacion: ahora,
-          tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
-          porcentajeAvance: 0,
-          estadoProceso: 'En progreso',
-        },
-      });
-      importados++;
-    }
-
-    return { importados, actualizados };
-  }
-
-  /**
-   * Marca inactivos los programas importados de API que ya no aparecen en el catálogo externo.
-   * No borra filas ni toca evidencias ni asignaciones.
-   */
-  private async desactivarProgramasAusentesDelCatalogo(
-    idsExternosActivos: string[],
-  ): Promise<number> {
-    const resultado = await this.prisma.programa.updateMany({
-      where: {
-        origenDato: OrigenDato.API,
-        idExterno: { not: null, notIn: idsExternosActivos },
-        activo: true,
-      },
-      data: { activo: false },
-    });
-    return resultado.count;
-  }
-
-  /** Evita colisión de slug con programas manuales u otras carreras ya persistidas. */
-  private async resolverSlugEnBaseDeDatos(
-    slugBase: string,
-    idExterno: string,
-    nombre: string,
-  ): Promise<string> {
-    const candidatos = [
-      slugBase,
-      generarSlug(`${nombre}-${idExterno.slice(-6)}`),
-      generarSlug(idExterno),
-    ];
-
-    for (const candidato of candidatos) {
-      const ocupado = await this.prisma.programa.findUnique({
-        where: { slug: candidato },
-        select: { id: true },
-      });
-      if (!ocupado) return candidato;
-    }
-
-    return generarSlug(`${idExterno}-${Date.now()}`);
   }
 
   private async upsertProgramas(items: ProgramaExterno[], origen: OrigenDato): Promise<number> {

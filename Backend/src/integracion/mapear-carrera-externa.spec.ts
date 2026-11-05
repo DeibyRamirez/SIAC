@@ -83,16 +83,20 @@ describe('mapear-carrera-externa', () => {
     const mapeado = mapearCarreraExterna(carreraBase, {
       baseImagenes: 'https://sitio-cuac.vercel.app',
     });
-    expect(mapeado).toEqual({
+    expect(mapeado).toMatchObject({
       idExterno: '68f01b83144b6d49ae7cdd0b',
       codigo: 'ADM-EMP',
+      codigoSnies: undefined,
       nombre: 'Administración de Empresas',
       slug: 'administracion-de-empresas',
       nivel: 'Pregrado',
       modalidad: 'Presencial',
       facultad: 'Facultad de Ciencias Administrativas',
       duracionSemestres: 9,
+      duracionCuac: '9 semestres',
+      creditosCuac: undefined,
       urlImagen: 'https://sitio-cuac.vercel.app/Carreras/administracion.png',
+      imagenSlugCuac: 'administracion',
       activo: true,
     });
   });

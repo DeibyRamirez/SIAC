@@ -30,14 +30,9 @@ import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
 import { calcularSemaforo } from './programas.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
-import { ClienteCarrerasCuacService } from '../integracion/cliente-carreras-cuac.service';
-import {
-  buscarCarreraParaPrograma,
-  construirIndiceCarreras,
-  enriquecerFilaPanelConCarrera,
-  extraerMetadatosCatalogo,
-  filtrarFilasPorCatalogo,
-} from '../integracion/cruzar-programa-carrera';
+import { CatalogoCuacPersistenciaService } from '../integracion/catalogo-cuac-persistencia.service';
+import { RevalidadorCatalogoCuacService } from '../integracion/revalidador-catalogo-cuac.service';
+import { enriquecerFilaDesdePersistencia } from '../integracion/cruzar-programa-carrera';
 
 export interface DocumentoPanelDto {
   codigoGuia: CodigoDocumentoGuia;
@@ -88,6 +83,7 @@ export interface FilaPanelDto {
 export interface MetadatosPanelCatalogoDto {
   version: string | null;
   degradado: boolean;
+  revalidando: boolean;
   niveles: string[];
   facultades: string[];
   modalidades: string[];
@@ -113,7 +109,8 @@ export class PanelProgramasService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly alcance: ServicioAlcancePrograma,
     private readonly configuracion: ConfiguracionSiacService,
-    private readonly clienteCarreras: ClienteCarrerasCuacService,
+    private readonly catalogoCuac: CatalogoCuacPersistenciaService,
+    private readonly revalidadorCuac: RevalidadorCatalogoCuacService,
   ) {}
 
   /**
@@ -211,15 +208,14 @@ export class PanelProgramasService implements OnModuleInit {
     query: ConsultaPanelProgramasDto,
     usuario: UsuarioAlcance,
   ): Promise<RespuestaPanelDto> {
+    this.revalidadorCuac.dispararRevalidacionEnSegundoPlano();
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = await this.filtroProgramas(usuario, query);
-    // R-010.1b: el semáforo es un valor calculado; si se filtra por él hay que calcular todas
-    // las filas y paginar después, o el total y las páginas quedan mal.
-    const paginarEnBd =
-      !query.semaforo && !query.nivel && !query.facultad && !query.modalidad;
+    const paginarEnBd = !query.semaforo;
 
-    const [totalBd, programas, catalogoRemoto] = await Promise.all([
+    const [totalBd, programas, metaBase] = await Promise.all([
       this.prisma.programa.count({ where }),
       this.prisma.programa.findMany({
         where,
@@ -228,11 +224,18 @@ export class PanelProgramasService implements OnModuleInit {
         select: {
           id: true,
           nombre: true,
+          tituloCuac: true,
           codigo: true,
+          codigoCu: true,
           codigoSnies: true,
           nivel: true,
           modalidad: true,
           facultad: true,
+          duracionCuac: true,
+          creditosCuac: true,
+          resolucionCuac: true,
+          fechaResolucionCuac: true,
+          imagenSlugCuac: true,
           tipoTramiteActivo: true,
           fechaResolucion: true,
           inicioCicloTramiteAt: true,
@@ -240,12 +243,16 @@ export class PanelProgramasService implements OnModuleInit {
           urlImagen: true,
         },
       }),
-      this.clienteCarreras.obtenerCatalogo(),
+      this.catalogoCuac.obtenerMetadatosPanel(),
     ]);
+
+    const meta: MetadatosPanelCatalogoDto = {
+      ...metaBase,
+      revalidando: this.revalidadorCuac.estaRevalidando(),
+    };
 
     if (programas.length === 0) {
       const total = paginarEnBd ? totalBd : 0;
-      const meta = this.metadatosCatalogoPanel(catalogoRemoto.respuesta, catalogoRemoto.degradado);
       return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit), catalogoCuac: meta };
     }
 
@@ -289,6 +296,8 @@ export class PanelProgramasService implements OnModuleInit {
       (e) => e.programaId ?? '',
     );
 
+    const programasPorId = new Map(programas.map((p) => [p.id, p]));
+
     const filasBase = programas.map((programa) => {
       const tipoTramite = query.tramite ?? programa.tipoTramiteActivo;
       return this.construirFila({
@@ -306,28 +315,12 @@ export class PanelProgramasService implements OnModuleInit {
       });
     });
 
-    const indiceCarreras = catalogoRemoto.respuesta
-      ? construirIndiceCarreras(catalogoRemoto.respuesta.carreras)
-      : null;
-    const baseImagenes = this.clienteCarreras.baseImagenes();
-    const programasPorId = new Map(programas.map((p) => [p.id, p]));
-
-    let filas = filasBase.map((fila) => {
+    const baseImagenes = this.catalogoCuac.baseImagenes();
+    const filas = filasBase.map((fila) => {
       const programa = programasPorId.get(fila.id);
       if (!programa) return fila;
-      const carrera = indiceCarreras
-        ? buscarCarreraParaPrograma(programa, indiceCarreras)
-        : undefined;
-      return enriquecerFilaPanelConCarrera(fila, programa, carrera, baseImagenes);
+      return enriquecerFilaDesdePersistencia(fila, programa, baseImagenes);
     });
-
-    filas = filtrarFilasPorCatalogo(filas, {
-      nivel: query.nivel,
-      facultad: query.facultad,
-      modalidad: query.modalidad,
-    });
-
-    const meta = this.metadatosCatalogoPanel(catalogoRemoto.respuesta, catalogoRemoto.degradado);
 
     if (paginarEnBd) {
       return {
@@ -350,23 +343,6 @@ export class PanelProgramasService implements OnModuleInit {
       totalPaginas: Math.ceil(filtradasSemaforo.length / limit),
       catalogoCuac: meta,
     };
-  }
-
-  private metadatosCatalogoPanel(
-    respuesta: { carreras: import('../integracion/mapear-carrera-externa').CarreraExternaDto[]; version?: string } | null,
-    degradado: boolean,
-  ): MetadatosPanelCatalogoDto {
-    if (!respuesta) {
-      return {
-        version: null,
-        degradado,
-        niveles: [],
-        facultades: [],
-        modalidades: [],
-      };
-    }
-    const extraido = extraerMetadatosCatalogo(respuesta.carreras, respuesta.version);
-    return { ...extraido, degradado };
   }
 
   private construirFila(input: {
@@ -508,6 +484,18 @@ export class PanelProgramasService implements OnModuleInit {
 
     if (query.origen) {
       where.origenDato = query.origen;
+    }
+
+    if (query.nivel) {
+      where.nivel = query.nivel;
+    }
+
+    if (query.facultad) {
+      where.facultad = query.facultad;
+    }
+
+    if (query.modalidad) {
+      where.modalidad = query.modalidad;
     }
 
     const texto = query.q?.trim();

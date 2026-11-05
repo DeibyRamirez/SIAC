@@ -40,6 +40,7 @@ export interface RespuestaCarrerasExternasDto {
 export interface ProgramaCatalogoExterno {
   idExterno: string;
   codigo: string;
+  codigoCu?: string;
   codigoSnies?: string;
   nombre: string;
   slug: string;
@@ -47,6 +48,11 @@ export interface ProgramaCatalogoExterno {
   modalidad?: string;
   facultad?: string;
   duracionSemestres?: number;
+  duracionCuac?: string;
+  creditosCuac?: number;
+  resolucionCuac?: string;
+  fechaResolucionCuac?: Date;
+  imagenSlugCuac?: string;
   urlImagen?: string;
   activo: boolean;
 }
@@ -161,10 +167,14 @@ export function mapearCarreraExterna(
   const slugBase = generarSlug(titulo);
   const slug = slugBase === 'programa' ? generarSlug(`${titulo}-${idExterno.slice(-6)}`) : slugBase;
   const nivel = carrera.nivel?.trim() || NIVEL_DEFECTO;
+  const imagenSlug =
+    carrera.imagen?.trim() || carrera.imagenR?.trim() || undefined;
+  const fechaResolucionCuac = parsearFechaResolucionCuac(carrera.fechaResolucion);
 
   return {
     idExterno,
     codigo,
+    codigoCu: codigoCu || undefined,
     codigoSnies: carrera.codigoSnies?.trim() || undefined,
     nombre: titulo,
     slug,
@@ -172,9 +182,22 @@ export function mapearCarreraExterna(
     modalidad: carrera.modalidad?.trim() || undefined,
     facultad: carrera.facultad?.trim() || undefined,
     duracionSemestres: parsearDuracionSemestres(carrera.duracion),
+    duracionCuac: carrera.duracion?.trim() || undefined,
+    creditosCuac: typeof carrera.creditos === 'number' ? carrera.creditos : undefined,
+    resolucionCuac: carrera.resolucion?.trim() || undefined,
+    fechaResolucionCuac,
+    imagenSlugCuac: imagenSlug,
     urlImagen: resolverUrlImagenCarrera(carrera, opciones?.baseImagenes),
     activo: carrera.activo !== false,
   };
+}
+
+export function parsearFechaResolucionCuac(fecha?: string): Date | undefined {
+  if (!fecha?.trim()) return undefined;
+  const valor = fecha.trim();
+  const iso = valor.includes('T') ? valor : `${valor}T00:00:00.000Z`;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 export function resolverSlugUnicoEnLote(
