@@ -53,6 +53,7 @@ export interface FilaPanelPrograma {
 export interface MetadatosCatalogoCuacPanel {
   version: string | null
   degradado: boolean
+  revalidando?: boolean
   niveles: string[]
   facultades: string[]
   modalidades: string[]

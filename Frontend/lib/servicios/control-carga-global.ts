@@ -41,6 +41,7 @@ function mensajePorMetodo(metodo: string): string {
 export function debeMostrarCargaGlobal(metodo: string, ruta: string): boolean {
   if (metodo === 'GET') return false
   if (ruta.includes('/auth/login')) return false
+  if (ruta.includes('/integracion/sincronizar-carreras')) return false
   return true
 }
 
@@ -57,6 +58,7 @@ export function obtenerMensajeCarga(metodo: string, ruta: string, cuerpo?: unkno
   if (ruta.includes('/vigencias/demo/detener')) return 'Deteniendo la prueba de vigencia…'
   if (ruta.includes('/ejecutar-cron')) return 'Evaluando vigencias y notificando…'
   if (ruta.includes('/notificaciones') || ruta.includes('/alertas')) return 'Actualizando notificaciones…'
+  if (ruta.includes('/integracion/sincronizar-carreras')) return 'Sincronizando catálogo…'
   if (conArchivo || ruta.includes('/archivo')) return 'Subiendo archivo…'
   return mensajePorMetodo(metodo)
 }

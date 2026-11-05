@@ -69,6 +69,7 @@ export interface OpcionesAppE2E {
 export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<ContextoE2E> {
   // El .env local no debe alterar los E2E (demo de vigencia ni correo real). Deben fijarse ANTES
   // de importar AppModule: ConfigModule.forRoot congela el .env y las factorías al importarlo.
+  process.env.CARRERAS_SYNC_HABILITADO = 'false';
   process.env.VIGENCIA_MODO_PRUEBA = opciones.modoPruebaVigencia ? 'true' : 'false';
   process.env.CORREO_CANAL = 'ninguno';
   const { AppModule } = await import('../../src/app.module');
