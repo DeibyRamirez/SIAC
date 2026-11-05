@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CodigoDocumentoGuia, EstadoEvidencia, TipoTramiteSIAC } from '@prisma/client';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  CodigoDocumentoGuia,
+  EstadoEvidencia,
+  Prisma,
+  TipoTramiteSIAC,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
 import { calcularAvancePonderado, esEstadoRevisado, redondear2 } from '../dominio/panel-siac';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
@@ -52,120 +57,133 @@ export interface ProgresoProcesoSIAC {
   bloqueosCarga: BloqueoCargaGuia[];
 }
 
+type ProgramaAvance = {
+  id: string;
+  tipoTramiteActivo: TipoTramiteSIAC;
+  inicioCicloTramiteAt: Date;
+};
+
+type EvidenciaAvance = {
+  programaId: string | null;
+  codigoGuia: CodigoDocumentoGuia | null;
+  estado: EstadoEvidencia;
+  puntajeActual: number | null;
+  totalCondicionesActual: number | null;
+  updatedAt: Date;
+  createdAt: Date;
+};
+
 @Injectable()
 export class AvanceProcesoSIACService {
   constructor(private readonly prisma: PrismaService) {}
 
   async calcularProgresoPrograma(programaId: string): Promise<ProgresoProcesoSIAC> {
-    return ejecutarComoSistema(async () => {
-      const programa = await this.prisma.programa.findUnique({ where: { id: programaId } });
-      if (!programa) throw new NotFoundException('Programa no encontrado.');
+    const mapa = await this.calcularProgresoProgramas([programaId]);
+    const progreso = mapa.get(programaId);
+    if (!progreso) throw new NotFoundException('Programa no encontrado.');
+    return progreso;
+  }
 
-      const tramite = tramitePorTipo(programa.tipoTramiteActivo);
-      const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
+  /**
+   * Calcula el avance de varios programas con pocas consultas agregadas (evita N× findUnique
+   * y Promise.all que saturan el pool con connection_limit bajo).
+   */
+  async calcularProgresoProgramas(programaIds: string[]): Promise<Map<string, ProgresoProcesoSIAC>> {
+    const unicos = [...new Set(programaIds.filter(Boolean))];
+    if (unicos.length === 0) return new Map();
+
+    return ejecutarComoSistema(async () => {
+      const programas = await this.prisma.programa.findMany({
+        where: { id: { in: unicos } },
+        select: { id: true, tipoTramiteActivo: true, inicioCicloTramiteAt: true },
+      });
+
+      if (programas.length === 0) return new Map();
+
+      const tiposTramite = [...new Set(programas.map((p) => p.tipoTramiteActivo))];
+      const codigosGuiaUnion = [
+        ...new Set(
+          tiposTramite.flatMap((tipo) => tramitePorTipo(tipo).documentosGuia.map((d) => d.codigo)),
+        ),
+      ];
 
       const pesosDb = await this.prisma.tramiteDocumentoGuia.findMany({
         where: {
-          tramite: { tipo: programa.tipoTramiteActivo },
-          codigoGuia: { in: codigosGuia },
+          tramite: { tipo: { in: tiposTramite } },
+          codigoGuia: { in: codigosGuiaUnion },
         },
-        select: { codigoGuia: true, pesoPorcentaje: true },
+        select: { codigoGuia: true, pesoPorcentaje: true, tramite: { select: { tipo: true } } },
       });
-      const mapaPesos = new Map(pesosDb.map((p) => [p.codigoGuia, p.pesoPorcentaje]));
-
-      const evidencias = await this.prisma.evidencia.findMany({
-        where: {
-          programaId,
-          codigoGuia: { in: codigosGuia },
-          createdAt: { gte: programa.inicioCicloTramiteAt },
-          estado: {
-            in: [
-              EstadoEvidencia.Cumple,
-              EstadoEvidencia.ConObservaciones,
-              EstadoEvidencia.Validado,
-              EstadoEvidencia.Rechazado,
-            ],
-          },
-        },
-        select: {
-          codigoGuia: true,
-          estado: true,
-          puntajeActual: true,
-          totalCondicionesActual: true,
-          updatedAt: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-
-      const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
-      for (const ev of evidencias) {
-        if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
-        if (!ultimaPorGuia.has(ev.codigoGuia)) {
-          ultimaPorGuia.set(ev.codigoGuia, ev);
+      const pesosPorTramite = new Map<TipoTramiteSIAC, Map<CodigoDocumentoGuia, number>>();
+      for (const fila of pesosDb) {
+        const tipo = fila.tramite.tipo;
+        let mapa = pesosPorTramite.get(tipo);
+        if (!mapa) {
+          mapa = new Map();
+          pesosPorTramite.set(tipo, mapa);
         }
+        mapa.set(fila.codigoGuia, fila.pesoPorcentaje);
       }
 
-      const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
-        const codigoGuia = docGuia.codigo;
-        const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
-        const evidencia = ultimaPorGuia.get(codigoGuia);
-        // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
-        const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
-        const porcentajeInterno = redondear2(porcentajeBruto);
-        const aportacion = redondear2((peso * porcentajeBruto) / 100);
+      const filtroCicloPorPrograma: Prisma.EvidenciaWhereInput[] = programas.map((p) => ({
+        programaId: p.id,
+        createdAt: { gte: p.inicioCicloTramiteAt },
+      }));
 
-        return {
-          codigoGuia,
-          nombre: ETIQUETAS_GUIA[codigoGuia],
-          peso,
-          porcentajeInterno,
-          aportacion,
-          estado: evidencia?.estado ?? null,
-          puntaje: evidencia?.puntajeActual ?? null,
-          totalCondiciones: evidencia?.totalCondicionesActual ?? null,
-          aceptado:
-            evidencia?.estado === EstadoEvidencia.Cumple ||
-            evidencia?.estado === EstadoEvidencia.Validado,
-          conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
-          rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
-          porcentajeBruto,
-        };
-      });
+      const [evidenciasRevisadas, evidenciasAbiertas] = await Promise.all([
+        this.prisma.evidencia.findMany({
+          where: {
+            programaId: { in: programas.map((p) => p.id) },
+            codigoGuia: { in: codigosGuiaUnion },
+            OR: filtroCicloPorPrograma,
+            estado: {
+              in: [
+                EstadoEvidencia.Cumple,
+                EstadoEvidencia.ConObservaciones,
+                EstadoEvidencia.Validado,
+                EstadoEvidencia.Rechazado,
+              ],
+            },
+          },
+          select: {
+            programaId: true,
+            codigoGuia: true,
+            estado: true,
+            puntajeActual: true,
+            totalCondicionesActual: true,
+            updatedAt: true,
+            createdAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+        }),
+        this.prisma.evidencia.findMany({
+          where: {
+            programaId: { in: programas.map((p) => p.id) },
+            codigoGuia: { in: codigosGuiaUnion },
+            OR: filtroCicloPorPrograma,
+            estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
+          },
+          select: { programaId: true, codigoGuia: true, estado: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
+        }),
+      ]);
 
-      const avanceGlobal = calcularAvancePonderado(
-        documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
-      );
-      const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
-      const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+      const revisadasPorPrograma = agruparPorPrograma(evidenciasRevisadas);
+      const abiertasPorPrograma = agruparPorPrograma(evidenciasAbiertas);
 
-      const evidenciasAbiertas = await this.prisma.evidencia.findMany({
-        where: {
-          programaId,
-          codigoGuia: { in: codigosGuia },
-          createdAt: { gte: programa.inicioCicloTramiteAt },
-          estado: { in: ESTADOS_EVIDENCIA_ABIERTA_CARGA },
-        },
-        select: { codigoGuia: true, estado: true, updatedAt: true },
-        orderBy: { updatedAt: 'desc' },
-      });
-      const reglasCarga = calcularReglasCargaGuias(
-        codigosGuia,
-        documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
-        evidenciasAbiertas
-          .filter((ev) => ev.codigoGuia)
-          .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
-      );
-
-      return {
-        programaId,
-        tipoTramite: programa.tipoTramiteActivo,
-        avanceGlobal,
-        documentosAceptados,
-        documentosTotal: tramite.documentosGuia.length,
-        documentos: documentosPublicos,
-        ...estadoResolucion(documentos),
-        ...reglasCarga,
-      };
+      const resultado = new Map<string, ProgresoProcesoSIAC>();
+      for (const programa of programas) {
+        resultado.set(
+          programa.id,
+          construirProgresoPrograma(
+            programa,
+            pesosPorTramite.get(programa.tipoTramiteActivo) ?? new Map(),
+            revisadasPorPrograma.get(programa.id) ?? [],
+            abiertasPorPrograma.get(programa.id) ?? [],
+          ),
+        );
+      }
+      return resultado;
     });
   }
 
@@ -212,42 +230,19 @@ export class AvanceProcesoSIACService {
       const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
       for (const ev of evidencias) {
         if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
-        if (!ultimaPorGuia.has(ev.codigoGuia)) {
-          ultimaPorGuia.set(ev.codigoGuia, ev);
-        }
+        if (!ultimaPorGuia.has(ev.codigoGuia)) ultimaPorGuia.set(ev.codigoGuia, ev);
       }
 
-      const documentos: (DocumentoProgresoSIAC & { porcentajeBruto: number })[] = tramite.documentosGuia.map((docGuia) => {
-        const codigoGuia = docGuia.codigo;
-        const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
-        const evidencia = ultimaPorGuia.get(codigoGuia);
-        // R-010.1a: sin redondeos intermedios; solo se redondea lo que se muestra.
-        const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
-        const porcentajeInterno = redondear2(porcentajeBruto);
-        const aportacion = redondear2((peso * porcentajeBruto) / 100);
-
-        return {
-          codigoGuia,
-          nombre: ETIQUETAS_GUIA[codigoGuia],
-          peso,
-          porcentajeInterno,
-          aportacion,
-          estado: evidencia?.estado ?? null,
-          puntaje: evidencia?.puntajeActual ?? null,
-          totalCondiciones: evidencia?.totalCondicionesActual ?? null,
-          aceptado:
-            evidencia?.estado === EstadoEvidencia.Cumple ||
-            evidencia?.estado === EstadoEvidencia.Validado,
-          conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
-          rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
-          porcentajeBruto,
-        };
-      });
-
-      const avanceGlobal = calcularAvancePonderado(
-        documentos.map((doc) => ({ codigoGuia: doc.codigoGuia, porcentajeInterno: doc.porcentajeBruto, peso: doc.peso })),
+      const documentos = construirDocumentosProgreso(
+        tramite.documentosGuia,
+        mapaPesos,
+        new Map(
+          [...ultimaPorGuia.entries()].map(([codigo, ev]) => [
+            codigo,
+            { ...ev, programaId: institucionId, createdAt: ev.updatedAt },
+          ]),
+        ),
       );
-      const documentosAceptados = documentos.filter((doc) => doc.aceptado).length;
       const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
 
       const evidenciasAbiertas = await this.prisma.evidencia.findMany({
@@ -267,18 +262,123 @@ export class AvanceProcesoSIACService {
           .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
       );
 
+      const avanceGlobal = calcularAvancePonderado(
+        documentos.map((doc) => ({
+          codigoGuia: doc.codigoGuia,
+          porcentajeInterno: doc.porcentajeBruto,
+          peso: doc.peso,
+        })),
+      );
+
       return {
         programaId: institucionId,
         tipoTramite: institucion.tipoTramiteActivo,
         avanceGlobal,
-        documentosAceptados,
+        documentosAceptados: documentos.filter((doc) => doc.aceptado).length,
         documentosTotal: tramite.documentosGuia.length,
         documentos: documentosPublicos,
-        ...estadoResolucion(documentos),
+        ...estadoResolucion(documentosPublicos),
         ...reglasCarga,
       };
     });
   }
+}
+
+function agruparPorPrograma<T extends { programaId: string | null }>(filas: T[]): Map<string, T[]> {
+  const mapa = new Map<string, T[]>();
+  for (const fila of filas) {
+    const id = fila.programaId ?? '';
+    if (!id) continue;
+    const lista = mapa.get(id);
+    if (lista) lista.push(fila);
+    else mapa.set(id, [fila]);
+  }
+  return mapa;
+}
+
+function ultimasEvidenciasRevisadasPorGuia(
+  evidencias: EvidenciaAvance[],
+  codigosGuia: CodigoDocumentoGuia[],
+): Map<CodigoDocumentoGuia, EvidenciaAvance> {
+  const codigos = new Set(codigosGuia);
+  const ultimaPorGuia = new Map<CodigoDocumentoGuia, EvidenciaAvance>();
+  for (const ev of evidencias) {
+    if (!ev.codigoGuia || !codigos.has(ev.codigoGuia) || !esEstadoRevisado(ev.estado)) continue;
+    if (!ultimaPorGuia.has(ev.codigoGuia)) ultimaPorGuia.set(ev.codigoGuia, ev);
+  }
+  return ultimaPorGuia;
+}
+
+function construirProgresoPrograma(
+  programa: ProgramaAvance,
+  mapaPesos: Map<CodigoDocumentoGuia, number>,
+  evidenciasRevisadas: EvidenciaAvance[],
+  evidenciasAbiertas: Pick<EvidenciaAvance, 'codigoGuia' | 'estado'>[],
+): ProgresoProcesoSIAC {
+  const tramite = tramitePorTipo(programa.tipoTramiteActivo);
+  const codigosGuia = tramite.documentosGuia.map((d) => d.codigo);
+  const ultimaPorGuia = ultimasEvidenciasRevisadasPorGuia(evidenciasRevisadas, codigosGuia);
+  const documentos = construirDocumentosProgreso(tramite.documentosGuia, mapaPesos, ultimaPorGuia);
+  const documentosPublicos = documentos.map(({ porcentajeBruto: _bruto, ...doc }) => doc);
+
+  const avanceGlobal = calcularAvancePonderado(
+    documentos.map((doc) => ({
+      codigoGuia: doc.codigoGuia,
+      porcentajeInterno: doc.porcentajeBruto,
+      peso: doc.peso,
+    })),
+  );
+
+  const reglasCarga = calcularReglasCargaGuias(
+    codigosGuia,
+    documentosPublicos.map((d) => ({ codigoGuia: d.codigoGuia, aceptado: d.aceptado })),
+    evidenciasAbiertas
+      .filter((ev) => ev.codigoGuia)
+      .map((ev) => ({ codigoGuia: ev.codigoGuia!, estado: ev.estado })),
+  );
+
+  return {
+    programaId: programa.id,
+    tipoTramite: programa.tipoTramiteActivo,
+    avanceGlobal,
+    documentosAceptados: documentos.filter((doc) => doc.aceptado).length,
+    documentosTotal: tramite.documentosGuia.length,
+    documentos: documentosPublicos,
+    ...estadoResolucion(documentosPublicos),
+    ...reglasCarga,
+  };
+}
+
+function construirDocumentosProgreso(
+  documentosGuia: { codigo: CodigoDocumentoGuia; pesoPorcentaje: number }[],
+  mapaPesos: Map<CodigoDocumentoGuia, number>,
+  ultimaPorGuia: Map<CodigoDocumentoGuia, EvidenciaAvance>,
+): (DocumentoProgresoSIAC & { porcentajeBruto: number })[] {
+  return documentosGuia.map((docGuia) => {
+    const codigoGuia = docGuia.codigo;
+    const peso = mapaPesos.get(codigoGuia) ?? docGuia.pesoPorcentaje;
+    const evidencia = ultimaPorGuia.get(codigoGuia);
+    const porcentajeBruto = evidencia ? porcentajeInternoEvidencia(evidencia) : 0;
+    const porcentajeInterno = redondear2(porcentajeBruto);
+    const aportacion = redondear2((peso * porcentajeBruto) / 100);
+
+    return {
+      codigoGuia,
+      nombre: ETIQUETAS_GUIA[codigoGuia],
+      peso,
+      porcentajeInterno,
+      aportacion,
+      estado: evidencia?.estado ?? null,
+      puntaje: evidencia?.puntajeActual ?? null,
+      totalCondiciones: evidencia?.totalCondicionesActual ?? null,
+      aceptado:
+        evidencia?.estado === EstadoEvidencia.Cumple ||
+        evidencia?.estado === EstadoEvidencia.Validado,
+      conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
+      rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
+      porcentajeBruto,
+    };
+  });
 }
 
 /**

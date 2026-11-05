@@ -67,6 +67,10 @@ export const configuracionEnv = () => {
   /** §0: demo acelerada de 300 s (5 min); antes 420 s (7 min). */
   vigenciaDuracionPruebaSeg: parseInt(process.env.VIGENCIA_DURACION_PRUEBA_SEG ?? '300', 10),
   vigenciaIntervaloPruebaSeg: parseInt(process.env.VIGENCIA_INTERVALO_PRUEBA_SEG ?? '10', 10),
+  /** Tick automático del evaluador en modo prueba (cada N s). Por defecto desactivado. */
+  vigenciaEvaluadorIntervaloAuto:
+    process.env.VIGENCIA_EVALUADOR_INTERVALO_AUTO === 'true' ||
+    process.env.VIGENCIA_EVALUADOR_INTERVALO_AUTO === '1',
   /** T-007.2: zona horaria del cron diario de vigencias (por defecto Colombia). */
   vigenciasCronZona: process.env.VIGENCIAS_CRON_ZONA ?? 'America/Bogota',
   };

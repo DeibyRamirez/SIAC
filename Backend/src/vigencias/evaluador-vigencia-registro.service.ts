@@ -296,6 +296,12 @@ export class EvaluadorVigenciaRegistroService
    */
   onApplicationBootstrap(): void {
     if (!this.demo.modoPruebaActivo() || !this.programador) return;
+    if (!this.config.get<boolean>('vigenciaEvaluadorIntervaloAuto')) {
+      this.logger.log(
+        'Modo prueba de vigencias sin tick automático (active VIGENCIA_EVALUADOR_INTERVALO_AUTO=true si lo necesita).',
+      );
+      return;
+    }
     const intervaloMs = this.demo.intervaloPruebaSeg() * 1000;
     const id = setInterval(() => void this.tickModoPrueba(), intervaloMs);
     this.programador.addInterval(NOMBRE_INTERVALO_MODO_PRUEBA, id);

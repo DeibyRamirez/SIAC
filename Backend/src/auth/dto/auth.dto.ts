@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -18,12 +19,14 @@ export class IniciarSesionDto {
   @ApiProperty({ example: 'persona@uniautonoma.edu.co' })
   @IsEmail()
   @IsNotEmpty()
+  @MaxLength(254)
   correo!: string;
 
   @ApiProperty({ minLength: 4, description: 'El login exige al menos 4 caracteres. No se documenta un valor de ejemplo.' })
   @IsString()
   @IsNotEmpty()
   @MinLength(4)
+  @MaxLength(128)
   contrasena!: string;
 }
 
