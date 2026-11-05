@@ -18,6 +18,9 @@ describe('parametros-panel-url (R-010.3a)', () => {
       semaforo: 'Rojo',
       semestre: '',
       pagina: 2,
+      nivel: '',
+      facultad: '',
+      modalidad: '',
     })
     expect(construirUrlPanel(filtros)).toBe('/administrador/programas?q=derecho&semaforo=Rojo&pagina=2')
     expect(construirUrlPanel(leerFiltrosPanelUrl({}))).toBe('/administrador/programas')
@@ -27,6 +30,18 @@ describe('parametros-panel-url (R-010.3a)', () => {
     const filtros = leerFiltrosPanelUrl(new URLSearchParams('estado=raro&pagina=-3'))
     expect(filtros.estado).toBe('activos')
     expect(filtros.pagina).toBe(1)
+  })
+
+  it('propaga filtros de catálogo CUAC a la API', () => {
+    const api = filtrosPanelParaApi(
+      leerFiltrosPanelUrl({ nivel: 'Pregrado', facultad: 'Fac A', modalidad: 'Presencial' }),
+      12,
+    )
+    expect(api).toMatchObject({
+      nivel: 'Pregrado',
+      facultad: 'Fac A',
+      modalidad: 'Presencial',
+    })
   })
 
   it('traduce a filtros de la API con la búsqueda en el servidor', () => {

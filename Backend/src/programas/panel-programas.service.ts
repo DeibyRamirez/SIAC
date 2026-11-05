@@ -30,6 +30,14 @@ import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
 import { calcularSemaforo } from './programas.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { ClienteCarrerasCuacService } from '../integracion/cliente-carreras-cuac.service';
+import {
+  buscarCarreraParaPrograma,
+  construirIndiceCarreras,
+  enriquecerFilaPanelConCarrera,
+  extraerMetadatosCatalogo,
+  filtrarFilasPorCatalogo,
+} from '../integracion/cruzar-programa-carrera';
 
 export interface DocumentoPanelDto {
   codigoGuia: CodigoDocumentoGuia;
@@ -63,6 +71,26 @@ export interface FilaPanelDto {
   semestre: string | null;
   activo?: boolean;
   urlImagen?: string | null;
+  /** Título oficial del catálogo CUAC (si hay cruce). */
+  tituloCatalogo?: string;
+  duracion?: string;
+  creditos?: number;
+  resolucionCatalogo?: string;
+  fechaResolucionCatalogo?: string;
+  codigoSnies?: string;
+  codigoCu?: string;
+  nivel?: string;
+  facultad?: string;
+  modalidad?: string;
+  imagenSlug?: string;
+}
+
+export interface MetadatosPanelCatalogoDto {
+  version: string | null;
+  degradado: boolean;
+  niveles: string[];
+  facultades: string[];
+  modalidades: string[];
 }
 
 export interface RespuestaPanelDto {
@@ -71,6 +99,7 @@ export interface RespuestaPanelDto {
   page: number;
   limit: number;
   totalPaginas: number;
+  catalogoCuac?: MetadatosPanelCatalogoDto;
 }
 
 type PesosTramite = Map<CodigoDocumentoGuia, number>;
@@ -84,6 +113,7 @@ export class PanelProgramasService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly alcance: ServicioAlcancePrograma,
     private readonly configuracion: ConfiguracionSiacService,
+    private readonly clienteCarreras: ClienteCarrerasCuacService,
   ) {}
 
   /**
@@ -186,9 +216,10 @@ export class PanelProgramasService implements OnModuleInit {
     const where = await this.filtroProgramas(usuario, query);
     // R-010.1b: el semáforo es un valor calculado; si se filtra por él hay que calcular todas
     // las filas y paginar después, o el total y las páginas quedan mal.
-    const paginarEnBd = !query.semaforo;
+    const paginarEnBd =
+      !query.semaforo && !query.nivel && !query.facultad && !query.modalidad;
 
-    const [totalBd, programas] = await Promise.all([
+    const [totalBd, programas, catalogoRemoto] = await Promise.all([
       this.prisma.programa.count({ where }),
       this.prisma.programa.findMany({
         where,
@@ -198,6 +229,10 @@ export class PanelProgramasService implements OnModuleInit {
           id: true,
           nombre: true,
           codigo: true,
+          codigoSnies: true,
+          nivel: true,
+          modalidad: true,
+          facultad: true,
           tipoTramiteActivo: true,
           fechaResolucion: true,
           inicioCicloTramiteAt: true,
@@ -205,11 +240,13 @@ export class PanelProgramasService implements OnModuleInit {
           urlImagen: true,
         },
       }),
+      this.clienteCarreras.obtenerCatalogo(),
     ]);
 
     if (programas.length === 0) {
       const total = paginarEnBd ? totalBd : 0;
-      return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit) };
+      const meta = this.metadatosCatalogoPanel(catalogoRemoto.respuesta, catalogoRemoto.degradado);
+      return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit), catalogoCuac: meta };
     }
 
     const ids = programas.map((p) => p.id);
@@ -252,7 +289,7 @@ export class PanelProgramasService implements OnModuleInit {
       (e) => e.programaId ?? '',
     );
 
-    const filas = programas.map((programa) => {
+    const filasBase = programas.map((programa) => {
       const tipoTramite = query.tramite ?? programa.tipoTramiteActivo;
       return this.construirFila({
         id: programa.id,
@@ -269,19 +306,67 @@ export class PanelProgramasService implements OnModuleInit {
       });
     });
 
+    const indiceCarreras = catalogoRemoto.respuesta
+      ? construirIndiceCarreras(catalogoRemoto.respuesta.carreras)
+      : null;
+    const baseImagenes = this.clienteCarreras.baseImagenes();
+    const programasPorId = new Map(programas.map((p) => [p.id, p]));
+
+    let filas = filasBase.map((fila) => {
+      const programa = programasPorId.get(fila.id);
+      if (!programa) return fila;
+      const carrera = indiceCarreras
+        ? buscarCarreraParaPrograma(programa, indiceCarreras)
+        : undefined;
+      return enriquecerFilaPanelConCarrera(fila, programa, carrera, baseImagenes);
+    });
+
+    filas = filtrarFilasPorCatalogo(filas, {
+      nivel: query.nivel,
+      facultad: query.facultad,
+      modalidad: query.modalidad,
+    });
+
+    const meta = this.metadatosCatalogoPanel(catalogoRemoto.respuesta, catalogoRemoto.degradado);
+
     if (paginarEnBd) {
-      return { datos: filas, total: totalBd, page, limit, totalPaginas: Math.ceil(totalBd / limit) };
+      return {
+        datos: filas,
+        total: totalBd,
+        page,
+        limit,
+        totalPaginas: Math.ceil(totalBd / limit),
+        catalogoCuac: meta,
+      };
     }
 
-    const filtradas = this.filtrarPorSemaforo(filas, query.semaforo);
+    const filtradasSemaforo = this.filtrarPorSemaforo(filas, query.semaforo);
     const inicio = (page - 1) * limit;
     return {
-      datos: filtradas.slice(inicio, inicio + limit),
-      total: filtradas.length,
+      datos: filtradasSemaforo.slice(inicio, inicio + limit),
+      total: filtradasSemaforo.length,
       page,
       limit,
-      totalPaginas: Math.ceil(filtradas.length / limit),
+      totalPaginas: Math.ceil(filtradasSemaforo.length / limit),
+      catalogoCuac: meta,
     };
+  }
+
+  private metadatosCatalogoPanel(
+    respuesta: { carreras: import('../integracion/mapear-carrera-externa').CarreraExternaDto[]; version?: string } | null,
+    degradado: boolean,
+  ): MetadatosPanelCatalogoDto {
+    if (!respuesta) {
+      return {
+        version: null,
+        degradado,
+        niveles: [],
+        facultades: [],
+        modalidades: [],
+      };
+    }
+    const extraido = extraerMetadatosCatalogo(respuesta.carreras, respuesta.version);
+    return { ...extraido, degradado };
   }
 
   private construirFila(input: {

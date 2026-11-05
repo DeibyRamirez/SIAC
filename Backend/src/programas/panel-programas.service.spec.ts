@@ -46,7 +46,15 @@ function crearServicio(
       ),
     },
   };
-  const servicio = new PanelProgramasService(prisma as never, {} as never, configuracion as never);
+  const servicio = new PanelProgramasService(
+    prisma as never,
+    {} as never,
+    configuracion as never,
+    {
+      obtenerCatalogo: jest.fn().mockResolvedValue({ respuesta: null, desdeCache: false, degradado: true }),
+      baseImagenes: () => 'https://sitio-cuac.vercel.app',
+    } as never,
+  );
   return { servicio, prisma };
 }
 
