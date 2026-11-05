@@ -1,5 +1,8 @@
 'use client'
 
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas } from '@/components/siac/esqueletos'
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { Building2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -82,10 +85,14 @@ function ContenidoAsignacion() {
       <EncabezadoPagina
         etiqueta="HU-011"
         titulo="Asignación de programas"
-        descripcion="Asigne programas académicos (G1/G2) y el proceso institucional único (G3/G4) a cargadores y revisores. Los roles se gestionan en superadministrador."
+        descripcion="Asigne programas académicos (G1/G2) y el proceso institucional único (G3/G4) a profesores y revisores. Los roles se gestionan en superadministrador."
       />
 
-      {cargando ? <p className="text-sm text-muted-foreground">Cargando usuarios…</p> : null}
+      {cargando ? (
+        <RegionCarga texto="Cargando usuarios…">
+          <EsqueletoFilas filas={6} />
+        </RegionCarga>
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {!cargando && !error && usuarios.length === 0 ? (
         <PanelVacio mensaje="No hay usuarios para asignar." />
@@ -98,7 +105,7 @@ function ContenidoAsignacion() {
               <div className="min-w-0 flex-1 space-y-2">
                 <p className="font-semibold text-primary">{usuario.nombre}</p>
                 <p className="truncate text-sm text-muted-foreground">{usuario.correo}</p>
-                <Badge variant="secondary">{usuario.rol}</Badge>
+                <Badge variant="secondary">{nombreVisibleRol(usuario.rol)}</Badge>
                 {usuario.rol === 'Cargador' || usuario.rol === 'Revisor' ? (
                   <div className="space-y-2">
                     <ListaProgramasAsignados programas={usuario.programasAsignados ?? []} />
@@ -118,7 +125,7 @@ function ContenidoAsignacion() {
                   </Button>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    La asignación de programas aplica solo a cargadores y revisores.
+                    La asignación de programas aplica solo a profesores y revisores.
                   </p>
                 )}
               </div>
@@ -237,7 +244,9 @@ function DialogoAsignacion({
           <DialogTitle>Alcance de {usuario?.nombre}</DialogTitle>
         </DialogHeader>
         {cargando ? (
-          <p className="text-sm text-muted-foreground">Cargando asignación…</p>
+          <RegionCarga texto="Cargando programas asignados…">
+            <EsqueletoFilas filas={4} />
+          </RegionCarga>
         ) : (
           <div className="space-y-4">
             <ul className="max-h-64 space-y-2 overflow-y-auto">

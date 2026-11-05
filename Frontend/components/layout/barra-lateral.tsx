@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   FileCheck2,
   Files,
+  KeyRound,
   LayoutDashboard,
   Settings,
   ShieldCheck,
@@ -75,18 +76,12 @@ function itemsAdministrador(): ItemNavegacion[] {
   ]
 }
 
-function itemsParAcademico(): ItemNavegacion[] {
-  return [
-    { href: '/administrador', etiqueta: 'Resumen general', icono: LayoutDashboard },
-    { href: rutaBusquedaConPeriodoActual(), etiqueta: 'Evidencias validadas', icono: Files },
-  ]
-}
-
 function itemsSuperAdmin(): ItemNavegacion[] {
   return [
     { href: '/superadmin', etiqueta: 'Panel SuperAdmin', icono: ShieldCheck },
     { href: '/superadmin/usuarios', etiqueta: 'Gestión de usuarios', icono: Users },
-    { href: '/cargador', etiqueta: 'Módulo cargador', icono: Files },
+    { href: '/superadmin/integradores', etiqueta: 'Claves de integración', icono: KeyRound },
+    { href: '/cargador', etiqueta: 'Módulo profesor', icono: Files },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja revisor', icono: FileCheck2, mostrarBadge: true },
     { href: '/administrador', etiqueta: 'Módulo administrador', icono: LayoutDashboard },
   ]
@@ -123,8 +118,6 @@ function itemsPorRol(rol: RolUsuario): ItemNavegacion[] {
       return itemsRevisor()
     case 'Administrador':
       return itemsAdministrador()
-    case 'ParAcademico':
-      return itemsParAcademico()
     case 'SuperAdmin':
       return itemsSuperAdmin()
     default:

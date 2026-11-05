@@ -36,6 +36,11 @@ import { AvanceProgramaService } from '../programas/avance-programa.service';
 import { AvanceProcesoSIACService } from '../programas/avance-proceso-siac.service';
 import { codigosGuiaPermitidos } from '../programas/catalogo-tramites-siac';
 import { validarNuevaCargaEvidencia } from '../dominio/reglas-carga-evidencia';
+import {
+  mensajePeriodoInvalido,
+  motivoBloqueoCargaPeriodo,
+  REGEX_PERIODO_ACADEMICO,
+} from '../dominio/periodo-academico';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
 import { transicionPermitida } from '../dominio/maquina-estados-evidencia';
 
@@ -69,6 +74,7 @@ import { ServicioManipulacionDocx } from '../docx/servicio-manipulacion-docx.ser
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 
 import {
+  puedeVerBorrador,
   rolPuedeDictaminar,
   ServicioAlcancePrograma,
 } from '../common/alcance/servicio-alcance-programa';
@@ -142,6 +148,7 @@ export class DocumentosService {
   ) {
 
     this.validarArchivo(archivo);
+    this.exigirPeriodoCargable(dto.periodo, usuario);
 
     const requiereChecklistLegacy =
       dto.requiereChecklistMaestro === 'true' ||
@@ -358,6 +365,18 @@ export class DocumentosService {
 
   }
 
+  /**
+   * Profesor (Cargador) no sube a un periodo cerrado. Revisor, Administrador y SuperAdmin sí.
+   * Decisión reversible: quitar esta llamada deja el comportamiento anterior.
+   */
+  private exigirPeriodoCargable(periodo: string, usuario: UsuarioToken): void {
+    if (!REGEX_PERIODO_ACADEMICO.test(periodo)) {
+      throw new BadRequestException(mensajePeriodoInvalido(periodo));
+    }
+    const motivo = motivoBloqueoCargaPeriodo(usuario.rol, periodo);
+    if (motivo) throw new BadRequestException(motivo);
+  }
+
 
 
   async listar(usuario: UsuarioToken, query: FiltrosEvidenciaDto) {
@@ -424,7 +443,7 @@ export class DocumentosService {
 
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
-    if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+    if (!evidencia) return this.lanzarNoEncontradaOProhibida(id);
 
 
 
@@ -442,7 +461,7 @@ export class DocumentosService {
 
     this.verificarEdicion(evidencia, usuario);
 
-
+    if (dto.periodo) this.exigirPeriodoCargable(dto.periodo, usuario);
 
     return this.evidenciaRepo.actualizar(id, dto);
 
@@ -517,6 +536,60 @@ export class DocumentosService {
 
 
 
+    return this.guardarNuevaVersion(
+      evidencia,
+      versionRegistro,
+      archivo,
+      usuario,
+      `Versión ${(evidencia.version ?? 1) + 1} cargada`,
+    );
+
+  }
+
+
+
+  /**
+   * Usabilidad: Revisor y Administrador pueden subir o reemplazar el documento aunque ya esté
+   * validado. Se conserva la versión anterior en EvidenciaVersion (quién la subió y cuándo), el
+   * estado no cambia y el historial registra quién reemplazó y en qué estado. Sigue sujeto a la RLS
+   * (el Borrador ajeno no es visible) y al alcance del programa (Revisor asignado).
+   */
+  async reemplazarDocumentoGestion(
+    id: string,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+  ) {
+    this.validarArchivo(archivo);
+    if (
+      usuario.rol !== RolUsuario.Revisor &&
+      usuario.rol !== RolUsuario.Administrador &&
+      !this.esSuperAdmin(usuario)
+    ) {
+      throw new ForbiddenException('Solo Revisor o Administrador pueden reemplazar el documento.');
+    }
+    const evidencia = await this.obtenerPorId(id, usuario);
+    if (evidencia.estado === EstadoEvidencia.Borrador) {
+      throw new BadRequestException('El borrador lo gestiona su autor; envíelo a revisión primero.');
+    }
+    const versionRegistro = await this.evidenciaRepo.buscarVersion(id, evidencia.version ?? 1);
+    const nuevaVersion = (evidencia.version ?? 1) + 1;
+    return this.guardarNuevaVersion(
+      evidencia,
+      versionRegistro,
+      archivo,
+      usuario,
+      `Documento reemplazado por ${usuario.rol} (versión ${nuevaVersion}, estado ${evidencia.estado} conservado)`,
+    );
+  }
+
+  /** Registra la versión nueva, conserva la anterior y deja constancia en el historial. */
+  private async guardarNuevaVersion(
+    evidencia: Awaited<ReturnType<DocumentosService['obtenerPorId']>>,
+    versionRegistro: { nombreArchivo?: string | null } | null,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+    textoHistorial: string,
+  ) {
     const nuevaVersion = (evidencia.version ?? 1) + 1;
 
     // El nombre del archivo no se renombra al subir correcciones: se conserva el
@@ -528,7 +601,7 @@ export class DocumentosService {
 
     const contextoClave = await this.contextoAlmacenamientoEvidencia(evidencia);
     const clave = this.almacenamiento.generarClaveEvidencia(
-      id,
+      evidencia.id,
       nombreArchivoOriginal,
       nuevaVersion,
       contextoClave,
@@ -554,7 +627,7 @@ export class DocumentosService {
 
       await this.evidenciaRepo.registrarVersion({
 
-        evidenciaId: id,
+        evidenciaId: evidencia.id,
 
         numero: nuevaVersion,
 
@@ -572,7 +645,7 @@ export class DocumentosService {
 
 
 
-      await this.evidenciaRepo.actualizar(id, {
+      await this.evidenciaRepo.actualizar(evidencia.id, {
 
         nombreArchivo: nombreArchivoOriginal,
 
@@ -606,11 +679,11 @@ export class DocumentosService {
 
       await this.evidenciaRepo.registrarHistorial(
 
-        id,
+        evidencia.id,
 
         evidencia.estado,
 
-        `Versión ${nuevaVersion} cargada`,
+        textoHistorial,
 
         usuario.id,
 
@@ -618,7 +691,7 @@ export class DocumentosService {
 
 
 
-      const actualizada = await this.evidenciaRepo.buscarPorId(id);
+      const actualizada = await this.evidenciaRepo.buscarPorId(evidencia.id);
 
       if (!actualizada) throw new NotFoundException('Evidencia no encontrada tras la nueva versión.');
 
@@ -628,19 +701,24 @@ export class DocumentosService {
 
       await this.evidenciaRepo
 
-        .eliminarVersion(id, nuevaVersion)
+        .eliminarVersion(evidencia.id, nuevaVersion)
 
         .catch(() => undefined);
 
-      await this.evidenciaRepo.actualizar(id, snapshotAnterior).catch(() => undefined);
+      await this.evidenciaRepo.actualizar(evidencia.id, snapshotAnterior).catch(() => undefined);
 
       throw err;
 
     }
-
   }
 
-
+  /**
+   * Usabilidad (periodos): periodos con documentos visibles para el usuario. El frontend muestra
+   * los del año actual y futuros como vigentes y el resto como «Históricos».
+   */
+  async listarPeriodosConDatos(): Promise<{ periodos: string[] }> {
+    return { periodos: await this.evidenciaRepo.listarPeriodosConDatos() };
+  }
 
   async eliminar(id: string, usuario: UsuarioToken) {
 
@@ -774,7 +852,7 @@ export class DocumentosService {
 
     const evidencia = await this.evidenciaRepo.buscarPorId(id);
 
-    if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+    if (!evidencia) return this.lanzarNoEncontradaOProhibida(id);
 
 
 
@@ -1535,6 +1613,14 @@ export class DocumentosService {
 
 
 
+  /** 403 si la evidencia existe pero la RLS la oculta al usuario; 404 si no existe. */
+  private async lanzarNoEncontradaOProhibida(id: string): Promise<never> {
+    if (await this.evidenciaRepo.existe(id)) {
+      throw new ForbiddenException('No tiene acceso a esta evidencia.');
+    }
+    throw new NotFoundException('Evidencia no encontrada.');
+  }
+
   private async verificarAccesoLectura(
 
     evidencia: { id: string; estado: EstadoEvidencia; autorId: string; programaId: string | null },
@@ -1543,21 +1629,13 @@ export class DocumentosService {
 
   ) {
 
-    if (this.esSuperAdmin(usuario)) return;
-
-
-
-    if (usuario.rol === RolUsuario.ParAcademico) {
-
-      if (evidencia.estado !== EstadoEvidencia.Validado) {
-
-        throw new ForbiddenException('El par académico solo consulta evidencias validadas.');
-
-      }
-
-      return;
-
+    // Regla de borradores: solo su autor los ve, también frente a Administrador y SuperAdmin.
+    // Cubre detalle, historial, versiones, comentarios, comparación y descargas/URL firmadas.
+    if (!puedeVerBorrador(evidencia, usuario.id)) {
+      throw new ForbiddenException('El borrador solo lo consulta quien lo subió.');
     }
+
+    if (this.esSuperAdmin(usuario)) return;
 
 
 
@@ -1593,21 +1671,6 @@ export class DocumentosService {
 
 
 
-    if (usuario.rol === RolUsuario.Administrador && evidencia.estado === EstadoEvidencia.Borrador) {
-
-      const yaRevisado = await this.evidenciaRepo.tieneHistorialDistintoDeBorrador(evidencia.id);
-
-      if (!yaRevisado) {
-
-        throw new ForbiddenException(
-
-          'El administrador no consulta borradores que nunca se enviaron a revisión.',
-
-        );
-
-      }
-
-    }
 
   }
 
@@ -1710,9 +1773,7 @@ export class DocumentosService {
 
     if (
 
-      usuario.rol === RolUsuario.Administrador ||
-
-      usuario.rol === RolUsuario.ParAcademico
+      usuario.rol === RolUsuario.Administrador
 
     ) {
 

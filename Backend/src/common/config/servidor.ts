@@ -1,3 +1,4 @@
+import { advertenciasCanalCorreo } from '../../correo/resolver-canal-correo';
 import { validarConfiguracionCorreo } from '../../correo/validar-configuracion-correo';
 
 /**
@@ -104,6 +105,7 @@ export function validarEntornoProduccion(
       errores.push(error instanceof Error ? error.message : String(error));
     }
   }
+  advertencias.push(...advertenciasCanalCorreo(entorno.CORREO_CANAL, entorno.NODE_ENV));
   if (entorno.CORREO_DESTINATARIOS_PERMITIDOS?.trim()) {
     advertencias.push(
       'CORREO_DESTINATARIOS_PERMITIDOS se ignora en producción: los correos llegan a todos los destinatarios reales.',

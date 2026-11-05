@@ -26,7 +26,7 @@
 Cargador descarga plantilla → sube evidencia (Borrador)
   → envía a revisión (EnRevision)
   → Revisor dictamina (Validado / Rechazado)
-  → Administrador / Par Académico consulta validadas
+  → Administrador consulta validadas
   → Vigencias y semáforos alimentan panel administrativo
 ```
 
@@ -62,7 +62,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | ORM | Prisma 6 → Supabase PostgreSQL |
 | Auth | JWT + Passport, dominio `@uniautonoma.edu.co` |
 | Storage | Por defecto en dev: disco `Backend/almacen-local` (`S3_USAR_ALMACEN_LOCAL=true`); producción opcional Supabase S3 |
-| Docs API | Swagger en `/api/docs` |
+| Docs API | OpenAPI 3 en `docs/contrato-api/openapi.json`. Swagger UI en `/api/docs` solo si `NODE_ENV` no es `production` |
 | Cron | `@nestjs/schedule` — vigencias 06:00 America/Bogota |
 
 ### Módulos implementados
@@ -82,7 +82,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 | Integracion | `/integracion` | UPSERT maestros TI |
 | Ingesta | `/evidencias/parsear-excel` | Carga masiva Excel |
 | Metricas | `/metricas` | Embed token Power BI |
-| Power BI | `/powerbi`, `/powerbi/embed-token` | URLs públicas (CRUD) y embed por categoría |
+| Power BI | `/powerbi`, `/powerbi/embed-token`, `/powerbi/insercion`, `/powerbi/token-insercion` | URLs públicas y, si el interruptor está encendido, token de inserción |
 | Estructura | `/estructura` | CRUD etapas/carpetas/docs |
 | Almacenamiento | (servicio) | Supabase S3 |
 
@@ -90,7 +90,7 @@ SIAC/                             ← repo oficial DeibyRamirez/SIAC
 
 12 entidades según F-03 §2.2: `Usuario`, `Programa`, `UsuarioPrograma`, `Evidencia`, `HistorialEvidencia`, `Plantilla`, `AnexoVigencia`, `AlertaInApp`, `EtapaAcreditacion`, `CarpetaNormativa`, `DocumentoRequerido`.
 
-**Enums clave:** `RolUsuario` (incl. `ParAcademico`, `SuperAdmin`), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
+**Enums clave:** `RolUsuario` (`Cargador`, `Revisor`, `Administrador`, `SuperAdmin`; `ParAcademico` eliminado el 20/10/2026), `EstadoEvidencia`, `EstadoVigencia`, `OrigenDato`.
 
 **Campos maestros TI:** `idExterno`, `origenDato`, `fechaSincronizacion` en Usuario y Programa.
 
@@ -117,7 +117,7 @@ La API de carreras CUAC (`POST /integracion/sincronizar-carreras`) es **solo lec
 | ADR-005 | Copia local maestros + adapter integracion |
 | ADR-006 | Alertas in-app obligatorias; correo espejo del mensaje |
 | ADR-008 | Correo Resend (dev) + SMTP (prod); módulo `correo/` con DIP |
-| ADR-009 | Power BI «Publicar en la web» (`POWERBI_MODO=publico`); App Owns Data (`embebido`) bloqueado hasta credenciales Azure. **Informes públicos sin autenticación** |
+| ADR-009 | Power BI «Publicar en la web» (`/view?r=`) y enlace seguro `reportEmbed` (login Microsoft y licencia Pro). App Owns Data (`embebido`) sigue bloqueado hasta credenciales Azure. |
 | ADR-007 | Pruebas: Jest + supertest (backend) y Vitest + RTL (frontend); `docs/adr/ADR-007-pilas-de-pruebas.md` |
 
 ### Brechas backend pendientes
@@ -406,6 +406,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [x] Inicio y bandeja del revisor filtrados por programas asignados, sin respaldo a semilla
 - [x] T-010.1 `GET /programas/panel` con avance ponderado, doble semáforo e institución singleton (G3/G4)
 - [x] T-010.2 dominio `panel-siac.ts` con pesos renovación programa **50/50** (G1/G2), institución 85/15 (G3/G4) y umbrales en `ConfiguracionSIAC`; tests unitarios
+- [x] HU-009 token de inserción de Power BI: interruptor `powerbi_embed_habilitado` apagado por defecto; encendido sin credenciales no activa el informe
 - [x] Avance institucional admin: `GET /programas/avance-institucional` (promedio igualitario de programas activos); ciclo manual `POST /programas/:id/iniciar-ciclo-renovacion` + `Programa.inicioCicloTramiteAt`
 - [x] Sync carreras CUAC → `Programa` (`idExterno`, `origenDato: API`); bajas del catálogo → `activo: false`
 - [x] Admin configura `tipoTramiteActivo` por programa en detalle (`PATCH /programas/:id`)
@@ -471,6 +472,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 | [x] | Semáforos UI: etiquetas de negocio + color (`etiquetas-semaforo.ts`) | Frontend |
 | [x] | Frontend 100% API real (paneles, búsqueda, plantillas y evidencias sin semilla) | Frontend |
 | [ ] | Integración CSV maestros TI | Backend |
+| [x] | HU-009 token de inserción Power BI (interruptor apagado por defecto, caché y renovación) | Backend + Frontend |
 | [ ] | Pruebas con stakeholders CUAC | Todos |
 
 ### P2 — Futuro
@@ -484,13 +486,6 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
-
-### 2026-11-04 — API pública de programas CUAC (repo externo)
-
-- [API] Catálogo publicado en `https://github.com/BICHO128/api-programas-cuac` y desplegado en Vercel en `https://api-programas-cuac.vercel.app/carreras` (25 programas vigentes: 14 de pregrado y 11 de posgrado). El proyecto es independiente de SIAC; la carpeta local `API/` se retiró del repo.
-- [API] Solo se publican programas con registro SNIES activo; se excluyen inactivos o reemplazados (Ingeniería de Sistemas, Ingeniería de Sistemas Informáticos, Licenciaturas antiguas, Deporte y Actividad Física, técnicos inactivos y Mercadeo sin SNIES). Administración de Empresas se publica una vez (CU027); Ingeniería Ambiental y Sanitaria se excluye por reemplazo con la de Saneamiento; Proyectos de Desarrollo queda con modalidades Presencial y Virtual.
-- [API] Se conservan los `_id` de los 10 programas de la API anterior para que `POST /api/v1/integracion/sincronizar-carreras` actualice en vez de duplicar. El README del repo externo documenta el despliegue en Vercel.
-- [Pendiente] Al sincronizar posgrados, `mapear-carrera-externa.ts` aún fuerza `nivel: 'Pregrado'`; ajustar si se quiere persistir el nivel que ya trae esta API.
 
 ### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
 

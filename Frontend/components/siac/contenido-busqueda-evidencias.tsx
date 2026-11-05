@@ -1,5 +1,6 @@
 'use client'
 
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -209,7 +210,7 @@ export function ContenidoBusquedaEvidencias({
       />
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando evidencias…</p>
+        <MensajeCargando texto="Cargando resultados…" filas={6} columnas={7} />
       ) : evidencias.length === 0 ? (
         <PanelVacio mensaje="No se encontraron evidencias.">
           {hayFiltrosActivos ? (

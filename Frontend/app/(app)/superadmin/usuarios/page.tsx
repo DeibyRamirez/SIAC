@@ -1,5 +1,6 @@
 'use client'
 
+import { nombreVisibleRol } from '@/lib/constantes/roles'
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -7,6 +8,7 @@ import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { DialogoEditarUsuario } from '@/components/siac/dialogo-editar-usuario'
 import { CampoContrasena } from '@/components/siac/campo-contrasena'
+import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,7 +40,6 @@ import {
 const ROLES: RolUsuario[] = [
   'Cargador',
   'Revisor',
-  'ParAcademico',
   'Administrador',
   'SuperAdmin',
 ]
@@ -180,7 +181,7 @@ function ContenidoUsuarios() {
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {r}
+                    {nombreVisibleRol(r)}
                   </option>
                 ))}
               </select>
@@ -203,7 +204,7 @@ function ContenidoUsuarios() {
       </Card>
 
       {cargando ? (
-        <p className="text-sm text-muted-foreground">Cargando usuarios…</p>
+        <MensajeCargando texto="Cargando usuarios…" filas={6} columnas={5} />
       ) : usuarios.length === 0 ? (
         <PanelVacio mensaje="No hay usuarios registrados o la API no está disponible." />
       ) : (
@@ -223,7 +224,7 @@ function ContenidoUsuarios() {
                 <TableRow key={usuario.id}>
                   <TableCell className="font-medium">{usuario.nombre}</TableCell>
                   <TableCell>{usuario.correo}</TableCell>
-                  <TableCell>{usuario.rol}</TableCell>
+                  <TableCell>{nombreVisibleRol(usuario.rol)}</TableCell>
                   <TableCell>
                     <Badge variant={usuario.activo ? 'default' : 'secondary'}>
                       {usuario.activo ? 'Activo' : 'Inactivo'}

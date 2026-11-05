@@ -37,6 +37,26 @@ export interface FilaPanelPrograma {
   semestre: string | null
   activo?: boolean
   urlImagen?: string | null
+  tituloCatalogo?: string
+  duracion?: string
+  creditos?: number
+  resolucionCatalogo?: string
+  fechaResolucionCatalogo?: string
+  codigoSnies?: string
+  codigoCu?: string
+  nivel?: string
+  facultad?: string
+  modalidad?: string
+  imagenSlug?: string
+}
+
+export interface MetadatosCatalogoCuacPanel {
+  version: string | null
+  degradado: boolean
+  revalidando?: boolean
+  niveles: string[]
+  facultades: string[]
+  modalidades: string[]
 }
 
 export interface RespuestaPanelProgramas {
@@ -45,6 +65,7 @@ export interface RespuestaPanelProgramas {
   page: number
   limit: number
   totalPaginas: number
+  catalogoCuac?: MetadatosCatalogoCuacPanel
 }
 
 export type EstadoFiltroPanel = 'activos' | 'inactivos' | 'todos'
@@ -62,6 +83,9 @@ export interface FiltrosPanelProgramas {
   origen?: OrigenProgramaPanel
   /** Búsqueda por nombre o código (en el servidor). */
   q?: string
+  nivel?: string
+  facultad?: string
+  modalidad?: string
 }
 
 /** Ruta de la API del panel; la usan el cliente y el SSR (R-010.3a). */
@@ -76,6 +100,9 @@ export function rutaPanelProgramas(filtros: FiltrosPanelProgramas = {}): string 
   if (filtros.estado) params.set('estado', filtros.estado)
   if (filtros.origen) params.set('origen', filtros.origen)
   if (filtros.q?.trim()) params.set('q', filtros.q.trim())
+  if (filtros.nivel) params.set('nivel', filtros.nivel)
+  if (filtros.facultad) params.set('facultad', filtros.facultad)
+  if (filtros.modalidad) params.set('modalidad', filtros.modalidad)
   const query = params.toString()
   return `/programas/panel${query ? `?${query}` : ''}`
 }

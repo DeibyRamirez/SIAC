@@ -27,6 +27,7 @@ import {
   colorMasCritico,
   colorPorPuntaje,
 } from '../dominio/puntaje-condiciones';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 export interface ConteosEstadoPrograma {
   borrador: number;
@@ -59,10 +60,14 @@ export class ProgramaRepositorio {
       .then((anexos) => anexos.map((anexo) => conEstadoCalculado(anexo)));
   }
 
+  /**
+   * Conteos agregados del panel: los borradores son privados de su autor, así que no se cuentan
+   * (no se revela que existen). Cada usuario ve sus propios borradores en su listado.
+   */
   agruparEvidenciasPorEstado(programaIds: string[]) {
     return this.prisma.evidencia.groupBy({
       by: ['programaId', 'estado'],
-      where: { programaId: { in: programaIds } },
+      where: { programaId: { in: programaIds }, estado: { not: EstadoEvidencia.Borrador } },
       _count: { _all: true },
     });
   }
@@ -88,9 +93,10 @@ export class ProgramaRepositorio {
     });
   }
 
+  /** Igual que los conteos agregados: sin borradores (privados de su autor). */
   listarEstadosEvidencia(programaId: string) {
     return this.prisma.evidencia.findMany({
-      where: { programaId },
+      where: { programaId, estado: { not: EstadoEvidencia.Borrador } },
       select: { estado: true },
     });
   }
@@ -125,12 +131,13 @@ export class ProgramasService {
     private readonly alcance: ServicioAlcancePrograma,
     private readonly avanceProceso: AvanceProcesoSIACService,
     private readonly configuracion: ConfiguracionSiacService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
   ) {}
 
   async crear(dto: CrearProgramaDto) {
     const codigo = await this.generarCodigoUnico(dto.nombre);
     const slug = await this.generarSlugUnico(dto.nombre);
-    return this.programaRepo.crear({
+    const creado = await this.programaRepo.crear({
       nombre: dto.nombre.trim(),
       codigo,
       slug,
@@ -142,6 +149,8 @@ export class ProgramasService {
       porcentajeAvance: 0,
       estadoProceso: 'En progreso',
     });
+    this.cacheConsultas.invalidarTodo();
+    return creado;
   }
 
   async actualizar(id: string, dto: ActualizarProgramaDto) {
@@ -160,18 +169,32 @@ export class ProgramasService {
     if (dto.duracionSemestres !== undefined) datos.duracionSemestres = dto.duracionSemestres;
     if (dto.tipoTramiteActivo !== undefined) datos.tipoTramiteActivo = dto.tipoTramiteActivo;
 
-    return this.programaRepo.actualizar(id, datos);
+    const actualizado = await this.programaRepo.actualizar(id, datos);
+    this.cacheConsultas.invalidarTodo();
+    return actualizado;
   }
 
   async actualizarEstado(id: string, activo: boolean) {
     const programa = await this.programaRepo.buscarPorId(id);
     if (!programa) throw new NotFoundException('Programa no encontrado.');
-    return this.programaRepo.actualizar(id, { activo });
+    const actualizado = await this.programaRepo.actualizar(id, { activo });
+    this.cacheConsultas.invalidarTodo();
+    return actualizado;
   }
 
-  async listarConSemaforo(usuario: UsuarioAlcance) {
+  async listarConSemaforo(
+    usuario: UsuarioAlcance,
+  ): Promise<Awaited<ReturnType<ProgramasService['enriquecer']>>> {
+    const clave = this.cacheConsultas.claveListado(usuario);
+    const cacheado = this.cacheConsultas.leerListado(clave);
+    if (cacheado) {
+      return cacheado as Awaited<ReturnType<ProgramasService['enriquecer']>>;
+    }
+
     const programas = await this.programaRepo.listar(await this.filtroListado(usuario));
-    return this.enriquecer(programas);
+    const respuesta = await this.enriquecer(programas);
+    this.cacheConsultas.guardarListado(clave, respuesta);
+    return respuesta;
   }
 
   /** Promedio igualitario del avanceGlobal de cada programa activo (T-010.2). */
@@ -181,11 +204,9 @@ export class ProgramasService {
     if (programas.length === 0) {
       return { avanceInstitucional: 0, programasActivos: 0, programasCompletos: 0 };
     }
-    const progresos = await Promise.all(
-      programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id)),
-    );
-    const suma = progresos.reduce((acc, p) => acc + p.avanceGlobal, 0);
-    const programasCompletos = progresos.filter((p) => p.avanceGlobal >= 100).length;
+    const progresos = await this.avanceProceso.calcularProgresoProgramas(programas.map((p) => p.id));
+    const suma = [...progresos.values()].reduce((acc, p) => acc + p.avanceGlobal, 0);
+    const programasCompletos = [...progresos.values()].filter((p) => p.avanceGlobal >= 100).length;
     return {
       avanceInstitucional: Math.round(suma / programas.length),
       programasActivos: programas.length,
@@ -221,6 +242,7 @@ export class ProgramasService {
       tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
       estadoProceso: 'En progreso',
     });
+    this.cacheConsultas.invalidarTodo();
 
     const progreso = await this.avanceProceso.calcularProgresoPrograma(programaId);
     return {
@@ -272,14 +294,12 @@ export class ProgramasService {
     if (programas.length === 0) return [];
 
     const ids = programas.map((programa) => programa.id);
-    const [anexos, grupos, progresos] = await Promise.all([
+    const [anexos, grupos, progresoPorPrograma] = await Promise.all([
       this.programaRepo.listarAnexosDeProgramas(ids),
       this.programaRepo.agruparEvidenciasPorEstado(ids),
-      Promise.all(programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id))),
+      this.avanceProceso.calcularProgresoProgramas(ids),
     ]);
-
     const anexosPorPrograma = agrupar(anexos, (anexo) => anexo.programaId);
-    const progresoPorPrograma = new Map(progresos.map((p) => [p.programaId, p]));
     const conteosPorPrograma = new Map<string, ConteosEstadoPrograma>();
 
     for (const grupo of grupos) {

@@ -6,7 +6,7 @@
 
 ## Contexto
 
-HU-009 pide mostrar dentro de SIAC seis informes Power BI con datos de Unicauca: aseguramiento, infraestructura, egresados, investigación, profesores y estudiantes. La opción App Owns Data (T-009.2) necesita un service principal de Azure y capacidad Power BI Embedded, y esas credenciales aún no llegan.
+HU-009 pide mostrar dentro de SIAC los informes Power BI de la Corporación Universitaria Autónoma del Cauca (CUAC / Uniautónoma). El catálogo implementado tiene ocho categorías (`Backend/src/powerbi/categorias-powerbi.ts` y `Frontend/lib/informes-powerbi.ts`): aseguramiento, infraestructura, egresados, investigación, profesores, estudiantes, bienestar y relaciones con el entorno. La opción App Owns Data (T-009.2) necesita un service principal de Azure y capacidad Power BI Embedded, y esas credenciales aún no llegan.
 
 ## Opciones
 
@@ -20,17 +20,23 @@ HU-009 pide mostrar dentro de SIAC seis informes Power BI con datos de Unicauca:
 
 ## Decisión
 
-- Modo por defecto `POWERBI_MODO=publico`: cada categoría embebe en un iframe la URL de «Publicar en la web» almacenada en `ConfiguracionInformePowerBi`. Solo se aceptan URL que empiezan por `https://app.powerbi.com/view?r=`; el resto se rechaza.
+- Modo por defecto `POWERBI_MODO=publico`: cada categoría embebe en un iframe la URL guardada en `ConfiguracionInformePowerBi`. Solo https y el host exacto `app.powerbi.com`, sin usuario, puerto ni fragmento. Se aceptan dos rutas:
+  - «Publicar en la web»: `/view` con el parámetro `r`.
+  - Enlace seguro: `/reportEmbed` con `reportId` y `ctid` (GUID) obligatorios, `groupId` (GUID) opcional y `autoAuth` opcional solo si vale `true`.
+  Cualquier otro host, ruta o parámetro se rechaza.
 - Las URL no se escriben en el código del frontend ni en variables `NEXT_PUBLIC_*`: el administrador las actualiza en el panel del dashboard y el cliente las obtiene vía `GET /api/v1/powerbi/informes/:categoriaId/url` con JWT de Administrador o SuperAdmin.
 - Sin URL, la tarjeta muestra «Informe aún no publicado» con mensaje para el administrador. Si el iframe falla o tarda demasiado, se muestra error y el botón «Reintentar» (sin gráficos nativos de respaldo).
 - **Fuente de datos de los informes:** Excel (u origen equivalente) fuera de SIAC → refresco programado en Power BI Service. SIAC **no** almacena filas de cifras institucionales en Postgres; solo las URL de embed en `ConfiguracionInformePowerBi`.
 - La pestaña Power BI solo la ven Administrador y SuperAdmin.
-- La CSP del frontend solo agrega `frame-src 'self' https://app.powerbi.com`.
-- `POWERBI_MODO=embebido` conserva la ruta simulada actual (`/powerbi/embed-token`) y queda bloqueado hasta tener las credenciales Azure; no se construye el token real.
+- La CSP del frontend solo declara `frame-src`: `'self'`, `https://app.powerbi.com` y, para que el login de `reportEmbed` quepa en el mismo iframe, `https://login.microsoftonline.com`, `https://*.login.microsoftonline.com`, `https://login.microsoft.com`, `https://*.msauth.net` y `https://*.msftauth.net`. El backend no usa Helmet.
+- `POWERBI_MODO=embebido` conserva la ruta simulada actual (`/powerbi/embed-token`).
+- El token real (App Owns Data) queda detrás del interruptor `powerbi_embed_habilitado` en `ConfiguracionSIAC`, apagado por defecto. Apagado, el dashboard público no cambia. Encendido y con `POWERBI_TENANT_ID`, `POWERBI_CLIENT_ID`, `POWERBI_CLIENT_SECRET` más los id de área de trabajo e informe del panel, `GET /api/v1/powerbi/token-insercion` emite un token de solo lectura de máximo 60 minutos. El secreto no sale del backend ni se escribe en el repositorio.
 
 ## Advertencia de seguridad
 
-**«Publicar en la web» hace público el informe en internet, sin autenticación.** Restringir la pestaña en SIAC por rol no protege los datos: quien tenga la URL puede abrir el informe (la URL solo la reciben sesiones de administrador vía API, no el bundle estático). Solo se deben publicar informes con datos agregados, anonimizados y autorizados para difusión pública. Cualquier dato personal o sensible exige App Owns Data.
+**«Publicar en la web» hace público el informe en internet, sin autenticación.** Restringir la pestaña en SIAC por rol no protege los datos: quien tenga la URL puede abrir el informe (la URL solo la reciben sesiones de administrador vía API, no el bundle estático). Solo se deben publicar informes con datos agregados, anonimizados y autorizados para difusión pública. Cualquier dato personal o sensible exige App Owns Data o el enlace seguro `reportEmbed`.
+
+El enlace `reportEmbed` no publica el informe. Quien lo abre debe iniciar sesión en Microsoft, tener licencia Power BI Pro y acceso al área de trabajo SIAC. SIAC no emite un token: el iframe usa `autoAuth`. El modo con token de inserción no cambia.
 
 ## Consecuencias
 

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { IniciarSesionDto, RespuestaAuthDto } from './dto/auth.dto';
 import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
+import { fijarUsuarioEnContexto } from '../prisma/contexto-rls';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +24,7 @@ export class AuthService {
       );
     }
 
-    const usuario = await this.usuarioRepo.buscarPorCorreo(correo);
+    const usuario = await this.usuarioRepo.buscarParaLogin(correo);
     if (!usuario) {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
@@ -32,6 +33,12 @@ export class AuthService {
     if (!coincide) {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
+
+    // Un usuario desactivado no recibe token (antes se emitía y solo fallaba al usarlo).
+    if (!usuario.activo) {
+      throw new UnauthorizedException('Usuario inactivo. Contacte al administrador.');
+    }
+    fijarUsuarioEnContexto(usuario.id, usuario.rol);
 
     const token = this.jwtService.sign({
       sub: usuario.id,

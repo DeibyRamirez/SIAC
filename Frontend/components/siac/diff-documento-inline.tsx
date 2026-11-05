@@ -4,7 +4,7 @@ import { Fragment, useCallback, useState } from 'react'
 import { MessageSquarePlus, Pencil, Plus, Trash2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import type { ComentarioInlineRevision } from '@/lib/hooks/usar-borrador-revision-docx'
 import type {
   DiffVersionesApi,
@@ -146,7 +146,7 @@ export function DiffDocumentoInline({
           >
             {editandoId === comentario.id ? (
               <div className="space-y-2">
-                <Textarea
+                <TextareaConContador
                   className="min-h-[56px] text-sm"
                   value={textoEdicion}
                   onChange={(e) => setTextoEdicion(e.target.value)}
@@ -198,7 +198,7 @@ export function DiffDocumentoInline({
 
         {hunkComentando === hunk.id ? (
           <div className="space-y-2">
-            <Textarea
+            <TextareaConContador
               className="min-h-[56px] text-sm"
               placeholder="Comentario sobre este cambio agregado."
               value={textoNuevo}

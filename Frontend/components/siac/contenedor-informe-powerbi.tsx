@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoInforme } from '@/components/siac/esqueletos'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
 import {
+  AVISO_ENLACE_SEGURO_POWERBI,
   obtenerModoPowerBi,
   TIEMPO_MAXIMO_CARGA_INFORME_MS,
   type ModoPowerBi,
@@ -70,7 +74,7 @@ function AvisoInformeIndisponible({
 
 type EstadoCargaIframe = 'cargando' | 'cargado' | 'fallido'
 
-/** Modo `publico`: iframe con la URL de «Publicar en la web» de la categoría. */
+/** Modo `publico`: iframe con la URL reportEmbed guardada en el servidor. */
 function InformePowerBiPublico({
   informe,
   tiempoMaximoCargaMs,
@@ -95,7 +99,7 @@ function InformePowerBiPublico({
         titulo="Informe aún no publicado"
         descripcion={
           invalida
-            ? `La URL configurada para «${informe.titulo}» no es una URL pública válida de Power BI. Un administrador puede actualizarla en la configuración de informes.`
+            ? `La URL configurada para «${informe.titulo}» no es un enlace reportEmbed válido de Power BI. Un administrador puede actualizarla en la configuración de informes.`
             : `El informe «${informe.titulo}» todavía no tiene una URL pública configurada. Contacte al administrador del SIAC.`
         }
       />
@@ -128,15 +132,22 @@ function InformePowerBiPublico({
 
   return (
     <div className="tarjeta-visual overflow-hidden bg-white">
-      <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-        Informe Power BI · {informe.titulo}
-        {estadoCarga === 'cargando' ? (
-          <span className="ml-2 text-xs" role="status">
-            Cargando informe…
-          </span>
-        ) : null}
+      <div className="border-b px-4 py-3 text-sm">
+        <p className="text-muted-foreground">Informe Power BI · {informe.titulo}</p>
+        <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-primary">
+          Enlace reportEmbed
+        </p>
+        <p className="mt-2 text-muted-foreground" role="note">
+          {AVISO_ENLACE_SEGURO_POWERBI}
+        </p>
       </div>
       <div className="relative aspect-[4/3] w-full sm:aspect-video">
+        {estadoCarga === 'cargando' ? (
+          <div className="absolute inset-0 z-10 bg-white" role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">Cargando informe…</span>
+            <Skeleton className="h-full w-full rounded-none" />
+          </div>
+        ) : null}
         <iframe
           key={intento}
           title={`Informe Power BI — ${informe.titulo}`}
@@ -189,12 +200,9 @@ function InformePowerBiEmbebidoSimulado({
   return (
     <div className="space-y-4">
       {cargandoEmbed ? (
-        <div
-          className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-muted-foreground"
-          role="status"
-        >
-          Preparando informe de Power BI…
-        </div>
+        <RegionCarga texto="Preparando informe de Power BI…">
+          <EsqueletoInforme />
+        </RegionCarga>
       ) : null}
 
       {mostrarIframe ? (

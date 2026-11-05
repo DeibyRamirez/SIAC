@@ -52,28 +52,30 @@ describe('panel-siac', () => {
     });
   });
 
-  describe('calcularSemaforoVigencia (CA1, umbrales PO 24/18, reloj falso)', () => {
+  describe('calcularSemaforoVigencia (CA1, umbrales 12/6, reloj falso)', () => {
     const fechaResolucion = new Date('2020-01-01T00:00:00.000Z');
 
     afterEach(() => {
       jest.useRealTimers();
     });
 
-    it('fin 01/01/2027; verde hasta 31/12/2024, amarillo desde 01/01/2025, rojo desde 01/07/2025 y vencido desde 01/01/2027', () => {
+    it('fin 01/01/2027; verde hasta 31/12/2025, amarillo desde 01/01/2026, rojo desde 01/07/2026 y vencido desde 01/01/2027', () => {
       expect(calcularFechaFinVigencia(fechaResolucion).toISOString()).toBe(
         '2027-01-01T00:00:00.000Z',
       );
 
-      jest.useFakeTimers().setSystemTime(new Date('2024-12-31T23:59:59.000Z'));
+      // Límite verde/amarillo: exactamente 12 meses antes del fin.
+      jest.useFakeTimers().setSystemTime(new Date('2025-12-31T23:59:59.000Z'));
       expect(calcularSemaforoVigencia(fechaResolucion)).toBe('Verde');
 
-      jest.setSystemTime(new Date('2025-01-01T00:00:00.000Z'));
+      jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
       expect(calcularSemaforoVigencia(fechaResolucion)).toBe('Amarillo');
 
-      jest.setSystemTime(new Date('2025-06-30T23:59:59.000Z'));
+      // Límite amarillo/rojo: exactamente 6 meses antes del fin.
+      jest.setSystemTime(new Date('2026-06-30T23:59:59.000Z'));
       expect(calcularSemaforoVigencia(fechaResolucion)).toBe('Amarillo');
 
-      jest.setSystemTime(new Date('2025-07-01T00:00:00.000Z'));
+      jest.setSystemTime(new Date('2026-07-01T00:00:00.000Z'));
       expect(calcularSemaforoVigencia(fechaResolucion)).toBe('Rojo');
 
       jest.setSystemTime(new Date('2026-12-31T23:59:59.000Z'));
@@ -104,22 +106,24 @@ describe('panel-siac', () => {
       expect(calcularSemaforoVigencia(undefined)).toBe('SinVigencia');
     });
 
-    it('2020-03-01 → fin 2027-03-01; el 2026-10-06 está en rojo y el 2025-03-01 en amarillo', () => {
+    it('2020-03-01 → fin 2027-03-01; el 2026-10-06 está en rojo y el 2026-03-01 en amarillo', () => {
       const fecha = new Date('2020-03-01T00:00:00.000Z');
       expect(calcularFechaFinVigencia(fecha).toISOString()).toBe('2027-03-01T00:00:00.000Z');
       expect(calcularSemaforoVigencia(fecha, new Date('2026-10-06T12:00:00Z'))).toBe('Rojo');
-      expect(calcularSemaforoVigencia(fecha, new Date('2025-03-01T00:00:00Z'))).toBe('Amarillo');
-      expect(calcularSemaforoVigencia(fecha, new Date('2025-02-28T23:59:59Z'))).toBe('Verde');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-08-31T23:59:59Z'))).toBe('Amarillo');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-09-01T00:00:00Z'))).toBe('Rojo');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-03-01T00:00:00Z'))).toBe('Amarillo');
+      expect(calcularSemaforoVigencia(fecha, new Date('2026-02-28T23:59:59Z'))).toBe('Verde');
     });
 
-    it('hitos: inicioAmarillo = fin − 24 meses, inicioRojo = fin − 18 meses', () => {
+    it('hitos: inicioAmarillo = fin − 12 meses, inicioRojo = fin − 6 meses', () => {
       const hitos = calcularHitosVigencia(fechaResolucion);
       expect(hitos.fin.toISOString()).toBe('2027-01-01T00:00:00.000Z');
-      expect(hitos.inicioAmarillo.toISOString()).toBe('2025-01-01T00:00:00.000Z');
-      expect(hitos.inicioRojo.toISOString()).toBe('2025-07-01T00:00:00.000Z');
+      expect(hitos.inicioAmarillo.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+      expect(hitos.inicioRojo.toISOString()).toBe('2026-07-01T00:00:00.000Z');
     });
 
-    it('escala demo §0: 300 s = 7 años; amarillo a 214 s, rojo a 236 s y vencido a 300 s', () => {
+    it('escala demo §0: 300 s = 7 años; amarillo a 258 s, rojo a 279 s y vencido a 300 s', () => {
       const inicioMs = Date.UTC(2026, 0, 1);
       const escala = { inicioMs, duracionMs: 300_000 };
       const enSegundo = (segundos: number) =>
@@ -130,11 +134,11 @@ describe('panel-siac', () => {
           escala,
         );
       expect(enSegundo(0)).toBe('Verde');
-      expect(enSegundo(213)).toBe('Verde');
       expect(enSegundo(214)).toBe('Verde');
-      expect(enSegundo(215)).toBe('Amarillo');
-      expect(enSegundo(235)).toBe('Amarillo');
-      expect(enSegundo(236)).toBe('Rojo');
+      expect(enSegundo(257)).toBe('Verde');
+      expect(enSegundo(258)).toBe('Amarillo');
+      expect(enSegundo(278)).toBe('Amarillo');
+      expect(enSegundo(279)).toBe('Rojo');
       expect(enSegundo(299)).toBe('Rojo');
       expect(enSegundo(300)).toBe('Vencido');
     });
@@ -193,10 +197,10 @@ describe('panel-siac', () => {
   });
 
   describe('validarUmbralesSemaforo', () => {
-    it('acepta los valores por defecto (100/55, 7 años, aviso 24, rojo 18)', () => {
+    it('acepta los valores por defecto (100/55, 7 años, aviso 12, rojo 6)', () => {
       expect(() => validarUmbralesSemaforo(UMBRALES_SEMAFORO_DEFECTO)).not.toThrow();
-      expect(UMBRALES_SEMAFORO_DEFECTO.mesesAvisoVigencia).toBe(24);
-      expect(UMBRALES_SEMAFORO_DEFECTO.mesesRojoVigencia).toBe(18);
+      expect(UMBRALES_SEMAFORO_DEFECTO.mesesAvisoVigencia).toBe(12);
+      expect(UMBRALES_SEMAFORO_DEFECTO.mesesRojoVigencia).toBe(6);
     });
 
     it('rechaza amarillo ≥ verde, aviso mayor que la vigencia o aviso ≤ rojo', () => {

@@ -180,7 +180,11 @@ function crearServicio(
 
   return new DocumentosService(
     repositorio as never,
-    {} as never,
+    {
+      generarClaveEvidencia: jest.fn(() => 'evidencias/prueba/doc.docx'),
+      subirArchivo: jest.fn().mockResolvedValue(undefined),
+      obtenerBuffer: jest.fn(),
+    } as never,
     { notificar: jest.fn(), notificarVarios: jest.fn() } as never,
     { idsRevisoresParaPrograma: jest.fn() } as never,
     { recalcularPorcentajeAvance: jest.fn() } as never,
@@ -905,7 +909,7 @@ describe('DocumentosService · reglas de nueva carga', () => {
         {
           nombre: 'Maestro',
           programaId: 'prog-1',
-          periodo: '2025-1',
+          periodo: '2099-1',
           codigoGuia: CodigoDocumentoGuia.G1,
         },
         archivo,
@@ -915,5 +919,88 @@ describe('DocumentosService · reglas de nueva carga', () => {
 
     expect(repositorio.crear).not.toHaveBeenCalled();
     expect(avanceProceso.calcularProgresoPrograma).toHaveBeenCalledWith('prog-1');
+  });
+
+  it('el Cargador no crea una evidencia en un periodo cerrado', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = {
+      originalname: 'maestro.docx',
+      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 64,
+      buffer: Buffer.from(''),
+    } as Express.Multer.File;
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2020-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+        },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repositorio.crear).not.toHaveBeenCalled();
+  });
+});
+
+describe('DocumentosService · límite de tamaño .docx (20 MB)', () => {
+  const cargador = { id: 'cargador-1', rol: RolUsuario.Cargador };
+  const LIMITE = 20 * 1024 * 1024;
+
+  async function archivoDocx(size: number) {
+    const buffer = await crearDocxBuffer('limite');
+    return {
+      originalname: 'maestro.docx',
+      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size,
+      buffer,
+    } as Express.Multer.File;
+  }
+
+  it('acepta exactamente 20 MB (20971520 bytes)', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = await archivoDocx(LIMITE);
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2099-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+        },
+        archivo,
+        cargador,
+      ),
+    ).resolves.toBeDefined();
+
+    expect(repositorio.crear).toHaveBeenCalled();
+  });
+
+  it('rechaza 20 MB + 1 byte con mensaje de 20 MB', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = await archivoDocx(LIMITE + 1);
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2099-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+        },
+        archivo,
+        cargador,
+      ),
+    ).rejects.toThrow('El archivo supera el tamaño máximo de 20 MB.');
+
+    expect(repositorio.crear).not.toHaveBeenCalled();
   });
 });

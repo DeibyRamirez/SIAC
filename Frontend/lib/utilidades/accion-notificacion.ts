@@ -45,10 +45,22 @@ export function resolverAccionNotificacion(
     case 'vigencia_roja':
     case 'vigencia_vencida':
     case 'anexo_vence_manana':
-      if (rol === 'Administrador' || rol === 'SuperAdmin' || rol === 'Revisor') {
+      // Fix J (27/10): el Revisor no entra a /administrador/*; va a su resumen. El alcance
+      // institucional abre el proceso institucional con su institucionId.
+      if (rol === 'Revisor') return { href: '/revisor', etiqueta: 'Abrir resumen' }
+      if (rol === 'Administrador' || rol === 'SuperAdmin') {
+        const institucionId = idValido(meta.institucionId)
+        if (institucionId) {
+          return {
+            href: `/administrador/programas/institucion?institucionId=${encodeURIComponent(institucionId)}`,
+            etiqueta: 'Ver proceso institucional',
+          }
+        }
         const programaId = idValido(meta.programaId)
         return {
-          href: programaId ? `/administrador/vigencias?programaId=${programaId}` : '/administrador/vigencias',
+          href: programaId
+            ? `/administrador/vigencias?programaId=${encodeURIComponent(programaId)}`
+            : '/administrador/vigencias',
           etiqueta: 'Ver vigencias',
         }
       }

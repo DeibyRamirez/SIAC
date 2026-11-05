@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -172,7 +173,7 @@ function ContenidoDetalle() {
   }, [params.id, datos.evidencias])
 
   if (cargando) {
-    return <p className="text-sm text-muted-foreground">Cargando evidencia…</p>
+    return <EsqueletoContenidoPagina tipo="detalle" />
   }
 
   if (!evidencia) {

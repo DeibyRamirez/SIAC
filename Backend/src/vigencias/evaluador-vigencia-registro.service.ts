@@ -1,7 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Interval } from '@nestjs/schedule';
-import { RolUsuario } from '@prisma/client';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfiguracionSiacService } from '../configuracion/configuracion-siac.service';
 import { plantillaVigencia, UmbralVigenciaCorreo } from '../correo/plantillas';
 import { mensajeVigencia } from '../correo/plantillas/vigencia';
@@ -10,15 +16,26 @@ import {
   calcularReferenciaDemoVigencia,
   calcularSemaforoVigencia,
   UmbralesSemaforoVigencia,
+  umbralesVigenciaAlcanzados,
 } from '../dominio/panel-siac';
 import { claveVigencia } from '../notificaciones/claves-evento';
+import {
+  DestinatarioAlerta,
+  destinatariosGestionYRevisores,
+} from '../notificaciones/destinatarios-alertas';
 import { NotificacionesDespachoService } from '../notificaciones/notificaciones-despacho.service';
 import { PrismaService } from '../prisma/prisma.module';
 import { AlcancePaqueteVigencia } from './paquetes-registro-vigencia.service';
 import { VigenciaDemoService } from './vigencia-demo.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+
+/** Nombre del intervalo del modo prueba en el SchedulerRegistry. */
+export const NOMBRE_INTERVALO_MODO_PRUEBA = 'vigencia-modo-prueba';
 
 @Injectable()
-export class EvaluadorVigenciaRegistroService implements OnModuleInit {
+export class EvaluadorVigenciaRegistroService
+  implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(EvaluadorVigenciaRegistroService.name);
 
   constructor(
@@ -27,7 +44,8 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     private readonly notificacionesDespacho: NotificacionesDespachoService,
     private readonly demo: VigenciaDemoService,
     private readonly config: ConfigService,
-  ) { }
+    @Optional() private readonly programador?: SchedulerRegistry,
+  ) {}
 
   /** Evita que dos ticks del modo prueba se solapen y dupliquen alertas o correos. */
   private evaluacionPruebaEnCurso = false;
@@ -52,82 +70,91 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
    * Evalúa vigencia de registro MEN (programas e institución) en la fecha de referencia.
    * T-007.3a: relee los umbrales de BD en cada corrida (cambiar mesesRojoVigencia no exige redeploy).
    * T-007.2: 1 aviso por destinatario (Administrador/SuperAdmin/Revisor activos) por transición.
+   * C (27/10): el cron diario evalúa con reloj real las entidades sin sesión demo aunque el modo
+   * prueba esté activo; el tick del modo prueba (`soloSesionesDemo`) solo mira las sesiones.
    */
-  async evaluarTodasLasEntidades(referencia: Date = new Date()): Promise<void> {
-    const umbrales = await this.configuracion.cargar();
+  async evaluarTodasLasEntidades(
+    referencia: Date = new Date(),
+    opciones: { soloSesionesDemo?: boolean } = {},
+  ): Promise<void> {
+    return ejecutarComoSistema(async () => {
+      const umbrales = await this.configuracion.cargar();
 
-    const programas = await this.prisma.programa.findMany({
-      where: { fechaResolucion: { not: null } },
-      select: {
-        id: true,
-        nombre: true,
-        fechaResolucion: true,
-        resoluciones: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { id: true },
+      const programas = await this.prisma.programa.findMany({
+        where: { fechaResolucion: { not: null } },
+        select: {
+          id: true,
+          nombre: true,
+          fechaResolucion: true,
+          resoluciones: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true },
+          },
         },
-      },
-    });
-    for (const programa of programas) {
-      if (!programa.fechaResolucion) continue;
-      const evaluacion = this.referenciaEntidad(
-        'Programa',
-        programa.id,
-        programa.fechaResolucion,
-        umbrales,
-        referencia,
-      );
-      if (!evaluacion) continue;
-      await this.evaluarEntidad({
-        alcance: 'Programa',
-        entidadId: programa.id,
-        nombre: programa.nombre,
-        fechaResolucion: programa.fechaResolucion,
-        referencia: evaluacion.referencia,
-        tokenDemo: evaluacion.tokenDemo,
-        resolucionId: programa.resoluciones[0]?.id ?? programa.fechaResolucion.toISOString().slice(0, 10),
-        umbrales,
-        programaId: programa.id,
       });
-    }
-
-    const institucion = await this.prisma.institucion.findFirst({
-      where: { fechaResolucion: { not: null } },
-      select: {
-        id: true,
-        nombre: true,
-        fechaResolucion: true,
-        resoluciones: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { id: true },
-        },
-      },
-    });
-    if (institucion?.fechaResolucion) {
-      const evaluacion = this.referenciaEntidad(
-        'Institucion',
-        institucion.id,
-        institucion.fechaResolucion,
-        umbrales,
-        referencia,
-      );
-      if (evaluacion) {
+      for (const programa of programas) {
+        if (!programa.fechaResolucion) continue;
+        const evaluacion = this.referenciaEntidad(
+          'Programa',
+          programa.id,
+          programa.fechaResolucion,
+          umbrales,
+          referencia,
+          opciones.soloSesionesDemo === true,
+        );
+        if (!evaluacion) continue;
         await this.evaluarEntidad({
-          alcance: 'Institucion',
-          entidadId: institucion.id,
-          nombre: institucion.nombre,
-          fechaResolucion: institucion.fechaResolucion,
+          alcance: 'Programa',
+          entidadId: programa.id,
+          nombre: programa.nombre,
+          fechaResolucion: programa.fechaResolucion,
           referencia: evaluacion.referencia,
           tokenDemo: evaluacion.tokenDemo,
-          resolucionId:
-            institucion.resoluciones[0]?.id ??
-            institucion.fechaResolucion.toISOString().slice(0, 10),
+          resolucionId: programa.resoluciones[0]?.id ?? programa.fechaResolucion.toISOString().slice(0, 10),
           umbrales,
+          programaId: programa.id,
         });
       }
-    }
+
+      const institucion = await this.prisma.institucion.findFirst({
+        where: { fechaResolucion: { not: null } },
+        select: {
+          id: true,
+          nombre: true,
+          fechaResolucion: true,
+          resoluciones: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      });
+      if (institucion?.fechaResolucion) {
+        const evaluacion = this.referenciaEntidad(
+          'Institucion',
+          institucion.id,
+          institucion.fechaResolucion,
+          umbrales,
+          referencia,
+          opciones.soloSesionesDemo === true,
+        );
+        if (evaluacion) {
+          await this.evaluarEntidad({
+            alcance: 'Institucion',
+            entidadId: institucion.id,
+            nombre: institucion.nombre,
+            fechaResolucion: institucion.fechaResolucion,
+            referencia: evaluacion.referencia,
+            tokenDemo: evaluacion.tokenDemo,
+            resolucionId:
+              institucion.resoluciones[0]?.id ??
+              institucion.fechaResolucion.toISOString().slice(0, 10),
+            umbrales,
+          });
+        }
+      }
+    });
   }
 
   private referenciaEntidad(
@@ -136,10 +163,12 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     fechaResolucion: Date,
     umbrales: UmbralesSemaforoVigencia,
     ahora: Date,
+    soloSesionesDemo: boolean,
   ): { referencia: Date; tokenDemo?: string } | null {
-    const sesion = this.demo.obtenerSesion(alcance, entidadId);
-    if (this.demo.modoPruebaActivo()) {
-      if (!sesion) return null;
+    const sesion = this.demo.modoPruebaActivo()
+      ? this.demo.obtenerSesion(alcance, entidadId)
+      : null;
+    if (sesion) {
       return {
         referencia: calcularReferenciaDemoVigencia(
           fechaResolucion,
@@ -151,6 +180,8 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
         tokenDemo: String(sesion.inicioAtMs),
       };
     }
+    // Sin sesión demo: el tick del modo prueba no la evalúa; el cron diario sí, con reloj real.
+    if (soloSesionesDemo) return null;
     return { referencia: ahora };
   }
 
@@ -170,10 +201,36 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
       input.referencia,
       input.umbrales,
     );
-    if (semaforo === 'Verde' || semaforo === 'SinVigencia') return;
+    // A (27/10): en la demo acelerada cada color dura ~21 s; si un tick llega tarde se recuperan
+    // los avisos anteriores que falten (Amarillo → Rojo → Vencido). La clave idempotente evita
+    // repetir los ya enviados. Con reloj real (ventanas de meses) solo se avisa el color actual,
+    // para no enviar avisos atrasados de una ventana que ya terminó.
+    const umbralesAviso = input.tokenDemo
+      ? umbralesVigenciaAlcanzados(semaforo)
+      : umbralesVigenciaAlcanzados(semaforo).slice(-1);
+    if (umbralesAviso.length === 0) return;
 
-    const umbral: UmbralVigenciaCorreo =
-      semaforo === 'Amarillo' ? 'amarillo' : semaforo === 'Rojo' ? 'rojo' : 'vencido';
+    const destinatarios = await this.obtenerDestinatarios(input.programaId);
+    for (const umbral of umbralesAviso) {
+      await this.avisarUmbral(input, umbral, destinatarios);
+    }
+  }
+
+  private async avisarUmbral(
+    input: {
+      alcance: AlcancePaqueteVigencia;
+      entidadId: string;
+      nombre: string;
+      fechaResolucion: Date;
+      referencia: Date;
+      umbrales: UmbralesSemaforoVigencia;
+      programaId?: string;
+      resolucionId: string;
+      tokenDemo?: string;
+    },
+    umbral: UmbralVigenciaCorreo,
+    destinatarios: DestinatarioAlerta[],
+  ): Promise<void> {
     const tipo =
       umbral === 'amarillo'
         ? 'vigencia_amarilla'
@@ -190,21 +247,25 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
       mesesAvisoVigencia: input.umbrales.mesesAvisoVigencia,
       mesesRojoVigencia: input.umbrales.mesesRojoVigencia,
       fechaFinIso,
+      // H (27/10): fecha de la resolución y, en la demo, la fecha simulada ([PRUEBA] en el asunto).
+      fechaResolucionIso: input.fechaResolucion.toISOString(),
+      ...(input.tokenDemo ? { fechaSimuladaIso: input.referencia.toISOString() } : {}),
       ...(input.programaId ? { programaId: input.programaId } : {}),
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
     const mensaje = mensajeVigencia(datosPlantilla, umbral);
-    const plantilla = plantillaVigencia(umbral, datosPlantilla);
     const metadata = {
       umbral,
       fechaFin: fechaFinIso,
       aniosVigencia: input.umbrales.aniosVigencia,
+      ...(input.tokenDemo ? { prueba: true } : {}),
       ...(input.programaId ? { programaId: input.programaId } : {}),
       ...(input.alcance === 'Institucion' ? { institucionId: input.entidadId } : {}),
     };
 
-    const destinatarios = await this.obtenerDestinatarios(input.programaId);
-    for (const usuarioId of destinatarios) {
+    for (const { id: usuarioId, rol } of destinatarios) {
+      // J (27/10): el enlace del correo depende del rol (el Revisor no entra a /administrador).
+      const plantilla = plantillaVigencia(umbral, { ...datosPlantilla, rolDestinatario: rol });
       await this.notificacionesDespacho.notificar({
         claveEvento: claveVigencia({
           entidadId: input.entidadId,
@@ -224,33 +285,35 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     }
   }
 
-  private async obtenerDestinatarios(programaId?: string): Promise<string[]> {
-    const admins = await this.prisma.usuario.findMany({
-      where: {
-        activo: true,
-        rol: { in: [RolUsuario.Administrador, RolUsuario.SuperAdmin] },
-      },
-      select: { id: true },
-    });
-
-    const revisores = programaId
-      ? await this.prisma.usuario.findMany({
-        where: {
-          activo: true,
-          rol: RolUsuario.Revisor,
-          usuarioProgramas: { some: { programaId } },
-        },
-        select: { id: true },
-      })
-      : await this.prisma.usuario.findMany({
-        where: { activo: true, rol: RolUsuario.Revisor },
-        select: { id: true },
-      });
-
-    return [...new Set([...admins, ...revisores].map((u) => u.id))];
+  /** Administrador/SuperAdmin activos + Revisores activos del programa (todos si es institucional). */
+  private obtenerDestinatarios(programaId?: string): Promise<DestinatarioAlerta[]> {
+    return destinatariosGestionYRevisores(this.prisma, programaId);
   }
 
-  @Interval(10_000)
+  /**
+   * B (27/10): el tick del modo prueba se registra al arrancar con el intervalo de
+   * VIGENCIA_INTERVALO_PRUEBA_SEG (10 s por defecto), no con un valor fijo.
+   */
+  onApplicationBootstrap(): void {
+    if (!this.demo.modoPruebaActivo() || !this.programador) return;
+    if (!this.config.get<boolean>('vigenciaEvaluadorIntervaloAuto')) {
+      this.logger.log(
+        'Modo prueba de vigencias sin tick automático (active VIGENCIA_EVALUADOR_INTERVALO_AUTO=true si lo necesita).',
+      );
+      return;
+    }
+    const intervaloMs = this.demo.intervaloPruebaSeg() * 1000;
+    const id = setInterval(() => void this.tickModoPrueba(), intervaloMs);
+    this.programador.addInterval(NOMBRE_INTERVALO_MODO_PRUEBA, id);
+    this.logger.log(`Modo prueba de vigencias: evaluación cada ${intervaloMs / 1000} s.`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.programador?.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)) {
+      this.programador.deleteInterval(NOMBRE_INTERVALO_MODO_PRUEBA);
+    }
+  }
+
   async tickModoPrueba(): Promise<void> {
     if (!this.demo.modoPruebaActivo()) return;
     const sesiones = this.demo.listarSesionesActivas();
@@ -260,7 +323,7 @@ export class EvaluadorVigenciaRegistroService implements OnModuleInit {
     if (this.evaluacionPruebaEnCurso) return;
     this.evaluacionPruebaEnCurso = true;
     try {
-      await this.evaluarTodasLasEntidades();
+      await this.evaluarTodasLasEntidades(new Date(), { soloSesionesDemo: true });
     } catch (error) {
       this.logger.error(`Error en evaluador de vigencia (modo prueba): ${error}`);
     } finally {

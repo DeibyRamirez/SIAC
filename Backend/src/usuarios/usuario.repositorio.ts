@@ -2,9 +2,39 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.module';
 import { Usuario, RolUsuario, Prisma } from '@prisma/client';
 
+export interface UsuarioSesion {
+  id: string;
+  nombre: string;
+  correo: string;
+  rol: RolUsuario;
+  activo: boolean;
+  responsableProcesoInstitucional: boolean;
+}
+
+export interface UsuarioLogin extends UsuarioSesion {
+  contrasena: string;
+}
+
 @Injectable()
 export class UsuarioRepositorio {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Login (RLS): corre sin contexto, así que usa la función SECURITY DEFINER
+   * siac.login_buscar_usuario, que devuelve solo lo necesario (incluido `activo`).
+   */
+  async buscarParaLogin(correo: string): Promise<UsuarioLogin | null> {
+    const filas = await this.prisma.$queryRaw<UsuarioLogin[]>`
+      SELECT * FROM siac.login_buscar_usuario(${correo.toLowerCase()})`;
+    return filas[0] ?? null;
+  }
+
+  /** Validación del JWT (RLS): sin contexto todavía; función siac.sesion_usuario. */
+  async buscarSesion(id: string): Promise<UsuarioSesion | null> {
+    const filas = await this.prisma.$queryRaw<UsuarioSesion[]>`
+      SELECT * FROM siac.sesion_usuario(${id})`;
+    return filas[0] ?? null;
+  }
 
   buscarPorCorreo(correo: string): Promise<Usuario | null> {
     return this.prisma.usuario.findUnique({ where: { correo: correo.toLowerCase() } });

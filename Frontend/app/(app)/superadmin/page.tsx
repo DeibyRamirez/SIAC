@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ShieldCheck, Users, Files, ClipboardCheck, LayoutDashboard } from 'lucide-react'
+import { ShieldCheck, Users, Files, ClipboardCheck, LayoutDashboard, KeyRound } from 'lucide-react'
 
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { EncabezadoPagina, TarjetaAcceso } from '@/components/siac/tarjeta-acceso'
@@ -24,8 +24,14 @@ export default function SuperAdminPage() {
             icono={Users}
           />
           <TarjetaAcceso
+            href="/superadmin/integradores"
+            titulo="Claves de integración"
+            descripcion="Crear y revocar las claves con las que los proyectos envían cifras."
+            icono={KeyRound}
+          />
+          <TarjetaAcceso
             href="/cargador"
-            titulo="Módulo cargador"
+            titulo="Módulo profesor"
             descripcion="Evidencias, plantillas y carga documental."
             icono={Files}
           />

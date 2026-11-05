@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { renderAsync } from 'docx-preview'
 import { MessageSquarePlus } from 'lucide-react'
 
+import { EsqueletoDocumento } from '@/components/siac/esqueletos'
+
 import {
   capturarSeleccion,
   resaltarCita,
@@ -165,9 +167,15 @@ export function VisorDocxPreview({
       )}
 
       {cargando && (
-        <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/80 text-sm text-muted-foreground">
-          Generando vista previa…
-        </p>
+        <div
+          className="absolute inset-0 z-10 overflow-hidden bg-white"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <span className="sr-only">Generando vista previa…</span>
+          <EsqueletoDocumento className="h-full rounded-none border-0" />
+        </div>
       )}
       {error && (
         <p className="absolute inset-0 z-10 flex items-center justify-center bg-white px-4 text-sm text-destructive">

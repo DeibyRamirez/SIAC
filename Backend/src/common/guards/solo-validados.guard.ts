@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EstadoEvidencia } from '@prisma/client';
 
-/** RN-001: Par académico / Administrador no accede a borradores ni rechazados */
+/** RN-001: el Administrador no accede a borradores ni rechazados */
 @Injectable()
 export class SoloValidadosGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
@@ -16,7 +16,7 @@ export class SoloValidadosGuard implements CanActivate {
     if (!evidencia) return true;
 
     const rol = request.user?.rol;
-    const rolesSoloValidados = ['Administrador', 'ParAcademico'];
+    const rolesSoloValidados = ['Administrador'];
     if (rolesSoloValidados.includes(rol) && evidencia.estado !== EstadoEvidencia.Validado) {
       throw new ForbiddenException(
         'No tiene permiso para ver borradores.',

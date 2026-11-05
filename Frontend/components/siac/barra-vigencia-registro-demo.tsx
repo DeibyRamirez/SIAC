@@ -33,6 +33,8 @@ interface BarraVigenciaRegistroDemoProps {
   fechaResolucion: string
   nombreEntidad: string
   inicioDemoMs: number
+  /** Duración de la demo informada por el servidor (ms). */
+  duracionDemoMs?: number
   /** Semáforo que reporta el servidor (GET /programas/:id/vigencia); si falta se calcula local. */
   semaforoServidor?: SemaforoVigencia
 }
@@ -41,6 +43,7 @@ export function BarraVigenciaRegistroDemo({
   fechaResolucion,
   nombreEntidad,
   inicioDemoMs,
+  duracionDemoMs = DURACION_DEMO_VIGENCIA_MS,
   semaforoServidor,
 }: BarraVigenciaRegistroDemoProps) {
   const [ahora, setAhora] = useState(() => Date.now())
@@ -50,16 +53,16 @@ export function BarraVigenciaRegistroDemo({
     return () => window.clearInterval(id)
   }, [])
 
-  const referencia = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemoMs, ahora)
+  const referencia = calcularReferenciaDemoVigencia(fechaResolucion, inicioDemoMs, ahora, duracionDemoMs)
   const porcentaje = calcularPorcentajeVigencia(fechaResolucion, referencia)
   const semaforoLocal = calcularSemaforoVigencia(fechaResolucion, referencia)
   const semaforo = semaforoServidor ?? semaforoLocal
   const estadoBarra = semaforoAEstadoVigencia(semaforo)
   const etiqueta = etiquetaAniosVigencia(fechaResolucion, referencia)
   const alerta = mensajeAlertaVigencia(fechaResolucion, nombreEntidad, referencia)
-  const fraccion = fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahora)
-  const finalizada = demoVigenciaFinalizada(inicioDemoMs, ahora)
-  const msRestante = DURACION_DEMO_VIGENCIA_MS - (ahora - inicioDemoMs)
+  const fraccion = fraccionDemoVigenciaTranscurrida(inicioDemoMs, ahora, duracionDemoMs)
+  const finalizada = demoVigenciaFinalizada(inicioDemoMs, ahora, duracionDemoMs)
+  const msRestante = duracionDemoMs - (ahora - inicioDemoMs)
 
   const colorProgreso =
     estadoBarra === 'Vencido'

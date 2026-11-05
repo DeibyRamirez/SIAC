@@ -21,6 +21,8 @@ import {
   combinarCondicionTextoLibre,
   construirFiltroTextoLibre,
 } from './texto-libre-evidencias';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 
 
@@ -114,17 +116,45 @@ export interface ComentarioVersionPersistido {
 export class EvidenciaRepositorio {
   private readonly logger = new Logger(EvidenciaRepositorio.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
+  ) {}
 
+  private invalidarCachePanel(): void {
+    this.cacheConsultas.invalidarTodo();
+  }
 
-
-  crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
-
-    return this.prisma.evidencia.create({ data: datos });
-
+  /** Periodos distintos con al menos una evidencia visible para el usuario (la RLS filtra). */
+  async listarPeriodosConDatos(): Promise<string[]> {
+    const filas = await this.prisma.evidencia.findMany({
+      distinct: ['periodo'],
+      select: { periodo: true },
+      orderBy: { periodo: 'desc' },
+    });
+    return filas.map((f) => f.periodo).filter((p): p is string => Boolean(p));
   }
 
 
+
+  async crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
+    const creada = await this.prisma.evidencia.create({ data: datos });
+    this.invalidarCachePanel();
+    return creada;
+  }
+
+
+
+  /**
+   * RLS: una evidencia fuera del alcance del usuario no aparece en sus consultas. Para conservar
+   * el contrato de la API (403 si existe pero no tiene acceso, 404 si no existe) se comprueba la
+   * existencia por la ruta de sistema, sin devolver ningún dato de la fila.
+   */
+  existe(id: string): Promise<boolean> {
+    return ejecutarComoSistema(async () =>
+      Boolean(await this.prisma.evidencia.findUnique({ where: { id }, select: { id: true } })),
+    );
+  }
 
   buscarPorId(id: string) {
 
@@ -311,18 +341,16 @@ export class EvidenciaRepositorio {
 
 
 
-  actualizar(id: string, datos: Prisma.EvidenciaUpdateInput): Promise<Evidencia> {
-
-    return this.prisma.evidencia.update({ where: { id }, data: datos });
-
+  async actualizar(id: string, datos: Prisma.EvidenciaUpdateInput): Promise<Evidencia> {
+    const actualizada = await this.prisma.evidencia.update({ where: { id }, data: datos });
+    this.invalidarCachePanel();
+    return actualizada;
   }
 
-
-
-  eliminar(id: string): Promise<Evidencia> {
-
-    return this.prisma.evidencia.delete({ where: { id } });
-
+  async eliminar(id: string): Promise<Evidencia> {
+    const eliminada = await this.prisma.evidencia.delete({ where: { id } });
+    this.invalidarCachePanel();
+    return eliminada;
   }
 
 
@@ -391,50 +419,32 @@ export class EvidenciaRepositorio {
 
 
 
-  actualizarVersion(
-
+  async actualizarVersion(
     evidenciaId: string,
-
     numero: number,
-
     datos: {
-
       firmaDescarga?: string;
-
       textoBaseAuditoria?: string;
-
       rutaArchivo?: string;
-
       nombreArchivo?: string;
-
       mimeType?: string;
-
       tamanoBytes?: number;
-
     },
-
   ) {
-
-    return this.prisma.evidenciaVersion.update({
-
+    const version = await this.prisma.evidenciaVersion.update({
       where: { evidenciaId_numero: { evidenciaId, numero } },
-
       data: datos,
-
     });
-
+    this.invalidarCachePanel();
+    return version;
   }
 
-
-
-  eliminarVersion(evidenciaId: string, numero: number) {
-
-    return this.prisma.evidenciaVersion.delete({
-
+  async eliminarVersion(evidenciaId: string, numero: number) {
+    const eliminada = await this.prisma.evidenciaVersion.delete({
       where: { evidenciaId_numero: { evidenciaId, numero } },
-
     });
-
+    this.invalidarCachePanel();
+    return eliminada;
   }
 
 
@@ -476,26 +486,6 @@ export class EvidenciaRepositorio {
       where,
 
       _count: { _all: true },
-
-    });
-
-  }
-
-
-
-  tieneHistorialDistintoDeBorrador(evidenciaId: string) {
-
-    return this.prisma.historialEvidencia.findFirst({
-
-      where: {
-
-        evidenciaId,
-
-        estado: { not: EstadoEvidencia.Borrador },
-
-      },
-
-      select: { id: true },
 
     });
 

@@ -13,11 +13,18 @@ import {
 } from '@/components/siac/paso-seleccion-contexto-carga'
 import { SelectorTramiteCargaEvidencia } from '@/components/siac/selector-tramite-carga-evidencia'
 import { ZonaCargaDocx } from '@/components/siac/zona-carga-docx'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoCampos } from '@/components/siac/esqueletos'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { usarPeriodoActual } from '@/lib/hooks/usar-periodo-actual'
+import {
+  avisoPeriodoDocumento,
+  periodoAcademicoActual,
+  periodosVigentes,
+} from '@/lib/utilidades/periodo-academico'
 import { obtenerProgresoInstitucionApi } from '@/lib/servicios/institucion.servicio'
 import { listarProgramasApi } from '@/lib/servicios/programas.servicio'
 import {
@@ -103,7 +110,11 @@ function ContenidoNuevaEvidencia() {
   const [codigoGuia, setCodigoGuia] = useState<CodigoDocumentoGuia | null>(null)
   const [nombre, setNombre] = useState('')
   const [programaId, setProgramaId] = useState('')
-  const [periodo, setPeriodo] = useState(periodoAcademicoActual())
+  const { periodo: periodoVigente } = usarPeriodoActual()
+  const periodoTocado = useRef(false)
+  const [periodo, setPeriodo] = useState(periodoAcademicoActual)
+  const [periodoSugerido, setPeriodoSugerido] = useState<string | null>(null)
+  const [avisoPeriodo, setAvisoPeriodo] = useState<string | null>(null)
   const [archivo, setArchivo] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -111,6 +122,10 @@ function ContenidoNuevaEvidencia() {
   const [intentoCargaProgreso, setIntentoCargaProgreso] = useState(0)
   const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
   const contextoInicializado = useRef(false)
+
+  useEffect(() => {
+    if (!periodoTocado.current) setPeriodo(periodoVigente)
+  }, [periodoVigente])
 
   const puedeCargarInstitucion = sesion?.responsableProcesoInstitucional === true
   const soloProcesoInstitucional = puedeCargarInstitucion && programas.length === 0
@@ -295,8 +310,21 @@ function ContenidoNuevaEvidencia() {
     setError(null)
   }
 
+  function elegirPeriodo(valor: string) {
+    periodoTocado.current = true
+    setPeriodo(valor)
+    setAvisoPeriodo(null)
+  }
+
+  function usarPeriodoDelDocumento() {
+    if (!periodoSugerido) return
+    elegirPeriodo(periodoSugerido)
+  }
+
   async function manejarArchivoSeleccionado(file: File | null) {
     setArchivo(file)
+    setAvisoPeriodo(null)
+    setPeriodoSugerido(null)
     if (!file) return
     setExtrayendo(true)
     try {
@@ -314,7 +342,11 @@ function ContenidoNuevaEvidencia() {
 
       const meta = await extraerMetadatosDocx(file, programas)
       if (meta.nombreSugerido) setNombre(meta.nombreSugerido)
-      if (meta.periodo) setPeriodo(meta.periodo)
+      const aviso = avisoPeriodoDocumento(periodo, meta.periodo)
+      if (aviso && meta.periodo) {
+        setPeriodoSugerido(meta.periodo)
+        setAvisoPeriodo(aviso)
+      }
       if (meta.programaId && contextoCarga === 'programa' && meta.programaId !== programaId) {
         const coincide = programas.some((p) => p.id === meta.programaId)
         if (coincide) setProgramaId(meta.programaId)
@@ -430,7 +462,9 @@ function ContenidoNuevaEvidencia() {
             />
 
             {cargandoProgreso ? (
-              <p className="text-sm text-muted-foreground">Cargando trámite y guías disponibles…</p>
+              <RegionCarga texto="Cargando trámite y guías disponibles…">
+                <EsqueletoCampos campos={3} />
+              </RegionCarga>
             ) : null}
 
             {errorProgreso && contextoListo && !cargandoProgreso ? (
@@ -532,11 +566,16 @@ function ContenidoNuevaEvidencia() {
                   <span className="font-medium">Periodo</span>
                   <select
                     value={periodo}
-                    onChange={(evento) => setPeriodo(evento.target.value)}
+                    onChange={(evento) => elegirPeriodo(evento.target.value)}
                     className="w-full rounded-lg border border-input px-3 py-2"
                   >
-                    {periodosConActual()
-                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                    {/* Vigentes y, si la persona lo elige, el periodo que trae el .docx. */}
+                    {[...new Set(
+                      [periodo, periodoSugerido, ...periodosVigentes()].filter(
+                        (valor): valor is string => Boolean(valor),
+                      ),
+                    )]
+                      .sort()
                       .map((valor) => (
                         <option key={valor} value={valor}>
                           {valor}
@@ -544,6 +583,20 @@ function ContenidoNuevaEvidencia() {
                       ))}
                   </select>
                 </label>
+
+                {avisoPeriodo && (
+                  <div
+                    role="alert"
+                    className="space-y-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                  >
+                    <p>{avisoPeriodo}</p>
+                    {periodoSugerido && (
+                      <Button type="button" variant="outline" onClick={usarPeriodoDelDocumento}>
+                        Usar periodo del documento ({periodoSugerido})
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {error && (
                   <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -557,7 +610,7 @@ function ContenidoNuevaEvidencia() {
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button type="submit" disabled={enviando || extrayendo}>
-                    {enviando ? 'Guardando…' : 'Guardar borrador'}
+                    {enviando ? 'Subiendo archivo…' : 'Guardar borrador'}
                   </Button>
                   <Button
                     type="button"

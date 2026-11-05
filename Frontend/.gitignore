@@ -19,3 +19,6 @@ node_modules
 
 # Lockfile de npm (proyecto usa pnpm)
 package-lock.json
+
+# Informes de cobertura Vitest (generados localmente)
+coverage/

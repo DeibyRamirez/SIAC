@@ -123,7 +123,7 @@ export class UsuariosService {
       usuario.rol !== RolUsuario.Revisor
     ) {
       throw new BadRequestException(
-        'Solo se pueden asignar programas a cargadores y revisores.',
+        'Solo se pueden asignar programas a profesores y revisores.',
       );
     }
 
@@ -148,7 +148,7 @@ export class UsuariosService {
       usuario.rol !== RolUsuario.Revisor
     ) {
       throw new BadRequestException(
-        'El proceso institucional solo se asigna a cargadores y revisores.',
+        'El proceso institucional solo se asigna a profesores y revisores.',
       );
     }
 

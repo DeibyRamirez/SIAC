@@ -167,7 +167,7 @@ sequenceDiagram
 - [x] Login institucional emite JWT; sin token → 401
 - [x] Cada rol ve su inicio (redirección por rol en frontend)
 - [x] Cargador puede subir PDF/XLSX con metadatos → Borrador en Supabase PG
-- [x] Guards impiden acciones según rol (RN-001 Par Académico)
+- [x] Guards impiden acciones según rol (RN-001). Actualizado 20/10/2026: el rol Par Académico se eliminó; los roles son Cargador, Revisor, Administrador y SuperAdmin (HU-002, HU-011)
 - [x] API versionada `/api/v1` con Swagger publicado
 - [x] Descarga mediante URL firmada Supabase Storage
 - [ ] Semilla ejecutada en Supabase remoto (requiere `.env` local)

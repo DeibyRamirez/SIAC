@@ -9,7 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { categoriasInformesPowerBi } from '@/lib/informes-powerbi'
-import { extraerUrlPublicaPowerBi } from '@/lib/powerbi/configuracion-powerbi'
+import {
+  AVISO_ENLACE_SEGURO_POWERBI,
+  extraerUrlPublicaPowerBi,
+} from '@/lib/powerbi/configuracion-powerbi'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   actualizarUrlInformePowerBiApi,
@@ -44,7 +47,9 @@ export function PanelConfiguracionInformesPowerBi() {
       return
     }
     if (!extraerUrlPublicaPowerBi(valor)) {
-      toast.error('URL no válida. Use «Publicar en la web» de Power BI.')
+      toast.error(
+        'URL no válida. Use https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). «Publicar en la web» (/view?r=) no se acepta.',
+      )
       return
     }
     setGuardando(categoriaId)
@@ -89,7 +94,8 @@ export function PanelConfiguracionInformesPowerBi() {
           <CardTitle className="text-base">Actualizar informes Power BI</CardTitle>
           <p className="text-sm text-muted-foreground">
             Las URL se almacenan en la base de datos con hash de integridad. Solo administradores
-            autenticados pueden consultarlas; no se exponen en el código del navegador.
+            autenticados pueden consultarlas; no se exponen en el código del navegador. Pegue
+            el enlace reportEmbed desde Power BI (Incrustar → enlace seguro).
           </p>
         </div>
         <Button
@@ -108,6 +114,10 @@ export function PanelConfiguracionInformesPowerBi() {
       <CardContent className="space-y-4">
         {categoriasInformesPowerBi.map((informe) => {
           const meta = mapaMeta.get(informe.id)
+          const valor = entrada[informe.id] ?? ''
+          const urlDetectada = extraerUrlPublicaPowerBi(valor)
+          const avisoVisible = Boolean(urlDetectada)
+          const avisoId = `pbi-aviso-${informe.id}`
           return (
             <div
               key={informe.id}
@@ -126,12 +136,21 @@ export function PanelConfiguracionInformesPowerBi() {
               </Label>
               <Input
                 id={`pbi-${informe.id}`}
-                placeholder="https://app.powerbi.com/view?r=..."
-                value={entrada[informe.id] ?? ''}
+                placeholder="https://app.powerbi.com/reportEmbed?reportId=...&ctid=..."
+                value={valor}
+                aria-describedby={avisoVisible ? avisoId : undefined}
                 onChange={(e) =>
                   setEntrada((prev) => ({ ...prev, [informe.id]: e.target.value }))
                 }
               />
+              {avisoVisible ? (
+                <div id={avisoId} className="space-y-1">
+                  <p className="text-xs font-medium text-primary">Enlace reportEmbed</p>
+                  <p role="note" className="text-xs text-primary">
+                    {AVISO_ENLACE_SEGURO_POWERBI}
+                  </p>
+                </div>
+              ) : null}
               <Button
                 type="button"
                 size="sm"

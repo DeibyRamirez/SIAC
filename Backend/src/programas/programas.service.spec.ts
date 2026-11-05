@@ -123,13 +123,21 @@ describe('ProgramasService', () => {
   const alcance = { idsProgramasAsignados: jest.fn() };
   const avanceProceso = {
     calcularProgresoPrograma: jest.fn(),
+    calcularProgresoProgramas: jest.fn(),
   };
   const configuracion = { obtener: jest.fn().mockReturnValue({ aniosVigencia: 7, mesesAvisoVigencia: 12 }) };
+  const cacheConsultas = {
+    claveListado: jest.fn().mockReturnValue('listado:test'),
+    leerListado: jest.fn().mockReturnValue(null),
+    guardarListado: jest.fn(),
+    invalidarTodo: jest.fn(),
+  } as unknown as import('../integracion/cache-consultas-programas.service').CacheConsultasProgramasService;
   const servicio = new ProgramasService(
     programaRepo as unknown as ProgramaRepositorio,
     alcance as unknown as ServicioAlcancePrograma,
     avanceProceso as unknown as AvanceProcesoSIACService,
     configuracion as never,
+    cacheConsultas as never,
   );
 
   const programa = {
@@ -146,7 +154,7 @@ describe('ProgramasService', () => {
     programaRepo.listar.mockResolvedValue([programa]);
     programaRepo.buscarPorId.mockResolvedValue(programa);
     programaRepo.listarAnexosDeProgramas.mockResolvedValue([]);
-    avanceProceso.calcularProgresoPrograma.mockResolvedValue({
+    const progresoDefecto = {
       programaId: 'p1',
       tipoTramite: TipoTramiteSIAC.RenovacionRegistroCalificado,
       avanceGlobal: 70,
@@ -180,6 +188,12 @@ describe('ProgramasService', () => {
           rechazado: false,
         },
       ],
+    };
+    avanceProceso.calcularProgresoPrograma.mockResolvedValue(progresoDefecto);
+    avanceProceso.calcularProgresoProgramas.mockImplementation(async (ids: string[]) => {
+      const mapa = new Map<string, typeof progresoDefecto>();
+      for (const id of ids) mapa.set(id, { ...progresoDefecto, programaId: id });
+      return mapa;
     });
     programaRepo.listarIdsDocumentosObligatorios.mockResolvedValue([]);
     programaRepo.listarEvidenciasParaAvance.mockResolvedValue([
@@ -266,6 +280,30 @@ describe('ProgramasService', () => {
         },
       ],
     });
+    avanceProceso.calcularProgresoProgramas.mockResolvedValueOnce(
+      new Map([
+        [
+          'p1',
+          {
+            programaId: 'p1',
+            tipoTramite: TipoTramiteSIAC.RenovacionRegistroCalificado,
+            avanceGlobal: 28,
+            documentosAceptados: 0,
+            documentosTotal: 2,
+            documentos: [
+              {
+                codigoGuia: 'G1',
+                conObservaciones: true,
+                rechazado: false,
+                aceptado: false,
+                puntaje: 5,
+                totalCondiciones: 9,
+              },
+            ],
+          },
+        ],
+      ]),
+    );
 
     const [programaListado] = await servicio.listarConSemaforo({
       id: 'admin',
@@ -284,9 +322,12 @@ describe('ProgramasService', () => {
 
   it('avance institucional promedia programas activos', async () => {
     programaRepo.listar.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
-    avanceProceso.calcularProgresoPrograma
-      .mockResolvedValueOnce({ avanceGlobal: 100 })
-      .mockResolvedValueOnce({ avanceGlobal: 0 });
+    avanceProceso.calcularProgresoProgramas.mockResolvedValueOnce(
+      new Map([
+        ['p1', { avanceGlobal: 100, documentos: [], programaId: 'p1' }],
+        ['p2', { avanceGlobal: 0, documentos: [], programaId: 'p2' }],
+      ]),
+    );
 
     const resumen = await servicio.calcularAvanceInstitucional({
       id: 'admin',
