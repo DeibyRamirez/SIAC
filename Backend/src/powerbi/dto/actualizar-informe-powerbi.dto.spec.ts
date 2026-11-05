@@ -16,8 +16,7 @@ async function mensajes(url: string): Promise<string[]> {
 }
 
 describe('ActualizarInformePowerBiDto', () => {
-  it('acepta view, reportEmbed y el iframe pegado', async () => {
-    expect(await mensajes('https://app.powerbi.com/view?r=token')).toEqual([]);
+  it('acepta reportEmbed y el iframe pegado', async () => {
     expect(await mensajes(SEGURA)).toEqual([]);
     expect(
       await mensajes(`<iframe src="${SEGURA.replace(/&/g, '&amp;')}"></iframe>`),
@@ -26,15 +25,16 @@ describe('ActualizarInformePowerBiDto', () => {
 
   it.each([
     '',
+    'https://app.powerbi.com/view?r=token',
     'javascript:alert(1)',
     'https://evil.com/view?r=abc',
-    'https://app.powerbi.com:443/view?r=abc',
-    'https://user@app.powerbi.com/view?r=abc',
+    'https://app.powerbi.com:443/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
+    'https://user@app.powerbi.com/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
     `https://app.powerbi.com/reportEmbed?reportId=${REPORT}`,
     `https://app.powerbi.com/reportEmbed?reportId=${REPORT}&ctid=${CTID}&autoAuth=false`,
   ])('rechaza %s', async (url) => {
     const lista = await mensajes(url);
     expect(lista.length).toBeGreaterThan(0);
-    expect(lista.join(' ')).toMatch(/view\?r=|reportEmbed|vacío|no debe estar vacío/i);
+    expect(lista.join(' ')).toMatch(/reportEmbed|view\?r=|vacío|no debe estar vacío/i);
   });
 });

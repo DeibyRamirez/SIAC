@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import type { InformePowerBi } from '@/lib/informes-powerbi'
 import {
-  AVISO_ENLACE_PUBLICO_POWERBI,
   AVISO_ENLACE_SEGURO_POWERBI,
   obtenerModoPowerBi,
   TIEMPO_MAXIMO_CARGA_INFORME_MS,
@@ -75,7 +74,7 @@ function AvisoInformeIndisponible({
 
 type EstadoCargaIframe = 'cargando' | 'cargado' | 'fallido'
 
-/** Modo `publico`: iframe con la URL guardada (`/view` o `reportEmbed`). */
+/** Modo `publico`: iframe con la URL reportEmbed guardada en el servidor. */
 function InformePowerBiPublico({
   informe,
   tiempoMaximoCargaMs,
@@ -100,7 +99,7 @@ function InformePowerBiPublico({
         titulo="Informe aún no publicado"
         descripcion={
           invalida
-            ? `La URL configurada para «${informe.titulo}» no es una URL pública válida de Power BI. Un administrador puede actualizarla en la configuración de informes.`
+            ? `La URL configurada para «${informe.titulo}» no es un enlace reportEmbed válido de Power BI. Un administrador puede actualizarla en la configuración de informes.`
             : `El informe «${informe.titulo}» todavía no tiene una URL pública configurada. Contacte al administrador del SIAC.`
         }
       />
@@ -136,13 +135,10 @@ function InformePowerBiPublico({
       <div className="border-b px-4 py-3 text-sm">
         <p className="text-muted-foreground">Informe Power BI · {informe.titulo}</p>
         <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-primary">
-          {estadoUrl.tipo === 'seguro' ? 'Enlace seguro' : 'Enlace público'}
+          Enlace reportEmbed
         </p>
-        <p
-          className={estadoUrl.tipo === 'seguro' ? 'mt-2 text-muted-foreground' : 'mt-2 text-ocre'}
-          role="note"
-        >
-          {estadoUrl.tipo === 'seguro' ? AVISO_ENLACE_SEGURO_POWERBI : AVISO_ENLACE_PUBLICO_POWERBI}
+        <p className="mt-2 text-muted-foreground" role="note">
+          {AVISO_ENLACE_SEGURO_POWERBI}
         </p>
       </div>
       <div className="relative aspect-[4/3] w-full sm:aspect-video">

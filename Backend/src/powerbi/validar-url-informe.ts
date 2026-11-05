@@ -2,18 +2,18 @@
  * Validación estricta de enlaces de informe Power BI (HU-009).
  * Mantener la misma regla en Frontend/lib/powerbi/validar-url-informe.ts.
  *
- * Solo https y el host app.powerbi.com, sin usuario, contraseña, puerto ni
- * fragmento. La ruta es /view (parámetro r) o /reportEmbed (reportId y ctid
- * GUID obligatorios, groupId GUID opcional, autoAuth opcional y solo "true").
- * Cualquier otro host, ruta, esquema o parámetro se rechaza.
+ * Solo https://app.powerbi.com/reportEmbed?… (sin usuario, contraseña, puerto ni
+ * fragmento). Parámetros: reportId y ctid (GUID) obligatorios; groupId (GUID) y
+ * autoAuth (= true) opcionales. Se rechaza «Publicar en la web» (/view?r=) y
+ * cualquier otro host, ruta, esquema o parámetro.
  */
 
 const HOST = 'app.powerbi.com';
-const RUTAS = new Set(['/view', '/reportEmbed']);
+const RUTA = '/reportEmbed';
 const RE_GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RE_CLAVE = /^[A-Za-z][A-Za-z0-9]*$/;
 
-export type TipoEnlaceInformePowerBi = 'publico' | 'seguro';
+export type TipoEnlaceInformePowerBi = 'seguro';
 
 export interface EnlaceInformePowerBi {
   tipo: TipoEnlaceInformePowerBi;
@@ -49,18 +49,11 @@ export function analizarUrlInformePowerBi(
   const resto = despuesDelEsquema.slice(corteAutoridad);
   const corteConsulta = resto.indexOf('?');
   const ruta = corteConsulta === -1 ? resto : resto.slice(0, corteConsulta);
-  if (ruta !== analizada.pathname || !RUTAS.has(ruta)) return null;
+  if (ruta !== analizada.pathname || ruta !== RUTA) return null;
 
   const consulta = corteConsulta === -1 ? '' : resto.slice(corteConsulta + 1);
   const parametros = leerParametros(consulta);
   if (!parametros) return null;
-
-  if (ruta === '/view') {
-    if (parametros.size !== 1 || !parametros.has('r')) return null;
-    const token = parametros.get('r') ?? '';
-    if (!token || /[\s<>"'\\]/.test(token)) return null;
-    return { tipo: 'publico', url: limpia };
-  }
 
   const reportId = parametros.get('reportId');
   const ctid = parametros.get('ctid');
@@ -104,7 +97,7 @@ export function prepararUrlInformePowerBi(valor: string | null | undefined): str
   if (/^[a-z][a-z0-9+.-]*:/i.test(crudo) || /<[a-z!/]/i.test(crudo)) return '';
 
   const coincidencias =
-    crudo.match(/https:\/\/app\.powerbi\.com\/(?:view|reportEmbed)\?[^\s"'<>]+/gi) ?? [];
+    crudo.match(/https:\/\/app\.powerbi\.com\/reportEmbed\?[^\s"'<>]+/gi) ?? [];
   if (coincidencias.length !== 1) return '';
   return analizarUrlInformePowerBi(coincidencias[0])?.url ?? '';
 }

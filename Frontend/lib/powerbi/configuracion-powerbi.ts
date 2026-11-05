@@ -19,11 +19,7 @@ export {
 /** Tiempo máximo de espera del iframe antes de mostrar el respaldo. */
 export const TIEMPO_MAXIMO_CARGA_INFORME_MS = 20_000
 
-/** Aviso de «Publicar en la web» (ADR-009). El enlace reportEmbed no lo sustituye. */
-export const AVISO_ENLACE_PUBLICO_POWERBI =
-  '«Publicar en la web» hace público el informe en internet, sin autenticación.'
-
-/** Aviso del enlace seguro reportEmbed. */
+/** Aviso del enlace reportEmbed (login Microsoft y licencia Pro). */
 export const AVISO_ENLACE_SEGURO_POWERBI =
   'Requiere que el usuario inicie sesión en Microsoft, tenga licencia Power BI Pro y acceso al área de trabajo SIAC'
 
@@ -38,7 +34,7 @@ export function extraerUrlPublicaPowerBi(valor: string | null | undefined): stri
   return url || null
 }
 
-/** Valida un enlace de informe: `/view?r=` o `reportEmbed` en app.powerbi.com. */
+/** Valida un enlace reportEmbed en app.powerbi.com. */
 export function esUrlPublicaPowerBiValida(url: string | null | undefined): boolean {
   return analizarUrlInformePowerBi(url) !== null
 }

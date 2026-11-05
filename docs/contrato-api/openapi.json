@@ -59,8 +59,8 @@
       "ActualizarInformePowerBiDto": {
         "properties": {
           "urlPublica": {
-            "description": "URL de «Publicar en la web» (https://app.powerbi.com/view?r=...) o enlace seguro reportEmbed (reportId y ctid). También acepta el iframe pegado desde Power BI.",
-            "example": "https://app.powerbi.com/view?r=eyJrIjoiLi4uIn0",
+            "description": "Enlace reportEmbed (reportId y ctid). También acepta el iframe pegado desde Power BI. No se acepta /view?r=.",
+            "example": "https://app.powerbi.com/reportEmbed?reportId=00000000-0000-0000-0000-000000000001&ctid=00000000-0000-0000-0000-000000000002",
             "type": "string"
           }
         },
@@ -867,7 +867,7 @@
             "type": "string"
           },
           "url": {
-            "example": "https://app.powerbi.com/view?r=eyJ...",
+            "example": "https://app.powerbi.com/reportEmbed?reportId=00000000-0000-0000-0000-000000000001&ctid=00000000-0000-0000-0000-000000000002",
             "type": "string"
           },
           "urlHash": {
@@ -8086,7 +8086,7 @@
     },
     "/api/v1/powerbi/informes/{categoriaId}": {
       "put": {
-        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nAcepta https://app.powerbi.com/view?r=... o https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). groupId, si viene, debe ser un GUID. autoAuth es opcional y solo puede valer true. Rechaza otros hosts, puertos, userinfo y parámetros de más. La respuesta no repite la URL, solo el hash.",
+        "description": "Roles: Administrador, SuperAdmin. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nAcepta solo https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). groupId, si viene, debe ser un GUID. autoAuth es opcional y solo puede valer true. Rechaza /view?r=, otros hosts, puertos, userinfo y parámetros de más. La respuesta no repite la URL, solo el hash.",
         "operationId": "PowerBiController_actualizarUrl",
         "parameters": [
           {
@@ -8165,7 +8165,7 @@
             "jwt": []
           }
         ],
-        "summary": "Guarda la URL de «Publicar en la web» o el enlace seguro reportEmbed",
+        "summary": "Guarda la URL reportEmbed del informe",
         "tags": [
           "Power BI"
         ],

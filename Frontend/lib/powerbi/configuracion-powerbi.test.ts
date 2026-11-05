@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { categoriasInformesPowerBi } from '@/lib/informes-powerbi'
 import {
-  AVISO_ENLACE_PUBLICO_POWERBI,
   AVISO_ENLACE_SEGURO_POWERBI,
   clasificarUrlInformePowerBi,
   esUrlPublicaPowerBiValida,
@@ -12,7 +11,7 @@ import {
 } from '@/lib/powerbi/configuracion-powerbi'
 import { puedeVerInformesPowerBi } from '@/lib/powerbi/acceso-powerbi'
 
-const URL_EJEMPLO = 'https://app.powerbi.com/view?r=ejemploDePrueba123'
+const URL_VIEW = 'https://app.powerbi.com/view?r=ejemploDePrueba123'
 const REPORT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const CTID = '0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b'
 const GROUP = '12345678-1234-1234-1234-123456789abc'
@@ -39,12 +38,9 @@ describe('catálogo de informes Power BI', () => {
 })
 
 describe('extraerUrlPublicaPowerBi', () => {
-  it('extrae la URL desde un iframe pegado', () => {
-    const iframe =
-      '<iframe src="https://app.powerbi.com/view?r=tokenEjemplo" width="600"></iframe>'
-    expect(extraerUrlPublicaPowerBi(iframe)).toBe(
-      'https://app.powerbi.com/view?r=tokenEjemplo',
-    )
+  it('extrae reportEmbed desde un iframe pegado', () => {
+    const iframe = `<iframe src="${URL_SEGURA}" width="600"></iframe>`
+    expect(extraerUrlPublicaPowerBi(iframe)).toBe(URL_SEGURA)
   })
 
   it('extrae reportEmbed con entidades &amp; del iframe', () => {
@@ -53,16 +49,21 @@ describe('extraerUrlPublicaPowerBi', () => {
     expect(extraerUrlPublicaPowerBi(iframe)).toBe(URL_SEGURA)
   })
 
+  it('rechaza /view?r= aunque venga en iframe', () => {
+    const iframe = `<iframe src="${URL_VIEW}" width="600"></iframe>`
+    expect(extraerUrlPublicaPowerBi(iframe)).toBeNull()
+  })
+
   it('devuelve null si no hay URL válida', () => {
     expect(extraerUrlPublicaPowerBi('texto sin enlace')).toBeNull()
-    expect(extraerUrlPublicaPowerBi(`https://evil.com/?u=${URL_EJEMPLO}`)).toBeNull()
+    expect(extraerUrlPublicaPowerBi(`https://evil.com/?u=${URL_SEGURA}`)).toBeNull()
   })
 })
 
-describe('validación de URL pública', () => {
-  it('acepta una URL de «Publicar en la web»', () => {
-    expect(esUrlPublicaPowerBiValida(URL_EJEMPLO)).toBe(true)
-    expect(clasificarUrlInformePowerBi(URL_EJEMPLO)).toBe('publico')
+describe('validación de URL reportEmbed', () => {
+  it('rechaza «Publicar en la web» (/view?r=)', () => {
+    expect(esUrlPublicaPowerBiValida(URL_VIEW)).toBe(false)
+    expect(clasificarUrlInformePowerBi(URL_VIEW)).toBeNull()
   })
 
   it('acepta reportEmbed con y sin groupId y sin autoAuth', () => {
@@ -78,6 +79,7 @@ describe('validación de URL pública', () => {
 
   it.each([
     '',
+    URL_VIEW,
     'http://app.powerbi.com/view?r=abc',
     'https://app.powerbi.com/reportEmbed?reportId=abc',
     `https://app.powerbi.com/reportEmbed?reportId=${REPORT}`,
@@ -87,6 +89,7 @@ describe('validación de URL pública', () => {
     `https://app.powerbi.com/reportEmbed?reportId=${REPORT}&ctid=${CTID}&groupId=no`,
     `${URL_SEGURA}&filter=Tabla`,
     'https://app.powerbi.com.malicioso.co/view?r=abc',
+    'https://app.powerbi.com.evil.com/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
     'https://evil.com/?u=https://app.powerbi.com/view?r=abc',
     'https://user:pass@app.powerbi.com/view?r=abc',
     'https://app.powerbi.com@evil.com/view?r=abc',
@@ -105,11 +108,7 @@ describe('validación de URL pública', () => {
   })
 
   it('estadoDesdeUrlPublica distingue publicada, no publicada e inválida', () => {
-    expect(estadoDesdeUrlPublica(URL_EJEMPLO)).toEqual({
-      estado: 'publicada',
-      url: URL_EJEMPLO,
-      tipo: 'publico',
-    })
+    expect(estadoDesdeUrlPublica(URL_VIEW)).toEqual({ estado: 'invalida' })
     expect(estadoDesdeUrlPublica(URL_SEGURA)).toEqual({
       estado: 'publicada',
       url: URL_SEGURA,
@@ -120,8 +119,7 @@ describe('validación de URL pública', () => {
     expect(estadoDesdeUrlPublica(null)).toEqual({ estado: 'no-publicada' })
   })
 
-  it('los avisos de cada tipo quedan fijos', () => {
-    expect(AVISO_ENLACE_PUBLICO_POWERBI).toMatch(/sin autenticación/)
+  it('el aviso de reportEmbed queda fijo', () => {
     expect(AVISO_ENLACE_SEGURO_POWERBI).toBe(
       'Requiere que el usuario inicie sesión en Microsoft, tenga licencia Power BI Pro y acceso al área de trabajo SIAC',
     )

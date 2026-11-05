@@ -123,11 +123,11 @@ export class PowerBiController {
   @Put('informes/:categoriaId')
   @Roles(...ROLES_INFORMES)
   @ApiContrato({
-    resumen: 'Guarda la URL de «Publicar en la web» o el enlace seguro reportEmbed',
+    resumen: 'Guarda la URL reportEmbed del informe',
     roles: ['Administrador', 'SuperAdmin'],
     respuesta: InformePowerBiMetadatosDto,
     detalle:
-      'Acepta https://app.powerbi.com/view?r=... o https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). groupId, si viene, debe ser un GUID. autoAuth es opcional y solo puede valer true. Rechaza otros hosts, puertos, userinfo y parámetros de más. La respuesta no repite la URL, solo el hash.',
+      'Acepta solo https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). groupId, si viene, debe ser un GUID. autoAuth es opcional y solo puede valer true. Rechaza /view?r=, otros hosts, puertos, userinfo y parámetros de más. La respuesta no repite la URL, solo el hash.',
   })
   actualizarUrl(
     @Param('categoriaId') categoriaId: string,

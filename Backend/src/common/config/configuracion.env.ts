@@ -3,7 +3,7 @@ import { resolverPuerto } from './servidor';
 
 /**
  * Valida una URL opcional de informe Power BI (HU-009).
- * Acepta «Publicar en la web» (`/view?r=`) y el enlace seguro `reportEmbed`.
+ * Solo acepta `https://app.powerbi.com/reportEmbed` con reportId y ctid (GUID).
  * En otro caso devuelve '' (sin configurar o inválida).
  */
 export function normalizarUrlPublicaPowerBi(valor: string | undefined | null): string {
