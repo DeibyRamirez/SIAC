@@ -164,14 +164,50 @@ describe('validación de cifras por categoría', () => {
     expect(estado.errores[0].columna).toBe('estado');
   });
 
-  it('valida bienestar en clave/valor aunque la plantilla no tenga esa hoja', () => {
+  it('valida bienestar con periodo heredado aunque la plantilla no tenga esa hoja', () => {
     const resultado = validarLoteCifras(
       ESQUEMAS_CIFRAS.bienestar,
-      [{ clave: 'participantes_programa_x', facultad: 'Facultad de Ingeniería', dimension: 'vinculacion', valor_dimension: 'convenio', valor: 120 }],
+      [
+        {
+          facultad: 'Facultad de Ingeniería',
+          programa: 'Ingeniería de Sistemas',
+          genero: 'Femenino',
+          linea_bienestar: 'Salud',
+          servicio: 'Consulta médica',
+          beneficiarios: 120,
+          valor_invertido_cop: 1500000,
+        },
+      ],
       '2026-1',
     );
     expect(resultado.filas[0].ambito).toBe('2026-1');
-    expect(resultado.filas[0].datos.valor).toBe(120);
-    expect(resultado.filas[0].datos.valor_dimension).toBe('convenio');
+    expect(resultado.filas[0].datos.linea_bienestar).toBe('Salud');
+    expect(resultado.filas[0].datos.beneficiarios).toBe(120);
+    expect(resultado.filas[0].datos.valor_invertido_cop).toBe(1500000);
+  });
+
+  it('valida relaciones con el entorno y rechaza fecha_fin anterior a fecha_inicio', () => {
+    const fila = {
+      periodo_academico: '2026-1',
+      facultad: 'Facultad de Ingeniería',
+      programa: 'Ingeniería de Sistemas',
+      tipo_relacion: 'Convenio',
+      aliado: 'Empresa ABC',
+      sector_aliado: 'Privado',
+      ambito: 'Regional',
+      fecha_inicio: '2026-01-15',
+      fecha_fin: '2026-06-30',
+      estudiantes_participantes: 25,
+    };
+    const ok = validarLoteCifras(ESQUEMAS_CIFRAS['relaciones-entorno'], [fila]);
+    expect(ok.filas[0].ambito).toBe('2026-1');
+    expect(ok.filas[0].datos.aliado).toBe('Empresa ABC');
+    expect(ok.filas[0].datos.estudiantes_participantes).toBe(25);
+
+    const invertida = validarLoteCifras(ESQUEMAS_CIFRAS['relaciones-entorno'], [
+      { ...fila, fecha_fin: '2025-12-01' },
+    ]);
+    expect(invertida.filas).toEqual([]);
+    expect(invertida.errores[0].columna).toBe('fecha_fin');
   });
 });

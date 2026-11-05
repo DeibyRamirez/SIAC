@@ -271,15 +271,21 @@ export function validarLoteCifras(
       }
     }
 
-    const inicio = datos.inicio_siac;
-    const fin = datos.finalizacion_siac;
-    if (!filaInvalida && inicio instanceof Date && fin instanceof Date && fin.getTime() < inicio.getTime()) {
-      errores.push({
-        fila,
-        columna: 'finalizacion_siac',
-        mensaje: 'La columna finalizacion_siac debe ser mayor o igual que inicio_siac.',
-      });
-      filaInvalida = true;
+    const paresFecha: Array<[string, string]> = [
+      ['inicio_siac', 'finalizacion_siac'],
+      ['fecha_inicio', 'fecha_fin'],
+    ];
+    for (const [inicioClave, finClave] of paresFecha) {
+      const inicio = datos[inicioClave];
+      const fin = datos[finClave];
+      if (!filaInvalida && inicio instanceof Date && fin instanceof Date && fin.getTime() < inicio.getTime()) {
+        errores.push({
+          fila,
+          columna: finClave,
+          mensaje: `La columna ${finClave} debe ser mayor o igual que ${inicioClave}.`,
+        });
+        filaInvalida = true;
+      }
     }
 
     if (!filaInvalida) {

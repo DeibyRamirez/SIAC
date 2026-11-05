@@ -291,7 +291,7 @@ El contrato de datos cubre solo estos dominios, alineados con el catálogo de in
 
 Esas variables son conteos, metros cuadrados o capacidad. **Ninguna de las seis usa unidad porcentaje.** Si más adelante una cifra de estos dominios fuera una tasa, se expresará como número de 0 a 100 con un decimal (unidad `porcentaje`), nunca como fracción entre 0 y 1.
 
-`bienestar` y `relaciones-entorno` siguen en el catálogo HTTP de informes (ocho `categoriaId` al guardar una URL) y ahora también tienen vista de clave/valor. La hoja LM del Excel no pertenece a SIAC.
+`bienestar` y `relaciones-entorno` siguen en el catálogo HTTP de informes (ocho `categoriaId` al guardar una URL) y tienen vistas con columnas de negocio. La hoja LM del Excel no pertenece a SIAC.
 
 Camino 2 guarda las filas en Postgres (migración `20261103160000_camino_2_cifras_institucionales`). `siac_powerbi_lectura` también puede leer, solo con `SELECT`:
 
@@ -303,8 +303,8 @@ Camino 2 guarda las filas en Postgres (migración `20261103160000_camino_2_cifra
 | `v_powerbi_investigacion` | — |
 | `v_powerbi_aseguramiento` | — |
 | `v_powerbi_infraestructura` | — (`direccion` es de la sede) |
-| `v_powerbi_bienestar` | — (clave/valor; la hoja no está en el xlsx) |
-| `v_powerbi_relaciones_entorno` | — (clave/valor; la hoja no está en el xlsx) |
+| `v_powerbi_bienestar` | — (la hoja no está en el xlsx) |
+| `v_powerbi_relaciones_entorno` | — (la hoja no está en el xlsx) |
 
 El Excel maestro ya no es el destino de la ingesta. Sigue siendo la fuente de columnas y valores permitidos. La hoja LM no entra.
 

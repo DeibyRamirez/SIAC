@@ -698,37 +698,43 @@ model CifraInfraestructura {
   @@index([integradorId])
 }
 
-/// Bienestar en clave/valor. La plantilla xlsx no trae esta hoja.
+/// Bienestar por periodo, programa y servicio. La plantilla xlsx no trae esta hoja.
 model CifraBienestar {
-  id              String     @id @default(cuid())
-  clave           String     @db.VarChar(120)
-  periodo         String     @db.VarChar(16)
-  facultad        String?    @db.VarChar(300)
-  dimension       String?    @db.VarChar(120)
-  valorDimension  String?    @db.VarChar(200)
-  valor           Decimal    @db.Decimal(14, 2)
-  integradorId    String
-  integrador      Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
-  enviadoEn       DateTime   @default(now())
+  id                 String     @id @default(cuid())
+  periodoAcademico   String     @db.VarChar(16)
+  facultad           String     @db.VarChar(300)
+  programa           String     @db.VarChar(300)
+  genero             String     @db.VarChar(20)
+  lineaBienestar     String     @db.VarChar(300)
+  servicio           String     @db.VarChar(300)
+  beneficiarios      Int
+  valorInvertidoCop  Decimal    @db.Decimal(14, 2)
+  integradorId       String
+  integrador         Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
+  enviadoEn          DateTime   @default(now())
 
-  @@index([periodo])
+  @@index([periodoAcademico])
   @@index([integradorId])
 }
 
-/// Relaciones con el entorno en clave/valor. La plantilla xlsx no trae esta hoja.
+/// Relaciones con el entorno por periodo, aliado y ámbito. La plantilla xlsx no trae esta hoja.
 model CifraRelacionEntorno {
-  id              String     @id @default(cuid())
-  clave           String     @db.VarChar(120)
-  periodo         String     @db.VarChar(16)
-  facultad        String?    @db.VarChar(300)
-  dimension       String?    @db.VarChar(120)
-  valorDimension  String?    @db.VarChar(200)
-  valor           Decimal    @db.Decimal(14, 2)
-  integradorId    String
-  integrador      Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
-  enviadoEn       DateTime   @default(now())
+  id                       String     @id @default(cuid())
+  periodoAcademico         String     @db.VarChar(16)
+  facultad                 String     @db.VarChar(300)
+  programa                 String     @db.VarChar(300)
+  tipoRelacion             String     @db.VarChar(200)
+  aliado                   String     @db.VarChar(300)
+  sectorAliado             String     @db.VarChar(200)
+  ambito                   String     @db.VarChar(200)
+  fechaInicio              DateTime   @db.Date
+  fechaFin                 DateTime   @db.Date
+  estudiantesParticipantes Int
+  integradorId             String
+  integrador               Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
+  enviadoEn                DateTime   @default(now())
 
-  @@index([periodo])
+  @@index([periodoAcademico])
   @@index([integradorId])
 }
 

@@ -43,8 +43,8 @@ Los `categoriaId` coinciden con el catálogo de informes Power BI en el frontend
 | `investigacion` | Investigación | Filas por semillero/grupo/programa | `periodo_academico` |
 | `aseguramiento` | Aseguramiento | Filas por programa/SNIES y periodo | `periodo_academico` |
 | `infraestructura` | Infraestructura | Una fila por sede | `sede` (sin periodo) |
-| `bienestar` | Bienestar | Clave / valor por variable y periodo | `periodo` |
-| `relaciones-entorno` | Relaciones con el entorno | Clave / valor por variable y periodo | `periodo` |
+| `bienestar` | Bienestar | Una fila por programa, servicio y periodo | `periodo_academico` |
+| `relaciones-entorno` | Relaciones con el entorno | Una fila por aliado, ámbito y periodo | `periodo_academico` |
 
 - **Columnas, tipos, obligatoriedad y enums:** hoja homónima en [`docs/plantillas-siac-general.xlsx`](../plantillas-siac-general.xlsx) (fuente normativa para integradores).
 - **Periodo académico:** `AAAA` o `AAAA-S` con `S ∈ {1,2}` (misma regla que el módulo retirado).
@@ -69,12 +69,12 @@ La clave se guarda como SHA-256. La comparación usa `crypto.timingSafeEqual`. N
 
 Power BI no llama al GET. Lee las vistas `v_powerbi_*` con `GRANT SELECT` solo para `siac_powerbi_lectura`. Esas vistas no incluyen nombre ni código de persona.
 
-`bienestar` y `relaciones-entorno` no tienen hoja en el xlsx. Usan el esquema clave/valor de la guía (`clave`, `periodo`, `facultad`, `dimension`, `valor_dimension`, `valor`).
+`bienestar` y `relaciones-entorno` no tienen hoja en el xlsx. `bienestar` usa `periodo_academico`, `facultad`, `programa`, `genero`, `linea_bienestar`, `servicio`, `beneficiarios` y `valor_invertido_cop`. `relaciones-entorno` usa `periodo_academico`, `facultad`, `programa`, `tipo_relacion`, `aliado`, `sector_aliado`, `ambito`, `fecha_inicio`, `fecha_fin` y `estudiantes_participantes`.
 
 ## Consecuencias
 
 - Camino 1 (URL pública del informe) sigue igual.
-- Hay que aplicar la migración `20261103160000_camino_2_cifras_institucionales` antes de usar la API.
+- Hay que aplicar las migraciones `20261103160000_camino_2_cifras_institucionales` y `20261105130000_cifras_bienestar_relacion_entorno` antes de usar la API.
 - El Excel maestro deja de ser el destino de la ingesta. Sigue sirviendo para contrastar columnas y valores permitidos.
 - Las columnas personales se pueden recibir y guardar (la plantilla las trae) y no salen por el GET ni por las vistas.
 

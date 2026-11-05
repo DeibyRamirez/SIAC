@@ -152,24 +152,64 @@ describe('Camino 2: cifras institucionales', () => {
     expect(lectura.body.datos[0].direccion).toBe('Calle 5 # 4-70');
   });
 
-  it('acepta bienestar en clave/valor', async () => {
-    const envio = await http()
+  it('acepta bienestar y relaciones con el entorno', async () => {
+    const bienestar = await http()
       .post('/api/v1/integracion/cifras-institucionales/bienestar/envios')
       .set('x-api-key', clave)
       .send({
         periodo: '2026-1',
         registros: [
           {
-            clave: 'participantes_programa_x',
             facultad: 'Facultad de Ingeniería',
-            dimension: 'vinculacion',
-            valor_dimension: 'convenio',
-            valor: 120,
+            programa: 'Ingeniería de Sistemas',
+            genero: 'Femenino',
+            linea_bienestar: 'Salud',
+            servicio: 'Consulta médica',
+            beneficiarios: 120,
+            valor_invertido_cop: 1500000,
           },
         ],
       })
       .expect(200);
-    expect(envio.body.filasOk).toBe(1);
+    expect(bienestar.body.filasOk).toBe(1);
+
+    const lecturaBienestar = await http()
+      .get('/api/v1/integracion/cifras-institucionales/bienestar')
+      .query({ periodo: '2026-1' })
+      .set('x-api-key', clave)
+      .expect(200);
+    expect(lecturaBienestar.body.datos[0].servicio).toBe('Consulta médica');
+    expect(lecturaBienestar.body.datos[0].beneficiarios).toBe(120);
+
+    const entorno = await http()
+      .post('/api/v1/integracion/cifras-institucionales/relaciones-entorno/envios')
+      .set('x-api-key', clave)
+      .send({
+        periodo: '2026-1',
+        registros: [
+          {
+            facultad: 'Facultad de Ingeniería',
+            programa: 'Ingeniería de Sistemas',
+            tipo_relacion: 'Convenio',
+            aliado: 'Empresa ABC',
+            sector_aliado: 'Privado',
+            ambito: 'Regional',
+            fecha_inicio: '2026-01-15',
+            fecha_fin: '2026-06-30',
+            estudiantes_participantes: 25,
+          },
+        ],
+      })
+      .expect(200);
+    expect(entorno.body.filasOk).toBe(1);
+
+    const lecturaEntorno = await http()
+      .get('/api/v1/integracion/cifras-institucionales/relaciones-entorno')
+      .query({ periodo: '2026-1' })
+      .set('x-api-key', clave)
+      .expect(200);
+    expect(lecturaEntorno.body.datos[0].aliado).toBe('Empresa ABC');
+    expect(lecturaEntorno.body.datos[0].fecha_inicio).toBe('2026-01-15');
   });
 
   it('la vista de Power BI no expone el nombre ni el código, y el rol de lectura no puede seleccionarlos', async () => {
