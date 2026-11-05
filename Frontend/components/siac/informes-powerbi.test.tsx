@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ContenedorInformePowerBi } from '@/components/siac/contenedor-informe-powerbi'
 import {
-  AVISO_ENLACE_PUBLICO_POWERBI,
   AVISO_ENLACE_SEGURO_POWERBI,
 } from '@/lib/powerbi/configuracion-powerbi'
 import { RejillaInformesPowerBi } from '@/components/siac/rejilla-informes-powerbi'
@@ -19,10 +18,11 @@ vi.mock('@/lib/servicios/programas.servicio', () => ({
   obtenerEmbedPowerBiApi: vi.fn(() => new Promise(() => undefined)),
 }))
 
-const URL_EGRESADOS = 'https://app.powerbi.com/view?r=pruebaEgresados'
-const URL_ESTUDIANTES = 'https://app.powerbi.com/view?r=pruebaEstudiantes'
-const URL_SEGURA =
+const URL_EGRESADOS =
+  'https://app.powerbi.com/reportEmbed?reportId=b2c3d4e5-f6a7-8901-bcde-f12345678901&ctid=0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b'
+const URL_ESTUDIANTES =
   'https://app.powerbi.com/reportEmbed?reportId=a1b2c3d4-e5f6-7890-abcd-ef1234567890&autoAuth=true&ctid=0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b'
+const URL_VIEW = 'https://app.powerbi.com/view?r=pruebaEstudiantes'
 
 function metadatosDesdeMapa(configurados: Record<string, boolean>) {
   return categoriasInformesPowerBi.map((c) => ({
@@ -132,7 +132,21 @@ describe('ContenedorInformePowerBi (modo publico)', () => {
     expect(screen.getByText(/administrador del SIAC/)).toBeInTheDocument()
   })
 
-  it('rechaza una URL que no es de «Publicar en la web»', async () => {
+  it('rechaza una URL /view?r= almacenada en el servidor', async () => {
+    obtenerUrlInformePowerBiApi.mockResolvedValue({
+      categoriaId: 'investigacion',
+      url: URL_VIEW,
+      urlHash: 'hash',
+    })
+    render(<ContenedorInformePowerBi informe={categoria('investigacion')} modo="publico" />)
+    await waitFor(() => {
+      expect(screen.getByText('Informe aún no publicado')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/no es un enlace reportEmbed válido/)).toBeInTheDocument()
+    expect(screen.queryByTitle(/Informe Power BI/)).not.toBeInTheDocument()
+  })
+
+  it('rechaza un host que no es Power BI', async () => {
     obtenerUrlInformePowerBiApi.mockResolvedValue({
       categoriaId: 'investigacion',
       url: 'https://ejemplo.com/view?r=abc',
@@ -142,11 +156,11 @@ describe('ContenedorInformePowerBi (modo publico)', () => {
     await waitFor(() => {
       expect(screen.getByText('Informe aún no publicado')).toBeInTheDocument()
     })
-    expect(screen.getByText(/no es una URL pública válida/)).toBeInTheDocument()
+    expect(screen.getByText(/no es un enlace reportEmbed válido/)).toBeInTheDocument()
     expect(screen.queryByTitle(/Informe Power BI/)).not.toBeInTheDocument()
   })
 
-  it('pasa la URL correcta al iframe con título accesible, lazy y pantalla completa', async () => {
+  it('pasa reportEmbed al iframe con aviso de inicio de sesión', async () => {
     obtenerUrlInformePowerBiApi.mockResolvedValue({
       categoriaId: 'estudiantes',
       url: URL_ESTUDIANTES,
@@ -158,23 +172,8 @@ describe('ContenedorInformePowerBi (modo publico)', () => {
     expect(iframe).toHaveAttribute('src', URL_ESTUDIANTES)
     expect(iframe).toHaveAttribute('loading', 'lazy')
     expect(iframe).toHaveAttribute('allowfullscreen')
-    expect(screen.getByText('Enlace público')).toBeInTheDocument()
-    expect(screen.getByRole('note')).toHaveTextContent(AVISO_ENLACE_PUBLICO_POWERBI)
-    expect(screen.queryByText(AVISO_ENLACE_SEGURO_POWERBI)).not.toBeInTheDocument()
-  })
-
-  it('un enlace reportEmbed muestra el aviso de inicio de sesión y no el aviso público', async () => {
-    obtenerUrlInformePowerBiApi.mockResolvedValue({
-      categoriaId: 'estudiantes',
-      url: URL_SEGURA,
-      urlHash: 'hash',
-    })
-    render(<ContenedorInformePowerBi informe={categoria('estudiantes')} modo="publico" />)
-    const iframe = await screen.findByTitle('Informe Power BI — Estudiantes')
-    expect(iframe).toHaveAttribute('src', URL_SEGURA)
-    expect(screen.getByText('Enlace seguro')).toBeInTheDocument()
+    expect(screen.getByText('Enlace reportEmbed')).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent(AVISO_ENLACE_SEGURO_POWERBI)
-    expect(screen.queryByText(AVISO_ENLACE_PUBLICO_POWERBI)).not.toBeInTheDocument()
   })
 
   it('si el iframe tarda demasiado muestra error y permite reintentar', () => {
@@ -182,7 +181,7 @@ describe('ContenedorInformePowerBi (modo publico)', () => {
     vi.mocked(useUrlPublicaPowerBi).mockReturnValue({
       estado: 'publicada',
       url: URL_ESTUDIANTES,
-      tipo: 'publico',
+      tipo: 'seguro',
     })
     render(
       <ContenedorInformePowerBi

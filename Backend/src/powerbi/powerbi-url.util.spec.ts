@@ -1,7 +1,7 @@
 import { hashUrlPublicaPowerBi, prepararUrlPublicaPowerBiEntrada } from './powerbi-url.util';
 import { analizarUrlInformePowerBi, clasificarUrlInformePowerBi } from './validar-url-informe';
 
-const URL = 'https://app.powerbi.com/view?r=tokenDePrueba';
+const URL_VIEW = 'https://app.powerbi.com/view?r=tokenDePrueba';
 const REPORT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const CTID = '0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b';
 const GROUP = '12345678-1234-1234-1234-123456789abc';
@@ -10,14 +10,14 @@ const SEGURA_GRUPO = `https://app.powerbi.com/reportEmbed?groupId=${GROUP}&ctid=
 const SEGURA_SIN_AUTH = `https://app.powerbi.com/reportEmbed?reportId=${REPORT}&ctid=${CTID}`;
 
 describe('prepararUrlPublicaPowerBiEntrada', () => {
-  it('acepta URL directa de Publicar en la web', () => {
-    expect(prepararUrlPublicaPowerBiEntrada(`  ${URL}  `)).toBe(URL);
-    expect(clasificarUrlInformePowerBi(URL)).toBe('publico');
+  it('acepta URL reportEmbed directa', () => {
+    expect(prepararUrlPublicaPowerBiEntrada(`  ${SEGURA}  `)).toBe(SEGURA);
+    expect(clasificarUrlInformePowerBi(SEGURA)).toBe('seguro');
   });
 
-  it('extrae URL desde iframe', () => {
-    const iframe = `<iframe src="${URL}" width="600"></iframe>`;
-    expect(prepararUrlPublicaPowerBiEntrada(iframe)).toBe(URL);
+  it('extrae reportEmbed desde iframe', () => {
+    const iframe = `<iframe src="${SEGURA}" width="600"></iframe>`;
+    expect(prepararUrlPublicaPowerBiEntrada(iframe)).toBe(SEGURA);
   });
 
   it('extrae reportEmbed aunque el iframe codifique &amp;', () => {
@@ -26,14 +26,19 @@ describe('prepararUrlPublicaPowerBiEntrada', () => {
     expect(prepararUrlPublicaPowerBiEntrada(iframe)).toBe(SEGURA);
   });
 
+  it('rechaza Publicar en la web (/view?r=)', () => {
+    expect(prepararUrlPublicaPowerBiEntrada(URL_VIEW)).toBe('');
+    expect(prepararUrlPublicaPowerBiEntrada(`<iframe src="${URL_VIEW}"></iframe>`)).toBe('');
+  });
+
   it('no saca un enlace Power BI escondido en otra URL', () => {
     expect(
-      prepararUrlPublicaPowerBiEntrada(`https://evil.com/?u=${encodeURIComponent(URL)}`),
+      prepararUrlPublicaPowerBiEntrada(`https://evil.com/?u=${encodeURIComponent(SEGURA)}`),
     ).toBe('');
   });
 
   it('rechaza el primer src si no es de Power BI', () => {
-    const html = `<iframe src="javascript:alert(1)"></iframe><iframe src="${URL}"></iframe>`;
+    const html = `<iframe src="javascript:alert(1)"></iframe><iframe src="${SEGURA}"></iframe>`;
     expect(prepararUrlPublicaPowerBiEntrada(html)).toBe('');
   });
 
@@ -46,9 +51,6 @@ describe('prepararUrlPublicaPowerBiEntrada', () => {
 
 describe('analizarUrlInformePowerBi', () => {
   it.each([
-    URL,
-    'https://app.powerbi.com/view?r=eyJrIjoiLi4uIn0',
-    'HTTPS://app.powerbi.com/view?r=abc',
     SEGURA,
     SEGURA_SIN_AUTH,
     SEGURA_GRUPO,
@@ -57,19 +59,15 @@ describe('analizarUrlInformePowerBi', () => {
   ])('acepta %s', (url) => {
     const analizada = analizarUrlInformePowerBi(url);
     expect(analizada?.url.toLowerCase()).toBe(url.toLowerCase());
-    expect(analizada?.tipo === 'publico' || analizada?.tipo === 'seguro').toBe(true);
-  });
-
-  it('distingue el tipo de enlace', () => {
-    expect(analizarUrlInformePowerBi(URL)?.tipo).toBe('publico');
-    expect(analizarUrlInformePowerBi(SEGURA)?.tipo).toBe('seguro');
-    expect(analizarUrlInformePowerBi(SEGURA_SIN_AUTH)?.tipo).toBe('seguro');
-    expect(analizarUrlInformePowerBi(SEGURA_GRUPO)?.tipo).toBe('seguro');
+    expect(analizada?.tipo).toBe('seguro');
   });
 
   it.each([
     '',
     '   ',
+    URL_VIEW,
+    'https://app.powerbi.com/view?r=eyJrIjoiLi4uIn0',
+    'HTTPS://app.powerbi.com/view?r=abc',
     'http://app.powerbi.com/view?r=abc',
     'http://app.powerbi.com/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
     'javascript:alert(1)',
@@ -78,6 +76,7 @@ describe('analizarUrlInformePowerBi', () => {
     'ftp://app.powerbi.com/view?r=abc',
     '//app.powerbi.com/view?r=abc',
     'https://app.powerbi.com.evil.com/view?r=abc',
+    'https://app.powerbi.com.evil.com/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
     'https://evil.app.powerbi.com/view?r=abc',
     'https://evil.com/view?r=abc',
     'https://evil.com/?u=https://app.powerbi.com/view?r=abc',
@@ -85,6 +84,7 @@ describe('analizarUrlInformePowerBi', () => {
     'https://app.powerbi.com@evil.com/view?r=abc',
     'https://app.powerbi.com:443/view?r=abc',
     'https://app.powerbi.com:8443/view?r=abc',
+    'https://app.powerbi.com:8443/reportEmbed?reportId=' + REPORT + '&ctid=' + CTID,
     'https://app.powerbi.com/view?r=',
     'https://app.powerbi.com/view?r=%20',
     'https://app.powerbi.com/view',
@@ -118,10 +118,10 @@ describe('analizarUrlInformePowerBi', () => {
 
 describe('hashUrlPublicaPowerBi', () => {
   it('genera hash estable', () => {
-    const a = hashUrlPublicaPowerBi(URL);
-    const b = hashUrlPublicaPowerBi(URL);
+    const a = hashUrlPublicaPowerBi(SEGURA);
+    const b = hashUrlPublicaPowerBi(SEGURA);
     expect(a).toBe(b);
     expect(a.length).toBe(64);
-    expect(hashUrlPublicaPowerBi(SEGURA)).not.toBe(a);
+    expect(hashUrlPublicaPowerBi(SEGURA_SIN_AUTH)).not.toBe(a);
   });
 });

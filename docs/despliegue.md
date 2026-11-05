@@ -146,7 +146,7 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USUARIO` / `SMTP_CONTRASENA` / `SMTP_FROM` | Solo con `smtp` | Servidor institucional |
 | `POWERBI_TENANT_ID` / `POWERBI_CLIENT_ID` / `POWERBI_CLIENT_SECRET` | No | Entidad de servicio de Azure. Sin valores en el repo; si faltan, el interruptor no activa el informe. El secreto no se muestra en el panel |
 | `POWERBI_WORKSPACE_ID` / `POWERBI_REPORT_ID` / `POWERBI_REPORT_ID_ESTUDIANTES` | No | Solo la ruta simulada `/powerbi/embed-token`. El informe con token usa los id del panel de Administrador |
-| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | URL `https://app.powerbi.com/view?r=...` o `reportEmbed` con `reportId` y `ctid` |
+| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | Solo `https://app.powerbi.com/reportEmbed?…` (ver validación en CRUD de informes). Modo Azure: [powerbi-insercion-azure.md](powerbi-insercion-azure.md) |
 | `CARRERAS_API_URL` | No | Catálogo de carreras (tiene valor por defecto) |
 | `CARRERAS_IMAGENES_BASE_URL` | No | Si falta: `FRONTEND_URL` |
 | `TI_API_URL` / `TI_API_TOKEN` | No | Integración TI |

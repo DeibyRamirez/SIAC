@@ -206,7 +206,10 @@ export class InformePowerBiUrlDto {
   @ApiProperty()
   categoriaId!: string;
 
-  @ApiProperty({ example: 'https://app.powerbi.com/view?r=eyJ...' })
+  @ApiProperty({
+    example:
+      'https://app.powerbi.com/reportEmbed?reportId=00000000-0000-0000-0000-000000000001&ctid=00000000-0000-0000-0000-000000000002',
+  })
   url!: string;
 
   @ApiProperty()

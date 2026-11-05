@@ -94,7 +94,7 @@ export class PowerBiService {
     const urlPublica = prepararUrlPublicaPowerBiEntrada(entrada);
     if (!urlPublica) {
       throw new BadRequestException(
-        'La URL debe ser https://app.powerbi.com/view?r=... o un enlace seguro https://app.powerbi.com/reportEmbed con reportId y ctid (GUID).',
+        'La URL debe ser https://app.powerbi.com/reportEmbed con reportId y ctid (GUID). «Publicar en la web» (/view?r=) no se acepta.',
       );
     }
     const urlHash = hashUrlPublicaPowerBi(urlPublica);

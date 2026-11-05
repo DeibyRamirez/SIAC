@@ -1,10 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  AVISO_ENLACE_PUBLICO_POWERBI,
-  AVISO_ENLACE_SEGURO_POWERBI,
-} from '@/lib/powerbi/configuracion-powerbi'
+import { AVISO_ENLACE_SEGURO_POWERBI } from '@/lib/powerbi/configuracion-powerbi'
 
 const api = vi.hoisted(() => ({
   listarInformesPowerBiApi: vi.fn(),
@@ -27,7 +24,7 @@ import { PanelConfiguracionInformesPowerBi } from '@/components/siac/panel-confi
 
 const REPORT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const CTID = '0f1e2d3c-4b5a-6978-8a7b-6c5d4e3f2a1b'
-const URL_PUBLICA = 'https://app.powerbi.com/view?r=ejemploDePrueba123'
+const URL_VIEW = 'https://app.powerbi.com/view?r=ejemploDePrueba123'
 const URL_SEGURA = `https://app.powerbi.com/reportEmbed?reportId=${REPORT}&autoAuth=true&ctid=${CTID}`
 
 function campoAseguramiento() {
@@ -52,25 +49,22 @@ describe('PanelConfiguracionInformesPowerBi', () => {
     vi.mocked(toast.success).mockReset()
   })
 
-  it('distingue el aviso público del aviso de reportEmbed', async () => {
+  it('muestra aviso al pegar reportEmbed y no acepta /view?r=', async () => {
     render(<PanelConfiguracionInformesPowerBi />)
     await waitFor(() => {
       expect(api.listarInformesPowerBiApi).toHaveBeenCalled()
     })
 
     const campo = campoAseguramiento()
-    fireEvent.change(campo, { target: { value: URL_PUBLICA } })
-    expect(screen.getByText('Enlace público')).toBeInTheDocument()
-    expect(screen.getByRole('note')).toHaveTextContent(AVISO_ENLACE_PUBLICO_POWERBI)
-    expect(screen.queryByText(AVISO_ENLACE_SEGURO_POWERBI)).not.toBeInTheDocument()
+    fireEvent.change(campo, { target: { value: URL_VIEW } })
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
 
     fireEvent.change(campo, { target: { value: URL_SEGURA } })
-    expect(screen.getByText('Enlace seguro')).toBeInTheDocument()
+    expect(screen.getByText('Enlace reportEmbed')).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent(AVISO_ENLACE_SEGURO_POWERBI)
-    expect(screen.queryByText(AVISO_ENLACE_PUBLICO_POWERBI)).not.toBeInTheDocument()
   })
 
-  it('guarda el enlace seguro y rechaza javascript', async () => {
+  it('guarda el enlace reportEmbed y rechaza javascript', async () => {
     render(<PanelConfiguracionInformesPowerBi />)
     await waitFor(() => expect(api.listarInformesPowerBiApi).toHaveBeenCalled())
 
