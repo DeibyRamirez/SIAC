@@ -329,4 +329,21 @@ describe('PanelProgramasService (T-010.2)', () => {
       { codigo: { contains: 'derecho', mode: 'insensitive' } },
     ]);
   });
+
+  it('incluye programas locales aunque no tengan tituloCuac (no filtra por catálogo CUAC)', async () => {
+    const soloSiac = {
+      ...programa(1),
+      nombre: 'Programa solo SIAC',
+      tituloCuac: null,
+      codigoCu: null,
+    };
+    const { servicio } = crearServicio([soloSiac as ProgramaFalso], []);
+    await servicio.onModuleInit();
+
+    const respuesta = await servicio.listarPanel({}, ADMIN);
+
+    expect(respuesta.datos).toHaveLength(1);
+    expect(respuesta.datos[0].nombre).toBe('Programa solo SIAC');
+    expect(respuesta.datos[0].tituloCatalogo).toBeUndefined();
+  });
 });

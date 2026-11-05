@@ -1,10 +1,11 @@
-import { Injectable, BadGatewayException, Logger } from '@nestjs/common';
+import { Injectable, BadGatewayException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.module';
 import { OrigenDato, RolUsuario, TipoTramiteSIAC } from '@prisma/client';
 import { generarSlug } from '../common/alcance/generar-slug';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 import { CatalogoCuacPersistenciaService } from './catalogo-cuac-persistencia.service';
+import { esSincronizacionCuacHabilitada } from './config-catalogo-cuac';
 
 interface ProgramaExterno {
   idExterno: string;
@@ -90,6 +91,11 @@ export class IntegracionService {
     totalEnBd: number;
     origen: OrigenDato;
   }> {
+    if (!esSincronizacionCuacHabilitada(this.config)) {
+      throw new BadRequestException(
+        'La sincronización del catálogo CUAC está deshabilitada (CARRERAS_SYNC_HABILITADO=false).',
+      );
+    }
     try {
       this.clienteCarreras.invalidarCache();
       const datos = await this.clienteCarreras.fetchCatalogoRemoto();

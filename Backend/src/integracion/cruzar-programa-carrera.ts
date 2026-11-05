@@ -114,12 +114,12 @@ export function enriquecerFilaDesdePersistencia(
   const urlDesdeSlug = slug
     ? resolverUrlImagenCarrera({ imagen: slug }, baseImagenes)
     : undefined;
-  const titulo = programa.tituloCuac?.trim() || programa.nombre;
+  const tituloCuac = programa.tituloCuac?.trim();
 
   return {
     ...fila,
-    nombre: titulo,
-    tituloCatalogo: titulo,
+    nombre: tituloCuac || fila.nombre,
+    tituloCatalogo: tituloCuac || undefined,
     duracion: programa.duracionCuac ?? undefined,
     creditos: programa.creditosCuac ?? undefined,
     resolucionCatalogo: programa.resolucionCuac ?? undefined,
