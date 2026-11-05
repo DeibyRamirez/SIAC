@@ -118,6 +118,26 @@ describe('AuthService', () => {
     ).rejects.toThrow('Usuario inactivo');
   });
 
+  it('rechaza usuario inexistente con el mismo mensaje genérico (sin filtrar existencia)', async () => {
+    usuarioRepo.buscarParaLogin.mockResolvedValueOnce(null);
+
+    await expect(
+      authService.iniciarSesion({
+        correo: "admin' OR '1'='1'@uniautonoma.edu.co",
+        contrasena: "' OR 1=1 --",
+      }),
+    ).rejects.toThrow('Credenciales inválidas.');
+  });
+
+  it('pasa el correo normalizado al repositorio (consulta parametrizada)', async () => {
+    await authService.iniciarSesion({
+      correo: '  Maria.Cargadora@uniautonoma.edu.co  ',
+      contrasena: 'Cargador2026',
+    });
+
+    expect(usuarioRepo.buscarParaLogin).toHaveBeenCalledWith('maria.cargadora@uniautonoma.edu.co');
+  });
+
   it('tras el login fija el usuario en el contexto de RLS de la petición', async () => {
     await ejecutarConContextoVacio(async () => {
       await authService.iniciarSesion({

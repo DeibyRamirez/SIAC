@@ -26,6 +26,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: PayloadJwt) {
+    if (!payload?.sub || !/^[a-z0-9]{20,32}$/i.test(payload.sub)) {
+      throw new UnauthorizedException('Token inválido o usuario inactivo.');
+    }
     const usuario = await this.usuarioRepo.buscarSesion(payload.sub);
     if (!usuario || !usuario.activo) {
       throw new UnauthorizedException('Token inválido o usuario inactivo.');

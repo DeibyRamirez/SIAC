@@ -102,7 +102,10 @@ describe('Intervalo configurable del modo prueba (fix B)', () => {
       {} as ConfiguracionSiacService,
       {} as NotificacionesDespachoService,
       demo as unknown as VigenciaDemoService,
-      { get: () => undefined } as unknown as ConfigService,
+      {
+        get: (clave: string) =>
+          clave === 'vigenciaEvaluadorIntervaloAuto' ? true : undefined,
+      } as unknown as ConfigService,
       programador,
     );
     const tick = jest.spyOn(evaluador, 'tickModoPrueba').mockResolvedValue(undefined);
@@ -129,6 +132,20 @@ describe('Intervalo configurable del modo prueba (fix B)', () => {
       programador,
     );
     evaluador.onApplicationBootstrap();
-    expect(programador.getIntervals()).toEqual([]);
+    expect(programador.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)).toBe(false);
+  });
+
+  it('con modo prueba pero sin VIGENCIA_EVALUADOR_INTERVALO_AUTO no registra intervalo', () => {
+    const programador = new SchedulerRegistry();
+    const evaluador = new EvaluadorVigenciaRegistroService(
+      {} as PrismaService,
+      {} as ConfiguracionSiacService,
+      {} as NotificacionesDespachoService,
+      { modoPruebaActivo: () => true, intervaloPruebaSeg: () => 10, listarSesionesActivas: () => [] } as unknown as VigenciaDemoService,
+      { get: (clave: string) => (clave === 'vigenciaEvaluadorIntervaloAuto' ? false : undefined) } as unknown as ConfigService,
+      programador,
+    );
+    evaluador.onApplicationBootstrap();
+    expect(programador.doesExist('interval', NOMBRE_INTERVALO_MODO_PRUEBA)).toBe(false);
   });
 });

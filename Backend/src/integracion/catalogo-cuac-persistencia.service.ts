@@ -11,6 +11,7 @@ import {
 } from './mapear-carrera-externa';
 
 export const INTERVALO_REVALIDACION_CUAC_MS = 10 * 60 * 1000;
+const TAMANO_LOTE_CUAC = 25;
 
 export interface ResultadoPersistenciaCatalogo {
   importados: number;
@@ -37,7 +38,8 @@ export class CatalogoCuacPersistenciaService {
   async aplicarRespuestaApi(
     datos: RespuestaCarrerasExternasDto,
   ): Promise<ResultadoPersistenciaCatalogo> {
-    return ejecutarComoSistema(async () => {
+    const inicioMs = Date.now();
+    const resultado = await ejecutarComoSistema(async () => {
       const baseImagenes = this.baseImagenes();
       const catalogo = mapearCarrerasExternas(datos.carreras, { baseImagenes });
       const { importados, actualizados } = await this.upsertCatalogoProgramas(catalogo, OrigenDato.API);
@@ -55,6 +57,10 @@ export class CatalogoCuacPersistenciaService {
         origen: OrigenDato.API,
       };
     });
+    this.logger.log(
+      `Persistencia catálogo CUAC en ${Date.now() - inicioMs} ms (${resultado.importados} nuevos, ${resultado.actualizados} actualizados).`,
+    );
+    return resultado;
   }
 
   async obtenerMetadatosPanel(): Promise<{
@@ -174,81 +180,129 @@ export class CatalogoCuacPersistenciaService {
     items: ProgramaCatalogoExterno[],
     origen: OrigenDato,
   ): Promise<{ importados: number; actualizados: number }> {
+    if (items.length === 0) return { importados: 0, actualizados: 0 };
+
     let importados = 0;
     let actualizados = 0;
     const ahora = new Date();
 
+    const existentes = await this.prisma.programa.findMany({
+      select: {
+        id: true,
+        idExterno: true,
+        codigo: true,
+        slug: true,
+        nombre: true,
+        tituloCuac: true,
+        codigoCu: true,
+        codigoSnies: true,
+        nivel: true,
+        modalidad: true,
+        facultad: true,
+        duracionCuac: true,
+        creditosCuac: true,
+        resolucionCuac: true,
+        fechaResolucionCuac: true,
+        imagenSlugCuac: true,
+        urlImagen: true,
+        activo: true,
+      },
+    });
+
+    const porIdExterno = new Map<string, (typeof existentes)[0]>();
+    const porCodigo = new Map<string, (typeof existentes)[0]>();
+    const porSlug = new Map<string, (typeof existentes)[0]>();
+    const slugsOcupados = new Set<string>();
+
+    for (const fila of existentes) {
+      slugsOcupados.add(fila.slug);
+      if (fila.idExterno) porIdExterno.set(fila.idExterno, fila);
+      porCodigo.set(fila.codigo, fila);
+      porSlug.set(fila.slug, fila);
+    }
+
+    const operaciones: Prisma.PrismaPromise<unknown>[] = [];
+
     for (const item of items) {
       const datosCatalogo = this.datosProgramaDesdeCatalogo(item, origen, ahora);
+      const existente =
+        porIdExterno.get(item.idExterno) ??
+        porCodigo.get(item.codigo) ??
+        porSlug.get(item.slug);
 
-      const porIdExterno = await this.prisma.programa.findUnique({
-        where: { idExterno: item.idExterno },
-      });
-
-      if (porIdExterno) {
-        if (this.programaRequiereActualizacion(porIdExterno, item)) {
-          await this.prisma.programa.update({
-            where: { id: porIdExterno.id },
-            data: datosCatalogo,
-          });
+      if (existente) {
+        if (this.programaRequiereActualizacion(existente, item)) {
+          operaciones.push(
+            this.prisma.programa.update({
+              where: { id: existente.id },
+              data: datosCatalogo,
+            }),
+          );
           actualizados++;
         }
+        if (item.idExterno) porIdExterno.set(item.idExterno, existente);
         continue;
       }
 
-      const porCodigo = await this.prisma.programa.findUnique({ where: { codigo: item.codigo } });
-      if (porCodigo) {
-        if (this.programaRequiereActualizacion(porCodigo, item)) {
-          await this.prisma.programa.update({
-            where: { id: porCodigo.id },
-            data: datosCatalogo,
-          });
-          actualizados++;
-        }
-        continue;
-      }
-
-      const porSlug = await this.prisma.programa.findUnique({ where: { slug: item.slug } });
-      if (porSlug) {
-        if (this.programaRequiereActualizacion(porSlug, item)) {
-          await this.prisma.programa.update({
-            where: { id: porSlug.id },
-            data: datosCatalogo,
-          });
-          actualizados++;
-        }
-        continue;
-      }
-
-      const slugLibre = await this.resolverSlugEnBaseDeDatos(item.slug, item.idExterno, item.nombre);
-      await this.prisma.programa.create({
-        data: {
-          codigo: item.codigo,
-          nombre: item.nombre,
-          tituloCuac: item.nombre,
-          slug: slugLibre,
-          codigoCu: item.codigoCu,
-          codigoSnies: item.codigoSnies,
-          nivel: item.nivel,
-          modalidad: item.modalidad,
-          facultad: item.facultad,
-          duracionSemestres: item.duracionSemestres,
-          duracionCuac: item.duracionCuac,
-          creditosCuac: item.creditosCuac,
-          resolucionCuac: item.resolucionCuac,
-          fechaResolucionCuac: item.fechaResolucionCuac,
-          imagenSlugCuac: item.imagenSlugCuac,
-          urlImagen: item.urlImagen,
-          activo: item.activo,
-          idExterno: item.idExterno,
-          origenDato: origen,
-          fechaSincronizacion: ahora,
-          tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
-          porcentajeAvance: 0,
-          estadoProceso: 'En progreso',
-        },
-      });
+      const slugLibre = this.resolverSlugEnMemoria(item.slug, item.idExterno, item.nombre, slugsOcupados);
+      operaciones.push(
+        this.prisma.programa.create({
+          data: {
+            codigo: item.codigo,
+            nombre: item.nombre,
+            tituloCuac: item.nombre,
+            slug: slugLibre,
+            codigoCu: item.codigoCu,
+            codigoSnies: item.codigoSnies,
+            nivel: item.nivel,
+            modalidad: item.modalidad,
+            facultad: item.facultad,
+            duracionSemestres: item.duracionSemestres,
+            duracionCuac: item.duracionCuac,
+            creditosCuac: item.creditosCuac,
+            resolucionCuac: item.resolucionCuac,
+            fechaResolucionCuac: item.fechaResolucionCuac,
+            imagenSlugCuac: item.imagenSlugCuac,
+            urlImagen: item.urlImagen,
+            activo: item.activo,
+            idExterno: item.idExterno,
+            origenDato: origen,
+            fechaSincronizacion: ahora,
+            tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
+            porcentajeAvance: 0,
+            estadoProceso: 'En progreso',
+          },
+        }),
+      );
       importados++;
+      const stub = {
+        id: `nuevo-${item.idExterno}`,
+        idExterno: item.idExterno,
+        codigo: item.codigo,
+        slug: slugLibre,
+        nombre: item.nombre,
+        tituloCuac: item.nombre,
+        codigoCu: item.codigoCu ?? null,
+        codigoSnies: item.codigoSnies ?? null,
+        nivel: item.nivel,
+        modalidad: item.modalidad ?? null,
+        facultad: item.facultad ?? null,
+        duracionCuac: item.duracionCuac ?? null,
+        creditosCuac: item.creditosCuac ?? null,
+        resolucionCuac: item.resolucionCuac ?? null,
+        fechaResolucionCuac: item.fechaResolucionCuac ?? null,
+        imagenSlugCuac: item.imagenSlugCuac ?? null,
+        urlImagen: item.urlImagen ?? null,
+        activo: item.activo,
+      };
+      porIdExterno.set(item.idExterno, stub);
+      porCodigo.set(item.codigo, stub);
+      porSlug.set(slugLibre, stub);
+    }
+
+    for (let i = 0; i < operaciones.length; i += TAMANO_LOTE_CUAC) {
+      const lote = operaciones.slice(i, i + TAMANO_LOTE_CUAC);
+      await this.prisma.$transaction(lote);
     }
 
     return { importados, actualizados };
@@ -305,11 +359,12 @@ export class CatalogoCuacPersistenciaService {
     return resultado.count;
   }
 
-  private async resolverSlugEnBaseDeDatos(
+  private resolverSlugEnMemoria(
     slugBase: string,
     idExterno: string,
     nombre: string,
-  ): Promise<string> {
+    slugsOcupados: Set<string>,
+  ): string {
     const candidatos = [
       slugBase,
       generarSlug(`${nombre}-${idExterno.slice(-6)}`),
@@ -317,13 +372,14 @@ export class CatalogoCuacPersistenciaService {
     ];
 
     for (const candidato of candidatos) {
-      const ocupado = await this.prisma.programa.findUnique({
-        where: { slug: candidato },
-        select: { id: true },
-      });
-      if (!ocupado) return candidato;
+      if (!slugsOcupados.has(candidato)) {
+        slugsOcupados.add(candidato);
+        return candidato;
+      }
     }
 
-    return generarSlug(`${idExterno}-${Date.now()}`);
+    const fallback = generarSlug(`${idExterno}-${Date.now()}`);
+    slugsOcupados.add(fallback);
+    return fallback;
   }
 }
