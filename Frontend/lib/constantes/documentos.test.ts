@@ -15,6 +15,12 @@ describe('límite de tamaño de evidencia (HU-006 §5.2)', () => {
     expect(validarTamanoEvidencia(20 * MB)).toBeNull()
   })
 
+  it('rechaza un archivo de 20 MB + 1 byte con el texto «20 MB»', () => {
+    const mensaje = validarTamanoEvidencia(20 * MB + 1)
+    expect(mensaje).not.toBeNull()
+    expect(mensaje).toContain('20 MB')
+  })
+
   it('rechaza un archivo de 21 MB con el texto «20 MB»', () => {
     const mensaje = validarTamanoEvidencia(21 * MB)
     expect(mensaje).not.toBeNull()

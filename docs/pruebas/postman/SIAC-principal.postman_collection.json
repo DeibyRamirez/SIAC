@@ -1,0 +1,225 @@
+{
+  "info": {
+    "_postman_id": "siac-f05-principal",
+    "name": "SIAC API principal (F-05)",
+    "description": "Endpoints principales con al menos un camino de error por ruta. Variables: `baseUrl` (p. ej. http://localhost:3001/api/v1), credenciales semilla de desarrollo/CI.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api/v1" },
+    { "key": "tokenAdmin", "value": "" },
+    { "key": "tokenRevisor", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login Administrador (éxito)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tokenAdmin', body.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin.planeacion@uniautonoma.edu.co\",\n  \"contrasena\": \"SiacDev-Administrador\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login SQLi (error 401 genérico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Mensaje genérico', () => {",
+                  "  const msg = pm.response.json().message;",
+                  "  pm.expect(String(msg)).to.include('Credenciales');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin' OR '1'='1'@uniautonoma.edu.co\",\n  \"contrasena\": \"' OR 1=1 --\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Perfil sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 401', () => pm.response.to.have.status(401));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/perfil"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Configuración vigencia",
+      "item": [
+        {
+          "name": "GET umbrales (200 Administrador)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }],
+            "url": "{{baseUrl}}/configuracion/vigencia"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH umbrales inválidos (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenAdmin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mesesAvisoVigencia\": 6,\n  \"mesesRojoVigencia\": 18\n}"
+            },
+            "url": "{{baseUrl}}/configuracion/vigencia"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Métricas",
+      "item": [
+        {
+          "name": "Login Revisor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tokenRevisor', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"revisor.calidad@uniautonoma.edu.co\",\n  \"contrasena\": \"SiacDev-Revisor\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Token Power BI como Revisor (403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenRevisor}}" }],
+            "url": "{{baseUrl}}/metricas/token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 403', () => pm.response.to.have.status(403));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Plantillas",
+      "item": [
+        {
+          "name": "tipoTramite desconocido (400)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/plantillas?tipoTramite=TramiteInexistente",
+              "host": ["{{baseUrl}}"],
+              "path": ["plantillas"],
+              "query": [{ "key": "tipoTramite", "value": "TramiteInexistente" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "GET /salud (200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/salud" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('HTTP 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
