@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: Backend
     services:
-      # BD efímera solo para CI: valida las migraciones y la semilla desde cero.
+      # BD efímera solo para CI: valida las migraciones desde cero. Las cuentas de prueba las crea el E2E.
       postgres:
         image: postgres:16
         env:
@@ -68,8 +68,6 @@ jobs:
             --to-schema-datamodel prisma/schema.prisma \
             --shadow-database-url postgresql://postgres@localhost:5432/siac_shadow \
             --exit-code
-      - name: Ejecutar la semilla (solo usuarios, uno por rol)
-        run: pnpm prisma:seed
       - name: Pruebas del backend
         run: pnpm exec jest --runInBand
       - name: Habilitar el login de los roles de RLS (solo CI, contraseñas desechables)

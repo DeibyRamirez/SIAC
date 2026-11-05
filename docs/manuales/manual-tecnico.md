@@ -30,7 +30,7 @@ cd backend
 pnpm install
 pnpm prisma:generate
 pnpm prisma:deploy
-pnpm prisma:seed      # solo usuarios (uno por rol); sin programas ni datos de ejemplo
+pnpm prisma:seed      # asegura ConfiguracionSIAC; no crea usuarios ni datos de ejemplo
 pnpm start:dev
 pnpm test
 

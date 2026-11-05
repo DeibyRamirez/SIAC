@@ -34,15 +34,18 @@ flowchart LR
 3. **Storage**: crear los buckets **privados** `evidencias`, `plantillas` y `documentos` (los nombres se pueden cambiar con `S3_BUCKET*`).
 4. **Storage → S3 Connection**: copiar el endpoint (`https://<ref>.storage.supabase.co/storage/v1/s3`), la región y generar un par **Access key / Secret key** (`S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 5. Base vacía: no hace falta ejecutar SQL a mano. Las 31 migraciones (incluidas las de cifras de `develop_v3`, que crean y luego retiran las tablas de cifras) se aplicaron sin errores sobre una base vacía y sin drift frente a `schema.prisma` (verificado el 16/10/2026).
-6. **Semilla** (solo la primera vez, desde un equipo con la cadena de Supabase en variables de entorno de la terminal, nunca en un `.env` versionado):
+6. **Primer administrador** (solo si la tabla `Usuario` está vacía, desde un equipo con la cadena de Supabase en variables de la terminal, nunca en un `.env` versionado). `pnpm prisma:seed` ya no crea usuarios. Las migraciones no insertan cuentas.
    ```powershell
    cd Backend
    $env:DATABASE_URL = "<DIRECT_URL de Supabase>"; $env:DIRECT_URL = $env:DATABASE_URL
-   pnpm prisma:seed        # 5 usuarios, uno por rol (contraseñas de demostración)
-   Remove-Item Env:DATABASE_URL, Env:DIRECT_URL
+   $env:PRIMER_ADMIN_NOMBRE = "<nombre>"
+   $env:PRIMER_ADMIN_CORREO = "<correo@uniautonoma.edu.co>"
+   $env:PRIMER_ADMIN_CLAVE = "<clave de al menos 12 caracteres, solo en esta terminal>"
+   pnpm prisma:primer-admin
+   Remove-Item Env:DATABASE_URL, Env:DIRECT_URL, Env:PRIMER_ADMIN_NOMBRE, Env:PRIMER_ADMIN_CORREO, Env:PRIMER_ADMIN_CLAVE
    ```
-   Cambiar las contraseñas de demostración tras el primer ingreso si el entorno será visible para terceros.
-7. **`pnpm prisma:setup` no se usa contra Supabase.** Encadena `migrate deploy`, verificación, semilla y backfill, y tiene una guarda (`Backend/prisma/guarda-setup.ts`, lógica en `src/common/config/guarda-setup.ts`) que aborta si `DATABASE_URL` o `DIRECT_URL` no son locales (`localhost`, `127.0.0.1`, `postgres` de CI). Solo con `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal se permite un host remoto, de forma deliberada. En Supabase las migraciones las aplica Render (`start:despliegue`) y la semilla se ejecuta una sola vez con el paso 6.
+   El comando aborta si ya hay usuarios. Los demás roles se crean después desde la aplicación, con la sesión de ese SuperAdmin.
+7. **`pnpm prisma:setup` no se usa contra Supabase.** Encadena `migrate deploy`, verificación, la semilla de configuración (sin usuarios) y el backfill, y tiene una guarda (`Backend/prisma/guarda-setup.ts`, lógica en `src/common/config/guarda-setup.ts`) que aborta si `DATABASE_URL` o `DIRECT_URL` no son locales (`localhost`, `127.0.0.1`, `postgres` de CI). Solo con `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal se permite un host remoto, de forma deliberada. En Supabase las migraciones las aplica Render (`start:despliegue`). El primer administrador es el paso 6, no el arranque del servicio.
 8. Plan gratuito de Supabase: el proyecto se **pausa** tras una semana sin actividad; reactivarlo desde el panel antes de una demostración.
 
 ## 2. Render (backend)

@@ -138,15 +138,7 @@ pnpm run build
 | **Revisor** | `/revisor` | Bandeja de revisión, aprobar/rechazar con observaciones |
 | **Administrador** | `/administrador` | Métricas, programas, evidencias, vigencias, plantillas, estructura normativa |
 
-### Credenciales de demostración (mock)
-
-| Rol | Correo | Contraseña |
-|-----|--------|------------|
-| Cargador | `maria.cargadora@uniautonoma.edu.co` | `Cargador2026` |
-| Revisor | `revisor.calidad@uniautonoma.edu.co` | `Revisor2026` |
-| Administrador | `admin.planeacion@uniautonoma.edu.co` | `Admin2026` |
-
-Definidas en `Frontend/lib/datos-semilla/usuarios.ts`. El login muestra panel lateral con botones **Copiar correo** / **Copiar contraseña**.
+El login no muestra cuentas ni contraseñas. La sesión entra por la API. No hay usuarios de demostración en el frontend.
 
 ---
 

@@ -25,7 +25,7 @@
 | C-8 Bitácora de fallidos (backend) | `GET /api/v1/notificaciones/salida` (Administrador/SuperAdmin) |
 | Despliegue | Render free + Vercel Hobby + Supabase desde el 16/10/2026 (`docs/despliegue.md`) |
 | Defectos HU-005 (20/10) | `tipoTramite` validado (400); estados «Cargando», error con «Reintentar» y vacío en plantillas, evidencias y vigencias |
-| Contraseñas de la semilla | Leídas de `SEMILLA_CLAVE_*`, obligatorias en producción (falta rotarlas en la BD de producción) |
+| Contraseñas de la semilla | Retiradas del código el 2026-11-05. `prisma:seed` no crea usuarios. Si la BD de producción ya tiene las cuentas antiguas, rotarlas o eliminarlas en el panel |
 | Avisos de avance | Administrador + SuperAdmin + Revisor del programa (sin Par) |
 | Borradores privados (capa de servicio) | Solo el autor ve un Borrador: listados, búsqueda, conteos/métricas, detalle, historial, versiones, comentarios, descargas y URL firmadas (`filtroBorradorSoloAutor`, `puedeVerBorrador`). La parte RLS está en el plan (`plan-rls.md`) |
 | T-006.4 / Par académico | Rol eliminado (migración `20261020220000_eliminar_rol_par_academico`); T-006.4 **descartada** |
@@ -48,7 +48,7 @@
 | SMTP institucional | Faltan credenciales de TI |
 | Validación del PO de HU-006 y HU-007 y reescritura de sus CA en ClickUp | Pendiente (ver auditoría §G) |
 | Keep-alive fiable | GitHub lo ejecuta cada 2–3 h; decidir ping externo o Render `starter` (`docs/despliegue.md` §2.1) |
-| Rotar las contraseñas de los usuarios semilla en producción | Acción manual en la BD |
+| Rotar o eliminar en la BD las cuentas que haya creado la semilla antigua | Acción manual; el código ya no las crea ni publica sus claves |
 | RLS en todas las tablas + rol `siac_app` sin BYPASSRLS + rol de lectura de Power BI | Solo plan (`plan-rls.md`); sin código hasta aprobarlo |
 | Aplicar en Supabase las migraciones del 20/10 (Par, umbrales 12/6, vista) | Con el despliegue; `prisma migrate deploy` lo hace Render al arrancar (revisar `docs/despliegue.md`) |
 | T-006.4 RN-001 Par académico | **Descartada** (20/10/2026): el rol se eliminó del código y de la BD |

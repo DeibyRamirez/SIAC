@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-11-04 |
+| **Última actualización** | 2026-11-05 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -414,6 +414,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
 - [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
 - [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
+- [x] Semilla de roles retirada (2026-11-05): `migrate deploy` y `prisma:seed` no crean usuarios; el login no publica contraseñas; el primer SuperAdmin es `pnpm prisma:primer-admin`
 
 ### Estado anterior (2026-09-17)
 
@@ -486,6 +487,20 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-05 — Sin cuentas de demostración por rol
+
+- [Frontend] El login ya no muestra «Accesos de demostración SIAC». Se eliminaron `usuarios.ts` y el ingreso local que comparaba contraseñas de demostración.
+- [Backend] `prisma:seed` solo asegura `ConfiguracionSIAC`. No crea usuarios. Se retiraron `SEMILLA_CLAVE_*` y las claves de desarrollo del código. El CI ya no ejecuta la semilla de cuentas.
+- [Backend] El primer SuperAdmin se crea a mano con `pnpm prisma:primer-admin` (variables de la terminal, sin clave en el repositorio). Aborta si ya hay usuarios. No lo llaman las migraciones ni `start:despliegue`.
+- [Sin prisma:deploy] No hay migración nueva. Las migraciones ya aplicadas no se reescribieron. Institución, trámites y umbrales siguen insertándose ahí. Las cuentas que ya existan en Supabase no se borran: hay que rotarlas o eliminarlas en el panel si se crearon con la semilla anterior.
+
+### 2026-11-04 — API pública de programas CUAC (repo externo)
+
+- [API] Catálogo publicado en `https://github.com/BICHO128/api-programas-cuac` y desplegado en Vercel en `https://api-programas-cuac.vercel.app/carreras` (25 programas vigentes: 14 de pregrado y 11 de posgrado). El proyecto es independiente de SIAC; la carpeta local `API/` se retiró del repo.
+- [API] Solo se publican programas con registro SNIES activo; se excluyen inactivos o reemplazados (Ingeniería de Sistemas, Ingeniería de Sistemas Informáticos, Licenciaturas antiguas, Deporte y Actividad Física, técnicos inactivos y Mercadeo sin SNIES). Administración de Empresas se publica una vez (CU027); Ingeniería Ambiental y Sanitaria se excluye por reemplazo con la de Saneamiento; Proyectos de Desarrollo queda con modalidades Presencial y Virtual.
+- [API] Se conservan los `_id` de los 10 programas de la API anterior para que `POST /api/v1/integracion/sincronizar-carreras` actualice en vez de duplicar. El README del repo externo documenta el despliegue en Vercel.
+- [Pendiente] Al sincronizar posgrados, `mapear-carrera-externa.ts` aún fuerza `nivel: 'Pregrado'`; ajustar si se quiere persistir el nivel que ya trae esta API.
 
 ### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
 
@@ -753,7 +768,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Backend] Rol `SuperAdmin` en schema; guards bypass; CRUD `/usuarios` (POST/PATCH/DELETE)
 - [Backend] `GET /integracion/estado-storage` para diagnóstico S3
 - [Frontend] Rutas `/superadmin` y `/superadmin/usuarios`; menú unificado SuperAdmin
-- [Backend] Semilla: usuario `superadmin@uniautonoma.edu.co` / `SuperAdmin2026`
+- [Backend] Rol SuperAdmin en la semilla de entonces (las cuentas de demostración se retiraron el 2026-11-05)
 
 ### 2026-09-15 — Alineación F-03 + Supabase + API v1
 

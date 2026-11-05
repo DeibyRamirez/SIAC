@@ -1,4 +1,3 @@
-export { usuariosSemilla, DOMINIO_INSTITUCIONAL } from './usuarios'
 export {
   condicionesDecretoSemilla,
   etapasAcreditacionSemilla,

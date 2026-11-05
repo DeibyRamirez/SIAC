@@ -96,7 +96,7 @@ async function main() {
 
   console.log('');
   if (ok) {
-    console.log('Esquema OK. Puede ejecutar pnpm prisma:seed');
+    console.log('Esquema OK. La semilla ya no crea usuarios.');
     process.exit(0);
   }
 

@@ -63,7 +63,7 @@ Los envíos y las lecturas usan la cabecera `x-api-key`. Límite: 30 POST y 120 
 
 ## Cómo probarlo
 
-La API local escucha en el puerto 3001. Sustituya la contraseña del SuperAdmin por la de su entorno (en desarrollo, la de `SEMILLA_CLAVE_SUPERADMIN` o la clave de desarrollo de la semilla).
+La API local escucha en el puerto 3001. Sustituya la contraseña por la del SuperAdmin de su entorno (`pnpm prisma:primer-admin` si la base aún no tiene usuarios). No hay contraseña de demostración en el repositorio.
 
 ```bash
 # 1. Token de SuperAdmin

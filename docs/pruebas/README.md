@@ -13,7 +13,7 @@
 ## Newman (API)
 
 1. `docker compose up -d` en la raíz del repo.
-2. En `Backend/`: `pnpm prisma migrate deploy && pnpm prisma:seed && pnpm start:dev`.
+2. En `Backend/`: `pnpm prisma migrate deploy && pnpm start:dev`. El login usa una cuenta real (`pnpm prisma:primer-admin` si la base no tiene usuarios). `pnpm prisma:seed` no crea cuentas.
 3. `./docs/pruebas/ejecutar-newman.sh`.
 
 Las mismas rutas están cubiertas por `Backend/test/e2e` (supertest) en el CI (`.github/workflows/ci.yml`).

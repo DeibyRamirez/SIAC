@@ -34,7 +34,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": \"admin.planeacion@uniautonoma.edu.co\",\n  \"contrasena\": \"SiacDev-Administrador\"\n}"
+              "raw": "{\n  \"correo\": \"admin.planeacion@uniautonoma.edu.co\",\n  \"contrasena\": \"<clave>\"\n}"
             },
             "url": "{{baseUrl}}/auth/login"
           }
@@ -152,7 +152,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": \"revisor.calidad@uniautonoma.edu.co\",\n  \"contrasena\": \"SiacDev-Revisor\"\n}"
+              "raw": "{\n  \"correo\": \"revisor.calidad@uniautonoma.edu.co\",\n  \"contrasena\": \"<clave>\"\n}"
             },
             "url": "{{baseUrl}}/auth/login"
           }
