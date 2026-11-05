@@ -10,9 +10,10 @@ import { ResolucionMenService } from './resolucion-men.service';
 import { AlcanceProgramaModule } from '../common/alcance/alcance-programa.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { VigenciasModule } from '../vigencias/vigencias.module';
+import { IntegracionModule } from '../integracion/integracion.module';
 
 @Module({
-  imports: [AlcanceProgramaModule, NotificacionesModule, VigenciasModule],
+  imports: [AlcanceProgramaModule, NotificacionesModule, VigenciasModule, IntegracionModule],
   controllers: [ProgramasController, InstitucionController],
   providers: [
     ProgramasService,

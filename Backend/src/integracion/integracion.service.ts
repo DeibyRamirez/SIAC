@@ -6,10 +6,8 @@ import { generarSlug } from '../common/alcance/generar-slug';
 import {
   mapearCarrerasExternas,
   ProgramaCatalogoExterno,
-  RespuestaCarrerasExternasDto,
 } from './mapear-carrera-externa';
-
-const URL_CARRERAS_DEFECTO = 'https://backend-lac-theta-94.vercel.app/carreras';
+import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 
 interface ProgramaExterno {
   idExterno: string;
@@ -42,6 +40,7 @@ export class IntegracionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly clienteCarreras: ClienteCarrerasCuacService,
   ) {}
 
   async sincronizarDesdeTi(): Promise<{
@@ -93,24 +92,10 @@ export class IntegracionService {
     totalEnBd: number;
     origen: OrigenDato;
   }> {
-    const url =
-      this.config.get<string>('CARRERAS_API_URL')?.trim() || URL_CARRERAS_DEFECTO;
-
     try {
-      const respuesta = await fetch(url);
-      if (!respuesta.ok) {
-        throw new Error(`API de carreras respondió ${respuesta.status}`);
-      }
-
-      const datos = (await respuesta.json()) as RespuestaCarrerasExternasDto;
-      if (!datos.success || !Array.isArray(datos.carreras)) {
-        throw new Error('Respuesta inválida de la API de carreras.');
-      }
-
-      const baseImagenes =
-        this.config.get<string>('CARRERAS_IMAGENES_BASE_URL')?.trim() ||
-        this.config.get<string>('FRONTEND_URL')?.trim() ||
-        'http://localhost:3000';
+      this.clienteCarreras.invalidarCache();
+      const datos = await this.clienteCarreras.fetchCatalogoRemoto();
+      const baseImagenes = this.clienteCarreras.baseImagenes();
       const catalogo = mapearCarrerasExternas(datos.carreras, { baseImagenes });
       const { importados, actualizados } = await this.upsertCatalogoProgramas(
         catalogo,
@@ -191,6 +176,7 @@ export class IntegracionService {
         facultad: item.facultad,
         duracionSemestres: item.duracionSemestres,
         urlImagen: item.urlImagen,
+        codigoSnies: item.codigoSnies,
         activo: item.activo,
         idExterno: item.idExterno,
         origenDato: origen,

@@ -31,6 +31,23 @@ export class ConsultaPanelProgramasDto {
   @IsEnum(AlcanceTramiteSIAC)
   alcance?: AlcanceTramiteSIAC = AlcanceTramiteSIAC.Programa;
 
+  /** Nivel académico del catálogo CUAC (p. ej. Pregrado). */
+  @ApiPropertyOptional({ description: 'Nivel académico del catálogo CUAC (p. ej. Pregrado).' })
+  @IsOptional()
+  @IsString()
+  nivel?: string;
+
+  @ApiPropertyOptional({ description: 'Facultad según catálogo CUAC.' })
+  @IsOptional()
+  @IsString()
+  facultad?: string;
+
+  @ApiPropertyOptional({ description: 'Modalidad según catálogo CUAC.' })
+  @IsOptional()
+  @IsString()
+  modalidad?: string;
+
+  /** Filtra por semáforo general (Verde, Amarillo, Rojo). */
   @ApiPropertyOptional({
     description: 'Si se envía, el semáforo se calcula en memoria y la paginación ocurre después del filtro.',
   })

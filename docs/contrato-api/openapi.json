@@ -8838,6 +8838,33 @@
             }
           },
           {
+            "description": "Nivel académico del catálogo CUAC (p. ej. Pregrado).",
+            "in": "query",
+            "name": "nivel",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Facultad según catálogo CUAC.",
+            "in": "query",
+            "name": "facultad",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Modalidad según catálogo CUAC.",
+            "in": "query",
+            "name": "modalidad",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Si se envía, el semáforo se calcula en memoria y la paginación ocurre después del filtro.",
             "in": "query",
             "name": "semaforo",

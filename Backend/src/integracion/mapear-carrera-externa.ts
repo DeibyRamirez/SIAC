@@ -3,9 +3,15 @@ import { generarSlug } from '../common/alcance/generar-slug';
 /** Payload de carrera desde la API externa CUAC. */
 export interface CarreraExternaDto {
   _id: string;
+  codigoCu?: string;
+  codigoSnies?: string;
   titulo: string;
+  nivel?: string;
   modalidad?: string;
   duracion?: string;
+  creditos?: number;
+  resolucion?: string;
+  fechaResolucion?: string;
   imagen?: string;
   urlImagen?: string | null;
   facultad?: string;
@@ -25,6 +31,8 @@ export interface OpcionesMapeoCarreras {
 export interface RespuestaCarrerasExternasDto {
   success: boolean;
   cantidad?: number;
+  version?: string;
+  generadoEn?: string;
   carreras: CarreraExternaDto[];
 }
 
@@ -32,6 +40,7 @@ export interface RespuestaCarrerasExternasDto {
 export interface ProgramaCatalogoExterno {
   idExterno: string;
   codigo: string;
+  codigoSnies?: string;
   nombre: string;
   slug: string;
   nivel: string;
@@ -147,16 +156,19 @@ export function mapearCarreraExterna(
 
   if (!titulo || !idExterno) return null;
 
-  const codigo = generarCodigoPrograma(titulo, idExterno);
+  const codigoCu = carrera.codigoCu?.trim();
+  const codigo = codigoCu || generarCodigoPrograma(titulo, idExterno);
   const slugBase = generarSlug(titulo);
   const slug = slugBase === 'programa' ? generarSlug(`${titulo}-${idExterno.slice(-6)}`) : slugBase;
+  const nivel = carrera.nivel?.trim() || NIVEL_DEFECTO;
 
   return {
     idExterno,
     codigo,
+    codigoSnies: carrera.codigoSnies?.trim() || undefined,
     nombre: titulo,
     slug,
-    nivel: NIVEL_DEFECTO,
+    nivel,
     modalidad: carrera.modalidad?.trim() || undefined,
     facultad: carrera.facultad?.trim() || undefined,
     duracionSemestres: parsearDuracionSemestres(carrera.duracion),
