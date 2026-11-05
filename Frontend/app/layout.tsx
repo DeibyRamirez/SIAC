@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Montserrat } from 'next/font/google'
+import localFont from 'next/font/local'
 
 import { ProveedorAlmacen } from '@/components/auth/proveedor-almacen'
 import { ProveedorSesion } from '@/components/auth/proveedor-sesion'
@@ -8,10 +8,11 @@ import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
 
-const montserrat = Montserrat({
-  subsets: ['latin'],
+const montserrat = localFont({
+  src: './fonts/Montserrat-Variable.woff2',
   variable: '--font-montserrat',
-  weight: ['400', '500', '600', '700', '800'],
+  weight: '100 900',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {

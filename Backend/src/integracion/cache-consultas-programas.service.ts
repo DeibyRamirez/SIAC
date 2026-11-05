@@ -18,15 +18,25 @@ interface EntradaCache<T> {
 @Injectable()
 export class CacheConsultasProgramasService {
   private readonly ttlMs: number;
+  private readonly cacheActiva: boolean;
   private panel = new Map<string, EntradaCache<unknown>>();
   private listado = new Map<string, EntradaCache<unknown>>();
   private filtrosCatalogo: EntradaCache<FiltrosCatalogoCuacDto> | null = null;
 
   constructor(config: ConfigService) {
-    const crudo = Number(config.get<string>('PROGRAMAS_RESPUESTA_CACHE_TTL_SEG') ?? 45);
+    const nodeEnv = config.get<string>('NODE_ENV')?.trim().toLowerCase();
+    const crudoEnv = config.get<string>('PROGRAMAS_RESPUESTA_CACHE_TTL_SEG')?.trim();
+    if (nodeEnv === 'test' || crudoEnv === '0') {
+      this.ttlMs = 0;
+      this.cacheActiva = false;
+      return;
+    }
+
+    const crudo = Number(crudoEnv ?? 45);
     const segundos = Number.isFinite(crudo) && crudo > 0 ? crudo : 45;
     const acotado = Math.min(60, Math.max(30, segundos));
     this.ttlMs = acotado * 1000;
+    this.cacheActiva = true;
   }
 
   ttlSegundos(): number {
@@ -34,10 +44,12 @@ export class CacheConsultasProgramasService {
   }
 
   leerPanel<T = unknown>(clave: string): T | null {
+    if (!this.cacheActiva) return null;
     return this.leer(this.panel, clave) as T | null;
   }
 
   guardarPanel(clave: string, valor: unknown): void {
+    if (!this.cacheActiva) return;
     this.guardar(this.panel, clave, valor);
   }
 
@@ -47,10 +59,12 @@ export class CacheConsultasProgramasService {
   }
 
   leerListado(clave: string): unknown | null {
+    if (!this.cacheActiva) return null;
     return this.leer(this.listado, clave);
   }
 
   guardarListado(clave: string, valor: unknown): void {
+    if (!this.cacheActiva) return;
     this.guardar(this.listado, clave, valor);
   }
 
@@ -59,6 +73,7 @@ export class CacheConsultasProgramasService {
   }
 
   leerFiltrosCatalogo(): FiltrosCatalogoCuacDto | null {
+    if (!this.cacheActiva) return null;
     if (!this.filtrosCatalogo || Date.now() >= this.filtrosCatalogo.expiraEn) {
       this.filtrosCatalogo = null;
       return null;
@@ -67,6 +82,7 @@ export class CacheConsultasProgramasService {
   }
 
   guardarFiltrosCatalogo(valor: FiltrosCatalogoCuacDto): void {
+    if (!this.cacheActiva) return;
     this.filtrosCatalogo = { valor, expiraEn: Date.now() + this.ttlMs };
   }
 

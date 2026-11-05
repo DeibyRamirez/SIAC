@@ -19,6 +19,7 @@ function registrarManejadoresErroresProceso(): void {
 
   process.on('uncaughtException', (error: Error) => {
     console.error('[proceso] Excepción no capturada (uncaughtException):', error.stack ?? error.message);
+    process.exit(1);
   });
 }
 

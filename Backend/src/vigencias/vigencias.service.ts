@@ -31,6 +31,7 @@ import {
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 /** Zona horaria institucional (CUAC Popayán) para el cron diario de vigencias. */
 export const ZONA_HORARIA_SIAC = 'America/Bogota';
@@ -57,6 +58,8 @@ export class VigenciasService implements OnModuleInit {
     private readonly almacenamiento: AlmacenamientoService,
 
     private readonly evaluadorVigenciaRegistro: EvaluadorVigenciaRegistroService,
+
+    private readonly cacheConsultas: CacheConsultasProgramasService,
 
   ) {}
 
@@ -216,6 +219,7 @@ export class VigenciasService implements OnModuleInit {
         },
         include: { programa: { select: { id: true, nombre: true, codigo: true } } },
       });
+      this.cacheConsultas.invalidarTodo();
       return this.enriquecerAnexo(anexo);
     } catch (error) {
       this.logger.error(
@@ -273,6 +277,7 @@ export class VigenciasService implements OnModuleInit {
       data.estado = this.calcularEstado(data.fechaVencimiento as Date);
     }
     const actualizado = await this.prisma.anexoVigencia.update({ where: { id }, data });
+    this.cacheConsultas.invalidarTodo();
     return this.enriquecerAnexo(actualizado);
   }
 
@@ -302,11 +307,10 @@ export class VigenciasService implements OnModuleInit {
 
     }
 
-    return this.prisma.anexoVigencia.delete({ where: { id } });
-
+    const eliminado = await this.prisma.anexoVigencia.delete({ where: { id } });
+    this.cacheConsultas.invalidarTodo();
+    return eliminado;
   }
-
-
 
   async obtenerUrlDescarga(id: string) {
 

@@ -3,9 +3,14 @@ import { CacheConsultasProgramasService } from './cache-consultas-programas.serv
 import { RolUsuario } from '@prisma/client';
 
 describe('CacheConsultasProgramasService', () => {
-  function crearServicio(ttlSeg = 45): CacheConsultasProgramasService {
+  function crearServicio(opciones: { ttlSeg?: number; nodeEnv?: string } = {}): CacheConsultasProgramasService {
+    const { ttlSeg = 45, nodeEnv = 'development' } = opciones;
     const config = {
-      get: (clave: string) => (clave === 'PROGRAMAS_RESPUESTA_CACHE_TTL_SEG' ? String(ttlSeg) : undefined),
+      get: (clave: string) => {
+        if (clave === 'NODE_ENV') return nodeEnv;
+        if (clave === 'PROGRAMAS_RESPUESTA_CACHE_TTL_SEG') return String(ttlSeg);
+        return undefined;
+      },
     } as ConfigService;
     return new CacheConsultasProgramasService(config);
   }
@@ -34,8 +39,17 @@ describe('CacheConsultasProgramasService', () => {
   });
 
   it('acota TTL entre 30 y 60 segundos', () => {
-    expect(crearServicio(10).ttlSegundos()).toBe(30);
-    expect(crearServicio(120).ttlSegundos()).toBe(60);
-    expect(crearServicio(45).ttlSegundos()).toBe(45);
+    expect(crearServicio({ ttlSeg: 10 }).ttlSegundos()).toBe(30);
+    expect(crearServicio({ ttlSeg: 120 }).ttlSegundos()).toBe(60);
+    expect(crearServicio({ ttlSeg: 45 }).ttlSegundos()).toBe(45);
+  });
+
+  it('desactiva la caché en NODE_ENV=test', () => {
+    const cache = crearServicio({ nodeEnv: 'test' });
+    const usuario = { id: 'u1', rol: RolUsuario.Administrador };
+    const clave = cache.clavePanel({ page: 1 }, usuario);
+    cache.guardarPanel(clave, { datos: [] });
+    expect(cache.leerPanel(clave)).toBeNull();
+    expect(cache.ttlSegundos()).toBe(0);
   });
 });

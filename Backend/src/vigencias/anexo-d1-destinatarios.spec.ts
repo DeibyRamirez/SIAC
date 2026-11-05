@@ -31,7 +31,7 @@ describe('VigenciasService · destinatarios del aviso D-1 de anexos', () => {
       },
     };
     const despacho = { notificar: jest.fn().mockResolvedValue(undefined), encolarCorreoExterno: jest.fn() };
-    const servicio = new VigenciasService(prisma as never, despacho as never, {} as never, {} as never);
+    const servicio = new VigenciasService(prisma as never, despacho as never, {} as never, {} as never, { invalidarTodo: jest.fn() } as never);
     const ejecutar = () =>
       (servicio as unknown as { notificarAnexosQueVencenManana(): Promise<void> }).notificarAnexosQueVencenManana();
     return { despacho, ejecutar, usuarioFindMany };

@@ -242,6 +242,7 @@ export class ProgramasService {
       tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
       estadoProceso: 'En progreso',
     });
+    this.cacheConsultas.invalidarTodo();
 
     const progreso = await this.avanceProceso.calcularProgresoPrograma(programaId);
     return {
