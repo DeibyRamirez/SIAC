@@ -3,6 +3,7 @@ import { OrigenDato, Prisma, TipoTramiteSIAC } from '@prisma/client';
 import { generarSlug } from '../common/alcance/generar-slug';
 import { PrismaService } from '../prisma/prisma.module';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CacheConsultasProgramasService } from './cache-consultas-programas.service';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 import {
   mapearCarrerasExternas,
@@ -29,6 +30,7 @@ export class CatalogoCuacPersistenciaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clienteCarreras: ClienteCarrerasCuacService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
   ) {}
 
   baseImagenes(): string {
@@ -57,6 +59,7 @@ export class CatalogoCuacPersistenciaService {
         origen: OrigenDato.API,
       };
     });
+    this.cacheConsultas.invalidarTodo();
     this.logger.log(
       `Persistencia catálogo CUAC en ${Date.now() - inicioMs} ms (${resultado.importados} nuevos, ${resultado.actualizados} actualizados).`,
     );
@@ -74,11 +77,19 @@ export class CatalogoCuacPersistenciaService {
     const institucion = await this.prisma.institucion.findFirst({
       select: { versionCatalogoCuac: true, catalogoCuacActualizadoEn: true },
     });
-    const [niveles, facultades, modalidades] = await Promise.all([
-      this.valoresDistintos('nivel'),
-      this.valoresDistintos('facultad'),
-      this.valoresDistintos('modalidad'),
-    ]);
+
+    const filtrosCache = this.cacheConsultas.leerFiltrosCatalogo();
+    let niveles: string[];
+    let facultades: string[];
+    let modalidades: string[];
+    if (filtrosCache) {
+      ({ niveles, facultades, modalidades } = filtrosCache);
+    } else {
+      niveles = await this.valoresDistintos('nivel');
+      facultades = await this.valoresDistintos('facultad');
+      modalidades = await this.valoresDistintos('modalidad');
+      this.cacheConsultas.guardarFiltrosCatalogo({ niveles, facultades, modalidades });
+    }
 
     const degradado =
       !institucion?.catalogoCuacActualizadoEn &&

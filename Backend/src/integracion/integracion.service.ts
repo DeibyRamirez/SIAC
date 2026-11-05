@@ -6,6 +6,7 @@ import { generarSlug } from '../common/alcance/generar-slug';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 import { CatalogoCuacPersistenciaService } from './catalogo-cuac-persistencia.service';
 import { esSincronizacionCuacHabilitada } from './config-catalogo-cuac';
+import { CacheConsultasProgramasService } from './cache-consultas-programas.service';
 
 interface ProgramaExterno {
   idExterno: string;
@@ -40,6 +41,7 @@ export class IntegracionService {
     private readonly config: ConfigService,
     private readonly clienteCarreras: ClienteCarrerasCuacService,
     private readonly catalogoCuac: CatalogoCuacPersistenciaService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
   ) {}
 
   async sincronizarDesdeTi(): Promise<{
@@ -134,6 +136,7 @@ export class IntegracionService {
     }
 
     const count = await this.upsertProgramas(programas, OrigenDato.CSV);
+    this.cacheConsultas.invalidarTodo();
     return { programas: count, usuarios: 0, vinculos: 0, origen: OrigenDato.CSV };
   }
 

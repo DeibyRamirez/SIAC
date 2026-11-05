@@ -20,7 +20,12 @@ describe('CatalogoCuacPersistenciaService · upsert por lotes', () => {
     };
 
     const cliente = { baseImagenes: () => 'https://ejemplo.test' } as unknown as ClienteCarrerasCuacService;
-    const servicio = new CatalogoCuacPersistenciaService(prisma as never, cliente);
+    const cacheConsultas = {
+      invalidarTodo: jest.fn(),
+      leerFiltrosCatalogo: jest.fn().mockReturnValue(null),
+      guardarFiltrosCatalogo: jest.fn(),
+    };
+    const servicio = new CatalogoCuacPersistenciaService(prisma as never, cliente, cacheConsultas as never);
 
     const carreras = Array.from({ length: 30 }, (_, i) => ({
       _id: `ext-${i}`,

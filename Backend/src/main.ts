@@ -9,8 +9,23 @@ import {
   resolverPuerto,
   validarEntornoProduccion,
 } from './common/config/servidor';
+import { advertirLimiteConexionesBaseDatos } from './common/config/advertir-pool-base-datos';
+
+function registrarManejadoresErroresProceso(): void {
+  process.on('unhandledRejection', (motivo: unknown) => {
+    const detalle = motivo instanceof Error ? motivo.stack ?? motivo.message : String(motivo);
+    console.error('[proceso] Promesa rechazada no capturada (unhandledRejection):', detalle);
+  });
+
+  process.on('uncaughtException', (error: Error) => {
+    console.error('[proceso] Excepción no capturada (uncaughtException):', error.stack ?? error.message);
+  });
+}
+
+registrarManejadoresErroresProceso();
 
 async function bootstrap() {
+  advertirLimiteConexionesBaseDatos();
   // En producción (Render) se detiene el arranque si falta configuración crítica.
   const { errores, advertencias } = validarEntornoProduccion();
   advertencias.forEach((mensaje) => console.warn(`[configuración] ${mensaje}`));
