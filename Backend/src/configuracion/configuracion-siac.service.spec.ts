@@ -23,7 +23,7 @@ describe('ConfiguracionSiacService (T-007.3a)', () => {
         upsert: jest.fn().mockResolvedValue(FILA_GLOBAL),
       },
     };
-    servicio = new ConfiguracionSiacService(prisma as never);
+    servicio = new ConfiguracionSiacService(prisma as never, { invalidarTodo: jest.fn() } as never);
   });
 
   it('carga los umbrales de la fila global (100/55, 7 años, 24/18)', async () => {

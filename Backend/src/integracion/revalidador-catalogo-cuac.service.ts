@@ -1,14 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CatalogoCuacPersistenciaService, INTERVALO_REVALIDACION_CUAC_MS } from './catalogo-cuac-persistencia.service';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 import { esSincronizacionCuacHabilitada } from './config-catalogo-cuac';
 
 @Injectable()
-export class RevalidadorCatalogoCuacService implements OnModuleInit {
+export class RevalidadorCatalogoCuacService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RevalidadorCatalogoCuacService.name);
   private revalidando = false;
   private ultimoIntentoEn = 0;
+  private vueloEnCurso: Promise<void> | null = null;
+  private temporizadorIntervalo: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly config: ConfigService,
@@ -22,26 +24,58 @@ export class RevalidadorCatalogoCuacService implements OnModuleInit {
       return;
     }
     this.dispararRevalidacionEnSegundoPlano();
+    this.temporizadorIntervalo = setInterval(() => {
+      this.dispararRevalidacionEnSegundoPlano();
+    }, INTERVALO_REVALIDACION_CUAC_MS);
+  }
+
+  onModuleDestroy(): void {
+    if (this.temporizadorIntervalo) {
+      clearInterval(this.temporizadorIntervalo);
+      this.temporizadorIntervalo = null;
+    }
   }
 
   estaRevalidando(): boolean {
     return this.revalidando;
   }
 
-  /** No bloquea: dispara fetch + persistencia si el catálogo en BD está obsoleto. */
+  /** No bloquea: un solo vuelo; errores nunca salen como unhandled rejection. */
   dispararRevalidacionEnSegundoPlano(): void {
     if (!this.syncHabilitada()) return;
-    void this.revalidarSiObsoleto();
+    void this.revalidarSiObsoleto().catch((error: unknown) => {
+      this.logger.warn(
+        `Revalidación CUAC en segundo plano terminó con error no controlado (${mensajeError(error)}).`,
+      );
+    });
   }
 
   async revalidarSiObsoleto(forzar = false): Promise<void> {
     if (!this.syncHabilitada()) return;
-    if (this.revalidando) return;
+    if (this.vueloEnCurso) return this.vueloEnCurso;
 
+    this.vueloEnCurso = this.ejecutarRevalidacion(forzar).finally(() => {
+      this.vueloEnCurso = null;
+    });
+    return this.vueloEnCurso;
+  }
+
+  private async ejecutarRevalidacion(forzar: boolean): Promise<void> {
     const ahora = Date.now();
     if (!forzar && ahora - this.ultimoIntentoEn < 5_000) return;
 
-    const obsoleto = forzar || (await this.persistencia.estaObsoleto());
+    let obsoleto = forzar;
+    if (!forzar) {
+      try {
+        obsoleto = await this.persistencia.estaObsoleto();
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo comprobar obsolescencia del catálogo CUAC (${mensajeError(error)}); se omite la revalidación.`,
+        );
+        return;
+      }
+    }
+
     if (!obsoleto) return;
 
     this.revalidando = true;
@@ -55,7 +89,7 @@ export class RevalidadorCatalogoCuacService implements OnModuleInit {
       );
     } catch (error) {
       this.logger.warn(
-        `Revalidación CUAC en segundo plano falló (${(error as Error).message}). Se conserva la copia en BD.`,
+        `Revalidación CUAC en segundo plano falló (${mensajeError(error)}). Se conserva la copia en BD.`,
       );
     } finally {
       this.revalidando = false;
@@ -69,4 +103,8 @@ export class RevalidadorCatalogoCuacService implements OnModuleInit {
   private syncHabilitada(): boolean {
     return esSincronizacionCuacHabilitada(this.config);
   }
+}
+
+function mensajeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

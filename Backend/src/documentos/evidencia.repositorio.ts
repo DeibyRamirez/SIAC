@@ -22,6 +22,7 @@ import {
   construirFiltroTextoLibre,
 } from './texto-libre-evidencias';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 
 
@@ -115,7 +116,14 @@ export interface ComentarioVersionPersistido {
 export class EvidenciaRepositorio {
   private readonly logger = new Logger(EvidenciaRepositorio.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
+  ) {}
+
+  private invalidarCachePanel(): void {
+    this.cacheConsultas.invalidarTodo();
+  }
 
   /** Periodos distintos con al menos una evidencia visible para el usuario (la RLS filtra). */
   async listarPeriodosConDatos(): Promise<string[]> {
@@ -129,10 +137,10 @@ export class EvidenciaRepositorio {
 
 
 
-  crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
-
-    return this.prisma.evidencia.create({ data: datos });
-
+  async crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
+    const creada = await this.prisma.evidencia.create({ data: datos });
+    this.invalidarCachePanel();
+    return creada;
   }
 
 
@@ -333,18 +341,16 @@ export class EvidenciaRepositorio {
 
 
 
-  actualizar(id: string, datos: Prisma.EvidenciaUpdateInput): Promise<Evidencia> {
-
-    return this.prisma.evidencia.update({ where: { id }, data: datos });
-
+  async actualizar(id: string, datos: Prisma.EvidenciaUpdateInput): Promise<Evidencia> {
+    const actualizada = await this.prisma.evidencia.update({ where: { id }, data: datos });
+    this.invalidarCachePanel();
+    return actualizada;
   }
 
-
-
-  eliminar(id: string): Promise<Evidencia> {
-
-    return this.prisma.evidencia.delete({ where: { id } });
-
+  async eliminar(id: string): Promise<Evidencia> {
+    const eliminada = await this.prisma.evidencia.delete({ where: { id } });
+    this.invalidarCachePanel();
+    return eliminada;
   }
 
 
@@ -413,50 +419,32 @@ export class EvidenciaRepositorio {
 
 
 
-  actualizarVersion(
-
+  async actualizarVersion(
     evidenciaId: string,
-
     numero: number,
-
     datos: {
-
       firmaDescarga?: string;
-
       textoBaseAuditoria?: string;
-
       rutaArchivo?: string;
-
       nombreArchivo?: string;
-
       mimeType?: string;
-
       tamanoBytes?: number;
-
     },
-
   ) {
-
-    return this.prisma.evidenciaVersion.update({
-
+    const version = await this.prisma.evidenciaVersion.update({
       where: { evidenciaId_numero: { evidenciaId, numero } },
-
       data: datos,
-
     });
-
+    this.invalidarCachePanel();
+    return version;
   }
 
-
-
-  eliminarVersion(evidenciaId: string, numero: number) {
-
-    return this.prisma.evidenciaVersion.delete({
-
+  async eliminarVersion(evidenciaId: string, numero: number) {
+    const eliminada = await this.prisma.evidenciaVersion.delete({
       where: { evidenciaId_numero: { evidenciaId, numero } },
-
     });
-
+    this.invalidarCachePanel();
+    return eliminada;
   }
 
 

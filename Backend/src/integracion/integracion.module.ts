@@ -4,6 +4,7 @@ import { IntegracionService } from './integracion.service';
 import { ClienteCarrerasCuacService } from './cliente-carreras-cuac.service';
 import { CatalogoCuacPersistenciaService } from './catalogo-cuac-persistencia.service';
 import { RevalidadorCatalogoCuacService } from './revalidador-catalogo-cuac.service';
+import { CacheConsultasProgramasService } from './cache-consultas-programas.service';
 import { AlmacenamientoModule } from '../almacenamiento/almacenamiento.module';
 
 @Module({
@@ -14,12 +15,14 @@ import { AlmacenamientoModule } from '../almacenamiento/almacenamiento.module';
     ClienteCarrerasCuacService,
     CatalogoCuacPersistenciaService,
     RevalidadorCatalogoCuacService,
+    CacheConsultasProgramasService,
   ],
   exports: [
     IntegracionService,
     ClienteCarrerasCuacService,
     CatalogoCuacPersistenciaService,
     RevalidadorCatalogoCuacService,
+    CacheConsultasProgramasService,
   ],
 })
 export class IntegracionModule {}

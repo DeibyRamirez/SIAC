@@ -16,6 +16,7 @@ import { periodoDeFechaCalendario } from '../dominio/periodo-academico';
 import { PrismaService } from '../prisma/prisma.module';
 import { AvanceProcesoSIACService, ProgresoProcesoSIAC } from './avance-proceso-siac.service';
 import { CargarResolucionDto } from './dto/cargar-resolucion.dto';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 interface UsuarioRegistro {
   id: string;
@@ -39,6 +40,7 @@ export class ResolucionMenService {
     private readonly almacenamiento: AlmacenamientoService,
     private readonly avanceProceso: AvanceProcesoSIACService,
     private readonly configuracion: ConfiguracionSiacService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
   ) {}
 
   async cargarParaPrograma(
@@ -150,6 +152,7 @@ export class ResolucionMenService {
       });
 
       const umbrales = this.configuracion.obtener();
+      this.cacheConsultas.invalidarTodo();
       return {
         ...resolucion,
         fechaFinVigencia: calcularFechaFinVigencia(fechaResolucion, umbrales.aniosVigencia),
