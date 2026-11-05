@@ -67,20 +67,36 @@ describe('mapear-carrera-externa', () => {
     expect(generarCodigoPrograma('Administración de Empresas')).toBe('ADM-EMP');
   });
 
+  it('usa codigoCu cuando viene en la API', () => {
+    const mapeado = mapearCarreraExterna({
+      ...carreraBase,
+      codigoCu: 'CU027',
+      codigoSnies: '19828',
+      nivel: 'Pregrado',
+    });
+    expect(mapeado?.codigo).toBe('CU027');
+    expect(mapeado?.codigoSnies).toBe('19828');
+    expect(mapeado?.nivel).toBe('Pregrado');
+  });
+
   it('mapea solo campos de catálogo SIAC', () => {
     const mapeado = mapearCarreraExterna(carreraBase, {
       baseImagenes: 'https://sitio-cuac.vercel.app',
     });
-    expect(mapeado).toEqual({
+    expect(mapeado).toMatchObject({
       idExterno: '68f01b83144b6d49ae7cdd0b',
       codigo: 'ADM-EMP',
+      codigoSnies: undefined,
       nombre: 'Administración de Empresas',
       slug: 'administracion-de-empresas',
       nivel: 'Pregrado',
       modalidad: 'Presencial',
       facultad: 'Facultad de Ciencias Administrativas',
       duracionSemestres: 9,
+      duracionCuac: '9 semestres',
+      creditosCuac: undefined,
       urlImagen: 'https://sitio-cuac.vercel.app/Carreras/administracion.png',
+      imagenSlugCuac: 'administracion',
       activo: true,
     });
   });

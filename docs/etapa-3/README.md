@@ -30,12 +30,12 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 
 | Método | Ruta | HU |
 |--------|------|-----|
-| GET | `/api/aprobacion/pendientes` | HU-006 |
-| POST | `/api/v1/evidencias/:id/dictamen` | HU-006 (canónico; el alias `POST /api/aprobacion/:id/dictaminar` se retiró) |
-| GET/POST/PATCH/DELETE | `/api/vigencias` | HU-007 |
-| POST | `/api/vigencias/ejecutar-cron` | HU-007 |
-| GET | `/api/vigencias/paquetes-registro` | HU-007 (paquetes de vigencia MEN) |
-| GET/POST | `/api/vigencias/demo/estado`, `/api/vigencias/demo/iniciar`, `/api/vigencias/demo/detener` | HU-007 (§0 demo acelerada) |
+| GET | `/api/v1/aprobacion/pendientes` | HU-006 |
+| POST | `/api/v1/evidencias/:id/dictamen` | HU-006 (canónico; el alias `POST /api/v1/aprobacion/:id/dictaminar` se retiró) |
+| GET/POST/PATCH/DELETE | `/api/v1/vigencias` | HU-007 |
+| POST | `/api/v1/vigencias/ejecutar-cron` | HU-007 |
+| GET | `/api/v1/vigencias/paquetes-registro` | HU-007 (paquetes de vigencia MEN) |
+| GET/POST | `/api/v1/vigencias/demo/estado`, `/api/v1/vigencias/demo/iniciar`, `/api/v1/vigencias/demo/detener` | HU-007 (§0 demo acelerada) |
 | GET | `/api/v1/programas/:id/vigencia` | HU-007 (§0: `{semaforo, segundosRestantes, modoPrueba}`) |
 | GET | `/api/v1/notificaciones` | HU-006/007 |
 | GET | `/api/v1/notificaciones/salida?estado=&page=&limit=` | HU-007 (C-8: bitácora del outbox; Administrador/SuperAdmin) |
@@ -44,8 +44,11 @@ Flujo de aprobación server-side, vigencias automatizadas con cron, Power BI emb
 | PATCH | `/api/v1/notificaciones/:id/leida` | Alertas in-app |
 | PATCH | `/api/v1/notificaciones/marcar-todas-leidas` | Alertas in-app |
 | GET/PUT | `/api/v1/powerbi/informes` | HU-009 (URLs públicas por categoría) |
-| GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido, T-009.2) |
-| CRUD | `/api/estructura/*` | Estructura normativa |
+| GET | `/api/v1/powerbi/embed-token?categoriaId=` | HU-009 (modo embebido simulado; no cambia si el interruptor está apagado) |
+| GET/PATCH | `/api/v1/powerbi/insercion` | HU-009 (interruptor, workspace y report; sin secretos) |
+| POST | `/api/v1/powerbi/probar-conexion` | HU-009 (prueba Azure y Power BI; no devuelve el token) |
+| GET | `/api/v1/powerbi/token-insercion` | HU-009 (token de solo lectura, máximo 60 min, caché >5 min) |
+| CRUD | `/api/v1/estructura/*` | Estructura normativa |
 
 ### Entorno de desarrollo (Postgres + correo)
 
@@ -62,16 +65,18 @@ Tareas de infra **canceladas** respecto a Supabase remoto: INF-01 (buckets), INF
 ### Variables de entorno — Power BI / cifras (HU-009)
 
 ```env
-# Azure App Owns Data (producción)
+# Azure App Owns Data (producción). Sin valores en el repositorio.
+POWERBI_TENANT_ID=
 POWERBI_CLIENT_ID=
 POWERBI_CLIENT_SECRET=
-POWERBI_TENANT_ID=
+# La ruta simulada /powerbi/embed-token sigue leyendo estas variables.
+# El token real usa el id de área de trabajo y el id de informe guardados en el panel.
 POWERBI_WORKSPACE_ID=
-POWERBI_REPORT_ID_ESTUDIANTES=<id-del-informe>   # opcional
+POWERBI_REPORT_ID_ESTUDIANTES=
 
 ```
 
-Sin `POWERBI_CLIENT_ID`, el modo embebido permanece simulado. En producción se usa **modo público**: iframe con URL de `ConfiguracionInformePowerBi` (panel admin en el dashboard). Los datos del informe vienen del Excel maestro refrescado en Power BI Service (ver ADR-009 y ADR-010).
+Sin el interruptor `powerbi_embed_habilitado` (por defecto apagado), el dashboard sigue en modo público. Encenderlo sin las tres variables y sin los dos identificadores del panel no activa el informe: se muestra «Configuración incompleta». Los datos del informe vienen del Excel maestro refrescado en Power BI Service (ver ADR-009 y ADR-010).
 
 ### Checklist manual — Dashboard de métricas (Power BI)
 
@@ -84,7 +89,7 @@ Sin `POWERBI_CLIENT_ID`, el modo embebido permanece simulado. En producción se 
 ## HU-007 (cierre 16/10/2026): vigencias y alertas
 
 Decisiones del PO (13/10): vigencia de registro de 7 años; **verde** hasta el fin del año 5;
-**amarillo** al iniciar el año 6 (24 meses antes del fin); **rojo** 18 meses antes del fin;
+**amarillo** al iniciar el año 7 (12 meses antes del fin); **rojo** 6 meses antes del fin (regla 20/10/2026; antes 24/18);
 **Vencido** al terminar (distinto de Rojo); **gris (SinVigencia)** sin resolución MEN.
 Umbrales configurables en `ConfiguracionSIAC` (`mesesAvisoVigencia=24`, `mesesRojoVigencia=18`)
 y relectura en cada corrida del cron/panel: cambiarlos no exige redeploy.
@@ -221,7 +226,7 @@ No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se
 - [ ] Flujo: Cargador sube → Revisor aprueba/rechaza → Admin ve solo Validado
 - [ ] Cron actualiza semáforo vigencias
 - [ ] Alerta in-app en vencimiento próximo
-- [ ] Power BI embed o fallback Recharts documentado
+- [ ] Power BI: informes con «Publicar en la web» o enlace seguro `reportEmbed`, y botón «Reintentar» si el iframe falla (ADR-009); embed token pendiente de credenciales Azure
 - [ ] Tests unitarios auth pasan
 
 ## Flujo BPM
@@ -229,5 +234,5 @@ No forman parte del checklist de [`etapa-2/README.md`](../etapa-2/README.md); se
 ```text
 Cargador → sube evidencia (Borrador)
   → Revisor → aprueba (Validado) / rechaza (Rechazado + observaciones)
-    → Administrador/Par → solo lectura de Validado
+    → Administrador/SuperAdmin → solo lectura de Validado (el rol Par se eliminó el 20/10/2026)
 ```

@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { CheckCircle2, FileText, GraduationCap, TrendingUp } from 'lucide-react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
@@ -34,7 +36,7 @@ export default function DashboardMetricasPage() {
 }
 
 function ContenidoDashboard() {
-  const { datos } = usarAlmacen()
+  const { datos, estadoListas } = usarAlmacen()
   const { sesion } = usarSesion()
   const verPowerBi = puedeVerInformesPowerBi(sesion?.rol)
   const { evidencias, programas } = datos
@@ -76,6 +78,10 @@ function ContenidoDashboard() {
     (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : null)
   const pregrado = programas.filter((p) => p.nivel === 'Pregrado').length
   const posgrado = programas.filter((p) => p.nivel === 'Posgrado').length
+  const cargandoMetricas =
+    evidencias.length === 0 &&
+    programas.length === 0 &&
+    (estadoListas.evidencias.cargando || estadoListas.programas.cargando)
 
   return (
     <div className="space-y-6">
@@ -112,6 +118,15 @@ function ContenidoDashboard() {
         </TabsList>
 
         <TabsContent value="metricas" className="space-y-6">
+          {cargandoMetricas ? (
+            <RegionCarga texto="Cargando métricas…">
+              <div className="space-y-6">
+                <EsqueletoTarjetas />
+                <EsqueletoTarjetas cantidad={2} alto="h-64" columnas="xl:grid-cols-2" />
+              </div>
+            </RegionCarga>
+          ) : (
+            <>
           {evidencias.length === 0 && programas.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-muted-foreground">
               Aún no hay programas ni evidencias registrados. Las métricas se calcularán
@@ -155,6 +170,8 @@ function ContenidoDashboard() {
               totalEtiqueta="Total evidencias"
             />
           </div>
+            </>
+          )}
         </TabsContent>
 
         {verPowerBi ? (

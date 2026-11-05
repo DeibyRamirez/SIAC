@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { FiltroExcepcionHttp } from './common/filters/http-exception.filter';
+import { crearDocumentoOpenApi, exponerInterfazSwagger } from './openapi/documento-openapi';
 import {
   resolverOrigenesCors,
   resolverPuerto,
@@ -40,20 +41,17 @@ async function bootstrap() {
 
   app.useGlobalFilters(new FiltroExcepcionHttp());
 
-  const configSwagger = new DocumentBuilder()
-    .setTitle("SIAC API")
-    .setDescription("Sistema Interno de Aseguramiento de la Calidad — CUAC")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
-
-  const documento = SwaggerModule.createDocument(app, configSwagger);
-  SwaggerModule.setup("api/docs", app, documento);
+  // La UI queda fuera de producción. El contrato versionado vive en docs/contrato-api/openapi.json.
+  if (exponerInterfazSwagger()) {
+    const documento = crearDocumentoOpenApi(app);
+    SwaggerModule.setup('api/docs', app, documento);
+  }
 
   // Render inyecta PORT y exige escuchar en 0.0.0.0; en local se usa PUERTO (3001).
   const puerto = resolverPuerto();
   await app.listen(puerto, '0.0.0.0');
-  console.log(`SIAC API escuchando en el puerto ${puerto} (prefijo /api/v1, Swagger en /api/docs)`);
+  const swagger = exponerInterfazSwagger() ? ', Swagger en /api/docs' : '';
+  console.log(`SIAC API escuchando en el puerto ${puerto} (prefijo /api/v1${swagger})`);
   console.log(`CORS permitido para: ${origenesCors.join(', ') || '(ningún origen)'}`);
 }
 

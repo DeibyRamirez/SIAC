@@ -2,10 +2,9 @@
 
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { PantallaCargandoSiac } from '@/components/auth/pantalla-cargando-siac'
+import { EsqueletoPaginaApp } from '@/components/siac/esqueletos-paginas'
 import {
   prefijoRol,
-  rutaPermitidaParAcademico,
   rutaPermitidaSuperAdmin,
 } from '@/lib/auth-mock'
 import type { RolUsuario } from '@/lib/tipos'
@@ -48,11 +47,6 @@ export function GuardiaSesion({
       return
     }
 
-    if (sesion.rol === 'ParAcademico' && !rutaPermitidaParAcademico(pathname)) {
-      router.replace('/administrador')
-      return
-    }
-
     if (!roles.includes(sesion.rol)) {
       router.replace(prefijoRol(sesion.rol))
       return
@@ -67,11 +61,11 @@ export function GuardiaSesion({
   const accesoPermitido =
     sesion &&
     (roles.includes(sesion.rol) ||
-      (sesion.rol === 'SuperAdmin' && rutaPermitidaSuperAdmin(pathname))) &&
-    (sesion.rol !== 'ParAcademico' || rutaPermitidaParAcademico(pathname))
+      (sesion.rol === 'SuperAdmin' && rutaPermitidaSuperAdmin(pathname)))
 
   if (cargando || !accesoPermitido) {
-    return <PantallaCargandoSiac />
+    // Mismo marco y bloques que la página que se abre (antes: pantalla completa genérica).
+    return <EsqueletoPaginaApp ruta={pathname} />
   }
 
   return <>{children}</>

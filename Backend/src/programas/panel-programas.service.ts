@@ -29,6 +29,10 @@ import { ETIQUETAS_GUIA, tramitePorTipo } from './catalogo-tramites-siac';
 import { ConsultaPanelProgramasDto } from './dto/consulta-panel-programas.dto';
 import { porcentajeInternoEvidencia } from './avance-proceso-siac.service';
 import { calcularSemaforo } from './programas.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CatalogoCuacPersistenciaService } from '../integracion/catalogo-cuac-persistencia.service';
+import { RevalidadorCatalogoCuacService } from '../integracion/revalidador-catalogo-cuac.service';
+import { enriquecerFilaDesdePersistencia } from '../integracion/cruzar-programa-carrera';
 
 export interface DocumentoPanelDto {
   codigoGuia: CodigoDocumentoGuia;
@@ -62,6 +66,27 @@ export interface FilaPanelDto {
   semestre: string | null;
   activo?: boolean;
   urlImagen?: string | null;
+  /** Título oficial del catálogo CUAC (si hay cruce). */
+  tituloCatalogo?: string;
+  duracion?: string;
+  creditos?: number;
+  resolucionCatalogo?: string;
+  fechaResolucionCatalogo?: string;
+  codigoSnies?: string;
+  codigoCu?: string;
+  nivel?: string;
+  facultad?: string;
+  modalidad?: string;
+  imagenSlug?: string;
+}
+
+export interface MetadatosPanelCatalogoDto {
+  version: string | null;
+  degradado: boolean;
+  revalidando: boolean;
+  niveles: string[];
+  facultades: string[];
+  modalidades: string[];
 }
 
 export interface RespuestaPanelDto {
@@ -70,6 +95,7 @@ export interface RespuestaPanelDto {
   page: number;
   limit: number;
   totalPaginas: number;
+  catalogoCuac?: MetadatosPanelCatalogoDto;
 }
 
 type PesosTramite = Map<CodigoDocumentoGuia, number>;
@@ -83,6 +109,8 @@ export class PanelProgramasService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly alcance: ServicioAlcancePrograma,
     private readonly configuracion: ConfiguracionSiacService,
+    private readonly catalogoCuac: CatalogoCuacPersistenciaService,
+    private readonly revalidadorCuac: RevalidadorCatalogoCuacService,
   ) {}
 
   /**
@@ -90,25 +118,27 @@ export class PanelProgramasService implements OnModuleInit {
    * (antes solo se registraba una advertencia y el panel calculaba con datos inválidos).
    */
   async onModuleInit(): Promise<void> {
-    await this.configuracion.cargar();
-    const tramites = await this.prisma.tramiteSIAC.findMany({
-      include: { documentos: true },
-    });
+    return ejecutarComoSistema(async () => {
+      await this.configuracion.cargar();
+      const tramites = await this.prisma.tramiteSIAC.findMany({
+        include: { documentos: true },
+      });
 
-    for (const tramite of tramites) {
-      const mapa = new Map<CodigoDocumentoGuia, number>();
-      for (const doc of tramite.documentos) {
-        mapa.set(doc.codigoGuia, doc.pesoPorcentaje);
+      for (const tramite of tramites) {
+        const mapa = new Map<CodigoDocumentoGuia, number>();
+        for (const doc of tramite.documentos) {
+          mapa.set(doc.codigoGuia, doc.pesoPorcentaje);
+        }
+        try {
+          validarPesosTramite(tramite.documentos.map((d) => d.pesoPorcentaje));
+        } catch (error) {
+          const mensaje = `Pesos inválidos en el trámite ${tramite.tipo}: ${(error as Error).message}`;
+          this.logger.error(mensaje);
+          throw new Error(mensaje);
+        }
+        this.pesosPorTramite.set(tramite.tipo, mapa);
       }
-      try {
-        validarPesosTramite(tramite.documentos.map((d) => d.pesoPorcentaje));
-      } catch (error) {
-        const mensaje = `Pesos inválidos en el trámite ${tramite.tipo}: ${(error as Error).message}`;
-        this.logger.error(mensaje);
-        throw new Error(mensaje);
-      }
-      this.pesosPorTramite.set(tramite.tipo, mapa);
-    }
+    });
   }
 
   async listarPanel(
@@ -178,14 +208,14 @@ export class PanelProgramasService implements OnModuleInit {
     query: ConsultaPanelProgramasDto,
     usuario: UsuarioAlcance,
   ): Promise<RespuestaPanelDto> {
+    this.revalidadorCuac.dispararRevalidacionEnSegundoPlano();
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = await this.filtroProgramas(usuario, query);
-    // R-010.1b: el semáforo es un valor calculado; si se filtra por él hay que calcular todas
-    // las filas y paginar después, o el total y las páginas quedan mal.
     const paginarEnBd = !query.semaforo;
 
-    const [totalBd, programas] = await Promise.all([
+    const [totalBd, programas, metaBase] = await Promise.all([
       this.prisma.programa.count({ where }),
       this.prisma.programa.findMany({
         where,
@@ -194,7 +224,18 @@ export class PanelProgramasService implements OnModuleInit {
         select: {
           id: true,
           nombre: true,
+          tituloCuac: true,
           codigo: true,
+          codigoCu: true,
+          codigoSnies: true,
+          nivel: true,
+          modalidad: true,
+          facultad: true,
+          duracionCuac: true,
+          creditosCuac: true,
+          resolucionCuac: true,
+          fechaResolucionCuac: true,
+          imagenSlugCuac: true,
           tipoTramiteActivo: true,
           fechaResolucion: true,
           inicioCicloTramiteAt: true,
@@ -202,11 +243,17 @@ export class PanelProgramasService implements OnModuleInit {
           urlImagen: true,
         },
       }),
+      this.catalogoCuac.obtenerMetadatosPanel(),
     ]);
+
+    const meta: MetadatosPanelCatalogoDto = {
+      ...metaBase,
+      revalidando: this.revalidadorCuac.estaRevalidando(),
+    };
 
     if (programas.length === 0) {
       const total = paginarEnBd ? totalBd : 0;
-      return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit) };
+      return { datos: [], total, page, limit, totalPaginas: Math.ceil(total / limit), catalogoCuac: meta };
     }
 
     const ids = programas.map((p) => p.id);
@@ -243,14 +290,15 @@ export class PanelProgramasService implements OnModuleInit {
     const anexosPorPrograma = this.agrupar(anexos, (a) => a.programaId);
     const inicioCicloPorPrograma = new Map(programas.map((p) => [p.id, p.inicioCicloTramiteAt]));
     const evidenciasPorPrograma = this.agrupar(
-      evidencias.filter((e) => {
-        const inicio = inicioCicloPorPrograma.get(e.programaId ?? '');
-        return inicio ? e.createdAt.getTime() >= inicio.getTime() : true;
-      }),
+      evidencias.filter((e) =>
+        this.evidenciaCuentaEnPeriodo(e, query.semestre, inicioCicloPorPrograma),
+      ),
       (e) => e.programaId ?? '',
     );
 
-    const filas = programas.map((programa) => {
+    const programasPorId = new Map(programas.map((p) => [p.id, p]));
+
+    const filasBase = programas.map((programa) => {
       const tipoTramite = query.tramite ?? programa.tipoTramiteActivo;
       return this.construirFila({
         id: programa.id,
@@ -267,18 +315,33 @@ export class PanelProgramasService implements OnModuleInit {
       });
     });
 
+    const baseImagenes = this.catalogoCuac.baseImagenes();
+    const filas = filasBase.map((fila) => {
+      const programa = programasPorId.get(fila.id);
+      if (!programa) return fila;
+      return enriquecerFilaDesdePersistencia(fila, programa, baseImagenes);
+    });
+
     if (paginarEnBd) {
-      return { datos: filas, total: totalBd, page, limit, totalPaginas: Math.ceil(totalBd / limit) };
+      return {
+        datos: filas,
+        total: totalBd,
+        page,
+        limit,
+        totalPaginas: Math.ceil(totalBd / limit),
+        catalogoCuac: meta,
+      };
     }
 
-    const filtradas = this.filtrarPorSemaforo(filas, query.semaforo);
+    const filtradasSemaforo = this.filtrarPorSemaforo(filas, query.semaforo);
     const inicio = (page - 1) * limit;
     return {
-      datos: filtradas.slice(inicio, inicio + limit),
-      total: filtradas.length,
+      datos: filtradasSemaforo.slice(inicio, inicio + limit),
+      total: filtradasSemaforo.length,
       page,
       limit,
-      totalPaginas: Math.ceil(filtradas.length / limit),
+      totalPaginas: Math.ceil(filtradasSemaforo.length / limit),
+      catalogoCuac: meta,
     };
   }
 
@@ -306,7 +369,7 @@ export class PanelProgramasService implements OnModuleInit {
     const pesos = this.pesosPorTramite.get(input.tipoTramite) ?? new Map();
 
     const evidenciasFiltradas = input.semestre
-      ? input.evidencias.filter((e) => e.periodo.includes(input.semestre!))
+      ? input.evidencias.filter((e) => e.periodo === input.semestre)
       : input.evidencias;
 
     const ultimaPorGuia = new Map<CodigoDocumentoGuia, (typeof input.evidencias)[0]>();
@@ -423,6 +486,18 @@ export class PanelProgramasService implements OnModuleInit {
       where.origenDato = query.origen;
     }
 
+    if (query.nivel) {
+      where.nivel = query.nivel;
+    }
+
+    if (query.facultad) {
+      where.facultad = query.facultad;
+    }
+
+    if (query.modalidad) {
+      where.modalidad = query.modalidad;
+    }
+
     const texto = query.q?.trim();
     if (texto) {
       where.OR = [
@@ -439,6 +514,20 @@ export class PanelProgramasService implements OnModuleInit {
     }
 
     return where;
+  }
+
+  /**
+   * Con semestre explícito se conservan todas las evidencias de ese periodo, aunque el ciclo
+   * vigente haya empezado después. Sin semestre se mantiene el recorte al ciclo actual.
+   */
+  private evidenciaCuentaEnPeriodo(
+    evidencia: { periodo: string; programaId: string | null; createdAt: Date },
+    semestre: string | undefined,
+    inicioCicloPorPrograma: { get(id: string): Date | null | undefined },
+  ): boolean {
+    if (semestre) return evidencia.periodo === semestre;
+    const inicio = inicioCicloPorPrograma.get(evidencia.programaId ?? '');
+    return inicio ? evidencia.createdAt.getTime() >= inicio.getTime() : true;
   }
 
   private estadosRevisados(): EstadoEvidencia[] {

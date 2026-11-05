@@ -121,7 +121,7 @@ Leer **completo** antes de modificar código. Actualizar al cerrar sesión relev
 |----------|---------------|-----------------|
 | Cargador | Responsable | Descarga plantilla, diligencia, sube borrador |
 | Revisor | Calidad | Valida, observa, aprueba o rechaza |
-| Administrador | Par académico | Supervisa, configura normativa, ve validadas |
+| Administrador | Supervisión | Supervisa, configura normativa, ve validadas |
 
 ### Diagrama de estados
 
@@ -153,7 +153,7 @@ Leer **completo** antes de modificar código. Actualizar al cerrar sesión relev
 4. Cargador → envía a revisión → EnRevision
 5. Revisor → bandeja pendientes; dictamen con observaciones
 6. Si rechaza → Cargador corrige → vuelve a paso 4
-7. Si aprueba → Validado; visible para Administrador/Par académico
+7. Si aprueba → Validado; visible para el Administrador
 8. Validadas → alimentan métricas (Recharts/Power BI) y control vigencias
 ```
 

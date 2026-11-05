@@ -1,5 +1,6 @@
 'use client'
 
+import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -23,13 +24,15 @@ import {
 import { BarraAccionesDictamenRevisor } from '@/components/siac/barra-acciones-dictamen-revisor'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
+import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
+import { Skeleton } from '@/components/ui/skeleton'
 import { VisorDocumentoInline } from '@/components/siac/visor-documento-inline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import {
   CODIGOS_CONDICION_DOCUMENTO_MAESTRO,
   TOTAL_CONDICIONES_DOCUMENTO_MAESTRO,
@@ -288,7 +291,7 @@ function ContenidoDictamen() {
   const textoPuntajePreview = `${puntajePreview.puntaje}/${puntajePreview.total}`
 
   if (cargando) {
-    return <p className="text-sm text-muted-foreground">Cargando evidencia…</p>
+    return <EsqueletoContenidoPagina tipo="detalle" />
   }
 
   if (!evidencia) {
@@ -638,9 +641,12 @@ function ContenidoDictamen() {
               anotacionesCambios={diffVersiones?.lineas}
               pieCambios={
                 cargandoDiff ? (
-                  <p className="text-xs text-muted-foreground">
-                    Comparando versiones…
-                  </p>
+                  <div className="flex items-center gap-2" role="status" aria-live="polite" aria-busy="true">
+                    <span className="sr-only">Comparando versiones…</span>
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
                 ) : errorDiff ? (
                   <p className="text-xs text-red-700">{errorDiff}</p>
                 ) : diffVersiones ? (
@@ -704,6 +710,12 @@ function ContenidoDictamen() {
                 <p>{formatearFecha(evidencia.fechaCarga)}</p>
               </div>
             </div>
+            <BotonReemplazarDocumento
+              evidenciaId={evidencia.id}
+              estado={evidencia.estado}
+              rol="Revisor"
+              onReemplazado={() => window.location.reload()}
+            />
             <HistorialVersionesEvidencia
               evidenciaId={evidencia.id}
               versionActiva={versionActual}
@@ -784,7 +796,7 @@ function ContenidoDictamen() {
                                 «{comentario.quote}»
                               </p>
                             )}
-                            <Textarea
+                            <TextareaConContador
                               className="min-h-[64px] text-sm"
                               placeholder="Escribe tu comentario…"
                               value={textoEdicionComentario}
@@ -855,13 +867,13 @@ function ContenidoDictamen() {
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Al enviar a corrección, estos comentarios se envían al cargador.
+                  Al enviar a corrección, estos comentarios se envían al profesor.
                 </p>
               </div>
 
               <label className="block space-y-2 text-sm">
                 <span className="font-medium">Observaciones</span>
-                <Textarea
+                <TextareaConContador
                   value={observacionesGenerales}
                   onChange={(e) => setObservacionesGenerales(e.target.value)}
                   placeholder="Observaciones si envías a corrección."
@@ -908,10 +920,10 @@ function ContenidoDictamen() {
         titulo={usaChecklist ? '¿Registrar el documento como «Cumple»?' : '¿Aprobar documento?'}
         descripcion={
           usaChecklistInstitucional
-            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el cargador será notificado.'
+            ? 'Las 6 condiciones institucionales cumplen (6/6). El documento quedará en «Cumple» y el profesor será notificado.'
             : usaChecklistPrograma
-              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el cargador será notificado.'
-              : 'El cargador será notificado de la aprobación.'
+              ? 'Las 9 condiciones de programa cumplen (9/9). El documento quedará en «Cumple» y el profesor será notificado.'
+              : 'El profesor será notificado de la aprobación.'
         }
         etiquetaConfirmar={usaChecklist ? 'Sí, registrar' : 'Sí, aprobar'}
         cargando={procesando}
@@ -923,10 +935,10 @@ function ContenidoDictamen() {
         titulo={usaChecklist ? '¿Registrar «Con observaciones»?' : '¿Enviar a corrección?'}
         descripcion={
           usaChecklist
-            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El cargador verá las observaciones por condición y podrá subir una versión corregida.`
+            ? `El documento quedará «Con observaciones» con puntaje ${textoPuntajePreview}. El profesor verá las observaciones por condición y podrá subir una versión corregida.`
             : comentariosInline.filter((c) => c.body.trim()).length > 0
-              ? `El documento quedará «Con observaciones» y el cargador verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
-              : 'El documento quedará «Con observaciones» y el cargador verá el texto de corrección para subir una versión corregida.'
+              ? `El documento quedará «Con observaciones» y el profesor verá ${comentariosInline.filter((c) => c.body.trim()).length} comentario(s) para subir una versión corregida.`
+              : 'El documento quedará «Con observaciones» y el profesor verá el texto de corrección para subir una versión corregida.'
         }
         etiquetaConfirmar="Sí, enviar"
         variant="destructive"

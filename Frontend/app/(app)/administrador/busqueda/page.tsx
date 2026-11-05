@@ -1,3 +1,4 @@
+import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import { Suspense } from 'react'
 
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
@@ -36,7 +37,7 @@ export default async function BusquedaAdministradorPage({ searchParams }: PagePr
 
   return (
     <PlantillaPaginaApp titulo="Búsqueda de evidencias" roles={ROLES_CONSULTA_INSTITUCIONAL}>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<EsqueletoContenidoPagina tipo="busqueda" />}>
         <ContenidoBusquedaEvidencias
           filtrosIniciales={filtrosIniciales}
           datosIniciales={datosIniciales}

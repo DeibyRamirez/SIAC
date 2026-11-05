@@ -4,6 +4,55 @@
 > **Commit revisado:** `d6905094bde45d28a4f54bf5940c07aefe42dfb6` (`develop_v2` = `origin/develop_v2`, 09/10/2026 23:29 -05, «[test][Sprint 2][HU-008] E2E busqueda con responsable institucional»).
 > **Ojo:** la copia local `D:\Proyectos\SIAC` tiene **trabajo sin commitear** (33 archivos modificados + archivos nuevos) que implementa buena parte del correo y la campana de notificaciones (módulo `Backend/src/correo/`, `NotificacionesDespachoService`, ADR-008, migración `20261009200000_alerta_metadata`, `campana-notificaciones.tsx`). Este plan distingue **[commit]** (lo que está en `d690509`) de **[WIP local]** (lo que existe solo en el árbol de trabajo). Lo WIP no cuenta como hecho hasta que esté commiteado, con pruebas y CI verde.
 
+## 0. Estado al 20/10/2026 (actualización)
+
+> Contrastado con el código de `develop_v2` (`983cc63`, PR #11) y la auditoría del 20/10/2026. Las secciones 1 a 8 se conservan como **plan histórico del 13/10**; donde contradigan esta tabla, manda esta tabla.
+
+### Hecho (en código, con pruebas)
+
+| Tarea | Evidencia |
+|---|---|
+| T-006.1 Observaciones por condición | Observación obligatoria por condición; `resumen-observaciones-por-condicion` |
+| T-006.2 Dictamen y máquina de estados | `dominio/maquina-estados-evidencia.ts`, E2E `dictamen-sin-puntaje` (se dictamina desde `EnRevision`) |
+| T-006.3 Notificación al Cargador | Alerta in-app y correo por outbox (clave `dictamen:{id}:v{n}:{usuario}`), E2E `notificaciones`. El correo real depende del canal (Resend hoy; SMTP pendiente) |
+| T-007.1 Fecha de vigencia | `ResolucionMen`; fin = fecha + 7 años |
+| T-007.2 Cron diario | `@Cron(EVERY_DAY_AT_6AM, America/Bogota)` idempotente; transiciones de vigencia y D-1 de anexos. Destinatarios (20/10): Administrador + SuperAdmin + Revisor del programa + responsable del anexo (`notificaciones/destinatarios-alertas.ts`) |
+| T-007.3 Semáforo combinado | Umbrales **12/6** (amarillo 12 meses antes del fin, rojo 6; migración `20261020230000_umbrales_vigencia_12_6` actualiza la fila `global`), editables con `GET/PATCH /configuracion/vigencia`; estado `Vencido`, RN-003 |
+| T-007.4 Alertas y bitácora | Outbox `NotificacionSalida` con reintentos y `GET /notificaciones/salida`; E2E `alertas-vigencia` |
+| C-1 a C-4 | Módulo `correo/`, despacho, campana y outbox con `claveEvento @unique` (ver ADR-008, enmienda 20/10) |
+| C-5 Plantillas de correo | `Backend/src/correo/plantillas/` con *snapshots* |
+| C-6 Eventos de vigencia de la resolución MEN | `claveVigencia` y alertas de vigencia en el cron |
+| C-8 Bitácora de fallidos (backend) | `GET /api/v1/notificaciones/salida` (Administrador/SuperAdmin) |
+| Despliegue | Render free + Vercel Hobby + Supabase desde el 16/10/2026 (`docs/despliegue.md`) |
+| Defectos HU-005 (20/10) | `tipoTramite` validado (400); estados «Cargando», error con «Reintentar» y vacío en plantillas, evidencias y vigencias |
+| Contraseñas de la semilla | Leídas de `SEMILLA_CLAVE_*`, obligatorias en producción (falta rotarlas en la BD de producción) |
+| Avisos de avance | Administrador + SuperAdmin + Revisor del programa (sin Par) |
+| Borradores privados (capa de servicio) | Solo el autor ve un Borrador: listados, búsqueda, conteos/métricas, detalle, historial, versiones, comentarios, descargas y URL firmadas (`filtroBorradorSoloAutor`, `puedeVerBorrador`). La parte RLS está en el plan (`plan-rls.md`) |
+| T-006.4 / Par académico | Rol eliminado (migración `20261020220000_eliminar_rol_par_academico`); T-006.4 **descartada** |
+| T-009.1 Vista n/9 para Power BI | `v_powerbi_puntajes` (G1 n/9, G3 n/6, condiciones del último dictamen, semáforo de vigencia, sin datos personales ni borradores), migración `20261020235000_vista_powerbi_puntajes`, E2E `vista-powerbi-puntajes`. Falta el rol de lectura del feed (plan RLS) |
+
+### Parcial
+
+| Tarea | Falta |
+|---|---|
+| T-009.3 Componente embed con fallback | Hecho en modo público (8 categorías, iframe y «Reintentar»); falta el modo embebido |
+| C-8 Bitácora de fallidos (frontend) | Pantalla y reenvío manual |
+
+### Pendiente
+
+| Tarea | Estado |
+|---|---|
+| T-009.2 Embed token (App Owns Data) | Bloqueada: faltan credenciales Azure (ADR-009) |
+| T-009.4 Aceptación con el cliente | Sin fecha |
+| C-7 Preferencias de notificación | Sin código |
+| SMTP institucional | Faltan credenciales de TI |
+| Validación del PO de HU-006 y HU-007 y reescritura de sus CA en ClickUp | Pendiente (ver auditoría §G) |
+| Keep-alive fiable | GitHub lo ejecuta cada 2–3 h; decidir ping externo o Render `starter` (`docs/despliegue.md` §2.1) |
+| Rotar las contraseñas de los usuarios semilla en producción | Acción manual en la BD |
+| RLS en todas las tablas + rol `siac_app` sin BYPASSRLS + rol de lectura de Power BI | Solo plan (`plan-rls.md`); sin código hasta aprobarlo |
+| Aplicar en Supabase las migraciones del 20/10 (Par, umbrales 12/6, vista) | Con el despliegue; `prisma migrate deploy` lo hace Render al arrancar (revisar `docs/despliegue.md`) |
+| T-006.4 RN-001 Par académico | **Descartada** (20/10/2026): el rol se eliminó del código y de la BD |
+
 ## 1. Resumen
 
 | HU | % estimado (commit) | % con WIP local | Estado |
@@ -17,12 +66,12 @@
 | T-006.1 Observaciones por condición | hecho | 90 % |
 | T-006.2 Dictamen y máquina de estados | parcial | 80 % |
 | T-006.3 Notificación al Cargador | parcial | 50 % (85 % con WIP) |
-| T-006.4 RN-001 Par académico | **pausada** (decisión PO) | — |
+| T-006.4 RN-001 Par académico | **descartada** (20/10/2026) | — |
 | T-007.1 Fecha de vigencia | hecho | 90 % |
-| T-007.2 Cron diario de vigencias | parcial | 40 % |
-| T-007.3 Semáforo combinado | parcial | 70 % |
+| T-007.2 Cron diario de vigencias | hecho (20/10) | 95 % |
+| T-007.3 Semáforo combinado | hecho (umbrales 12/6, 20/10) | 90 % |
 | T-007.4 Alertas in-app y correo + bitácora SMTP | parcial | 30 % (60 % con WIP) |
-| T-009.1 Vista/dataset n/9 para Power BI | falta | 10 % |
+| T-009.1 Vista/dataset n/9 para Power BI | hecho (vista; falta rol de lectura) | 85 % |
 | T-009.2 Embed token (App Owns Data) | parcial | 30 % |
 | T-009.3 Componente embed con fallback | parcial (casi hecho) | 75 % |
 | T-009.4 Pruebas de aceptación con el cliente | falta | 10 % |
@@ -59,7 +108,9 @@ Criterios de aceptación de ClickUp (HU):
   1. **Qué:** integrar el WIP de correo/notificaciones (ver §4, tareas C-1..C-3). **Criterio:** `pnpm test`, `pnpm test:e2e`, `vitest run`, builds verdes. **Cómo probar:** CI.
   2. **Qué:** E2E «dictamen ConObservaciones → Cargador tiene 1 alerta tipo dictamen con `metadata.evidenciaId` y el transporte simulado registró 1 correo». **Dónde:** `notificaciones.e2e-spec.ts`. **Cómo probar:** `pnpm test:e2e` con proveedor de correo en memoria.
 
-### T-006.4 · RN-001 Par académico — **PAUSADA**
+### T-006.4 · RN-001 Par académico — **DESCARTADA (20/10/2026)**
+- El rol `ParAcademico` se eliminó por completo: enum, guardas, rutas, pantallas, semilla, pruebas y documentación. La migración `20261020220000_eliminar_rol_par_academico` desactiva (`activo = false`) a los usuarios que tuvieran el rol, los pasa a `Cargador` (sin asignaciones no ven nada) y recrea el enum sin el valor; no se borran usuarios ni evidencias.
+- Texto histórico (13/10):
 - Decisión del PO (MemoriaGlobal.md, 07/10): Par académico en pausa; rol y datos intactos, sin panel ni página 403. **No planificar desarrollo en este sprint.** Lo existente (`servicio-alcance-programa.ts`, CP-E2E-04 sobre borradores) se mantiene sin cambios.
 
 ## 3. HU-007 · Vigencias y alertas (RF-003)
@@ -68,7 +119,7 @@ Criterios de aceptación de ClickUp (HU):
 - **Qué hay:** `ResolucionMen` (PDF, fecha manual) en `Backend/src/programas/resolucion-men.service.ts` y `institucion.controller.ts`/`programas.controller.ts` (límite 20 MB `dominio/archivo-pdf.ts`); fin de vigencia = fecha + `ConfiguracionSIAC.aniosVigencia` (7) calculado al consultar (`dominio/panel-siac.ts` `calcularFechaFinVigencia`); `AnexoVigencia.fechaVencimiento` / `aniosVigencia` (7); E2E `resolucion-men.e2e-spec.ts`, `vigencias.e2e-spec.ts`.
 - **Qué falta:** nada funcional; solo confirmar el umbral de amarillo (ver T-007.3).
 
-### T-007.2 · Cron diario de vigencias — **parcial (40 %)**
+### T-007.2 · Cron diario de vigencias — **hecho (20/10/2026; ver §0). Plan histórico abajo**
 - **Qué hay:** `@Cron(EVERY_DAY_AT_6AM)` en `Backend/src/vigencias/vigencias.service.ts` `actualizarVigenciasDiarias()`; `ScheduleModule.forRoot()` en `app.module.ts`; disparo manual `POST /api/v1/vigencias/ejecutar-cron` (Administrador). Recorre anexos y avisa solo si vencen **mañana (D-1)**.
 - **Qué falta:** (a) no evalúa la **resolución MEN** de programas/institución (entrada a amarillo = año 6, vencida = rojo); (b) sin idempotencia: ejecutar dos veces el mismo día duplica alertas; (c) `findMany()` sin filtro; (d) zona horaria implícita del servidor (debe ser America/Bogota); (e) búsqueda de usuario por `correo contains` (frágil; el WIP lo cambia a coincidencia exacta).
 - **Tareas:**
@@ -90,7 +141,7 @@ Criterios de aceptación de ClickUp (HU):
 
 ## 4. HU-009 · Dashboard Power BI (RF-005)
 
-### T-009.1 · Vista/dataset n/9 por programa y condición — **falta (10 %)**
+### T-009.1 · Vista/dataset n/9 por programa y condición — **hecho (20/10/2026): `v_powerbi_puntajes`; ver §0. Lo de abajo es el plan histórico**
 - **Qué hay:** `Backend/src/cifras/*` sirve cifras de Estudiantes desde JSON semilla (`cifras/datos`); puntajes n/9 existen en `Evidencia.puntajeActual` y `EvaluacionCondicionEvidencia`, pero no hay vista SQL ni endpoint de dataset.
 - **Tareas:** **Qué:** vista `vw_puntajes_condicion_programa` (programa, guía, condición, cumple, versión, fecha) mediante migración Prisma **solo aplicada en local/CI**; o endpoint `GET /api/v1/cifras/puntajes` de solo lectura. **Dónde:** `Backend/prisma/migrations/<nueva>`, `cifras.service.ts`. **Criterio:** devuelve una fila por condición de la última versión dictaminada; G2/G4 excluidos (sin puntaje). **Cómo probar:** E2E con semilla de 1 G1 5/9 → 9 filas, 5 `cumple=true`.
 
@@ -155,10 +206,10 @@ Validar al arranque (en `configuracion.env.ts`) que si `CORREO_CANAL=smtp` exist
 | Dictamen Validado / Cumple | Cargador autor | sí | sí |
 | Dictamen Con observaciones (incluye observaciones por condición) | Cargador autor | sí | sí |
 | Evidencia enviada a revisión | Revisores asignados (o responsables institucionales para G3/G4) | sí | sí (preferencia) |
-| Vigencia entra en amarillo (año 6, según umbral confirmado) | Administradores + responsable del programa | sí | sí |
-| Vigencia vencida | Administradores + responsable | sí | sí |
-| Anexo vence mañana (D-1) | Responsable del anexo | sí | sí |
-| Avance cruza umbral | Administradores | sí | opcional |
+| Vigencia entra en amarillo (12 meses antes del fin) / rojo (6 meses) | Administrador + SuperAdmin + Revisor del programa | sí | sí |
+| Vigencia vencida | Administrador + SuperAdmin + Revisor del programa | sí | sí |
+| Anexo vence mañana (D-1) | Responsable del anexo + Administrador + SuperAdmin + Revisor del programa | sí | sí |
+| Avance cruza umbral | Administrador + SuperAdmin + Revisor del programa | sí | opcional |
 
 ### 6.5 Reintentos e idempotencia (propuesta)
 - Tabla `NotificacionSalida` (outbox): `id`, `claveEvento` **@unique** (p. ej. `dictamen:{evidenciaId}:v{version}:{usuarioId}`, `vigencia_amarilla:{programaId}:{fechaFin}:{usuarioId}`, `anexo_d1:{anexoId}:{fecha}`), `usuarioId`, `canal` (`correo`), `tipo`, `payload Json`, `estado` (`Pendiente|Enviado|Fallido|Descartado`), `intentos`, `ultimoError`, `proximoIntentoAt`, `enviadoAt`, timestamps.
@@ -183,6 +234,11 @@ Validar al arranque (en `configuracion.env.ts`) que si `CORREO_CANAL=smtp` exist
 - **C-3** Commitear campana y utilidades frontend + tests Vitest.
 - **C-4** Outbox + idempotencia + procesador con reintentos (6.5). **Criterio:** pruebas de 6.7.
 - **C-5** Plantillas (6.3). **C-6** Eventos de vigencia de resolución MEN (T-007.2). **C-7** Preferencias (6.6). **C-8** Vista de fallidos para Administrador.
+
+## 6.9 RLS (implementada el 21/10/2026)
+
+- [x] Roles `siac_app` y `siac_powerbi_lectura`, RLS ENABLE + FORCE en 22 tablas, contexto por transacción, ruta de sistema, revoke de `anon`/`authenticated` con guarda, fix de usuario inactivo en el login, e2e D-1 → Revisor.
+- [ ] Pasos manuales en Supabase y Render: ver `docs/despliegue.md` §9 (contraseñas de los roles, `DATABASE_URL` con `siac_app.<ref>` y Power BI).
 
 ## 7. Orden sugerido, dependencias y riesgos
 
@@ -221,4 +277,4 @@ Validar al arranque (en `configuracion.env.ts`) que si `CORREO_CANAL=smtp` exist
 - Evidencias solo **.docx** (la única excepción es la resolución MEN en PDF).
 - **No ejecutar migraciones contra bases compartidas** (Supabase/producción); solo Postgres local (docker compose) o CI.
 - Nunca commitear `.env` ni secretos; solo claves vacías o de ejemplo en `.env.example`. Usar `pnpm`.
-- Par académico (T-006.4) en pausa: no tocar su flujo.
+- Par académico: rol eliminado el 20/10/2026 (T-006.4 descartada).

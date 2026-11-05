@@ -2,6 +2,7 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": "..",
   "roots": ["<rootDir>/test"],
+  "setupFiles": ["<rootDir>/test/utilidades/e2e-env.ts"],
   "testRegex": ".*\\.e2e-spec\\.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"

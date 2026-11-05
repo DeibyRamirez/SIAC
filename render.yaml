@@ -87,7 +87,13 @@ services:
       - key: SMTP_FROM
         sync: false
       # --- Power BI (HU-009) ---
+      # Entidad de servicio. Sin valores en el repositorio: se cargan en el panel de Render.
+      # El id del área de trabajo y el del informe se guardan en el panel de Administrador.
+      - key: POWERBI_TENANT_ID
+        sync: false
       - key: POWERBI_CLIENT_ID
+        sync: false
+      - key: POWERBI_CLIENT_SECRET
         sync: false
       - key: POWERBI_WORKSPACE_ID
         sync: false

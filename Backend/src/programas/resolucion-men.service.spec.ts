@@ -101,7 +101,7 @@ describe('ResolucionMenService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Rojo el 06/10/2026 (umbrales PO 24/18); guarda evidencia y fecha real', async () => {
+  it('fecha 2020-03-01 → fin 2027-03-01 y semáforo Rojo el 06/10/2026 (umbrales 12/6); guarda evidencia y fecha real', async () => {
     const resultado = await servicio.cargarParaPrograma('p1', dto, archivo(), usuario);
 
     expect(resultado.fechaFinVigencia.toISOString().slice(0, 10)).toBe('2027-03-01');
@@ -117,6 +117,28 @@ describe('ResolucionMenService', () => {
     expect(tx.programa.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
       data: { fechaResolucion: new Date('2020-03-01T00:00:00Z') },
+    });
+  });
+
+  it('el 1 de julio queda en el segundo semestre de Bogotá y el 30 de junio en el primero', async () => {
+    await servicio.cargarParaPrograma(
+      'p1',
+      { ...dto, fechaResolucion: '2026-07-01' },
+      archivo(),
+      usuario,
+    );
+    expect(tx.evidencia.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ periodo: '2026-2' }),
+    });
+
+    await servicio.cargarParaPrograma(
+      'p1',
+      { ...dto, fechaResolucion: '2026-06-30' },
+      archivo(),
+      usuario,
+    );
+    expect(tx.evidencia.create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ periodo: '2026-1' }),
     });
   });
 

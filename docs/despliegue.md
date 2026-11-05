@@ -69,15 +69,20 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
 
 ### 2.1 Keep-alive (mitiga el sueño del plan free)
 
-El workflow `.github/workflows/keep-alive.yml` hace `GET <BACKEND_URL>/api/v1/salud` cada 10 minutos (`cron: '*/10 * * * *'`, además de ejecución manual con *Run workflow*). Como el health check hace `SELECT 1`, también mantiene activa la base de Supabase y evita que el proyecto gratuito se pause.
+El workflow `.github/workflows/keep-alive.yml` pide `GET <BACKEND_URL>/api/v1/salud` con `cron: '*/10 * * * *'` (además de ejecución manual con *Run workflow*). Como el health check hace `SELECT 1`, también mantiene activa la base de Supabase y evita que el proyecto gratuito se pause.
 
 1. GitHub → repositorio → **Settings → Secrets and variables → Actions → Variables** → crear la variable de repositorio `BACKEND_URL` = `https://<servicio>.onrender.com` (sin `/api/v1`; la barra final se ignora).
 2. Si `BACKEND_URL` está vacía el workflow solo imprime un aviso y termina en verde.
 3. Limitaciones de GitHub Actions:
-   - Los workflows programados **solo corren desde la rama por defecto del repositorio** (hoy `main`): el keep-alive empieza a funcionar cuando el archivo llegue a esa rama.
-   - La programación es «best effort»: GitHub puede retrasar o saltarse ejecuciones en horas de carga, así que puede haber huecos y algún arranque en frío.
+   - Los workflows programados **solo corren desde la rama por defecto del repositorio** (`main`; el keep-alive ya está ahí y corre con éxito).
+   - **En la práctica GitHub lo ejecuta de forma irregular, cada 2–3 horas** y no cada 10 minutos (medido el 20/10/2026: 15:54, 18:35 y 20:59 hora de Bogotá). La programación de Actions es «best effort» y los cron frecuentes se retrasan o se saltan. Como Render free duerme a los ~15 min, **el keep-alive de GitHub no basta**: el servicio pasa la mayor parte del tiempo dormido y la primera petición tarda más de un minuto.
    - En repositorios públicos GitHub desactiva los workflows programados tras 60 días sin actividad en el repositorio; reactivarlo desde la pestaña **Actions**.
-4. Para que el cron de las 06:00 corra, el servicio debe estar despierto a esa hora; con el keep-alive activo lo normal es que lo esté, pero no está garantizado como en `starter`.
+4. Para que el cron de las 06:00 y el procesador del outbox de correo corran, el servicio debe estar despierto. Con solo el keep-alive de GitHub **no** está garantizado.
+
+**Recomendación** (decisión pendiente del equipo):
+
+- **Opción A — ping externo (gratis):** un monitor HTTP cada 5 min contra `https://<servicio>.onrender.com/api/v1/salud`, p. ej. UptimeRobot (monitor HTTP, intervalo 5 min) o cron-job.org (cada 5 o 10 min, método GET, tiempo de espera ≥ 60 s). Mantiene el servicio despierto casi todo el día; 750 h/mes de Render free alcanzan para un servicio encendido todo el mes. Se puede conservar el workflow de GitHub como respaldo.
+- **Opción B — Render `starter` (USD 7/mes):** siempre encendido; cambiar `plan: free` por `plan: starter` en `render.yaml`. Es lo recomendable para producción real (cron de las 06:00 garantizado, sin arranques en frío).
 
 > Con `NODE_ENV=production` el backend **no arranca** si falta `JWT_SECRETO` o `DATABASE_URL`, y advierte (sin detenerse) si falta `FRONTEND_URL`, si `CORS_ORIGENES` queda vacío, si `S3_USAR_ALMACEN_LOCAL=true` (disco efímero) o si `TZ` no es `America/Bogota`.
 
@@ -136,16 +141,18 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `CORREO_CANAL` | Sí | `resend` (o `smtp` con el servidor institucional) |
 | `RESEND_API_KEY` | Sí con Resend | Clave de Resend |
 | `CORREO_DESDE` | Sí | Remitente en un dominio verificado en Resend (alias `CORREO_REMITENTE`) |
-| `RESEND_CORREO_SANDBOX` | No | Redirige todos los correos a una cuenta (si no hay dominio verificado) |
+| `RESEND_CORREO_SANDBOX` | No | Redirige todos los correos a una cuenta (si no hay dominio verificado); el log registra el destino real |
+| `CORREO_DESTINATARIOS_PERMITIDOS` | No | Solo fuera de producción: lista separada por comas; el outbox marca **Descartado** lo que no esté en ella. En producción se ignora (aviso al arrancar) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USUARIO` / `SMTP_CONTRASENA` / `SMTP_FROM` | Solo con `smtp` | Servidor institucional |
-| `POWERBI_CLIENT_ID` / `POWERBI_WORKSPACE_ID` / `POWERBI_REPORT_ID` / `POWERBI_REPORT_ID_ESTUDIANTES` | No | App Owns Data (bloqueado sin credenciales Azure) |
-| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | URL `https://app.powerbi.com/view?r=...` |
+| `POWERBI_TENANT_ID` / `POWERBI_CLIENT_ID` / `POWERBI_CLIENT_SECRET` | No | Entidad de servicio de Azure. Sin valores en el repo; si faltan, el interruptor no activa el informe. El secreto no se muestra en el panel |
+| `POWERBI_WORKSPACE_ID` / `POWERBI_REPORT_ID` / `POWERBI_REPORT_ID_ESTUDIANTES` | No | Solo la ruta simulada `/powerbi/embed-token`. El informe con token usa los id del panel de Administrador |
+| `POWERBI_URL_PUBLICA_ESTUDIANTES` | No | Solo `https://app.powerbi.com/reportEmbed?…` (ver validación en CRUD de informes). Modo Azure: [powerbi-insercion-azure.md](powerbi-insercion-azure.md) |
 | `CARRERAS_API_URL` | No | Catálogo de carreras (tiene valor por defecto) |
 | `CARRERAS_IMAGENES_BASE_URL` | No | Si falta: `FRONTEND_URL` |
 | `TI_API_URL` / `TI_API_TOKEN` | No | Integración TI |
 | `VIGENCIA_MODO_PRUEBA` | No | `true` solo en staging (ver sección 6) |
-| `VIGENCIA_DURACION_PRUEBA_SEG` | No | `300` = prueba de 5 min (por defecto `420` = 7 min) |
-| `VIGENCIA_INTERVALO_PRUEBA_SEG` | No | Se lee en la configuración pero hoy ningún código la usa: el evaluador corre cada 10 s fijo (`@Interval(10_000)`) |
+| `VIGENCIA_DURACION_PRUEBA_SEG` | No | Duración de la demo; por defecto `300` (5 min). Es la fuente única: el frontend la lee de `demo/iniciar` y `demo/estado`. Se rechaza (400) si algún color dura menos de dos ticks (mínimo 280 s con tick de 10 s) |
+| `VIGENCIA_INTERVALO_PRUEBA_SEG` | No | Intervalo del evaluador del modo prueba; por defecto `10` s (se registra con `SchedulerRegistry` al arrancar) |
 | `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION` | No | `true` solo en staging; sin ella el modo prueba bloquea el arranque con `NODE_ENV=production` |
 | `PORT` | — | Lo inyecta Render; no declararla |
 
@@ -167,10 +174,12 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 
 - `@nestjs/schedule` (`ScheduleModule.forRoot()` en `AppModule`) corre **dentro del proceso web** de Render; no hace falta un Cron Job aparte. Solo se ejecuta mientras el servicio está despierto: en el plan `free` depende del keep-alive (sección 2.1); en `starter` está siempre encendido. Debe haber **una** sola instancia.
 - `VigenciasService.actualizarVigenciasDiarias` corre a las **06:00 America/Bogota** (`@Cron(..., { timeZone: 'America/Bogota' })`), independientemente de la zona del servidor. `diaCalendarioLocal` usa la zona del proceso; con `TZ=America/Bogota` coincide con Colombia (y aun sin TZ, a las 06:00 Bogotá = 11:00 UTC el «mañana» es el mismo día).
-- Modo prueba (`VIGENCIA_MODO_PRUEBA=true`): un evaluador cada 10 s recorre las sesiones demo activas (en memoria) y genera alertas `vigencia_amarilla` / `vigencia_vencida` + correo. Las sesiones se pierden al reiniciar o redeplegar.
+- Modo prueba (`VIGENCIA_MODO_PRUEBA=true`): un evaluador cada 10 s recorre las sesiones demo activas (en memoria) y genera alertas `vigencia_amarilla` / `vigencia_roja` / `vigencia_vencida` + correo. Si un tick llega tarde, recupera los colores intermedios perdidos (cada aviso una sola vez). Los correos de la demo llevan `[PRUEBA]` en el asunto y la fecha simulada. Las sesiones se pierden al reiniciar o redeplegar; el frontend lo detecta con `demo/estado` y detiene la barra. El botón «Iniciar prueba de vigencia» solo aparece si `demo/estado` responde `modoPrueba=true`.
+- Destinatarios de los avisos de vigencia (y del aviso D-1 de anexos), decisión del PO del 27/10/2026: Administradores, SuperAdmin y Revisores activos vinculados al programa. **No** hay responsable ni se avisa al Cargador. El enlace del correo y de la campana depende del rol (Revisor → `/revisor`; alcance institucional → `/administrador/programas/institucion?institucionId=…`).
+- El cron real de las 06:00 evalúa con reloj real todas las entidades, incluidas las que no tienen sesión demo.
 - Con `NODE_ENV=production` el modo prueba está **bloqueado por diseño** (el arranque falla). Para verificarlo en un despliegue de staging se añadió una bandera explícita: `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true` (con un aviso en el log). Sin la bandera el comportamiento es el de siempre. **Decisión del PO**: habilitarla en el despliegue de verificación o mantener el bloqueo.
 - Para la prueba de 5 min: `VIGENCIA_MODO_PRUEBA=true`, `VIGENCIA_DURACION_PRUEBA_SEG=300`, `VIGENCIA_MODO_PRUEBA_PERMITIR_PRODUCCION=true` en Render y `NEXT_PUBLIC_DEMO_VIGENCIA_7MIN=true` en Vercel (redeploy de ambos). Al terminar, quitar las cuatro.
-- Duplicados: no existe aún una tabla outbox con clave única (está planificada en `docs/todo-sprint3.md`, C-4). Hoy la deduplicación es por consulta previa de `AlertaInApp` (mismo usuario, tipo, umbral y entidad) antes de notificar; con **una sola instancia** y el tick protegido contra solapamiento (añadido en este cambio) no se duplican alertas ni correos. Con varias instancias sí podrían duplicarse.
+- Duplicados: los correos pasan por la tabla outbox `NotificacionSalida` con `claveEvento` única (y `AlertaInApp` también usa `claveEvento`), así que repetir el tick, el cron o varias instancias no duplica alertas ni correos. El procesador del outbox corre cada minuto con lease y reintentos con espera creciente. Sin canal de correo (`CORREO_CANAL=ninguno`) las filas quedan **Descartado** y el arranque lo advierte.
 
 ## 7. Checklist posterior al despliegue
 
@@ -183,8 +192,8 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | 5 | Descargar la evidencia / plantilla | Descarga desde URL firmada de Supabase |
 | 6 | Enviar a revisión y dictaminar como Revisor | Notificación **in-app** (campana) para el destinatario |
 | 7 | Correo de la misma notificación | Llega vía Resend (o a `RESEND_CORREO_SANDBOX`); el enlace apunta al dominio de Vercel |
-| 8 | Prueba de vigencia de 5 min (solo si se habilitó la bandera) | Al ~88 % del tiempo alerta amarilla y al 100 % vencida, una sola vez por usuario, in-app y correo |
-| 9 | Dashboards (`/administrador/dashboard`) | Los informes «Publicar en la web» cargan en el iframe (CSP `frame-src https://app.powerbi.com`) |
+| 8 | Prueba de vigencia de 5 min (solo si se habilitó la bandera) | Con umbrales 12/6: al ~86 % del tiempo (≈257 s) alerta amarilla, al ~93 % (≈279 s) roja y al 100 % vencida; 3 avisos por destinatario (Admin/SuperAdmin/Revisor del programa), una sola vez, in-app y correo con `[PRUEBA]` |
+| 9 | Dashboards (`/administrador/dashboard`) | Los informes cargan en el iframe. CSP `frame-src`: `app.powerbi.com` y el login de Microsoft (`login.microsoftonline.com`, `login.microsoft.com`, `*.msauth.net`, `*.msftauth.net`) para `reportEmbed` |
 | 10 | Logs de Render al día siguiente | `Ejecutando cron de vigencias...` a las 06:00 hora Colombia |
 
 ## 8. Decisiones pendientes del PO
@@ -195,3 +204,81 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 - Proyecto Supabase: reutilizar el actual o crear uno nuevo y vacío para el despliegue; buckets privados.
 - Resend: verificar un dominio remitente o usar `RESEND_CORREO_SANDBOX` (sin dominio verificado solo se puede enviar a la cuenta propia).
 - Límite de 4,5 MB de Vercel en cargas (aceptado para esta verificación).
+
+## 9. RLS: roles `siac_app` y `siac_powerbi_lectura` (21/10/2026)
+
+Las migraciones `20261021000000_rls_roles_funciones` y `20261021000100_rls_politicas` activan RLS (ENABLE + FORCE) en las 22 tablas. Crean los dos roles **sin LOGIN ni contraseña**: el acceso se habilita a mano en cada entorno. El diseño está en `plan-rls.md`.
+
+- La API debe conectarse como `siac_app`, que no tiene `BYPASSRLS`.
+- `DIRECT_URL` (migraciones, semilla y scripts de mantenimiento) sigue con el dueño `postgres`.
+- El backend fija `app.usuario_id` y `app.rol` con `set_config(..., true)` en cada transacción, así que funciona con el pooler en modo transacción (6543).
+
+### 9.1 Antes de desplegar (una vez, en el SQL Editor de Supabase)
+
+```sql
+SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'postgres';
+```
+
+`rolbypassrls` debe ser `true`.
+- Si es `false`, **no desplegar**: con FORCE RLS la app, que todavía conecta como `postgres`, dejaría de ver filas.
+- En ese caso hay que usar un rol de migración con BYPASSRLS antes de continuar.
+
+### 9.2 Orden de despliegue
+
+1. **Desplegar el backend con `DATABASE_URL` sin cambios** (todavía `postgres.<ref>`).
+   - `start:despliegue` aplica las migraciones por `DIRECT_URL`: crea roles, funciones, permisos y RLS, y revoca `anon`/`authenticated`.
+   - La app sigue funcionando igual porque `postgres` omite la RLS.
+2. **Habilitar los logins** en el SQL Editor de Supabase. Use contraseñas largas y aleatorias, guárdelas en el gestor de secretos y no las pegue en tickets, chats ni archivos del repo.
+   ```sql
+   ALTER ROLE siac_app LOGIN PASSWORD '<contraseña-larga-aleatoria>';
+   ALTER ROLE siac_powerbi_lectura LOGIN PASSWORD '<otra-contraseña-larga-aleatoria>';
+   ```
+3. **Comprobar** el estado:
+   ```sql
+   SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname LIKE 'siac_%';
+   -- esperado: siac_app y siac_powerbi_lectura con rolcanlogin = true y rolbypassrls = false
+   SELECT count(*) FROM pg_class
+   WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' AND relrowsecurity AND relforcerowsecurity;
+   -- esperado: 22 (todas salvo _prisma_migrations)
+   ```
+4. **Render → Environment → `DATABASE_URL`**: cambiar solo el usuario y la contraseña (mismo host, puerto 6543 y parámetros):
+   `postgresql://siac_app.<ref>:<contraseña-siac_app>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1`
+   - Con el pooler de Supabase (Supavisor), el usuario de un rol propio se escribe `<rol>.<project_ref>`.
+   - `DIRECT_URL` **no cambia** (`postgres.<ref>`, puerto 5432).
+   - Guardar y redeploy (o *Manual Deploy → Deploy latest commit*).
+5. **Verificar** después del redeploy:
+   - `/api/v1/salud`;
+   - login de cada rol;
+   - el panel del Administrador;
+   - la carga de un documento por el Cargador;
+   - un dictamen del Revisor;
+   - `POST /api/v1/vigencias/ejecutar-cron`.
+
+   Revisar los logs de Render en busca de `row-level security` o `permission denied`.
+6. **Data API de Supabase**: con `anon`/`authenticated` ya revocados, `GET https://<ref>.supabase.co/rest/v1/Evidencia` con la *anon key* debe responder `[]`, 401 o 404. Opcional: quitar `public` de *Settings → API → Exposed schemas*.
+
+### 9.3 Power BI (`siac_powerbi_lectura`)
+
+- Puede leer `v_powerbi_puntajes` y las vistas `v_powerbi_*` de cifras institucionales. No tiene acceso a `Usuario`, al hash de las claves ni a columnas personales (`nombreEstudiante`, `codigoEstudiante`, `nombreProfesor`, `nombreEgresado`). Su sesión es de solo lectura.
+- Conexión desde Power BI Desktop o el gateway con el conector PostgreSQL:
+  - servidor `aws-0-<region>.pooler.supabase.com:5432` (modo sesión);
+  - base `postgres`;
+  - usuario `siac_powerbi_lectura.<ref>`;
+  - la contraseña del paso 2;
+  - SSL obligatorio.
+- La contraseña se guarda solo en Power BI Service o en el gateway.
+
+### 9.4 Reversión
+
+- **Inmediata:** volver `DATABASE_URL` en Render a `postgres.<ref>` (la cadena anterior) y redeploy. El dueño omite la RLS y la app vuelve al comportamiento previo. Las políticas pueden quedarse en la BD.
+- **Deshabilitar el login** de los roles, si hace falta:
+  ```sql
+  ALTER ROLE siac_app NOLOGIN;
+  ALTER ROLE siac_powerbi_lectura NOLOGIN;
+  ```
+- **Quitar la RLS del todo** (no recomendado): `ALTER TABLE "<tabla>" NO FORCE ROW LEVEL SECURITY; ALTER TABLE "<tabla>" DISABLE ROW LEVEL SECURITY;` en las 22 tablas, mediante una migración nueva. Nunca editar las migraciones ya aplicadas.
+
+### 9.5 Desarrollo local y CI
+
+- **CI** (`.github/workflows/ci.yml`) habilita los logins con contraseñas desechables y corre `pnpm test:e2e` con `DATABASE_URL=siac_app`, `DIRECT_URL=postgres` y `DATABASE_URL_POWERBI`.
+- **Local:** con `DATABASE_URL` apuntando al dueño todo funciona como antes. Para probar la RLS, repetir los mismos `ALTER ROLE ... LOGIN PASSWORD` en la BD local y usar esas variables.

@@ -55,7 +55,14 @@ interface BibliotecaPlantillasContenidoProps {
 
 export function BibliotecaPlantillasContenido({ rol }: BibliotecaPlantillasContenidoProps) {
   const esAdmin = rol === 'Administrador'
-  const { datos, crearPlantilla, actualizarPlantilla, eliminarPlantilla } = usarAlmacen()
+  const {
+    datos,
+    estadoListas,
+    recargarLista,
+    crearPlantilla,
+    actualizarPlantilla,
+    eliminarPlantilla,
+  } = usarAlmacen()
   const [busqueda, setBusqueda] = useState('')
   const [tipoTramite, setTipoTramite] = useState<'todos' | 'Renovacion' | 'NuevoPrograma' | 'General'>(
     'todos',
@@ -239,6 +246,9 @@ export function BibliotecaPlantillasContenido({ rol }: BibliotecaPlantillasConte
 
       <RejillaPlantillas
         plantillas={plantillasFiltradas}
+        cargando={estadoListas.plantillas.cargando}
+        error={estadoListas.plantillas.error}
+        onReintentar={() => void recargarLista('plantillas')}
         onEditar={esAdmin ? abrirEditar : undefined}
         onEliminar={
           esAdmin

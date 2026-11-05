@@ -18,6 +18,9 @@ describe('parametros-panel-url (R-010.3a)', () => {
       semaforo: 'Rojo',
       semestre: '',
       pagina: 2,
+      nivel: '',
+      facultad: '',
+      modalidad: '',
     })
     expect(construirUrlPanel(filtros)).toBe('/administrador/programas?q=derecho&semaforo=Rojo&pagina=2')
     expect(construirUrlPanel(leerFiltrosPanelUrl({}))).toBe('/administrador/programas')
@@ -27,6 +30,18 @@ describe('parametros-panel-url (R-010.3a)', () => {
     const filtros = leerFiltrosPanelUrl(new URLSearchParams('estado=raro&pagina=-3'))
     expect(filtros.estado).toBe('activos')
     expect(filtros.pagina).toBe(1)
+  })
+
+  it('propaga filtros de catálogo CUAC a la API', () => {
+    const api = filtrosPanelParaApi(
+      leerFiltrosPanelUrl({ nivel: 'Pregrado', facultad: 'Fac A', modalidad: 'Presencial' }),
+      12,
+    )
+    expect(api).toMatchObject({
+      nivel: 'Pregrado',
+      facultad: 'Fac A',
+      modalidad: 'Presencial',
+    })
   })
 
   it('traduce a filtros de la API con la búsqueda en el servidor', () => {
@@ -49,17 +64,13 @@ describe('parametros-panel-url (R-010.3a)', () => {
   })
 })
 
-describe('acceso del Par académico (pausado)', () => {
-  it('ya no puede entrar al panel de programas ni al dashboard, pero conserva búsqueda', async () => {
-    const { rutaPermitidaParAcademico } = await import('@/lib/auth-mock')
+describe('roles de consulta institucional', () => {
+  it('solo el Administrador entra al resumen, la búsqueda, el panel y el dashboard', async () => {
+    const { ROLES_CONSULTA_INSTITUCIONAL } = await import('@/lib/auth-mock')
     const { ROLES_DASHBOARD_METRICAS, ROLES_PANEL_PROGRAMAS } = await import(
       '@/lib/constantes/roles'
     )
-    expect(rutaPermitidaParAcademico('/administrador/programas')).toBe(false)
-    expect(rutaPermitidaParAcademico('/administrador/programas/p1')).toBe(false)
-    expect(rutaPermitidaParAcademico('/administrador/dashboard')).toBe(false)
-    expect(rutaPermitidaParAcademico('/administrador/busqueda')).toBe(true)
-    expect(rutaPermitidaParAcademico('/administrador')).toBe(true)
+    expect(ROLES_CONSULTA_INSTITUCIONAL).toEqual(['Administrador'])
     expect(ROLES_PANEL_PROGRAMAS).toEqual(['Administrador'])
     expect(ROLES_DASHBOARD_METRICAS).toEqual(['Administrador'])
   })

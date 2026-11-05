@@ -10,19 +10,26 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
     const inicioCiclo = new Date('2020-01-01T00:00:00.000Z');
     const prisma = {
       programa: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'p1',
-          tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
-          inicioCicloTramiteAt: inicioCiclo,
-        }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'p1',
+            tipoTramiteActivo: TipoTramiteSIAC.RenovacionRegistroCalificado,
+            inicioCicloTramiteAt: inicioCiclo,
+          },
+        ]),
       },
-      tramiteDocumentoGuia: { findMany: jest.fn().mockResolvedValue(pesos) },
+      tramiteDocumentoGuia: {
+        findMany: jest.fn().mockResolvedValue(
+          pesos.map((p) => ({ ...p, tramite: { tipo: TipoTramiteSIAC.RenovacionRegistroCalificado } })),
+        ),
+      },
       evidencia: { findMany: jest.fn().mockResolvedValue(evidencias) },
     };
     return new AvanceProcesoSIACService(prisma as never);
   }
 
   const g1Cumple = {
+    programaId: 'p1',
     codigoGuia: CodigoDocumentoGuia.G1,
     estado: EstadoEvidencia.Cumple,
     puntajeActual: 9,
@@ -35,6 +42,7 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
     const servicio = crearServicio([
       g1Cumple,
       {
+        programaId: 'p1',
         codigoGuia: CodigoDocumentoGuia.G2,
         estado: EstadoEvidencia.ConObservaciones,
         puntajeActual: null,
@@ -58,6 +66,7 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
     const servicio = crearServicio([
       g1Cumple,
       {
+        programaId: 'p1',
         codigoGuia: CodigoDocumentoGuia.G2,
         estado: EstadoEvidencia.Validado,
         puntajeActual: null,
@@ -83,6 +92,7 @@ describe('AvanceProcesoSIACService · G2/G4 sin puntaje', () => {
           createdAt: new Date('2026-09-01'),
         },
         {
+          programaId: 'p1',
           codigoGuia: CodigoDocumentoGuia.G2,
           estado: EstadoEvidencia.Validado,
           puntajeActual: null,

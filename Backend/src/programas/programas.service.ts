@@ -59,10 +59,14 @@ export class ProgramaRepositorio {
       .then((anexos) => anexos.map((anexo) => conEstadoCalculado(anexo)));
   }
 
+  /**
+   * Conteos agregados del panel: los borradores son privados de su autor, así que no se cuentan
+   * (no se revela que existen). Cada usuario ve sus propios borradores en su listado.
+   */
   agruparEvidenciasPorEstado(programaIds: string[]) {
     return this.prisma.evidencia.groupBy({
       by: ['programaId', 'estado'],
-      where: { programaId: { in: programaIds } },
+      where: { programaId: { in: programaIds }, estado: { not: EstadoEvidencia.Borrador } },
       _count: { _all: true },
     });
   }
@@ -88,9 +92,10 @@ export class ProgramaRepositorio {
     });
   }
 
+  /** Igual que los conteos agregados: sin borradores (privados de su autor). */
   listarEstadosEvidencia(programaId: string) {
     return this.prisma.evidencia.findMany({
-      where: { programaId },
+      where: { programaId, estado: { not: EstadoEvidencia.Borrador } },
       select: { estado: true },
     });
   }
@@ -181,11 +186,9 @@ export class ProgramasService {
     if (programas.length === 0) {
       return { avanceInstitucional: 0, programasActivos: 0, programasCompletos: 0 };
     }
-    const progresos = await Promise.all(
-      programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id)),
-    );
-    const suma = progresos.reduce((acc, p) => acc + p.avanceGlobal, 0);
-    const programasCompletos = progresos.filter((p) => p.avanceGlobal >= 100).length;
+    const progresos = await this.avanceProceso.calcularProgresoProgramas(programas.map((p) => p.id));
+    const suma = [...progresos.values()].reduce((acc, p) => acc + p.avanceGlobal, 0);
+    const programasCompletos = [...progresos.values()].filter((p) => p.avanceGlobal >= 100).length;
     return {
       avanceInstitucional: Math.round(suma / programas.length),
       programasActivos: programas.length,
@@ -272,14 +275,12 @@ export class ProgramasService {
     if (programas.length === 0) return [];
 
     const ids = programas.map((programa) => programa.id);
-    const [anexos, grupos, progresos] = await Promise.all([
+    const [anexos, grupos, progresoPorPrograma] = await Promise.all([
       this.programaRepo.listarAnexosDeProgramas(ids),
       this.programaRepo.agruparEvidenciasPorEstado(ids),
-      Promise.all(programas.map((p) => this.avanceProceso.calcularProgresoPrograma(p.id))),
+      this.avanceProceso.calcularProgresoProgramas(ids),
     ]);
-
     const anexosPorPrograma = agrupar(anexos, (anexo) => anexo.programaId);
-    const progresoPorPrograma = new Map(progresos.map((p) => [p.programaId, p]));
     const conteosPorPrograma = new Map<string, ConteosEstadoPrograma>();
 
     for (const grupo of grupos) {

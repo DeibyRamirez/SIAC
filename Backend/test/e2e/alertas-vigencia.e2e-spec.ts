@@ -40,10 +40,10 @@ describe('Alertas de vigencia y outbox de correo (CA3)', () => {
   let resolucionInstitucionOriginal: Date | null;
 
   const FECHA_RESOLUCION = new Date('2020-01-01T00:00:00.000Z');
-  // Hitos con 7 años y aviso 24/rojo 18: amarillo 2025-01-01, rojo 2025-07-01, fin 2027-01-01.
-  const REFERENCIA_VERDE = new Date('2024-06-01T12:00:00.000Z');
-  const REFERENCIA_AMARILLA = new Date('2025-03-01T12:00:00.000Z');
-  const REFERENCIA_ROJA = new Date('2025-09-01T12:00:00.000Z');
+  // Hitos con 7 años y aviso 12/rojo 6: amarillo 2026-01-01, rojo 2026-07-01, fin 2027-01-01.
+  const REFERENCIA_VERDE = new Date('2025-06-01T12:00:00.000Z');
+  const REFERENCIA_AMARILLA = new Date('2026-03-01T12:00:00.000Z');
+  const REFERENCIA_ROJA = new Date('2026-09-01T12:00:00.000Z');
   const REFERENCIA_VENCIDA = new Date('2027-02-01T12:00:00.000Z');
 
   const servidor = () => ctx.app.getHttpServer();
@@ -77,10 +77,10 @@ describe('Alertas de vigencia y outbox de correo (CA3)', () => {
     });
     superAdminId = superAdmin.id;
 
-    // Determinismo del caso: umbrales 24/18 y la institución CUAC no participa de las alertas.
+    // Determinismo del caso: umbrales 12/6 y la institución CUAC no participa de las alertas.
     await ctx.prisma.configuracionSIAC.update({
       where: { id: 'global' },
-      data: { mesesAvisoVigencia: 24, mesesRojoVigencia: 18 },
+      data: { mesesAvisoVigencia: 12, mesesRojoVigencia: 6 },
     });
     const institucion = await ctx.prisma.institucion.findFirstOrThrow();
     resolucionInstitucionOriginal = institucion.fechaResolucion;

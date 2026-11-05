@@ -27,8 +27,8 @@ export const UMBRALES_SEMAFORO_AVANCE_DEFECTO: UmbralesSemaforoAvance = {
 
 /**
  * Umbrales de vigencia de la resolución MEN (T-010.2/T-007.3a, configurables en `ConfiguracionSIAC`).
- * Decisión PO (13/10): vigencia 7 años; amarillo al iniciar el año 6 (24 meses antes del fin);
- * rojo 18 meses antes del fin; «Vencido» al terminar.
+ * Regla vigente (20/10/2026): vigencia 7 años; amarillo 12 meses antes del fin (inicio del año 7);
+ * rojo 6 meses antes del fin; «Vencido» al terminar. Antes eran 24/18 (PO 13/10).
  */
 export interface UmbralesSemaforoVigencia {
   aniosVigencia: number;
@@ -38,8 +38,8 @@ export interface UmbralesSemaforoVigencia {
 
 export const UMBRALES_SEMAFORO_VIGENCIA_DEFECTO: UmbralesSemaforoVigencia = {
   aniosVigencia: 7,
-  mesesAvisoVigencia: 24,
-  mesesRojoVigencia: 18,
+  mesesAvisoVigencia: 12,
+  mesesRojoVigencia: 6,
 };
 
 export type UmbralesSemaforo = UmbralesSemaforoAvance & UmbralesSemaforoVigencia;
@@ -51,7 +51,7 @@ export const UMBRALES_SEMAFORO_DEFECTO: UmbralesSemaforo = {
 
 /**
  * Sin resolución registrada el semáforo de vigencia es gris («Sin vigencia»), nunca verde.
- * «Vencido» (fin de los 7 años) es distinto de «Rojo» (ventana de 18 meses antes del fin).
+ * «Vencido» (fin de los 7 años) es distinto de «Rojo» (ventana de 6 meses antes del fin).
  */
 export type ColorSemaforoVigencia = ColorSemaforo | 'Vencido' | 'SinVigencia';
 
@@ -213,6 +213,56 @@ export function calcularSemaforoVigencia(
   if (t >= inicioRojo.getTime()) return 'Rojo';
   if (t >= inicioAmarillo.getTime()) return 'Amarillo';
   return 'Verde';
+}
+
+/** Umbral de aviso de vigencia (coincide con `UmbralVigenciaCorreo`). */
+export type UmbralAvisoVigencia = 'amarillo' | 'rojo' | 'vencido';
+
+/** Orden de los avisos de vigencia: cada color incluye los anteriores. */
+export const ORDEN_UMBRALES_VIGENCIA: readonly UmbralAvisoVigencia[] = ['amarillo', 'rojo', 'vencido'];
+
+/**
+ * Umbrales de aviso alcanzados por un semáforo, en orden (Amarillo → Rojo → Vencido).
+ * Ej.: «Vencido» devuelve los tres para que un aviso intermedio perdido (un tick tardío en la
+ * demo acelerada) se recupere; la clave idempotente evita repetir los ya enviados.
+ */
+export function umbralesVigenciaAlcanzados(semaforo: ColorSemaforoVigencia): UmbralAvisoVigencia[] {
+  if (semaforo === 'Amarillo') return ['amarillo'];
+  if (semaforo === 'Rojo') return ['amarillo', 'rojo'];
+  if (semaforo === 'Vencido') return [...ORDEN_UMBRALES_VIGENCIA];
+  return [];
+}
+
+/** Resultado de validar la duración de la demo acelerada frente al intervalo del tick. */
+export interface ValidacionDuracionDemoVigencia {
+  valida: boolean;
+  /** Ventana más corta (amarillo o rojo) en segundos reales. */
+  ventanaMinimaSeg: number;
+  /** Duración mínima para que cada color dure al menos dos evaluaciones. */
+  duracionMinimaSeg: number;
+}
+
+/**
+ * Fix A (27/10): cada color de la demo debe durar al menos dos evaluaciones del tick; si no,
+ * el aviso de ese color depende de la recuperación y la barra salta colores.
+ * Ventana amarilla = (mesesAviso − mesesRojo) / (años·12); ventana roja = mesesRojo / (años·12).
+ */
+export function validarDuracionDemoVigencia(
+  duracionSeg: number,
+  intervaloSeg: number,
+  umbrales: UmbralesSemaforoVigencia,
+): ValidacionDuracionDemoVigencia {
+  const mesesTotales = umbrales.aniosVigencia * 12;
+  const fraccionAmarillo = (umbrales.mesesAvisoVigencia - umbrales.mesesRojoVigencia) / mesesTotales;
+  const fraccionRojo = umbrales.mesesRojoVigencia / mesesTotales;
+  const fraccionMinima = Math.min(fraccionAmarillo, fraccionRojo);
+  const ventanaMinimaSeg = duracionSeg * fraccionMinima;
+  const duracionMinimaSeg = fraccionMinima > 0 ? Math.ceil((2 * intervaloSeg) / fraccionMinima) : Infinity;
+  return {
+    valida: fraccionMinima > 0 && ventanaMinimaSeg >= 2 * intervaloSeg,
+    ventanaMinimaSeg,
+    duracionMinimaSeg,
+  };
 }
 
 /**

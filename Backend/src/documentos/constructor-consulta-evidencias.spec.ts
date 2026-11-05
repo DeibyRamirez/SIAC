@@ -33,14 +33,6 @@ describe('ConstructorConsultaEvidencias', () => {
     expect(where).toEqual(condicion);
   });
 
-  it('ignora estado explícito para par académico', () => {
-    const where = construirFiltrosConsultaEvidencias({
-      estado: EstadoEvidencia.Borrador,
-      rolUsuario: RolUsuario.ParAcademico,
-    });
-    expect(where).toEqual({});
-  });
-
   it('combina alcance RN-001 con facetas', () => {
     const alcance = { autorId: 'car-1', programaId: { in: ['prog-1'] } };
     const facetas = construirFiltrosConsultaEvidencias({ puntajeMin: 5 });

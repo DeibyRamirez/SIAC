@@ -9,6 +9,14 @@ import {
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 
+function esResultadoValidacionCifras(
+  cuerpo: unknown,
+): cuerpo is { filasOk: number; filasError: number; errores: unknown[] } {
+  if (!cuerpo || typeof cuerpo !== 'object') return false;
+  const obj = cuerpo as Record<string, unknown>;
+  return typeof obj.filasOk === 'number' && typeof obj.filasError === 'number' && Array.isArray(obj.errores);
+}
+
 function mapearErrorInterno(
   excepcion: unknown,
 ): { mensaje: string; codigo?: number } | null {
@@ -80,6 +88,10 @@ export class FiltroExcepcionHttp implements ExceptionFilter {
     if (excepcion instanceof HttpException) {
       codigoEstado = excepcion.getStatus();
       const cuerpo = excepcion.getResponse();
+      if (esResultadoValidacionCifras(cuerpo)) {
+        respuesta.status(codigoEstado).json(cuerpo);
+        return;
+      }
       if (typeof cuerpo === 'string') {
         mensaje = cuerpo;
       } else if (typeof cuerpo === 'object' && cuerpo !== null) {
@@ -110,6 +122,16 @@ export class FiltroExcepcionHttp implements ExceptionFilter {
       message: mensaje,
       error,
     };
+
+    if (excepcion instanceof HttpException) {
+      const cuerpo = excepcion.getResponse();
+      if (typeof cuerpo === 'object' && cuerpo !== null) {
+        const codigo = (cuerpo as Record<string, unknown>).codigo;
+        if (typeof codigo === 'string' && /^[A-Z0-9_]{1,64}$/.test(codigo)) {
+          payload.codigo = codigo;
+        }
+      }
+    }
 
     if (esDesarrollo && codigoEstado === HttpStatus.INTERNAL_SERVER_ERROR && excepcion instanceof Error) {
       payload.detalle = excepcion.message;

@@ -18,14 +18,19 @@ import { NotificacionesDespachoService } from '../notificaciones/notificaciones-
 
 import { AlmacenamientoService } from '../almacenamiento/almacenamiento.service';
 
-import { EstadoVigencia, Prisma, RolUsuario, TipoEvidencia } from '@prisma/client';
+import { EstadoVigencia, Prisma, TipoEvidencia } from '@prisma/client';
 import { decodificarNombreArchivoMultipart } from '../almacenamiento/utilidades-nombre-archivo';
 import { calcularEstadoAnexo, calcularVencimientoAnexo } from '../dominio/vigencia-anexo';
 import { plantillaAnexoVenceManana } from '../correo/plantillas';
 import { mensajeAnexoVenceManana } from '../correo/plantillas/anexos';
 import { claveAnexoD1 } from '../notificaciones/claves-evento';
+import {
+  DestinatarioAlerta,
+  destinatariosGestionYRevisores,
+} from '../notificaciones/destinatarios-alertas';
 import { ActualizarAnexoDto, CrearAnexoConArchivoDto } from './dto/anexo-vigencia.dto';
 import { EvaluadorVigenciaRegistroService } from './evaluador-vigencia-registro.service';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 /** Zona horaria institucional (CUAC Popayán) para el cron diario de vigencias. */
 export const ZONA_HORARIA_SIAC = 'America/Bogota';
@@ -324,7 +329,8 @@ export class VigenciasService implements OnModuleInit {
   /**
    * T-007.2: único cron diario, 06:00 en Colombia sin depender de la zona del servidor (Render
    * corre en UTC si no se define TZ). `VIGENCIAS_CRON_ZONA` permite otra zona (America/Bogota por defecto).
-   * Evalúa anexos D-1 (responsable por coincidencia exacta de correo + Administrador activo) y
+   * Evalúa anexos D-1 (Administrador/SuperAdmin activos + Revisores activos del programa del
+   * anexo; sin responsable, decisión del PO 27/10) y
    * transiciones de vigencia de registro de programas e institución.
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM, {
@@ -332,12 +338,14 @@ export class VigenciasService implements OnModuleInit {
     timeZone: process.env.VIGENCIAS_CRON_ZONA ?? ZONA_HORARIA_SIAC,
   })
   async actualizarVigenciasDiarias(): Promise<void> {
-    this.logger.log('Ejecutando cron de vigencias...');
+    return ejecutarComoSistema(async () => {
+      this.logger.log('Ejecutando cron de vigencias...');
 
-    await this.notificarAnexosQueVencenManana();
-    await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
+      await this.notificarAnexosQueVencenManana();
+      await this.evaluadorVigenciaRegistro.evaluarTodasLasEntidades();
 
-    this.logger.log('Cron de vigencias completado.');
+      this.logger.log('Cron de vigencias completado.');
+    });
   }
 
   /** D-1: avisos de anexos que vencen mañana; la idempotencia la da `claveAnexoD1`. */
@@ -357,14 +365,15 @@ export class VigenciasService implements OnModuleInit {
     });
     if (anexos.length === 0) return;
 
-    const administradores = await this.prisma.usuario.findMany({
-      where: { activo: true, rol: RolUsuario.Administrador },
-      select: { id: true },
-    });
-    const idsAdministradores = administradores.map((a) => a.id);
-
+    // Gestión (Administrador/SuperAdmin) es la misma para todos; los Revisores dependen del programa.
+    const destinatariosPorPrograma = new Map<string, DestinatarioAlerta[]>();
     for (const anexo of anexos) {
-      await this.avisarAnexoD1(anexo, idsAdministradores);
+      let destinatarios = destinatariosPorPrograma.get(anexo.programaId);
+      if (!destinatarios) {
+        destinatarios = await destinatariosGestionYRevisores(this.prisma, anexo.programaId);
+        destinatariosPorPrograma.set(anexo.programaId, destinatarios);
+      }
+      await this.avisarAnexoD1(anexo, destinatarios);
     }
   }
 
@@ -376,7 +385,7 @@ export class VigenciasService implements OnModuleInit {
       responsable: string;
       programaId: string;
     },
-    idsAdministradores: string[],
+    destinatarios: DestinatarioAlerta[],
   ): Promise<void> {
     const fechaVencimientoIso = new Date(anexo.fechaVencimiento).toISOString();
     const datos = {
@@ -387,62 +396,24 @@ export class VigenciasService implements OnModuleInit {
       anexoId: anexo.id,
     };
     const mensaje = mensajeAnexoVenceManana(datos);
-    const plantilla = plantillaAnexoVenceManana(datos);
     const metadata = {
       anexoId: anexo.id,
       programaId: anexo.programaId,
       fechaVencimiento: fechaVencimientoIso,
     };
 
-    const correoResponsable = anexo.responsable.includes('@')
-      ? anexo.responsable.trim().toLowerCase()
-      : null;
-    const usuarioResponsable = correoResponsable
-      ? await this.prisma.usuario.findUnique({
-          where: { correo: correoResponsable },
-          select: { id: true },
-        })
-      : null;
-
-    if (usuarioResponsable) {
+    // PO 27/10: solo Administrador/SuperAdmin y Revisores activos del programa; el responsable
+    // del anexo (texto libre) ya no recibe aviso propio.
+    for (const { id: usuarioId, rol } of destinatarios) {
+      // J (27/10): enlace del correo según el rol del destinatario.
+      const plantilla = plantillaAnexoVenceManana({ ...datos, rolDestinatario: rol });
       await this.notificacionesDespacho.notificar({
         claveEvento: claveAnexoD1({
           anexoId: anexo.id,
           fechaVencimientoIso,
-          usuarioId: usuarioResponsable.id,
+          usuarioId,
         }),
-        usuarioId: usuarioResponsable.id,
-        mensaje,
-        tipo: 'anexo_vence_manana',
-        asuntoCorreo: plantilla.asunto,
-        metadata,
-        plantilla,
-      });
-    } else if (correoResponsable) {
-      // Responsable sin cuenta: solo correo, con la misma clave idempotente por destinatario.
-      await this.notificacionesDespacho.encolarCorreoExterno({
-        claveEvento: claveAnexoD1({
-          anexoId: anexo.id,
-          fechaVencimientoIso,
-          usuarioId: `externo:${correoResponsable}`,
-        }),
-        destinatarioCorreo: correoResponsable,
-        mensaje,
-        tipo: 'anexo_vence_manana',
-        asuntoCorreo: plantilla.asunto,
-        metadata,
-        plantilla,
-      });
-    }
-
-    for (const adminId of idsAdministradores) {
-      await this.notificacionesDespacho.notificar({
-        claveEvento: claveAnexoD1({
-          anexoId: anexo.id,
-          fechaVencimientoIso,
-          usuarioId: adminId,
-        }),
-        usuarioId: adminId,
+        usuarioId,
         mensaje,
         tipo: 'anexo_vence_manana',
         asuntoCorreo: plantilla.asunto,

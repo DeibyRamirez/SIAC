@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
@@ -27,31 +27,47 @@ import { sincronizarCarrerasApi } from '@/lib/servicios/integracion.servicio'
 import type {
   EstadoFiltroPanel,
   FilaPanelPrograma,
+  MetadatosCatalogoCuacPanel,
   RespuestaPanelProgramas,
 } from '@/lib/servicios/panel-programas.servicio'
 import { manejarCambioSelect } from '@/lib/utilidades-siac'
 import { OPCIONES_FILTRO_SEMAFORO_PANEL } from '@/lib/utilidades/etiquetas-semaforo'
 import { construirUrlPanel, type FiltrosPanelUrl } from '@/lib/utilidades/parametros-panel-url'
 
-const CLAVE_SYNC_CARRERAS_SESION = 'siac-sync-carreras-realizado'
+const OPCION_TODOS = 'todos'
+
+function etiquetaEstadoProgramas(valor: EstadoFiltroPanel): string {
+  if (valor === 'activos') return 'activos'
+  if (valor === 'inactivos') return 'inactivos'
+  return 'todos'
+}
+
+function etiquetaTramite(valor: string): string {
+  if (valor === 'RegistroCalificadoNuevo') return 'RC nuevo (G1)'
+  if (valor === 'RenovacionRegistroCalificado') return 'Renovación RC (G1+G2)'
+  return 'todos los trámites'
+}
+
+function FiltroConEtiqueta({
+  etiqueta,
+  id,
+  children,
+}: {
+  etiqueta: string
+  id: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label htmlFor={id} className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+        {etiqueta}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 const ESPERA_BUSQUEDA_MS = 400
-
-function syncCarrerasYaRealizadoEnSesion(): boolean {
-  try {
-    return sessionStorage.getItem(CLAVE_SYNC_CARRERAS_SESION) === '1'
-  } catch {
-    return false
-  }
-}
-
-function marcarSyncCarrerasEnSesion(marcar: boolean): void {
-  try {
-    if (marcar) sessionStorage.setItem(CLAVE_SYNC_CARRERAS_SESION, '1')
-    else sessionStorage.removeItem(CLAVE_SYNC_CARRERAS_SESION)
-  } catch {
-    /* quota o modo privado */
-  }
-}
 
 export function mapearFilasPanel(datos: FilaPanelPrograma[]): ProgramaRejilla[] {
   return datos.map((fila) => ({
@@ -107,49 +123,35 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
     return () => clearTimeout(temporizador)
   }, [busqueda, semestre, filtros.q, filtros.semestre, navegar])
 
-  const sincronizarCatalogo = useCallback(
-    async (forzar: boolean) => {
-      if (!puedeAdministrar || !apiDisponible() || sincronizandoRef.current) return
-      if (!forzar && syncCarrerasYaRealizadoEnSesion()) return
-      sincronizandoRef.current = true
-      setSincronizando(true)
-      try {
-        const resultado = await sincronizarCarrerasApi()
-        marcarSyncCarrerasEnSesion(true)
-        const huboCambios =
-          resultado.importados > 0 || resultado.actualizados > 0 || resultado.desactivados > 0
-        if (forzar || huboCambios) {
-          const partes = [
-            `${resultado.importados} importada(s)`,
-            `${resultado.actualizados} actualizada(s)`,
-            `${resultado.totalEnBd} en base de datos`,
-          ]
-          if (resultado.desactivados > 0) partes.push(`${resultado.desactivados} desactivada(s)`)
-          toast.success(`Catálogo guardado: ${partes.join(', ')}.`)
-        }
-        if (huboCambios) router.refresh()
-      } catch (err) {
-        marcarSyncCarrerasEnSesion(false)
-        toast.warning(
-          err instanceof Error
-            ? err.message
-            : 'No se pudo sincronizar el catálogo de carreras. Se muestra la última copia local.',
-        )
-      } finally {
-        sincronizandoRef.current = false
-        setSincronizando(false)
-      }
-    },
-    [puedeAdministrar, router],
-  )
-
-  useEffect(() => {
-    void sincronizarCatalogo(datos.total === 0)
-    // Solo al montar: la sincronización del catálogo se hace una vez por sesión.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeAdministrar])
+  const sincronizarCatalogo = useCallback(async () => {
+    if (!puedeAdministrar || !apiDisponible() || sincronizandoRef.current) return
+    sincronizandoRef.current = true
+    setSincronizando(true)
+    try {
+      const resultado = await sincronizarCarrerasApi()
+      const partes = [
+        `${resultado.importados} importada(s)`,
+        `${resultado.actualizados} actualizada(s)`,
+        `${resultado.totalEnBd} en base de datos`,
+      ]
+      if (resultado.desactivados > 0) partes.push(`${resultado.desactivados} desactivada(s)`)
+      toast.success(`Catálogo actualizado: ${partes.join(', ')}.`)
+      router.refresh()
+    } catch (err) {
+      toast.warning(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo sincronizar el catálogo de carreras. Se muestra la última copia local.',
+      )
+    } finally {
+      sincronizandoRef.current = false
+      setSincronizando(false)
+    }
+  }, [puedeAdministrar, router])
 
   const filas = mapearFilasPanel(datos.datos)
+  const catalogo: MetadatosCatalogoCuacPanel | undefined = datos.catalogoCuac
+  const periodoCatalogo = catalogo?.version ?? '—'
 
   return (
     <div className="space-y-6">
@@ -164,7 +166,7 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
               <Button
                 variant="outline"
                 disabled={sincronizando}
-                onClick={() => void sincronizarCatalogo(true)}
+                onClick={() => void sincronizarCatalogo()}
               >
                 {sincronizando ? 'Sincronizando…' : 'Actualizar catálogo'}
               </Button>
@@ -199,52 +201,163 @@ export function PanelProgramasCliente({ filtros, datos, institucion, errorCarga 
         <h2 className="text-lg font-semibold text-primary">Programas académicos</h2>
 
         <BarraHerramientasTabla placeholder="Buscar por nombre o código…" valorBusqueda={busqueda} onBuscar={setBusqueda}>
-          <Select
-            value={filtros.estado}
-            onValueChange={manejarCambioSelect((valor) => navegar({ estado: valor as EstadoFiltroPanel }))}
-          >
-            <SelectTrigger className="w-[140px]" aria-label="Filtrar por estado">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="activos">Activos</SelectItem>
-              <SelectItem value="inactivos">Inactivos</SelectItem>
-              <SelectItem value="todos">Todos</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filtros.tramite} onValueChange={manejarCambioSelect((valor) => navegar({ tramite: valor }))}>
-            <SelectTrigger className="w-[200px]" aria-label="Filtrar por trámite">
-              <SelectValue placeholder="Trámite" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los trámites</SelectItem>
-              <SelectItem value="RegistroCalificadoNuevo">RC nuevo (G1)</SelectItem>
-              <SelectItem value="RenovacionRegistroCalificado">Renovación RC (G1+G2)</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filtros.semaforo} onValueChange={manejarCambioSelect((valor) => navegar({ semaforo: valor }))}>
-            <SelectTrigger className="w-[140px]" aria-label="Filtrar por semáforo">
-              <SelectValue placeholder="Semáforo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              {OPCIONES_FILTRO_SEMAFORO_PANEL.map((opcion) => (
-                <SelectItem key={opcion.valor} value={opcion.valor}>
-                  <OpcionFiltroSemaforo valor={opcion.valor} contexto={opcion.contexto} />
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder="Semestre (ej. 2026-1)"
-            aria-label="Filtrar por semestre"
-            value={semestre}
-            onChange={(e) => setSemestre(e.target.value)}
-            className="w-[140px]"
-          />
+          <FiltroConEtiqueta etiqueta="Estado programas" id="filtro-estado-programas">
+            <Select
+              value={filtros.estado}
+              onValueChange={manejarCambioSelect((valor) => navegar({ estado: valor as EstadoFiltroPanel }))}
+            >
+              <SelectTrigger id="filtro-estado-programas" className="w-[130px]">
+                <SelectValue>{etiquetaEstadoProgramas(filtros.estado)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="activos">Activos</SelectItem>
+                <SelectItem value="inactivos">Inactivos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+          </FiltroConEtiqueta>
+
+          <FiltroConEtiqueta etiqueta="Trámites" id="filtro-tramite">
+            <Select
+              value={filtros.tramite}
+              onValueChange={manejarCambioSelect((valor) => navegar({ tramite: valor }))}
+            >
+              <SelectTrigger id="filtro-tramite" className="w-[190px]">
+                <SelectValue>{etiquetaTramite(filtros.tramite)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los trámites</SelectItem>
+                <SelectItem value="RegistroCalificadoNuevo">RC nuevo (G1)</SelectItem>
+                <SelectItem value="RenovacionRegistroCalificado">Renovación RC (G1+G2)</SelectItem>
+              </SelectContent>
+            </Select>
+          </FiltroConEtiqueta>
+
+          <FiltroConEtiqueta etiqueta="Estado del avance" id="filtro-semaforo">
+            <Select
+              value={filtros.semaforo}
+              onValueChange={manejarCambioSelect((valor) => navegar({ semaforo: valor }))}
+            >
+              <SelectTrigger id="filtro-semaforo" className="w-[150px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {OPCIONES_FILTRO_SEMAFORO_PANEL.map((opcion) => (
+                  <SelectItem key={opcion.valor} value={opcion.valor}>
+                    <OpcionFiltroSemaforo valor={opcion.valor} contexto={opcion.contexto} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FiltroConEtiqueta>
+
+          <FiltroConEtiqueta etiqueta="Periodo evidencias" id="filtro-semestre">
+            <Input
+              id="filtro-semestre"
+              placeholder="2026-2"
+              value={semestre}
+              onChange={(e) => setSemestre(e.target.value)}
+              className="w-[100px]"
+            />
+          </FiltroConEtiqueta>
+
+          <FiltroConEtiqueta etiqueta="Periodo catálogo" id="filtro-periodo-catalogo">
+            <span
+              id="filtro-periodo-catalogo"
+              className="inline-flex h-9 min-w-[88px] items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold text-primary"
+            >
+              {periodoCatalogo}
+            </span>
+          </FiltroConEtiqueta>
+
+          {catalogo && catalogo.niveles.length > 0 ? (
+            <FiltroConEtiqueta etiqueta="Nivel" id="filtro-nivel">
+              <Select
+                value={filtros.nivel || OPCION_TODOS}
+                onValueChange={manejarCambioSelect((valor) =>
+                  navegar({ nivel: valor === OPCION_TODOS ? '' : valor }),
+                )}
+              >
+                <SelectTrigger id="filtro-nivel" className="w-[130px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OPCION_TODOS}>Todos</SelectItem>
+                  {catalogo.niveles.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FiltroConEtiqueta>
+          ) : null}
+
+          {catalogo && catalogo.facultades.length > 0 ? (
+            <FiltroConEtiqueta etiqueta="Facultad" id="filtro-facultad">
+              <Select
+                value={filtros.facultad || OPCION_TODOS}
+                onValueChange={manejarCambioSelect((valor) =>
+                  navegar({ facultad: valor === OPCION_TODOS ? '' : valor }),
+                )}
+              >
+                <SelectTrigger id="filtro-facultad" className="max-w-[220px]">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OPCION_TODOS}>Todas</SelectItem>
+                  {catalogo.facultades.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FiltroConEtiqueta>
+          ) : null}
+
+          {catalogo && catalogo.modalidades.length > 0 ? (
+            <FiltroConEtiqueta etiqueta="Modalidad" id="filtro-modalidad">
+              <Select
+                value={filtros.modalidad || OPCION_TODOS}
+                onValueChange={manejarCambioSelect((valor) =>
+                  navegar({ modalidad: valor === OPCION_TODOS ? '' : valor }),
+                )}
+              >
+                <SelectTrigger id="filtro-modalidad" className="w-[130px]">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OPCION_TODOS}>Todas</SelectItem>
+                  {catalogo.modalidades.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FiltroConEtiqueta>
+          ) : null}
         </BarraHerramientasTabla>
 
-        <RejillaProgramas programas={filas} enlaceDetalle={(id) => `/administrador/programas/${id}`} />
+        {catalogo?.revalidando ? (
+          <p className="text-xs text-muted-foreground" role="status">
+            Actualizando catálogo…
+          </p>
+        ) : null}
+
+        {catalogo?.degradado ? (
+          <p className="text-xs text-ocre" role="status">
+            Catálogo CUAC no disponible en este momento; se muestran los datos locales de SIAC.
+          </p>
+        ) : null}
+
+        <RejillaProgramas
+          programas={filas}
+          cargando={cargando && filas.length === 0}
+          enlaceDetalle={(id) => `/administrador/programas/${id}`}
+        />
         {datos.total > 0 && (
           <ControlesPaginacion
             pagina={filtros.pagina}

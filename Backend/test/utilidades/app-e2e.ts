@@ -2,20 +2,33 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.service';
+import { resolverClavesSemilla } from '../../src/common/config/claves-semilla';
 import { esHostDesechable, hostDeUrlBaseDatos } from '../../src/common/config/host-base-datos';
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
+import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.module';
 import { AlmacenamientoMemoria } from './almacenamiento-memoria';
 import { CorreoMemoriaProveedor } from './correo-memoria';
 import { CorreoNuloProveedor } from '../../src/correo/correo-nulo.proveedor';
 import { PROVEEDOR_CORREO } from '../../src/correo/proveedor-correo.port';
 
-/** Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). */
+/**
+ * Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). Las contraseñas se
+ * resuelven igual que en la semilla: SEMILLA_CLAVE_* o, si faltan, las claves de desarrollo.
+ */
+const CLAVES_SEMILLA = resolverClavesSemilla(process.env);
+
 export const USUARIOS_SEMILLA = {
-  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: 'Cargador2026' },
-  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: 'Revisor2026' },
-  Administrador: { correo: 'admin.planeacion@uniautonoma.edu.co', contrasena: 'Admin2026' },
-  ParAcademico: { correo: 'par.academico@uniautonoma.edu.co', contrasena: 'Par2026' },
+  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Cargador },
+  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Revisor },
+  Administrador: {
+    correo: 'admin.planeacion@uniautonoma.edu.co',
+    contrasena: CLAVES_SEMILLA.Administrador,
+  },
+  SuperAdmin: {
+    correo: 'superadmin@uniautonoma.edu.co',
+    contrasena: CLAVES_SEMILLA.SuperAdmin,
+  },
 } as const;
 
 export interface ContextoE2E {
@@ -48,13 +61,16 @@ export interface OpcionesAppE2E {
   correoNulo?: boolean;
   /** Proveedor de correo en memoria para verificar asuntos, cuerpos y enlaces. */
   correoMemoria?: CorreoMemoriaProveedor;
+  /** Activa VIGENCIA_MODO_PRUEBA para probar la demo acelerada (por defecto desactivado). */
+  modoPruebaVigencia?: boolean;
 }
 
 /** Levanta la API completa (mismo prefijo, pipes y filtro que main.ts) con Storage en memoria. */
 export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<ContextoE2E> {
   // El .env local no debe alterar los E2E (demo de vigencia ni correo real). Deben fijarse ANTES
   // de importar AppModule: ConfigModule.forRoot congela el .env y las factorías al importarlo.
-  process.env.VIGENCIA_MODO_PRUEBA = 'false';
+  process.env.CARRERAS_SYNC_HABILITADO = 'false';
+  process.env.VIGENCIA_MODO_PRUEBA = opciones.modoPruebaVigencia ? 'true' : 'false';
   process.env.CORREO_CANAL = 'ninguno';
   const { AppModule } = await import('../../src/app.module');
   verificarBaseDeDatosDesechable();
@@ -90,7 +106,18 @@ export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<Contex
   app.useGlobalFilters(new FiltroExcepcionHttp());
   await app.init();
 
-  return { app, prisma: app.get(PrismaService), almacen };
+  // Con RLS, la API corre como siac_app (DATABASE_URL). Los datos de prueba se preparan y se
+  // verifican con el dueño de la BD (DIRECT_URL), que no está sujeto a la RLS.
+  const prisma = new PrismaClient({
+    datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+  }) as unknown as PrismaService;
+  const cerrarApp = app.close.bind(app);
+  app.close = async () => {
+    await cerrarApp();
+    await prisma.$disconnect();
+  };
+
+  return { app, prisma, almacen };
 }
 
 export async function iniciarSesion(
@@ -121,7 +148,16 @@ export async function limpiarDatosNegocio(prisma: PrismaService): Promise<void> 
       "Evidencia",
       "AnexoVigencia",
       "UsuarioPrograma",
-      "Programa"
+      "Programa",
+      "CifraEstudiante",
+      "CifraProfesor",
+      "CifraEgresado",
+      "CifraInvestigacion",
+      "CifraAseguramiento",
+      "CifraInfraestructura",
+      "CifraBienestar",
+      "CifraRelacionEntorno",
+      "Integrador"
     CASCADE
   `);
   await prisma.usuario.deleteMany({ where: { correo: { endsWith: '@e2e.siac.test' } } });

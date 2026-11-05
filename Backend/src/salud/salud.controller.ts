@@ -1,5 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
+import { ApiContrato } from '../openapi/api-contrato';
+import { EstadoSaludDto } from '../openapi/modelos-respuesta';
 import { SaludService } from './salud.service';
 
 /**
@@ -15,7 +17,15 @@ export class SaludController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Estado del servicio y ping a la base de datos (público)' })
+  @ApiContrato({
+    resumen: 'Estado del servicio y ping a la base de datos',
+    roles: ['publico'],
+    sinValidacion: true,
+    respuesta: EstadoSaludDto,
+    tambien: [503],
+    detalle:
+      'Sin token. Si la base no responde en 3 s, el servicio lanza 503. El filtro de excepciones reescribe ese error al sobre statusCode/message/error.',
+  })
   async consultar() {
     const estado = await this.salud.consultar();
     if (estado.baseDatos !== 'ok') {

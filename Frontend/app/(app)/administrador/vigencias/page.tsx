@@ -2,34 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bell, Plus } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { CeldaSemaforoVigencia } from '@/components/siac/celda-semaforo-vigencia'
+import { MensajeErrorCarga, RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoTabla, EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { PanelPaquetesVigenciaRegistro } from '@/components/siac/panel-paquetes-vigencia-registro'
 import { TarjetaUmbralesSemaforo } from '@/components/siac/tarjeta-umbrales-semaforo'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -40,9 +26,7 @@ import {
 } from '@/components/ui/table'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
-import { listarEvidenciasApi } from '@/lib/servicios/evidencias.servicio'
 import {
-  crearVigenciaConArchivoApi,
   listarProgramasApi,
   listarVigenciasApi,
   obtenerUrlDescargaVigenciaApi,
@@ -50,24 +34,14 @@ import {
 import { listarPaquetesRegistroVigenciaApi } from '@/lib/servicios/vigencias.servicio'
 import type {
   AnexoVigencia,
-  CategoriaAnexo,
   EstadoVigencia,
-  Evidencia,
   PaqueteVigenciaRegistro,
   Programa,
 } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 import { paginarArreglo } from '@/lib/utilidades/paginacion-cliente'
 import {
-  CATEGORIAS_ANEXO,
-  FORMULARIO_ANEXO_INICIAL,
-  construirFormularioAnexo,
-} from '@/lib/utilidades/formulario-anexo'
-import { programasElegiblesParaVigencias } from '@/lib/utilidades/filtro-programas-vigencias'
-import {
   formatearFecha,
-  itemsSelectProgramas,
-  manejarCambioSelect,
   obtenerNombrePrograma,
 } from '@/lib/utilidades-siac'
 
@@ -89,14 +63,11 @@ function ContenidoVigencias() {
   const searchParams = useSearchParams()
   const { datos } = usarAlmacen()
   const [anexos, setAnexos] = useState<AnexoVigencia[]>([])
+  const [cargandoAnexos, setCargandoAnexos] = useState(true)
+  const [errorAnexos, setErrorAnexos] = useState<string | null>(null)
+  const [cargandoPaquetes, setCargandoPaquetes] = useState(true)
   const [pagina, setPagina] = useState(1)
   const [programas, setProgramas] = useState<Programa[]>([])
-  const [dialogoAbierto, setDialogoAbierto] = useState(false)
-  const [guardando, setGuardando] = useState(false)
-  const [archivo, setArchivo] = useState<File | null>(null)
-  const [formulario, setFormulario] = useState(FORMULARIO_ANEXO_INICIAL)
-  const [evidenciasPrograma, setEvidenciasPrograma] = useState<Evidencia[]>([])
-  const [programasVigencias, setProgramasVigencias] = useState<Programa[]>([])
   const [paquetes, setPaquetes] = useState<PaqueteVigenciaRegistro[]>([])
   const programaIdUrl = searchParams.get('programaId')
 
@@ -110,11 +81,6 @@ function ContenidoVigencias() {
     [anexos, pagina],
   )
 
-  const opcionesPrograma = useMemo(
-    () => itemsSelectProgramas(programasVigencias),
-    [programasVigencias],
-  )
-
   useEffect(() => {
     setPagina(1)
   }, [anexos.length])
@@ -122,22 +88,29 @@ function ContenidoVigencias() {
   const cargarPaquetes = useCallback(async () => {
     if (!apiDisponible()) {
       setPaquetes([])
+      setCargandoPaquetes(false)
       return
     }
+    setCargandoPaquetes(true)
     try {
       const lista = await listarPaquetesRegistroVigenciaApi(programaIdUrl ?? undefined)
       setPaquetes(lista)
     } catch (err) {
       setPaquetes([])
       toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los paquetes de vigencia.')
+    } finally {
+      setCargandoPaquetes(false)
     }
   }, [programaIdUrl])
 
   const cargarAnexos = useCallback(async () => {
     if (!apiDisponible()) {
       setAnexos(datos.anexosVigencia)
+      setCargandoAnexos(false)
       return
     }
+    setCargandoAnexos(true)
+    setErrorAnexos(null)
     try {
       const programaId = programaIdUrl ?? undefined
       const lista = (await listarVigenciasApi(programaId)) as AnexoVigencia[]
@@ -154,7 +127,13 @@ function ContenidoVigencias() {
       )
     } catch (err) {
       setAnexos([])
-      toast.error(err instanceof Error ? err.message : 'No se pudieron cargar los anexos de vigencia.')
+      setErrorAnexos(
+        err instanceof Error && err.message
+          ? `No se pudieron cargar las vigencias: ${err.message}`
+          : 'No se pudieron cargar las vigencias.',
+      )
+    } finally {
+      setCargandoAnexos(false)
     }
   }, [datos.anexosVigencia, programaIdUrl])
 
@@ -166,65 +145,14 @@ function ContenidoVigencias() {
       try {
         const lista = await listarProgramasApi()
         setProgramas(lista)
-        const elegibles = await programasElegiblesParaVigencias(lista)
-        setProgramasVigencias(elegibles)
-        const programaInicial =
-          elegibles.find((p) => p.id === searchParams.get('programaId')) ?? elegibles[0]
-        if (programaInicial) {
-          setFormulario((prev) => ({
-            ...prev,
-            programaId: programaInicial.id,
-          }))
-        }
       } catch {
         setProgramas([])
-        setProgramasVigencias([])
       }
     }
     cargarProgramas()
   }, [cargarAnexos, cargarPaquetes, searchParams])
 
-  // El anexo se vincula a una evidencia (documento guía) del mismo programa (decisión del PO, 06/10).
-  useEffect(() => {
-    if (!formulario.programaId || !apiDisponible()) {
-      setEvidenciasPrograma([])
-      return
-    }
-    let vigente = true
-    listarEvidenciasApi({ programaId: formulario.programaId, limite: 100 })
-      .then((respuesta) => {
-        if (vigente) setEvidenciasPrograma(respuesta.datos.filter((e) => Boolean(e.codigoGuia)))
-      })
-      .catch(() => vigente && setEvidenciasPrograma([]))
-    return () => {
-      vigente = false
-    }
-  }, [formulario.programaId])
 
-  async function guardarAnexo() {
-    const resultado = construirFormularioAnexo(formulario, archivo)
-    if ('error' in resultado) {
-      toast.error(resultado.error)
-      return
-    }
-    const { formData } = resultado
-    setGuardando(true)
-    try {
-      if (apiDisponible()) {
-        await crearVigenciaConArchivoApi(formData)
-        await cargarAnexos()
-        toast.success('Documento cargado en bucket Documentos.')
-      } else {
-        toast.error('API no disponible.')
-      }
-      setDialogoAbierto(false)
-      setArchivo(null)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo guardar el documento.')
-    } finally {
-      setGuardando(false)
-    }
-  }
 
   async function descargarAnexo(id: string) {
     try {
@@ -243,10 +171,6 @@ function ContenidoVigencias() {
           titulo="Vigencias y alertas"
           descripcion="Semáforo por documento según fecha de vencimiento. Las alertas in-app se gestionan desde la campana superior."
         />
-        <Button onClick={() => setDialogoAbierto(true)}>
-          <Plus className="size-4" />
-          Cargar documento
-        </Button>
       </div>
 
       {alertasPendientes > 0 && (
@@ -260,12 +184,30 @@ function ContenidoVigencias() {
         </div>
       )}
 
-      <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+      {cargandoPaquetes ? (
+        <RegionCarga texto="Cargando paquetes de vigencia…">
+          <div className="space-y-4">
+            <EsqueletoTarjetas cantidad={3} alto="h-24" columnas="sm:grid-cols-3" />
+            <EsqueletoTabla filas={4} columnas={5} />
+          </div>
+        </RegionCarga>
+      ) : (
+        <PanelPaquetesVigenciaRegistro paquetes={paquetes} programaIdFiltro={programaIdUrl} />
+      )}
 
       <TarjetaUmbralesSemaforo />
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-primary">Certificados y anexos</h2>
+        {anexos.length === 0 && cargandoAnexos ? (
+          <RegionCarga texto="Cargando vigencias…">
+            <div className="space-y-4">
+              <EsqueletoTarjetas cantidad={3} alto="h-24" columnas="sm:grid-cols-3" />
+              <EsqueletoTabla filas={6} columnas={5} />
+            </div>
+          </RegionCarga>
+        ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-3">
           {(['Vigente', 'Proximo', 'Vencido'] as const).map((estado) => {
             const total = anexos.filter((anexo) => anexo.estado === estado).length
@@ -284,7 +226,6 @@ function ContenidoVigencias() {
             )
           })}
         </div>
-      </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-primary/10 bg-white/60">
@@ -303,7 +244,16 @@ function ContenidoVigencias() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {anexos.length === 0 ? (
+                {anexos.length === 0 && errorAnexos ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="p-4">
+                      <MensajeErrorCarga
+                        mensaje={errorAnexos}
+                        onReintentar={() => void cargarAnexos()}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : anexos.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
                       No hay documentos con vigencia registrados.
@@ -355,151 +305,10 @@ function ContenidoVigencias() {
           onCambiarPagina={setPagina}
         />
       )}
+        </>
+        )}
+      </div>
 
-      <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cargar documento con vigencia</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="titulo">Título del documento</Label>
-              <Input
-                id="titulo"
-                value={formulario.titulo}
-                onChange={(e) => setFormulario({ ...formulario, titulo: e.target.value })}
-                placeholder="Ej. Certificado de bomberos"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="carpeta">Carpeta interna</Label>
-              <Input
-                id="carpeta"
-                value={formulario.carpeta}
-                onChange={(e) => setFormulario({ ...formulario, carpeta: e.target.value })}
-                placeholder="permisos, certificados-bomberos…"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Programa</Label>
-              <Select
-                value={formulario.programaId}
-                items={opcionesPrograma}
-                onValueChange={manejarCambioSelect((v) =>
-                  setFormulario({ ...formulario, programaId: v, evidenciaId: '' }),
-                )}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un programa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {opcionesPrograma.map((opcion) => (
-                    <SelectItem key={opcion.value} value={opcion.value}>
-                      {opcion.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Categoría</Label>
-              <Select
-                value={formulario.categoria}
-                onValueChange={manejarCambioSelect((v) =>
-                  setFormulario({ ...formulario, categoria: v as CategoriaAnexo }),
-                )}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIAS_ANEXO.map((c) => (
-                    <SelectItem key={c.valor} value={c.valor}>
-                      {c.etiqueta}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Evidencia que respalda</Label>
-              <Select
-                value={formulario.evidenciaId}
-                onValueChange={manejarCambioSelect((v) =>
-                  setFormulario({ ...formulario, evidenciaId: v }),
-                )}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={evidenciasPrograma.length ? 'Seleccione la evidencia' : 'El programa no tiene evidencias'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {evidenciasPrograma.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.codigoGuia} · {e.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="vencimiento">Vence (según certificado)</Label>
-                <Input
-                  id="vencimiento"
-                  type="date"
-                  value={formulario.fechaVencimiento}
-                  onChange={(e) => setFormulario({ ...formulario, fechaVencimiento: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expedicion">o expedición</Label>
-                <Input
-                  id="expedicion"
-                  type="date"
-                  value={formulario.fechaExpedicion}
-                  onChange={(e) => setFormulario({ ...formulario, fechaExpedicion: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="anios">+ años</Label>
-                <Input
-                  id="anios"
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={formulario.aniosVigencia}
-                  onChange={(e) => setFormulario({ ...formulario, aniosVigencia: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="responsable">Responsable</Label>
-              <Input
-                id="responsable"
-                value={formulario.responsable}
-                onChange={(e) => setFormulario({ ...formulario, responsable: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="archivo">Archivo PDF/DOCX</Label>
-              <Input
-                id="archivo"
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogoAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={guardarAnexo} disabled={guardando}>
-              {guardando ? 'Guardando…' : 'Guardar documento'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

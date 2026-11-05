@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -11,6 +12,8 @@ import {
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { RegionCarga } from '@/components/siac/estado-carga-lista'
+import { EsqueletoFilas, EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { EstructuraNormativaPanel } from '@/components/siac/estructura-normativa-panel'
 import { GraficoDistribucion } from '@/components/siac/grafico-distribucion'
 import { GraficoTendencia } from '@/components/siac/grafico-tendencia'
@@ -21,6 +24,8 @@ import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,14 +35,17 @@ import {
   calcularTendenciaMensual,
   filtrarEvidenciasVisiblesAdministrador,
 } from '@/lib/utilidades/metricas-evidencias'
-import { periodoAcademicoActual, periodosConActual } from '@/lib/utilidades/periodo-academico'
+import { usarPeriodoActual } from '@/lib/hooks/usar-periodo-actual'
+import { usarPeriodos } from '@/lib/hooks/usar-periodos'
+import { periodoSeleccionado } from '@/lib/utilidades/periodo-academico'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
+import { listarEvidenciasCompletasDePeriodo } from '@/lib/servicios/evidencias.servicio'
 import {
   listarProgramasApi,
   obtenerAvanceInstitucionalApi,
 } from '@/lib/servicios/programas.servicio'
 import { promedioAvanceProgramasActivos } from '@/lib/utilidades/avance-institucional'
-import type { Programa } from '@/lib/tipos'
+import type { Evidencia, Programa } from '@/lib/tipos'
 import { ROLES_CONSULTA_INSTITUCIONAL } from '@/lib/auth-mock'
 import {
   obtenerProgresoProgramaApi,
@@ -56,17 +64,29 @@ export default function ResumenAdministradorPage() {
 
 function ContenidoResumen() {
   const { sesion } = usarSesion()
-  const { datos } = usarAlmacen()
-  const [periodo, setPeriodo] = useState(periodoAcademicoActual())
-  const periodosDisponibles = periodosConActual()
+  const { datos, estadoListas } = usarAlmacen()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const periodoEnUrl = searchParams.get('periodo')
+  const { periodo: periodoVigente, listo: periodoListo } = usarPeriodoActual()
+  const periodo = periodoSeleccionado(periodoEnUrl, periodoVigente)
+  const { vigentes: periodosVigentes, historicos: periodosHistoricos } = usarPeriodos(periodo)
+  const [evidenciasRemotas, setEvidenciasRemotas] = useState<Evidencia[] | null>(null)
+  const [periodoConsultado, setPeriodoConsultado] = useState<string | null>(null)
   const [programas, setProgramas] = useState<Programa[]>([])
   const [programaProcesoId, setProgramaProcesoId] = useState<string | null>(null)
   const [progresoProceso, setProgresoProceso] = useState<ProgresoProcesoSIAC | null>(null)
   const [cargandoProgreso, setCargandoProgreso] = useState(false)
   const [avanceInstitucional, setAvanceInstitucional] = useState<number | null>(null)
+  const [cargandoResumen, setCargandoResumen] = useState(true)
 
   const cargarResumen = useCallback(async () => {
-    if (!apiDisponible()) return
+    if (!apiDisponible()) {
+      setCargandoResumen(false)
+      return
+    }
+    setCargandoResumen(true)
     try {
       const [lista, resumen] = await Promise.all([
         listarProgramasApi(),
@@ -80,15 +100,49 @@ function ContenidoResumen() {
     } catch {
       setProgramas([])
       setAvanceInstitucional(null)
+    } finally {
+      setCargandoResumen(false)
     }
   }, [])
 
   usarCargaConSesion(cargarResumen)
 
-  const evidenciasPeriodo = useMemo(
-    () => datos.evidencias.filter((e) => e.periodo === periodo),
-    [datos.evidencias, periodo],
-  )
+  useEffect(() => {
+    if (!periodoListo || periodoEnUrl === periodo) return
+    const siguientes = new URLSearchParams(searchParams.toString())
+    siguientes.set('periodo', periodo)
+    router.replace(`${pathname}?${siguientes.toString()}`, { scroll: false })
+  }, [periodoListo, periodoEnUrl, periodo, pathname, router, searchParams])
+
+  useEffect(() => {
+    if (!apiDisponible()) return
+    let vivo = true
+    listarEvidenciasCompletasDePeriodo(periodo)
+      .then((lista) => {
+        if (!vivo) return
+        setEvidenciasRemotas(lista)
+        setPeriodoConsultado(periodo)
+      })
+      .catch(() => {
+        if (!vivo) return
+        setEvidenciasRemotas(null)
+        setPeriodoConsultado(periodo)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [periodo])
+
+  function cambiarPeriodo(valor: string) {
+    const siguientes = new URLSearchParams(searchParams.toString())
+    siguientes.set('periodo', valor)
+    router.replace(`${pathname}?${siguientes.toString()}`, { scroll: false })
+  }
+
+  const evidenciasPeriodo = useMemo(() => {
+    if (periodoConsultado === periodo && evidenciasRemotas) return evidenciasRemotas
+    return datos.evidencias.filter((evidencia) => evidencia.periodo === periodo)
+  }, [periodoConsultado, periodo, evidenciasRemotas, datos.evidencias])
 
   const evidenciasPanelAdmin = useMemo(
     () => filtrarEvidenciasVisiblesAdministrador(evidenciasPeriodo),
@@ -118,6 +172,8 @@ function ContenidoResumen() {
   const avanceHero =
     avanceInstitucional ??
     (programas.length > 0 ? promedioAvanceProgramasActivos(programas) : 0)
+  const esperandoEvidencias = estadoListas.evidencias.cargando && datos.evidencias.length === 0
+  const mostrarEsqueleto = cargandoResumen || esperandoEvidencias
 
   useEffect(() => {
     async function cargarProgreso() {
@@ -157,20 +213,44 @@ function ContenidoResumen() {
           titulo={`${obtenerSaludo()}, ${primerNombre}`}
           descripcion="Estado general del aseguramiento de calidad en todas las carreras."
         />
-        <Select value={periodo} onValueChange={manejarCambioSelect(setPeriodo)}>
+        <Select value={periodo} onValueChange={manejarCambioSelect(cambiarPeriodo)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Periodo" />
           </SelectTrigger>
           <SelectContent>
-            {periodosDisponibles.map((p) => (
-              <SelectItem key={p} value={p}>
-                Periodo {p}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectLabel>Periodos vigentes</SelectLabel>
+              {periodosVigentes.map((p) => (
+                <SelectItem key={p} value={p}>
+                  Periodo {p}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            {periodosHistoricos.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>Históricos</SelectLabel>
+                {periodosHistoricos.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    Periodo {p}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </div>
 
+      {mostrarEsqueleto ? (
+        <RegionCarga texto="Cargando el resumen…">
+          <div className="space-y-6">
+            <EsqueletoTarjetas cantidad={1} alto="h-40" columnas="grid-cols-1" />
+            <EsqueletoTarjetas />
+            <EsqueletoTarjetas cantidad={2} alto="h-64" columnas="xl:grid-cols-2" />
+            <EsqueletoFilas filas={3} />
+          </div>
+        </RegionCarga>
+      ) : (
+        <>
       <TarjetaHeroAcreditacion
         avance={avanceHero}
         evidenciasValidadas={validadas}
@@ -220,6 +300,8 @@ function ContenidoResumen() {
         progreso={progresoProceso}
         cargando={cargandoProgreso}
       />
+        </>
+      )}
 
       {/* <EstructuraNormativaPanel /> */}
     </div>

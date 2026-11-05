@@ -1,23 +1,13 @@
+import { analizarUrlInformePowerBi } from '../../powerbi/validar-url-informe';
 import { resolverPuerto } from './servidor';
 
-const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r=';
-
 /**
- * Valida una URL opcional de «Publicar en la web» de Power BI (HU-009).
- * Devuelve la URL limpia si empieza por https://app.powerbi.com/view?r= y trae `r`;
- * en otro caso devuelve '' (sin configurar o inválida).
+ * Valida una URL opcional de informe Power BI (HU-009).
+ * Solo acepta `https://app.powerbi.com/reportEmbed` con reportId y ctid (GUID).
+ * En otro caso devuelve '' (sin configurar o inválida).
  */
 export function normalizarUrlPublicaPowerBi(valor: string | undefined | null): string {
-  const limpia = valor?.trim() ?? '';
-  if (!limpia.startsWith(PREFIJO_URL_PUBLICA_POWERBI)) return '';
-  try {
-    const url = new URL(limpia);
-    return url.hostname === 'app.powerbi.com' && url.pathname === '/view' && url.searchParams.get('r')
-      ? limpia
-      : '';
-  } catch {
-    return '';
-  }
+  return analizarUrlInformePowerBi(valor)?.url ?? '';
 }
 
 export const configuracionEnv = () => {
@@ -77,6 +67,10 @@ export const configuracionEnv = () => {
   /** §0: demo acelerada de 300 s (5 min); antes 420 s (7 min). */
   vigenciaDuracionPruebaSeg: parseInt(process.env.VIGENCIA_DURACION_PRUEBA_SEG ?? '300', 10),
   vigenciaIntervaloPruebaSeg: parseInt(process.env.VIGENCIA_INTERVALO_PRUEBA_SEG ?? '10', 10),
+  /** Tick automático del evaluador en modo prueba (cada N s). Por defecto desactivado. */
+  vigenciaEvaluadorIntervaloAuto:
+    process.env.VIGENCIA_EVALUADOR_INTERVALO_AUTO === 'true' ||
+    process.env.VIGENCIA_EVALUADOR_INTERVALO_AUTO === '1',
   /** T-007.2: zona horaria del cron diario de vigencias (por defecto Colombia). */
   vigenciasCronZona: process.env.VIGENCIAS_CRON_ZONA ?? 'America/Bogota',
   };

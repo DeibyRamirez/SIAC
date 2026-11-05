@@ -36,7 +36,7 @@ Instrucciones para agentes de IA que trabajen en este repositorio.
 - No commitear `.env`, `.env.local` ni secretos.
 - Usar `pnpm` (no npm).
 - API versionada en `/api/v1` con Swagger en `/api/docs`.
-- Roles: Cargador, Revisor, Administrador, Par Académico (RN-001).
+- Roles: Cargador, Revisor, Administrador y SuperAdmin (RN-001). El rol Par académico se eliminó el 20/10/2026.
 - Antes de ampliar alcance, contrastar con la etapa/sprint documentada.
 
 ## Actualizar memoria

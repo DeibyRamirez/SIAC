@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { resolverCanalCorreo } from './resolver-canal-correo';
+import { advertenciasCanalCorreo, resolverCanalCorreo } from './resolver-canal-correo';
 
 function configMock(values: Record<string, string | undefined>): ConfigService {
   return {
@@ -31,5 +31,19 @@ describe('resolverCanalCorreo', () => {
 
   it('devuelve ninguno sin configuración', () => {
     expect(resolverCanalCorreo(configMock({}))).toBe('ninguno');
+  });
+});
+
+describe('advertenciasCanalCorreo (fix K)', () => {
+  it('valor no válido avisa en cualquier entorno', () => {
+    expect(advertenciasCanalCorreo('resnd', 'development')[0]).toMatch(/no es válido/);
+    expect(advertenciasCanalCorreo('resnd', 'production')[0]).toMatch(/no es válido/);
+  });
+
+  it('sin canal en producción avisa; en desarrollo no', () => {
+    expect(advertenciasCanalCorreo(undefined, 'production')[0]).toMatch(/Descartado/);
+    expect(advertenciasCanalCorreo('ninguno', 'production')).toHaveLength(1);
+    expect(advertenciasCanalCorreo(undefined, 'development')).toEqual([]);
+    expect(advertenciasCanalCorreo('resend', 'production')).toEqual([]);
   });
 });

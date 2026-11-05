@@ -21,6 +21,7 @@ import {
   combinarCondicionTextoLibre,
   construirFiltroTextoLibre,
 } from './texto-libre-evidencias';
+import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 
 
 
@@ -116,6 +117,16 @@ export class EvidenciaRepositorio {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Periodos distintos con al menos una evidencia visible para el usuario (la RLS filtra). */
+  async listarPeriodosConDatos(): Promise<string[]> {
+    const filas = await this.prisma.evidencia.findMany({
+      distinct: ['periodo'],
+      select: { periodo: true },
+      orderBy: { periodo: 'desc' },
+    });
+    return filas.map((f) => f.periodo).filter((p): p is string => Boolean(p));
+  }
+
 
 
   crear(datos: Prisma.EvidenciaCreateInput): Promise<Evidencia> {
@@ -125,6 +136,17 @@ export class EvidenciaRepositorio {
   }
 
 
+
+  /**
+   * RLS: una evidencia fuera del alcance del usuario no aparece en sus consultas. Para conservar
+   * el contrato de la API (403 si existe pero no tiene acceso, 404 si no existe) se comprueba la
+   * existencia por la ruta de sistema, sin devolver ningún dato de la fila.
+   */
+  existe(id: string): Promise<boolean> {
+    return ejecutarComoSistema(async () =>
+      Boolean(await this.prisma.evidencia.findUnique({ where: { id }, select: { id: true } })),
+    );
+  }
 
   buscarPorId(id: string) {
 
@@ -476,26 +498,6 @@ export class EvidenciaRepositorio {
       where,
 
       _count: { _all: true },
-
-    });
-
-  }
-
-
-
-  tieneHistorialDistintoDeBorrador(evidenciaId: string) {
-
-    return this.prisma.historialEvidencia.findFirst({
-
-      where: {
-
-        evidenciaId,
-
-        estado: { not: EstadoEvidencia.Borrador },
-
-      },
-
-      select: { id: true },
 
     });
 

@@ -10,7 +10,10 @@ import { aCsv, limpiarAnexosSinDocumento } from '../../prisma/scripts/limpiar-an
  * AnexoVigencia sin documento, informa el conteo y es idempotente. Solo contra la BD local/CI.
  */
 describe('pnpm datos:limpiar-anexos-sin-documento', () => {
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+  // RLS: los scripts de mantenimiento y la semilla corren como dueño (DIRECT_URL), no como siac_app.
+  datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
   let salida: string;
   const silenciar = jest.spyOn(console, 'log').mockImplementation(() => undefined);
 

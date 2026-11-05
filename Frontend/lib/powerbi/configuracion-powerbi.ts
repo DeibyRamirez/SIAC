@@ -1,54 +1,46 @@
 /**
  * Utilidades de Power BI en el frontend (HU-009, T-009.3).
- * Las URL públicas se consultan en el servidor (`ConfiguracionInformePowerBi`).
+ * Las URL se consultan en el servidor (`ConfiguracionInformePowerBi`).
  */
-/** Prefijo obligatorio de una URL de «Publicar en la web». */
-export const PREFIJO_URL_PUBLICA_POWERBI = 'https://app.powerbi.com/view?r='
+import {
+  analizarUrlInformePowerBi,
+  clasificarUrlInformePowerBi,
+  prepararUrlInformePowerBi,
+  type TipoEnlaceInformePowerBi,
+} from './validar-url-informe'
+
+export {
+  analizarUrlInformePowerBi,
+  clasificarUrlInformePowerBi,
+  prepararUrlInformePowerBi,
+  type TipoEnlaceInformePowerBi,
+}
 
 /** Tiempo máximo de espera del iframe antes de mostrar el respaldo. */
 export const TIEMPO_MAXIMO_CARGA_INFORME_MS = 20_000
 
+/** Aviso del enlace reportEmbed (login Microsoft y licencia Pro). */
+export const AVISO_ENLACE_SEGURO_POWERBI =
+  'Requiere que el usuario inicie sesión en Microsoft, tenga licencia Power BI Pro y acceso al área de trabajo SIAC'
+
 export type ModoPowerBi = 'publico' | 'embebido'
 
 /**
- * Acepta URL limpia o HTML de iframe («Publicar en la web» pegado desde Power BI).
+ * Acepta URL limpia o HTML de iframe pegado desde Power BI.
  * Devuelve la primera URL válida encontrada o null.
  */
 export function extraerUrlPublicaPowerBi(valor: string | null | undefined): string | null {
-  const crudo = valor?.trim() ?? ''
-  if (!crudo) return null
-  if (esUrlPublicaPowerBiValida(crudo)) return crudo
-
-  const patron = new RegExp(
-    `${PREFIJO_URL_PUBLICA_POWERBI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"'\\s>]+`,
-    'i',
-  )
-  const coincidencia = crudo.match(patron)?.[0]
-  if (coincidencia && esUrlPublicaPowerBiValida(coincidencia)) return coincidencia
-  return null
+  const url = prepararUrlInformePowerBi(valor)
+  return url || null
 }
 
-/** Valida que la URL sea una vista pública de Power BI (https://app.powerbi.com/view?r=...). */
+/** Valida un enlace reportEmbed en app.powerbi.com. */
 export function esUrlPublicaPowerBiValida(url: string | null | undefined): boolean {
-  if (!url) return false
-  const limpia = url.trim()
-  if (!limpia.startsWith(PREFIJO_URL_PUBLICA_POWERBI)) return false
-  if (limpia.length === PREFIJO_URL_PUBLICA_POWERBI.length) return false
-  try {
-    const analizada = new URL(limpia)
-    return (
-      analizada.protocol === 'https:' &&
-      analizada.hostname === 'app.powerbi.com' &&
-      analizada.pathname === '/view' &&
-      Boolean(analizada.searchParams.get('r'))
-    )
-  } catch {
-    return false
-  }
+  return analizarUrlInformePowerBi(url) !== null
 }
 
 export type EstadoUrlPowerBi =
-  | { estado: 'publicada'; url: string }
+  | { estado: 'publicada'; url: string; tipo: TipoEnlaceInformePowerBi }
   | { estado: 'no-publicada' }
   | { estado: 'invalida' }
 
@@ -56,12 +48,13 @@ export type EstadoUrlPowerBi =
 export function estadoDesdeUrlPublica(url: string | null | undefined): EstadoUrlPowerBi {
   const cruda = url?.trim() ?? ''
   if (!cruda) return { estado: 'no-publicada' }
-  if (!esUrlPublicaPowerBiValida(cruda)) return { estado: 'invalida' }
-  return { estado: 'publicada', url: cruda }
+  const analizada = analizarUrlInformePowerBi(cruda)
+  if (!analizada) return { estado: 'invalida' }
+  return { estado: 'publicada', url: analizada.url, tipo: analizada.tipo }
 }
 
 /**
- * Modo de integración. `publico` (por defecto) usa «Publicar en la web»;
+ * Modo de integración. `publico` (por defecto) usa la URL guardada del informe;
  * `embebido` (App Owns Data, T-009.2) queda bloqueado hasta tener credenciales Azure
  * y conserva la ruta simulada con el backend.
  */

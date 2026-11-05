@@ -17,7 +17,7 @@ export class PlantillasService {
   ) {}
 
   listar(rol: RolUsuario, tipoTramite?: import('@prisma/client').TipoTramitePlantilla) {
-    const soloVigentes = rol === RolUsuario.Cargador || rol === RolUsuario.ParAcademico;
+    const soloVigentes = rol === RolUsuario.Cargador;
     return this.plantillaRepo.listar(soloVigentes, tipoTramite);
   }
 
@@ -64,7 +64,7 @@ export class PlantillasService {
   }
 
   async actualizar(id: string, dto: ActualizarPlantillaDto, rol: RolUsuario) {
-    if (rol === RolUsuario.Cargador || rol === RolUsuario.ParAcademico) {
+    if (rol === RolUsuario.Cargador) {
       throw new ForbiddenException('No tiene permiso para editar plantillas.');
     }
 
@@ -111,7 +111,7 @@ export class PlantillasService {
   }
 
   async reemplazarArchivo(id: string, archivo: Express.Multer.File, rol: RolUsuario) {
-    if (rol === RolUsuario.Cargador || rol === RolUsuario.ParAcademico) {
+    if (rol === RolUsuario.Cargador) {
       throw new ForbiddenException('No tiene permiso para editar plantillas.');
     }
     this.validarArchivoDocx(archivo);

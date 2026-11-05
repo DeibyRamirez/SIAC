@@ -16,8 +16,15 @@ export async function obtenerVigenciaProgramaApi(programaId: string) {
   return peticionApi<VigenciaPrograma>(`/programas/${encodeURIComponent(programaId)}/vigencia`)
 }
 
+/** Respuesta de POST /vigencias/demo/iniciar: la duración la decide el servidor. */
+export interface RespuestaInicioDemoVigencia {
+  inicioAtMs: number
+  duracionSeg: number
+  intervaloSeg: number
+}
+
 export async function iniciarDemoVigenciaApi(entidadId: string, alcance: AlcancePaqueteVigencia) {
-  return peticionApi<{ inicioAtMs: number }>('/vigencias/demo/iniciar', {
+  return peticionApi<RespuestaInicioDemoVigencia>('/vigencias/demo/iniciar', {
     method: 'POST',
     body: JSON.stringify({ entidadId, alcance }),
   })

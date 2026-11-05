@@ -85,12 +85,9 @@ export class GuardAlcancePrograma implements CanActivate {
   private async autorizar(
     usuario: { id: string; rol: RolUsuario },
     programaId: string,
-    modo: 'lectura' | 'escritura',
+    modo: 'lectura' | 'escritura' | 'gestion',
   ): Promise<boolean> {
-    if (
-      modo === 'lectura' &&
-      (usuario.rol === RolUsuario.Administrador || usuario.rol === RolUsuario.ParAcademico)
-    ) {
+    if ((modo === 'lectura' || modo === 'gestion') && usuario.rol === RolUsuario.Administrador) {
       return true;
     }
 

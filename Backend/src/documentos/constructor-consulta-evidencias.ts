@@ -31,7 +31,7 @@ export interface FiltrosConsultaEvidencias {
   fechaVerificacionHasta?: Date;
   /** Texto libre ya resuelto (FTS ∪ ILIKE ampliado) en el repositorio. */
   condicionTextoLibre?: Prisma.EvidenciaWhereInput;
-  /** Par académico ignora filtro estado explícito. */
+  /** Rol de quien consulta (reservado para reglas por rol). */
   rolUsuario?: RolUsuario;
 }
 
@@ -145,7 +145,7 @@ export function construirFiltrosConsultaEvidencias(
 ): Prisma.EvidenciaWhereInput {
   const partes: Prisma.EvidenciaWhereInput[] = [];
 
-  if (filtros.rolUsuario !== RolUsuario.ParAcademico && filtros.estado) {
+  if (filtros.estado) {
     partes.push({ estado: filtros.estado });
   }
 

@@ -17,11 +17,12 @@ const rutasBusqueda = [
   { href: '/administrador/vigencias', etiqueta: 'Vigencias y alertas', grupo: 'Administrador' },
   { href: '/administrador/plantillas', etiqueta: 'Biblioteca de plantillas', grupo: 'Administrador' },
   { href: '/administrador/bandeja-revision', etiqueta: 'Bandeja de revisión', grupo: 'Administrador' },
-  { href: '/cargador', etiqueta: 'Inicio cargador', grupo: 'Cargador' },
-  { href: '/cargador/evidencias/nueva', etiqueta: 'Cargar evidencia', grupo: 'Cargador' },
-  { href: '/cargador/evidencias', etiqueta: 'Mis evidencias', grupo: 'Cargador' },
+  { href: '/cargador', etiqueta: 'Inicio profesor', grupo: 'Profesor' },
+  { href: '/cargador/evidencias/nueva', etiqueta: 'Cargar evidencia', grupo: 'Profesor' },
+  { href: '/cargador/evidencias', etiqueta: 'Mis evidencias', grupo: 'Profesor' },
   { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', grupo: 'Revisor' },
   { href: '/superadmin', etiqueta: 'Panel SuperAdmin', grupo: 'SuperAdmin' },
+  { href: '/superadmin/integradores', etiqueta: 'Claves de integración', grupo: 'SuperAdmin' },
 ]
 
 function rutaDetalleEvidencia(rol: RolUsuario, id: string): string {

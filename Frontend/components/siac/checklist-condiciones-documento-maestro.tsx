@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { TextareaConContador } from '@/components/siac/textarea-con-contador'
 import {
   CONDICIONES_DOCUMENTO_MAESTRO,
   type CodigoCondicionDocumentoMaestro,
@@ -119,13 +119,13 @@ export function ChecklistCondicionesDocumentoMaestro({
               )}
               {estado.decision === 'corregir' && (
                 <>
-                  <Textarea
+                  <TextareaConContador
                     className={cn(
                       'mt-2 min-h-[72px] text-sm',
                       codigosConError.includes(def.codigo) &&
                         'border-destructive ring-2 ring-destructive/30',
                     )}
-                    placeholder="Observaciones para el cargador (obligatorio si debe corregir)."
+                    placeholder="Observaciones para el profesor (obligatorio si debe corregir)."
                     value={estado.observacion}
                     disabled={deshabilitado}
                     aria-invalid={codigosConError.includes(def.codigo) || undefined}
