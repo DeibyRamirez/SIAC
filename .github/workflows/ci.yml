@@ -109,6 +109,7 @@ jobs:
             sleep 2
           done
           curl -sf http://127.0.0.1:3001/api/v1/salud
+          cd "${GITHUB_WORKSPACE}"
           chmod +x docs/pruebas/ejecutar-newman.sh docs/pruebas/verificar-destino-newman.sh
           ./docs/pruebas/ejecutar-newman.sh
           kill "$API_PID" || true
