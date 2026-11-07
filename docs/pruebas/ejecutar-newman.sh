@@ -17,6 +17,7 @@ export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@localhost:54
 export DIRECT_URL="${DIRECT_URL:-$DATABASE_URL}"
 export JWT_SECRETO="${JWT_SECRETO:-local-newman-not-production}"
 export S3_USAR_ALMACEN_LOCAL=true
+export ALMACEN_LOCAL_RUTA="${ALMACEN_LOCAL_RUTA:-$REPO/Backend/almacen-local}"
 export CARRERAS_SYNC_HABILITADO=false
 export CORREO_CANAL=ninguno
 export NODE_ENV=development
@@ -32,8 +33,29 @@ if ! curl -sf "${NEWMAN_BASE_URL%/}/salud" >/dev/null; then
   exit 1
 fi
 
-npx --yes -p newman@6.2.1 -p newman-reporter-htmlextra@1.23.1 newman run "$COL" -e "$ENV" \
-  --env-var "clavePrueba=${NEWMAN_CLAVE_PRUEBA}" \
+pnpm prisma:usuarios-newman
+pnpm prisma:fixtures-newman
+
+FIXTURES="$ROOT/postman/fixtures-newman.ids.json"
+if [[ ! -f "$FIXTURES" ]]; then
+  echo "No se generó fixtures-newman.ids.json" >&2
+  exit 1
+fi
+
+ENV_RUN="$ROOT/postman/.newman-runtime.postman_environment.json"
+node -e "
+const fs=require('node:fs');
+const base=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+const ids=require(process.argv[2]);
+const baseUrl=process.env.NEWMAN_BASE_URL||'http://localhost:3001/api/v1';
+const upsert=(k,v,tipo)=>{let e=base.values.find(x=>x.key===k);if(!e){e={key:k,type:tipo||'default',enabled:true};base.values.push(e);}e.value=String(v);};
+upsert('baseUrl',baseUrl);
+upsert('clavePrueba',process.env.NEWMAN_CLAVE_PRUEBA,'secret');
+for (const [k,v] of Object.entries(ids)) if (v!=null && String(v).length) upsert(k,v,k==='apiKeyIntegrador'?'secret':'default');
+fs.writeFileSync(process.argv[3], JSON.stringify(base,null,2));
+" "$ENV" "$FIXTURES" "$ENV_RUN"
+
+npx --yes -p newman@6.2.1 -p newman-reporter-htmlextra@1.23.1 newman run "$COL" -e "$ENV_RUN" \
   --delay-request 25 \
   --timeout-request 30000 \
   --reporters cli,json,htmlextra \

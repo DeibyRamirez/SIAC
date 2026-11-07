@@ -9,6 +9,8 @@ dist/
 *.log
 .DS_Store
 Backend/almacen-local/
+docs/pruebas/postman/fixtures-newman.ids.json
+docs/pruebas/postman/.newman-runtime.postman_environment.json
 Backend/respaldos/
 package-lock.json
 .cursor/memory.jsonl

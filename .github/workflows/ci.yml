@@ -86,7 +86,7 @@ jobs:
         env:
           NEWMAN_CLAVE_PRUEBA: ci-newman-clave-desechable-16
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
-        run: pnpm prisma:seed && pnpm prisma:usuarios-newman
+        run: pnpm prisma:seed && pnpm prisma:usuarios-newman && pnpm prisma:fixtures-newman
       - name: Newman — colección Postman /api/v1 (localhost, sin Supabase)
         working-directory: ${{ github.workspace }}
         env:

@@ -120,6 +120,9 @@ export class IntegracionService {
     vinculos: number;
     origen: OrigenDato;
   }> {
+    if (typeof contenido !== 'string' || !contenido.trim()) {
+      throw new BadRequestException('El campo contenido es obligatorio (CSV con encabezado).');
+    }
     const lineas = contenido.trim().split('\n').slice(1);
     const programas: ProgramaExterno[] = [];
 

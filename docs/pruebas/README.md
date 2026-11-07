@@ -32,10 +32,15 @@ Solo **localhost** o el PostgreSQL efímero de CI. El script `verificar-destino-
    pnpm prisma migrate deploy
    pnpm prisma:seed
    pnpm prisma:usuarios-newman
+   pnpm prisma:fixtures-newman
    pnpm build && pnpm start:prod
    ```
 
 3. Otra terminal: `export NEWMAN_CLAVE_PRUEBA=...` y `./docs/pruebas/ejecutar-newman.sh`.
+
+El script `ejecutar-newman.sh` vuelve a ejecutar `prisma:usuarios-newman` y `prisma:fixtures-newman`, fusiona IDs en un entorno efímero y **falla (exit ≠ 0)** si alguna aserción Newman no pasa.
+
+**Última corrida local verificada (misma rama):** 113 peticiones ejecutadas (0 errores de transporte), **323** aserciones (**323** aprobadas, **0** fallidas). Los reportes sanitizados distinguen transporte OK de aserciones HTTP/JSON aprobadas.
 
 Las mismas rutas están cubiertas además por `Backend/test/e2e` (supertest) en el CI (`.github/workflows/ci.yml`).
 
