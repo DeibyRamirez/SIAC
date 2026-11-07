@@ -1,6 +1,6 @@
 # Matriz de cobertura Swagger → colección Postman
 
-Generado: 2026-11-07T20:35:32.078Z
+Generado: 2026-11-07T20:38:22.217Z
 
 ## Conteo
 
@@ -16,7 +16,7 @@ Desglose de las 4 rutas que antes parecían “faltantes”: 3 son login/salud/p
 | Método | Ruta | Dónde en la colección | Notas |
 |--------|------|------------------------|-------|
 | GET | `/api/v1/acreditacion/etapas` | SIAC-api-v1 (carpeta API) | — |
-| GET | `/api/v1/almacen-local/*path` | SIAC-api-v1 (carpeta API) | Ruta concreta GET /almacen-local/{{almacenClavePrueba}} (fixture de archivo en preparar-fixtures-newman). |
+| GET | `/api/v1/almacen-local/*` | SIAC-api-v1 (carpeta API) | Ruta concreta GET /almacen-local/{{almacenClavePrueba}} (fixture de archivo en preparar-fixtures-newman). |
 | GET | `/api/v1/aprobacion/pendientes` | SIAC-api-v1 (carpeta API) | — |
 | POST | `/api/v1/auth/google` | SIAC-api-v1 (carpeta API) | — |
 | POST | `/api/v1/auth/login` | 00 — Preparación (login×4) | No duplicada en carpetas API; cubierta en preparación o negativo. |
@@ -126,5 +126,5 @@ Desglose de las 4 rutas que antes parecían “faltantes”: 3 son login/salud/p
 
 ## Almacenamiento local
 
-`GET /api/v1/almacen-local/*path` en OpenAPI es plantilla de ruta. Newman usa `GET /api/v1/almacen-local/{{almacenClavePrueba}}` con archivo creado en `Backend/prisma/preparar-fixtures-newman.ts`. En Nest 10, `@Get('*path')` no registraba la ruta (404 genérico «Cannot GET…»); corregido a `@Get('*')` + comprobación `existeArchivoLocal` → 404 de negocio si falta el archivo. No hay E2E HTTP de esta ruta en supertest (las E2E usan `AlmacenamientoMemoria`).
+`GET /api/v1/almacen-local/*path` en OpenAPI es plantilla de ruta. Newman usa `GET /api/v1/almacen-local/{{almacenClavePrueba}}` con archivo creado en `Backend/prisma/preparar-fixtures-newman.ts`. El backend devolvía 500 si el archivo no existía (stream sin handler); corregido a **404** en `almacenamiento-local.controller.ts`. No hay E2E HTTP de esta ruta en supertest (las E2E usan `AlmacenamientoMemoria`).
 

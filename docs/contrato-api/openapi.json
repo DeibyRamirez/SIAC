@@ -1632,7 +1632,7 @@
         ]
       }
     },
-    "/api/v1/almacen-local/*path": {
+    "/api/v1/almacen-local/*": {
       "get": {
         "description": "Cualquier usuario con sesión válida.\n\nSolo existe si S3_USAR_ALMACEN_LOCAL=true. En otro modo responde 404. La clave va en el resto de la ruta. Rechaza «..». PDF y DOCX fijan el Content-Type.",
         "operationId": "AlmacenamientoLocalController_servirArchivo",

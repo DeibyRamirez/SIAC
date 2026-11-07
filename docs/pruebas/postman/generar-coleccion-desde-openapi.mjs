@@ -39,7 +39,7 @@ function sustituirPath(ruta, expectativa) {
   for (const [seg, val] of Object.entries(mapa)) rel = rel.split(seg).join(val);
   if (expectativa?.urlSuffix) {
     rel = `/${expectativa.urlSuffix}`;
-  } else if (ruta.includes('*path')) {
+  } else if (ruta.includes('almacen-local/*')) {
     rel = '/{{almacenClavePrueba}}';
   }
   const idVar = expectativa?.idVar ?? 'recursoId';

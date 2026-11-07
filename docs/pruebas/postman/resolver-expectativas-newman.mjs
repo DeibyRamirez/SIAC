@@ -183,7 +183,7 @@ export function resolverExpectativa(metodo, ruta, op) {
   const esMultipart = Boolean(op.requestBody?.content?.['multipart/form-data']);
   const codigos = Object.keys(op.responses ?? {});
 
-  if (ruta === '/api/v1/almacen-local/*path') {
+  if (ruta === '/api/v1/almacen-local/*' || ruta === '/api/v1/almacen-local/*path') {
     return { status: 200, token: 'tokenAdmin', urlSuffix: 'almacen-local/{{almacenClavePrueba}}' };
   }
 
