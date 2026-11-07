@@ -55,6 +55,7 @@ for (const [k,v] of Object.entries(ids)) if (v!=null && String(v).length) upsert
 fs.writeFileSync(process.argv[3], JSON.stringify(base,null,2));
 " "$ENV" "$FIXTURES" "$ENV_RUN"
 
+cd "$ROOT/postman"
 npx --yes -p newman@6.2.1 -p newman-reporter-htmlextra@1.23.1 newman run "$COL" -e "$ENV_RUN" \
   --delay-request 25 \
   --timeout-request 30000 \

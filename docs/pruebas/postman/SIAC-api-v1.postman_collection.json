@@ -1701,7 +1701,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 }
               ]
             },
@@ -1744,7 +1744,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 },
                 {
                   "key": "nombre",
@@ -2121,7 +2121,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 }
               ]
             },
@@ -2629,7 +2629,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 }
               ]
             },
@@ -2672,7 +2672,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 },
                 {
                   "key": "nombre",
@@ -3342,7 +3342,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 }
               ]
             },
@@ -3979,7 +3979,7 @@
                 {
                   "key": "archivo",
                   "type": "file",
-                  "src": "/agent/repos/SIAC/docs/pruebas/fixtures/newman-evidencia.docx"
+                  "src": "../fixtures/newman-evidencia.docx"
                 },
                 {
                   "key": "titulo",

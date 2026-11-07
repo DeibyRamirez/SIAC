@@ -76,12 +76,6 @@ function scriptsPrueba(status) {
   };
 }
 
-function rutaArchivoNewman(rel) {
-  if (!rel) return rel;
-  if (rel.startsWith('/')) return rel;
-  return path.resolve(__dirname, rel);
-}
-
 function crearPeticion(nombre, metodo, ruta, op) {
   const m = metodo.toLowerCase();
   const exp = resolverExpectativa(m, ruta, op);
@@ -94,7 +88,7 @@ function crearPeticion(nombre, metodo, ruta, op) {
   }
   let body;
   if (exp.multipart) {
-    const formdata = [{ key: 'archivo', type: 'file', src: rutaArchivoNewman(exp.archivo) }];
+    const formdata = [{ key: 'archivo', type: 'file', src: exp.archivo }];
     for (const field of exp.fields ?? []) formdata.push(field);
     if (exp.multipartVacio) formdata.length = 0;
     body = { mode: 'formdata', formdata };
