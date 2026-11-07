@@ -21,6 +21,13 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true
   },
-  "include": ["src/**/*", "prisma/semilla.ts", "prisma/crear-primer-administrador.ts"],
+  "include": [
+    "src/**/*",
+    "prisma/semilla.ts",
+    "prisma/crear-primer-administrador.ts",
+    "prisma/preparar-usuarios-newman.ts",
+    "prisma/preparar-fixtures-newman.ts",
+    "test/utilidades/docx-e2e.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

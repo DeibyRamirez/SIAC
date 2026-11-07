@@ -34,7 +34,9 @@ FRONTEND_COV = {
 JEST_UNIT = "677"
 JEST_SUITES = "78"
 E2E_SUITES = "21"
-E2E_CASES = "95"
+E2E_CASES = "100"
+E2E_CI_RUN = "https://github.com/DeibyRamirez/SIAC/actions/runs/42132532700"
+E2E_CI_SHA = "cc55616"
 VITEST_FILES = "47"
 VITEST_CASES = "279"
 
@@ -53,7 +55,7 @@ REEMPLAZOS: list[tuple[str, str]] = [
     ),
     (
         "Postman / Newman: no se usó. Las pruebas de API están automatizadas con supertest (mismas peticiones HTTP, ejecutadas en el CI)",
-        "Postman / Newman: colección en docs/pruebas/postman/ + script docs/pruebas/ejecutar-newman.sh (reporte JSON en docs/pruebas/newman/). En CI siguen las E2E supertest",
+        "Postman / Newman: colección docs/pruebas/postman/SIAC-api-v1.postman_collection.json + ejecutar-newman.sh (HTML/JSON sanitizados). En CI siguen las E2E supertest",
     ),
     (
         "JMeter / k6: [PENDIENTE: no ejecutadas]",
@@ -73,7 +75,7 @@ REEMPLAZOS: list[tuple[str, str]] = [
     ),
     (
         "No hay colección de Postman ni reporte de Newman: el equipo automatizó las mismas peticiones con supertest (Backend/test/e2e, 18 suites, 87 casos) y se ejecutan en el CI. Reporte de la corrida del 29/10/2026: log be-e2e (18/18 suites, 87/87 casos). [PENDIENTE: decidir si se exporta una colección de Postman para cumplir la plantilla]",
-        f"Colección Postman versionada (docs/pruebas/postman/SIAC-principal.postman_collection.json) con casos de error por endpoint. Newman: [PENDIENTE: ejecutar ./docs/pruebas/ejecutar-newman.sh con PostgreSQL + API local; sin Docker en el entorno del agente no se generó newman-report.json]. E2E supertest: {E2E_SUITES} suites / {E2E_CASES} casos (CI .github/workflows/ci.yml).",
+        f"Colección Postman SIAC-api-v1 (108 operaciones OpenAPI, matriz en postman/COBERTURA-SWAGGER.md). Newman: docs/pruebas/reporte-newman.json y reporte-newman.html (sanitizados). E2E supertest: {E2E_SUITES} suites / {E2E_CASES} casos — CI verde {E2E_CI_SHA} ({E2E_CI_RUN}).",
     ),
     (
         "[PENDIENTE: no se ejecutaron pruebas de carga con JMeter/k6]",
