@@ -159,12 +159,25 @@ export function RejillaProgramas({
                 inactivo && 'opacity-65',
               )}
             >
-              <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-4">
-                <ImagenPrograma
-                  url={programa.urlImagen ?? undefined}
-                  titulo={titulo}
-                  prioridad={indice === 0}
-                />
+              <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-2">
+                <div className="mx-auto mt-4 w-full max-w-[300px] overflow-hidden rounded-xl bg-accent">
+                  {programa.urlImagen ? (
+                    <Image
+                      src={programa.urlImagen}
+                      alt={programa.nombre}
+                      width={0}
+                      height={0}
+                      sizes="140px"
+                      className="h-auto w-full"
+                      style={{ width: '100%', height: 'auto' }}
+                      priority={indice === 0}
+                    />
+                  ) : (
+                    <div className="flex aspect-[4/3] items-center justify-center bg-primary/10 py-8 text-xs font-bold text-primary">
+                      {obtenerInicialesPrograma(programa.nombre)}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -305,7 +318,7 @@ export function RejillaProgramas({
                           'inline-flex w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold',
                           clasesBadgeEstadoProceso(
                             'anexoInfraestructuraVencido' in programa &&
-                              Boolean(programa.anexoInfraestructuraVencido),
+                            Boolean(programa.anexoInfraestructuraVencido),
                             'avancePorcentual' in programa
                               ? programa.avancePorcentual
                               : programa.porcentajeAvance,
