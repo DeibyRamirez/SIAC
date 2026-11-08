@@ -1,11 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { OrigenDato, PrismaClient, RolUsuario } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.service';
-import { resolverClavesSemilla } from '../../src/common/config/claves-semilla';
 import { esHostDesechable, hostDeUrlBaseDatos } from '../../src/common/config/host-base-datos';
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.module';
 import { AlmacenamientoMemoria } from './almacenamiento-memoria';
 import { CorreoMemoriaProveedor } from './correo-memoria';
@@ -13,23 +14,72 @@ import { CorreoNuloProveedor } from '../../src/correo/correo-nulo.proveedor';
 import { PROVEEDOR_CORREO } from '../../src/correo/proveedor-correo.port';
 
 /**
- * Credenciales de prisma/semilla.ts (solo existen en BD locales o de CI). Las contraseñas se
- * resuelven igual que en la semilla: SEMILLA_CLAVE_* o, si faltan, las claves de desarrollo.
+ * Cuentas de las E2E. No vienen de la semilla ni de una contraseña escrita en el repo:
+ * `crearAppE2E` las crea en la BD desechable con esta clave, generada al cargar el módulo.
  */
-const CLAVES_SEMILLA = resolverClavesSemilla(process.env);
+const CLAVE_PRUEBA = randomBytes(18).toString('base64url');
 
 export const USUARIOS_SEMILLA = {
-  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Cargador },
-  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: CLAVES_SEMILLA.Revisor },
+  Cargador: { correo: 'maria.cargadora@uniautonoma.edu.co', contrasena: CLAVE_PRUEBA },
+  Revisor: { correo: 'revisor.calidad@uniautonoma.edu.co', contrasena: CLAVE_PRUEBA },
   Administrador: {
     correo: 'admin.planeacion@uniautonoma.edu.co',
-    contrasena: CLAVES_SEMILLA.Administrador,
+    contrasena: CLAVE_PRUEBA,
   },
   SuperAdmin: {
     correo: 'superadmin@uniautonoma.edu.co',
-    contrasena: CLAVES_SEMILLA.SuperAdmin,
+    contrasena: CLAVE_PRUEBA,
   },
 } as const;
+
+const FILAS_USUARIOS_PRUEBA: Array<{
+  nombre: string;
+  correo: string;
+  rol: RolUsuario;
+  cargo: string;
+  dependencia: string;
+}> = [
+  {
+    nombre: 'María Cortés',
+    correo: USUARIOS_SEMILLA.Cargador.correo,
+    rol: RolUsuario.Cargador,
+    cargo: 'Docente',
+    dependencia: 'Ingeniería de Sistemas',
+  },
+  {
+    nombre: 'Laura Ramírez',
+    correo: USUARIOS_SEMILLA.Revisor.correo,
+    rol: RolUsuario.Revisor,
+    cargo: 'Profesional de Planeación',
+    dependencia: 'Planeación',
+  },
+  {
+    nombre: 'Oscar Alvarado',
+    correo: USUARIOS_SEMILLA.Administrador.correo,
+    rol: RolUsuario.Administrador,
+    cargo: 'Director de Planeación',
+    dependencia: 'Planeación',
+  },
+  {
+    nombre: 'Ana SuperAdmin',
+    correo: USUARIOS_SEMILLA.SuperAdmin.correo,
+    rol: RolUsuario.SuperAdmin,
+    cargo: 'Super Administrador TI',
+    dependencia: 'Planeación',
+  },
+];
+
+/** Solo después de `verificarBaseDeDatosDesechable`. Reescribe la clave para que coincida con este proceso. */
+async function asegurarUsuariosPrueba(prisma: PrismaService): Promise<void> {
+  const contrasena = await bcrypt.hash(CLAVE_PRUEBA, 4);
+  for (const datos of FILAS_USUARIOS_PRUEBA) {
+    await prisma.usuario.upsert({
+      where: { correo: datos.correo },
+      update: { contrasena, activo: true },
+      create: { ...datos, contrasena, origenDato: OrigenDato.Manual },
+    });
+  }
+}
 
 export interface ContextoE2E {
   app: INestApplication;
@@ -108,9 +158,14 @@ export async function crearAppE2E(opciones: OpcionesAppE2E = {}): Promise<Contex
 
   // Con RLS, la API corre como siac_app (DATABASE_URL). Los datos de prueba se preparan y se
   // verifican con el dueño de la BD (DIRECT_URL), que no está sujeto a la RLS.
+  const urlDueno = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '';
+  if (!esHostDesechable(hostDeUrlBaseDatos(urlDueno))) {
+    throw new Error('Las cuentas de prueba solo se crean en una BD local o de CI.');
+  }
   const prisma = new PrismaClient({
-    datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+    datasourceUrl: urlDueno,
   }) as unknown as PrismaService;
+  await asegurarUsuariosPrueba(prisma);
   const cerrarApp = app.close.bind(app);
   app.close = async () => {
     await cerrarApp();
@@ -132,8 +187,8 @@ export async function iniciarSesion(
 }
 
 /**
- * Deja la BD como después de `migrate deploy` + semilla: borra datos de negocio creados
- * por las pruebas y conserva usuarios semilla, institución y catálogo de trámites.
+ * Borra datos de negocio creados por las pruebas y conserva los usuarios de prueba,
+ * la institución y el catálogo de trámites.
  */
 export async function limpiarDatosNegocio(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(`

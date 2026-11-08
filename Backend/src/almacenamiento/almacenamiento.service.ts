@@ -340,6 +340,12 @@ export class AlmacenamientoService {
 
 
 
+  existeArchivoLocal(clave: string): boolean {
+    if (!this.usarLocal) return false;
+    const ruta = clave.startsWith(this.rutaLocal) ? clave : join(this.rutaLocal, clave);
+    return existsSync(ruta);
+  }
+
   crearStreamDescarga(clave: string) {
 
     if (this.usarLocal) {

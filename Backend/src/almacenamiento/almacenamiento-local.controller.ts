@@ -19,7 +19,7 @@ import { ApiContrato, MIME_DOCX_SIAC } from '../openapi/api-contrato';
 export class AlmacenamientoLocalController {
   constructor(private readonly almacenamiento: AlmacenamientoService) {}
 
-  @Get('*path')
+  @Get('*')
   @ApiContrato({
     resumen: 'Sirve un archivo del disco local',
     roles: ['autenticado'],
@@ -44,6 +44,10 @@ export class AlmacenamientoLocalController {
     const clave = decodeURIComponent(rutaCompleta.slice(prefijo.length));
     if (!clave || clave.includes('..')) {
       throw new ForbiddenException('Clave de archivo no permitida.');
+    }
+
+    if (!this.almacenamiento.existeArchivoLocal(clave)) {
+      throw new NotFoundException('Archivo no encontrado.');
     }
 
     const tipo = this.almacenamiento.resolverTipoBucketDesdeClave(clave);

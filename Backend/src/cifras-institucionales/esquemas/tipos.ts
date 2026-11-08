@@ -30,7 +30,7 @@ export interface EsquemaCategoriaCifras {
   categoriaId: string;
   hoja: string | null;
   titulo: string;
-  /** Clave de reemplazo del lote: periodo académico, periodo de graduación, periodo o sede. */
+  /** Clave de reemplazo del lote: periodo académico, periodo de graduación o sede. */
   claveReemplazo: string;
   columnas: readonly ColumnaEsquemaCifras[];
 }

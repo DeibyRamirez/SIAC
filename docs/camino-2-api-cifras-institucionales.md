@@ -20,10 +20,10 @@ Cuando TI conecte el dataset, Power BI lee las vistas `v_powerbi_*` con el rol `
 | `investigacion` | `investigacion` | `periodo_academico` |
 | `aseguramiento` | `aseguramiento` | `periodo_academico` |
 | `infraestructura` | `infraestructura` | `sede` |
-| `bienestar` | no está en el xlsx | `periodo` (clave/valor) |
-| `relaciones-entorno` | no está en el xlsx | `periodo` (clave/valor) |
+| `bienestar` | no está en el xlsx | `periodo_academico` |
+| `relaciones-entorno` | no está en el xlsx | `periodo_academico` |
 
-`bienestar` y `relaciones-entorno` usan `clave`, `periodo`, `facultad`, `dimension`, `valor_dimension` (texto) y `valor` (número). El periodo puede ir en el cuerpo del lote y se copia a las filas que no lo traen.
+`bienestar` usa `periodo_academico`, `facultad`, `programa`, `genero`, `linea_bienestar`, `servicio`, `beneficiarios` y `valor_invertido_cop`. `relaciones-entorno` usa `periodo_academico`, `facultad`, `programa`, `tipo_relacion`, `aliado`, `sector_aliado`, `ambito`, `fecha_inicio`, `fecha_fin` y `estudiantes_participantes`. El periodo puede ir en el cuerpo del lote y se copia a las filas que no lo traen.
 
 La plantilla escribe `falcultad` y `cantidad estudianes`. La API acepta esas erratas y las guarda como `facultad` y `cantidad_estudiantes`.
 
@@ -63,7 +63,7 @@ Los envíos y las lecturas usan la cabecera `x-api-key`. Límite: 30 POST y 120 
 
 ## Cómo probarlo
 
-La API local escucha en el puerto 3001. Sustituya la contraseña del SuperAdmin por la de su entorno (en desarrollo, la de `SEMILLA_CLAVE_SUPERADMIN` o la clave de desarrollo de la semilla).
+La API local escucha en el puerto 3001. Sustituya la contraseña por la del SuperAdmin de su entorno (`pnpm prisma:primer-admin` si la base aún no tiene usuarios). No hay contraseña de demostración en el repositorio.
 
 ```bash
 # 1. Token de SuperAdmin
@@ -106,11 +106,13 @@ curl -s -X POST http://localhost:3001/api/v1/integracion/cifras-institucionales/
   -d '{
     "periodo": "2026-1",
     "registros": [{
-      "clave": "participantes_programa_x",
       "facultad": "Facultad de Ingeniería",
-      "dimension": "vinculacion",
-      "valor_dimension": "convenio",
-      "valor": 120
+      "programa": "Ingeniería de Sistemas",
+      "genero": "Femenino",
+      "linea_bienestar": "Salud",
+      "servicio": "Consulta médica",
+      "beneficiarios": 120,
+      "valor_invertido_cop": 1500000
     }]
   }'
 ```
@@ -123,9 +125,10 @@ Un lote con `genero` fuera de `Femenino`, `Masculino`, `No binario` o `No inform
 
 ## Migración
 
-Aplicar `Backend/prisma/migrations/20261103160000_camino_2_cifras_institucionales` (`pnpm prisma:deploy` en `Backend/`). Crea `Integrador`, las ocho tablas de cifras, la RLS, las funciones de la clave y las ocho vistas `v_powerbi_*`.
+Aplicar `Backend/prisma/migrations/20261103160000_camino_2_cifras_institucionales` y `20261105130000_cifras_bienestar_relacion_entorno` (`pnpm prisma:deploy` en `Backend/`). La primera crea `Integrador`, las ocho tablas de cifras, la RLS, las funciones de la clave y las ocho vistas `v_powerbi_*`. La segunda sustituye el modelo clave/valor de bienestar y relaciones con el entorno.
 
 ## Historial
 
+- **2026-11-05:** `CifraBienestar` y `CifraRelacionEntorno` pasan de clave/valor a columnas de negocio (`periodo_academico`, programa, etc.).
 - **2026-11-03:** implementación en Postgres. Reemplaza la opción B1 del ADR-010.
 - **2026-10-13:** contrato inicial y retirada del módulo `/api/v1/cifras`.

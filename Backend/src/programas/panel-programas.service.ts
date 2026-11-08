@@ -32,6 +32,7 @@ import { calcularSemaforo } from './programas.service';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
 import { CatalogoCuacPersistenciaService } from '../integracion/catalogo-cuac-persistencia.service';
 import { RevalidadorCatalogoCuacService } from '../integracion/revalidador-catalogo-cuac.service';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 import { enriquecerFilaDesdePersistencia } from '../integracion/cruzar-programa-carrera';
 
 export interface DocumentoPanelDto {
@@ -111,6 +112,7 @@ export class PanelProgramasService implements OnModuleInit {
     private readonly configuracion: ConfiguracionSiacService,
     private readonly catalogoCuac: CatalogoCuacPersistenciaService,
     private readonly revalidadorCuac: RevalidadorCatalogoCuacService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
   ) {}
 
   /**
@@ -142,6 +144,26 @@ export class PanelProgramasService implements OnModuleInit {
   }
 
   async listarPanel(
+    query: ConsultaPanelProgramasDto,
+    usuario: UsuarioAlcance,
+  ): Promise<RespuestaPanelDto> {
+    const clave = this.cacheConsultas.clavePanel(query, usuario);
+    const cacheada = this.cacheConsultas.leerPanel<RespuestaPanelDto>(clave);
+    if (cacheada) {
+      return {
+        ...cacheada,
+        catalogoCuac: cacheada.catalogoCuac
+          ? { ...cacheada.catalogoCuac, revalidando: this.revalidadorCuac.estaRevalidando() }
+          : undefined,
+      };
+    }
+
+    const respuesta = await this.calcularPanel(query, usuario);
+    this.cacheConsultas.guardarPanel(clave, respuesta);
+    return respuesta;
+  }
+
+  private async calcularPanel(
     query: ConsultaPanelProgramasDto,
     usuario: UsuarioAlcance,
   ): Promise<RespuestaPanelDto> {
@@ -208,43 +230,39 @@ export class PanelProgramasService implements OnModuleInit {
     query: ConsultaPanelProgramasDto,
     usuario: UsuarioAlcance,
   ): Promise<RespuestaPanelDto> {
-    this.revalidadorCuac.dispararRevalidacionEnSegundoPlano();
-
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = await this.filtroProgramas(usuario, query);
     const paginarEnBd = !query.semaforo;
 
-    const [totalBd, programas, metaBase] = await Promise.all([
-      this.prisma.programa.count({ where }),
-      this.prisma.programa.findMany({
-        where,
-        orderBy: { nombre: 'asc' },
-        ...(paginarEnBd ? { skip: (page - 1) * limit, take: limit } : {}),
-        select: {
-          id: true,
-          nombre: true,
-          tituloCuac: true,
-          codigo: true,
-          codigoCu: true,
-          codigoSnies: true,
-          nivel: true,
-          modalidad: true,
-          facultad: true,
-          duracionCuac: true,
-          creditosCuac: true,
-          resolucionCuac: true,
-          fechaResolucionCuac: true,
-          imagenSlugCuac: true,
-          tipoTramiteActivo: true,
-          fechaResolucion: true,
-          inicioCicloTramiteAt: true,
-          activo: true,
-          urlImagen: true,
-        },
-      }),
-      this.catalogoCuac.obtenerMetadatosPanel(),
-    ]);
+    const totalBd = await this.prisma.programa.count({ where });
+    const programas = await this.prisma.programa.findMany({
+      where,
+      orderBy: { nombre: 'asc' },
+      ...(paginarEnBd ? { skip: (page - 1) * limit, take: limit } : {}),
+      select: {
+        id: true,
+        nombre: true,
+        tituloCuac: true,
+        codigo: true,
+        codigoCu: true,
+        codigoSnies: true,
+        nivel: true,
+        modalidad: true,
+        facultad: true,
+        duracionCuac: true,
+        creditosCuac: true,
+        resolucionCuac: true,
+        fechaResolucionCuac: true,
+        imagenSlugCuac: true,
+        tipoTramiteActivo: true,
+        fechaResolucion: true,
+        inicioCicloTramiteAt: true,
+        activo: true,
+        urlImagen: true,
+      },
+    });
+    const metaBase = await this.catalogoCuac.obtenerMetadatosPanel();
 
     const meta: MetadatosPanelCatalogoDto = {
       ...metaBase,
@@ -259,33 +277,30 @@ export class PanelProgramasService implements OnModuleInit {
     const ids = programas.map((p) => p.id);
     const guiasPrograma = [CodigoDocumentoGuia.G1, CodigoDocumentoGuia.G2];
 
-    const [anexos, evidencias] = await Promise.all([
-      this.prisma.anexoVigencia
-        .findMany({
-          where: { programaId: { in: ids } },
-          select: { programaId: true, estado: true, categoria: true, fechaVencimiento: true },
-        })
-        // R-D 3e: estado calculado al consultar; no depende del cron de las 6:00.
-        .then((filas) => filas.map((anexo) => conEstadoCalculado(anexo))),
-      this.prisma.evidencia.findMany({
-        where: {
-          programaId: { in: ids },
-          codigoGuia: { in: guiasPrograma },
-          estado: { in: this.estadosRevisados() },
-        },
-        select: {
-          programaId: true,
-          codigoGuia: true,
-          estado: true,
-          puntajeActual: true,
-          totalCondicionesActual: true,
-          updatedAt: true,
-          createdAt: true,
-          periodo: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      }),
-    ]);
+    const anexos = await this.prisma.anexoVigencia
+      .findMany({
+        where: { programaId: { in: ids } },
+        select: { programaId: true, estado: true, categoria: true, fechaVencimiento: true },
+      })
+      .then((filas) => filas.map((anexo) => conEstadoCalculado(anexo)));
+    const evidencias = await this.prisma.evidencia.findMany({
+      where: {
+        programaId: { in: ids },
+        codigoGuia: { in: guiasPrograma },
+        estado: { in: this.estadosRevisados() },
+      },
+      select: {
+        programaId: true,
+        codigoGuia: true,
+        estado: true,
+        puntajeActual: true,
+        totalCondicionesActual: true,
+        updatedAt: true,
+        createdAt: true,
+        periodo: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
 
     const anexosPorPrograma = this.agrupar(anexos, (a) => a.programaId);
     const inicioCicloPorPrograma = new Map(programas.map((p) => [p.id, p.inicioCicloTramiteAt]));

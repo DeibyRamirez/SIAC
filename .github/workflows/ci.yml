@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: Backend
     services:
-      # BD efímera solo para CI: valida las migraciones y la semilla desde cero.
+      # BD efímera solo para CI: valida las migraciones desde cero. Las cuentas de prueba las crea el E2E.
       postgres:
         image: postgres:16
         env:
@@ -68,8 +68,6 @@ jobs:
             --to-schema-datamodel prisma/schema.prisma \
             --shadow-database-url postgresql://postgres@localhost:5432/siac_shadow \
             --exit-code
-      - name: Ejecutar la semilla (solo usuarios, uno por rol)
-        run: pnpm prisma:seed
       - name: Pruebas del backend
         run: pnpm exec jest --runInBand
       - name: Habilitar el login de los roles de RLS (solo CI, contraseñas desechables)
@@ -84,6 +82,46 @@ jobs:
         run: pnpm test:e2e
       - name: Build del backend
         run: pnpm build
+      - name: Preparar usuarios para Newman (BD efímera, sin secretos en el repo)
+        env:
+          NEWMAN_CLAVE_PRUEBA: ci-newman-clave-desechable-16
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
+        run: pnpm prisma:seed && pnpm prisma:usuarios-newman && pnpm prisma:fixtures-newman
+      - name: Newman — colección Postman /api/v1 (localhost, sin Supabase)
+        working-directory: ${{ github.workspace }}
+        env:
+          DATABASE_URL: postgresql://siac_app:ci-siac-app@localhost:5432/siac
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
+          JWT_SECRETO: ci-only-not-for-production
+          S3_USAR_ALMACEN_LOCAL: "true"
+          CARRERAS_SYNC_HABILITADO: "false"
+          CORREO_CANAL: ninguno
+          NODE_ENV: development
+          PUERTO: "3001"
+          NEWMAN_CLAVE_PRUEBA: ci-newman-clave-desechable-16
+          NEWMAN_BASE_URL: http://127.0.0.1:3001/api/v1
+        run: |
+          cd Backend
+          node dist/src/main.js &
+          API_PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3001/api/v1/salud >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3001/api/v1/salud
+          cd "${GITHUB_WORKSPACE}"
+          chmod +x docs/pruebas/ejecutar-newman.sh docs/pruebas/verificar-destino-newman.sh
+          ./docs/pruebas/ejecutar-newman.sh
+          kill "$API_PID" || true
+      - name: Publicar reportes Newman (sanitizados)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-f05-${{ github.sha }}
+          path: |
+            docs/pruebas/reporte-newman.json
+            docs/pruebas/reporte-newman.html
+          if-no-files-found: warn
 
   frontend:
     name: Frontend CI

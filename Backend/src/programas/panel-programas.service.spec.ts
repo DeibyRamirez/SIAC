@@ -46,6 +46,11 @@ function crearServicio(
       ),
     },
   };
+  const cacheConsultas = {
+    clavePanel: jest.fn().mockReturnValue('panel:test'),
+    leerPanel: jest.fn().mockReturnValue(null),
+    guardarPanel: jest.fn(),
+  };
   const servicio = new PanelProgramasService(
     prisma as never,
     {} as never,
@@ -61,7 +66,8 @@ function crearServicio(
         modalidades: [],
       }),
     } as never,
-    { dispararRevalidacionEnSegundoPlano: jest.fn(), estaRevalidando: () => false } as never,
+    { estaRevalidando: () => false } as never,
+    cacheConsultas as never,
   );
   return { servicio, prisma };
 }

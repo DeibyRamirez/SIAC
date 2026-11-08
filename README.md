@@ -44,7 +44,7 @@ Luego:
 pnpm install
 pnpm prisma:generate
 pnpm prisma:deploy   # migraciones (incluyen catálogo de trámites G1–G4 e institución CUAC)
-pnpm prisma:seed     # solo 5 usuarios, uno por rol
+pnpm prisma:seed     # solo asegura ConfiguracionSIAC; no crea usuarios
 pnpm start:dev
 ```
 
@@ -54,11 +54,11 @@ una BD local**: aborta si `DATABASE_URL`/`DIRECT_URL` apuntan a un host que no s
 contra una BD remota hay que declarar `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal. Render no
 usa este script: aplica las migraciones con `start:despliegue`.
 
-La base arranca sin programas, evidencias, plantillas ni vigencias de ejemplo. Tras iniciar sesión
-como Administrador (`admin.planeacion@uniautonoma.edu.co`, con la contraseña definida en
-`SEMILLA_CLAVE_ADMINISTRADOR` de `Backend/.env`; ver `Backend/.env.example`) se crean los programas
-(o se sincronizan por CSV) y se suben las plantillas `.docx` desde la Biblioteca de plantillas;
-quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
+La base arranca sin usuarios, programas, evidencias, plantillas ni vigencias de ejemplo. El primer
+SuperAdmin se crea una vez con `pnpm prisma:primer-admin` (variables `PRIMER_ADMIN_*` en la terminal,
+sin contraseña en el repositorio; ver `docs/despliegue.md`). Con esa sesión se crean los demás roles,
+los programas (o se sincronizan por CSV) y se suben las plantillas `.docx` desde la Biblioteca de
+plantillas; quedan en el bucket `plantillas` de Supabase Storage y se descargan desde ahí.
 
 ## Si la terminal va lenta, ejecute esto antes de `pnpm start:dev`:
 

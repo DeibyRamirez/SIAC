@@ -126,11 +126,18 @@ describe('ProgramasService', () => {
     calcularProgresoProgramas: jest.fn(),
   };
   const configuracion = { obtener: jest.fn().mockReturnValue({ aniosVigencia: 7, mesesAvisoVigencia: 12 }) };
+  const cacheConsultas = {
+    claveListado: jest.fn().mockReturnValue('listado:test'),
+    leerListado: jest.fn().mockReturnValue(null),
+    guardarListado: jest.fn(),
+    invalidarTodo: jest.fn(),
+  } as unknown as import('../integracion/cache-consultas-programas.service').CacheConsultasProgramasService;
   const servicio = new ProgramasService(
     programaRepo as unknown as ProgramaRepositorio,
     alcance as unknown as ServicioAlcancePrograma,
     avanceProceso as unknown as AvanceProcesoSIACService,
     configuracion as never,
+    cacheConsultas as never,
   );
 
   const programa = {

@@ -56,11 +56,13 @@ describe('ResolucionMenService', () => {
   };
   const avance = { calcularProgresoPrograma: jest.fn(), calcularProgresoInstitucion: jest.fn() };
   const configuracion = { obtener: () => UMBRALES_SEMAFORO_DEFECTO };
+  const cacheConsultas = { invalidarTodo: jest.fn() };
   const servicio = new ResolucionMenService(
     prisma as never,
     almacenamiento as never,
     avance as never,
     configuracion as never,
+    cacheConsultas as never,
   );
   const dto = { numero: '12345', fechaResolucion: '2020-03-01' };
   const usuario = { id: 'admin' };

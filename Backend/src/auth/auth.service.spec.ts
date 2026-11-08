@@ -68,14 +68,14 @@ describe('AuthService', () => {
     } as never);
 
     (bcrypt.compare as jest.Mock).mockImplementation(
-      (plain: string) => Promise.resolve(plain === 'Cargador2026'),
+      (plain: string) => Promise.resolve(plain === 'clave-de-prueba'),
     );
   });
 
   it('debe emitir JWT con credenciales válidas', async () => {
     const resultado = await authService.iniciarSesion({
       correo: 'maria.cargadora@uniautonoma.edu.co',
-      contrasena: 'Cargador2026',
+      contrasena: 'clave-de-prueba',
     });
 
     expect(resultado.token).toBe('token-jwt-test');
@@ -114,7 +114,7 @@ describe('AuthService', () => {
     });
 
     await expect(
-      authService.iniciarSesion({ correo: 'inactiva@uniautonoma.edu.co', contrasena: 'Cargador2026' }),
+      authService.iniciarSesion({ correo: 'inactiva@uniautonoma.edu.co', contrasena: 'clave-de-prueba' }),
     ).rejects.toThrow('Usuario inactivo');
   });
 
@@ -132,7 +132,7 @@ describe('AuthService', () => {
   it('pasa el correo normalizado al repositorio (consulta parametrizada)', async () => {
     await authService.iniciarSesion({
       correo: '  Maria.Cargadora@uniautonoma.edu.co  ',
-      contrasena: 'Cargador2026',
+      contrasena: 'clave-de-prueba',
     });
 
     expect(usuarioRepo.buscarParaLogin).toHaveBeenCalledWith('maria.cargadora@uniautonoma.edu.co');
@@ -142,7 +142,7 @@ describe('AuthService', () => {
     await ejecutarConContextoVacio(async () => {
       await authService.iniciarSesion({
         correo: 'maria.cargadora@uniautonoma.edu.co',
-        contrasena: 'Cargador2026',
+        contrasena: 'clave-de-prueba',
       });
       expect(contextoRlsActual()).toEqual({ usuarioId: 'usr-1', rol: RolUsuario.Cargador });
     });

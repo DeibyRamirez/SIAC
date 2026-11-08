@@ -11,9 +11,7 @@ import {
 import { useRouter } from 'next/navigation'
 
 import {
-  autenticarUsuario,
   cerrarSesionLocal,
-  crearSesion,
   etiquetaRol,
   guardarSesionLocal,
   leerSesionLocal,
@@ -92,19 +90,7 @@ export function ProveedorSesion({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const usuario = autenticarUsuario(correo, contrasena)
-      if (!usuario) {
-        if (!correo.trim().toLowerCase().endsWith('@uniautonoma.edu.co')) {
-          return 'Solo se permiten cuentas @uniautonoma.edu.co.'
-        }
-        return 'Credenciales inválidas. Verifica correo y contraseña.'
-      }
-
-      const nuevaSesion = crearSesion(usuario)
-      guardarSesionLocal(nuevaSesion)
-      setSesion(nuevaSesion)
-      router.replace(rutaInicioPorRol(nuevaSesion.rol))
-      return null
+      return 'El inicio de sesión requiere la API institucional.'
     },
     [router, usarApi],
   )

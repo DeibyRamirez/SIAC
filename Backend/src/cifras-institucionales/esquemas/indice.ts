@@ -1,5 +1,6 @@
 import { ESQUEMA_ASEGURAMIENTO } from './esquema-aseguramiento';
-import { ESQUEMA_BIENESTAR, ESQUEMA_RELACIONES_ENTORNO } from './esquema-clave-valor';
+import { ESQUEMA_BIENESTAR } from './esquema-bienestar';
+import { ESQUEMA_RELACIONES_ENTORNO } from './esquema-relaciones-entorno';
 import { ESQUEMA_EGRESADOS } from './esquema-egresados';
 import { ESQUEMA_ESTUDIANTES } from './esquema-estudiantes';
 import { ESQUEMA_INFRAESTRUCTURA } from './esquema-infraestructura';

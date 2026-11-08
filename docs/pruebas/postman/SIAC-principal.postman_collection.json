@@ -1,0 +1,8 @@
+{
+  "info": {
+    "name": "DEPRECADO — usar SIAC-api-v1.postman_collection.json",
+    "description": "Colección mínima histórica del PR #24. La cobertura completa está en SIAC-api-v1.postman_collection.json (generada desde openapi.json).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": []
+}

@@ -7,6 +7,7 @@ import {
 } from '../dominio/panel-siac';
 import { ActualizarUmbralesVigenciaDto } from './dto/actualizar-umbrales-vigencia.dto';
 import { ejecutarComoSistema } from '../prisma/contexto-sistema';
+import { CacheConsultasProgramasService } from '../integracion/cache-consultas-programas.service';
 
 /**
  * T-010.2 (R-010.2a): umbrales del semáforo leídos de la tabla `ConfiguracionSIAC`.
@@ -19,7 +20,10 @@ export class ConfiguracionSiacService {
   private readonly logger = new Logger(ConfiguracionSiacService.name);
   private umbrales: UmbralesSemaforo = UMBRALES_SEMAFORO_DEFECTO;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheConsultas: CacheConsultasProgramasService,
+  ) {}
 
   async cargar(): Promise<UmbralesSemaforo> {
     return ejecutarComoSistema(async () => {
@@ -85,6 +89,7 @@ export class ConfiguracionSiacService {
       },
     });
     this.umbrales = propuestos;
+    this.cacheConsultas.invalidarTodo();
     this.logger.log(
       `Umbrales de vigencia actualizados por el usuario ${usuarioId ?? 'desconocido'}: ` +
         `mesesAvisoVigencia ${actuales.mesesAvisoVigencia} → ${propuestos.mesesAvisoVigencia}, ` +

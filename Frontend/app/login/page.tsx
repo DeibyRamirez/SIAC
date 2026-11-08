@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { TarjetaCredencialesDemo } from '@/components/auth/tarjeta-credenciales-demo'
 import { InputContrasenaConOjo } from '@/components/ui/input-contrasena'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { rutaInicioPorRol } from '@/lib/auth-mock'
@@ -72,8 +71,8 @@ export default function PaginaLogin() {
 
   return (
     <div className="fondo-app min-h-screen px-4 py-10">
-      <div className="mx-auto flex max-w-5xl flex-col items-start justify-center gap-8 lg:flex-row lg:items-center">
-        <div className="tarjeta-visual mx-auto w-full max-w-[420px] shrink-0 overflow-hidden bg-white">
+      <div className="mx-auto flex max-w-[420px] justify-center">
+        <div className="tarjeta-visual w-full overflow-hidden bg-white">
           <div className="bg-gradient-to-r from-primary to-cyan-tecnico px-8 py-4 text-center">
             <p className="text-xs font-bold tracking-[0.2em] text-white/80 uppercase">Sistema SIAC</p>
             <p className="text-sm font-extrabold text-white">Calidad académica CUAC</p>
@@ -172,8 +171,6 @@ export default function PaginaLogin() {
             </button>
           </div>
         </div>
-
-        <TarjetaCredencialesDemo />
       </div>
 
       <footer className="footer-institucional mt-10">

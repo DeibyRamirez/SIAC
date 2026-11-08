@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-11-04 |
+| **Última actualización** | 2026-11-05 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -414,6 +414,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [ ] Columnas `semaforo` y `porcentajeAvance` en BD (legacy; ya no se persisten al dictaminar)
 - [x] ~~INF-02 Baseline Supabase remoto~~ — cancelado; flujo local `docker compose` + `pnpm prisma:deploy`
 - [x] ~~INF-01/03 buckets y semilla remota~~ — almacen local + semilla solo usuarios
+- [x] Semilla de roles retirada (2026-11-05): `migrate deploy` y `prisma:seed` no crean usuarios; el login no publica contraseñas; el primer SuperAdmin es `pnpm prisma:primer-admin`
 
 ### Estado anterior (2026-09-17)
 
@@ -487,70 +488,19 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 
 ## 10. Registro de cambios
 
-### 2026-11-04 — Power BI: enlaces seguros reportEmbed
+### 2026-11-05 — Sin cuentas de demostración por rol
 
-- [Backend/Frontend] `ConfiguracionInformePowerBi` y el panel del dashboard aceptan, además de `https://app.powerbi.com/view?r=`, enlaces `https://app.powerbi.com/reportEmbed` con `reportId` y `ctid` (GUID), `groupId` opcional y `autoAuth` opcional (`true`). Se rechazan otros hosts, puertos, userinfo, esquemas y parámetros.
-- [Frontend] El iframe distingue el aviso público de «Publicar en la web» y el aviso de inicio de sesión de Microsoft para reportEmbed.
-- [Frontend] CSP `frame-src` suma `login.microsoftonline.com`, sus subdominios, `login.microsoft.com`, `*.msauth.net` y `*.msftauth.net` para que el login quepa en el iframe. El backend no usa Helmet.
-- [Sin prisma:deploy] No hay cambio de esquema.
+- [Frontend] El login ya no muestra «Accesos de demostración SIAC». Se eliminaron `usuarios.ts` y el ingreso local que comparaba contraseñas de demostración.
+- [Backend] `prisma:seed` solo asegura `ConfiguracionSIAC`. No crea usuarios. Se retiraron `SEMILLA_CLAVE_*` y las claves de desarrollo del código. El CI ya no ejecuta la semilla de cuentas.
+- [Backend] El primer SuperAdmin se crea a mano con `pnpm prisma:primer-admin` (variables de la terminal, sin clave en el repositorio). Aborta si ya hay usuarios. No lo llaman las migraciones ni `start:despliegue`.
+- [Sin prisma:deploy] No hay migración nueva. Las migraciones ya aplicadas no se reescribieron. Institución, trámites y umbrales siguen insertándose ahí. Las cuentas que ya existan en Supabase no se borran: hay que rotarlas o eliminarlas en el panel si se crearon con la semilla anterior.
 
-### 2026-11-03 — Camino 2: API de cifras institucionales en Postgres
+### 2026-11-04 — API pública de programas CUAC (repo externo)
 
-- [Decisión] ADR-010: el almacén es Postgres. Reemplaza la opción B1 (escribir el Excel) por concurrencia, transacciones y el GET. El xlsx queda como fuente de validación. `bienestar` y `relaciones-entorno` no tienen hoja: usan clave/valor.
-- [BD] Migración `20261103160000_camino_2_cifras_institucionales`: `Integrador` (hash SHA-256), ocho tablas de cifras, RLS, funciones `siac.integradores_activos` y `siac.marcar_uso_integrador`, y vistas `v_powerbi_*` con `GRANT SELECT` solo para `siac_powerbi_lectura`. Sin columnas personales en esas vistas.
-- [Backend] `POST/GET /api/v1/integracion/cifras-institucionales/:categoria` con `x-api-key`, reemplazo transaccional del periodo o de la sede, y claves solo para SuperAdmin. Tope 5.000 filas y tasa 30 POST / 120 GET por minuto.
-- [Frontend] Sección de SuperAdmin para crear, listar y revocar claves. La clave se muestra una sola vez.
-
-### 2026-11-03 — Periodos académicos: formato, Bogotá y conservación histórica
-
-- [Backend] `periodo` de alta y actualización exige `AAAA-1` o `AAAA-2`. La ingesta Excel rechaza otro formato con error en español y no guarda esa fila. No hay migración: `pnpm datos:contar-periodos-invalidos` (o el SQL del script) solo cuenta filas fuera de formato.
-- [Backend] El periodo vigente se calcula en `America/Bogota` (`Backend/src/dominio/periodo-academico.ts`). `GET /api/v1/documentos/periodos/actual` lo publica. `GET /api/v1/documentos/periodos` lista los periodos con documentos, incluidos los cerrados. La resolución MEN usa el mismo criterio sobre la fecha calendario.
-- [Backend] El panel filtra el semestre por igualdad exacta. Si se pide un periodo, entran todas sus evidencias aunque el ciclo vigente haya empezado después. El Profesor (rol `Cargador`) no puede crear evidencias ni filas de Excel en un periodo anterior al vigente; Revisor, Administrador y SuperAdmin sí. Es reversible: quitar `exigirPeriodoCargable` y el chequeo de `motivoBloqueoCargaPeriodo` en la ingesta.
-- [Frontend] El resumen del administrador persiste el periodo en `?periodo=` y ofrece los periodos con datos más los del año actual y el siguiente. La carga de evidencia no sustituye el periodo elegido si el `.docx` trae otro: muestra un aviso y la persona decide.
-- [Sin prisma:deploy] No se agregó migración.
-
-### 2026-10-29 — Contrato OpenAPI de la API
-
-- [Docs] `docs/contrato-api/openapi.json` y `docs/contrato-api/README.md`: los endpoints existentes, roles, errores, paginación y el contrato de lectura Power BI (`v_powerbi_puntajes`, rol `siac_powerbi_lectura`, seis dominios). Incluye la inserción con token (`/powerbi/insercion`, `/powerbi/probar-conexion`, `/powerbi/token-insercion`) sin el secreto de Azure.
-- [Backend] Decoradores de Swagger en controladores y DTOs. La interfaz `/api/docs` no se monta cuando `NODE_ENV=production`. La prueba `contrato-openapi.spec.ts` compara el documento generado con el archivo exportado.
-- [Sin cambio de comportamiento] Ningún endpoint cambió de ruta, validación ni código de estado.
-
-### 2026-10-29 — HU-009: token de inserción de Power BI
-
-- [BD] Migración `20261029120000_powerbi_insercion`: en `ConfiguracionSIAC`, `powerbi_embed_habilitado` (default false), `powerbiWorkspaceId` y `powerbiReportId`. No se otorgan a `siac_powerbi_lectura`; las políticas RLS de la tabla no cambian. Los umbrales del semáforo no se tocan al guardar la inserción.
-- [Backend] `GET/PATCH /api/v1/powerbi/insercion`, `POST /api/v1/powerbi/probar-conexion` y `GET /api/v1/powerbi/token-insercion` (Administrador y SuperAdmin). Token de solo lectura, máximo 60 minutos, caché en memoria mientras queden más de 5 minutos, tiempo de espera de 10 s y 503 `POWERBI_NO_DISPONIBLE`. Secretos solo en `POWERBI_TENANT_ID`, `POWERBI_CLIENT_ID` y `POWERBI_CLIENT_SECRET`. El cambio del interruptor queda en el log con el id del usuario, sin secretos ni tokens.
-- [Frontend] Tarjeta «Power BI» en el dashboard del administrador. Apagado, la rejilla pública sigue igual. Encendido sin credenciales completas muestra «Configuración incompleta» y no incrusta. Encendido y completo usa `powerbi-client`, renueva con `setAccessToken` unos 5 minutos antes del vencimiento (y al volver a la pestaña) y, si Power BI falla, «No se pudo cargar el tablero» con «Reintentar». El token no se guarda en `localStorage`.
-- [Docs] `.env.example`, `render.yaml` y `docs/despliegue.md` nombran las variables sin valores. ADR-009: el modo público sigue siendo el de defecto.
-- [Pruebas] Jest 64 suites / 537 tests; Vitest 48 archivos / 233 tests; `pnpm build` de backend y frontend OK. Las llamadas a Azure y Power BI van mockeadas. E2E no se ejecutó aquí: no hay Postgres local.
-
-### 2026-10-29 — Esqueletos de carga alineados con cada vista
-
-- [Frontend] Cada ruta con datos asíncronos usa un `Esqueleto*` con la misma estructura que la página (resumen, inicio de profesor y revisor, accesos de superadmin, métricas, búsqueda, bandeja, listado, historial, detalle, proceso, formulario, plantillas, catálogo, vigencias, usuarios y asignación).
-- [Frontend] Los estados de carga del cliente (listas, vigencias, trámite, informe, vista previa y avance) anuncian la espera con `role="status"` y `aria-busy`, sin párrafo suelto ni spinner de página.
-- [Pruebas] Vitest cubre el tipo de esqueleto por ruta y que no queden párrafos planos de carga.
-
-### 2026-10-21 — Row Level Security (plan-rls aprobado por el PO)
-
-- [BD] Migración `20261021000000_rls_roles_funciones`:
-  - crea de forma idempotente los roles `siac_app` y `siac_powerbi_lectura`, NOLOGIN, NOBYPASSRLS y sin contraseña;
-  - agrega el esquema `siac` con las funciones de contexto y visibilidad (SECURITY DEFINER donde hace falta) y las búsquedas de login y sesión;
-  - otorga los permisos;
-  - revoca `anon`/`authenticated` solo si existen.
-- [BD] Migración `20261021000100_rls_politicas`: ENABLE + FORCE RLS en las 22 tablas y 88 políticas por rol, programa, institución y Borrador del autor. Power BI queda limitado a `v_powerbi_puntajes`.
-- [Backend] La extensión de Prisma fija `app.usuario_id` y `app.rol` con `set_config(..., true)` en cada transacción, compatible con pgbouncer. `MiddlewareContextoRls` abre el contexto por petición.
-- [Backend] `ejecutarComoSistema` (`src/prisma/contexto-sistema.ts`, único punto que fija `sistema`) cubre el cron de vigencias, el outbox, la configuración, los agregados de avance y los destinatarios de notificaciones.
-- [Backend] El login rechaza a los usuarios inactivos.
-- [Desviaciones del plan] Se agregó `siac.usuario_visible`, que incluye a las personas que aparecen en evidencias visibles. Los porcentajes de avance se calculan por la ruta de sistema. La semilla y los scripts de mantenimiento usan `DIRECT_URL` (dueño). Los usuarios de la semilla y la pantalla de login demo no se tocaron.
-- [Pruebas] Nuevos `test/e2e/rls.e2e-spec.ts` (SQL como `siac_app` y `siac_powerbi_lectura`) y `anexo-d1-revisor.e2e-spec.ts`. CI corre la suite e2e con la API como `siac_app`.
-- [Despliegue] Pasos manuales en `docs/despliegue.md` §9.
-
-### 2026-10-20 — Correcciones de la auditoría y eliminación del rol Par académico
-
-- [Backend] `GET /plantillas?tipoTramite=` validado contra el enum (400 con mensaje en español).
-- [Frontend] `ProveedorAlmacen`: cada lista (evidencias, plantillas, vigencias, alertas, programas) se publica al resolver su petición, con `estadoListas` (cargando/error), un reintento automático y `recargarLista`. Estados «Cargando…», error con «Reintentar» y vacío en plantillas, evidencias y vigencias.
-- [Seguridad] Contraseñas de la semilla desde `SEMILLA_CLAVE_*` (obligatorias en producción); fuera del README.
-- [Decisión] Rol `ParAcademico` eliminado (T-006.4 descartada). Migración `20261020220000_eliminar_rol_par_academico`: usuarios con el rol → `activo=false` y rol `Cargador`; enum recreado. Las entradas antiguas de esta memoria que lo mencionan son históricas.
-- [Docs] README, backlog, ADR-008 (outbox), ADR-009 (8 categorías CUAC), índice de ADR, etapa-3, despliegue (keep-alive irregular) y `docs/todo-sprint3.md` actualizados.
+- [API] Catálogo publicado en `https://github.com/BICHO128/api-programas-cuac` y desplegado en Vercel en `https://api-programas-cuac.vercel.app/carreras` (25 programas vigentes: 14 de pregrado y 11 de posgrado). El proyecto es independiente de SIAC; la carpeta local `API/` se retiró del repo.
+- [API] Solo se publican programas con registro SNIES activo; se excluyen inactivos o reemplazados (Ingeniería de Sistemas, Ingeniería de Sistemas Informáticos, Licenciaturas antiguas, Deporte y Actividad Física, técnicos inactivos y Mercadeo sin SNIES). Administración de Empresas se publica una vez (CU027); Ingeniería Ambiental y Sanitaria se excluye por reemplazo con la de Saneamiento; Proyectos de Desarrollo queda con modalidades Presencial y Virtual.
+- [API] Se conservan los `_id` de los 10 programas de la API anterior para que `POST /api/v1/integracion/sincronizar-carreras` actualice en vez de duplicar. El README del repo externo documenta el despliegue en Vercel.
+- [Pendiente] Al sincronizar posgrados, `mapear-carrera-externa.ts` aún fuerza `nivel: 'Pregrado'`; ajustar si se quiere persistir el nivel que ya trae esta API.
 
 ### 2026-10-16 — S3-CIERRE: brechas de HU-007 y limpieza de SQL crudo
 
@@ -818,7 +768,7 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Backend] Rol `SuperAdmin` en schema; guards bypass; CRUD `/usuarios` (POST/PATCH/DELETE)
 - [Backend] `GET /integracion/estado-storage` para diagnóstico S3
 - [Frontend] Rutas `/superadmin` y `/superadmin/usuarios`; menú unificado SuperAdmin
-- [Backend] Semilla: usuario `superadmin@uniautonoma.edu.co` / `SuperAdmin2026`
+- [Backend] Rol SuperAdmin en la semilla de entonces (las cuentas de demostración se retiraron el 2026-11-05)
 
 ### 2026-09-15 — Alineación F-03 + Supabase + API v1
 

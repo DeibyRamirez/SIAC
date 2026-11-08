@@ -1,39 +1,6 @@
-import { DOMINIO_INSTITUCIONAL, usuariosSemilla } from '@/lib/datos-semilla'
-import type { RolUsuario, SesionUsuario, Usuario } from '@/lib/tipos'
+import type { RolUsuario, SesionUsuario } from '@/lib/tipos'
 
 export const CLAVE_SESION = 'siac-sesion-prototipo'
-
-export function esCorreoInstitucional(correo: string): boolean {
-  return correo.trim().toLowerCase().endsWith(`@${DOMINIO_INSTITUCIONAL}`)
-}
-
-export function autenticarUsuario(
-  correo: string,
-  contrasena: string,
-): Usuario | null {
-  const correoNormalizado = correo.trim().toLowerCase()
-
-  if (!esCorreoInstitucional(correoNormalizado)) {
-    return null
-  }
-
-  return (
-    usuariosSemilla.find(
-      (usuario) =>
-        usuario.correo.toLowerCase() === correoNormalizado &&
-        usuario.contrasena === contrasena,
-    ) ?? null
-  )
-}
-
-export function crearSesion(usuario: Usuario): SesionUsuario {
-  return {
-    usuarioId: usuario.id,
-    nombre: usuario.nombre,
-    correo: usuario.correo,
-    rol: usuario.rol,
-  }
-}
 
 export function rutaInicioPorRol(rol: RolUsuario): string {
   switch (rol) {
