@@ -225,7 +225,7 @@ describe('Camino 2: cifras institucionales', () => {
       const legible = await tx.$queryRaw<Record<string, unknown>[]>`SELECT * FROM "v_powerbi_estudiantes"`;
       expect(legible[0].programa).toBe('Reemplazado');
       await expect(
-        tx.$queryRaw`SELECT "nombreEstudiante" FROM "CifraEstudiante"`,
+        tx.$queryRaw`SELECT "nombre_estudiante" FROM "CifraEstudiante"`,
       ).rejects.toThrow(/permission denied|permiso denegado/i);
     });
   });
