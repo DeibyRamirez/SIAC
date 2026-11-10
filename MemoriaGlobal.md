@@ -677,6 +677,12 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 - [Backend] `GET /evidencias` y `GET /busqueda` filtran por `codigoGuia` (en búsqueda se valida G1–G4); el texto libre ya no consulta factor/indicador y `q=G1` encuentra por guía. Plantillas versionadas por guía + tipo de trámite. Ingesta Excel con columnas nombre, programaCodigo, periodo, codigoGuia. Specs nuevas de búsqueda, plantillas e ingesta.
 - [Frontend] Carga de evidencias sin selects de factor/indicador; detalle (cargador, admin, revisor) y tabla muestran la guía; filtro de guía en `/administrador/evidencias` (`?codigoGuia=`); biblioteca de plantillas con guía obligatoria (se infiere de `G1…G4` en el nombre del archivo). Se eliminan `catalogoFactoresIndicadores` y `factoresSemilla`.
 
+### 2026-11-09 — Revisor: carga verificada, versiones en Mis revisiones, scroll a observaciones
+
+- [Backend] `POST /evidencias` admite **Revisor**; campo multipart `publicarComoVerificado` deja G1/G3 en **Cumple** (checklist sintético) y G2/G4 en **Validado**, con historial de autocertificación. `POST …/enviar-revision` también para borradores del revisor (solo autor).
+- [Frontend] `/revisor/evidencias/nueva` (formulario compartido con el cargador); menú e inicio revisor. **Mis revisiones**: reemplazo de documento e historial de versiones descargables (firma en descarga).
+- [Frontend] Cargador: clic en observación del checklist G1/G3 → `resaltarCita` en el visor (comentarios inline sin cambio).
+
 ### 2026-09-28 — HU-003 regla n/9, CI en develop_v2 y relleno de migraciones
 
 - [CI] `ci.yml` corre también en `develop_v2` (push y PR), con servicio `postgres:16`: `prisma migrate deploy`, `migrate status`, semilla, jest y build del backend; tsc y build del frontend.
