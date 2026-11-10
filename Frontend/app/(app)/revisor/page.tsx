@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useState } from 'react'
-import { FileCheck2 } from 'lucide-react'
+import { FileCheck2, Files } from 'lucide-react'
 
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
@@ -88,14 +88,23 @@ function ContenidoInicioRevisor() {
         <TarjetaKpi titulo="Con observaciones" valor={conteos.conObservaciones} acento="purpura" />
       </div>
 
-      <TarjetaAcceso
-        titulo="Bandeja de revisión"
-        descripcion="Evidencias en revisión de sus programas asignados."
-        href="/revisor/bandeja"
-        icono={FileCheck2}
-        detalle={`${conteos.enRevision} pendientes`}
-        acento="cyan"
-      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <TarjetaAcceso
+          titulo="Cargar trámite corregido"
+          descripcion="Suba G1–G4 ya corregido y publíquelo como verificado sin depender del profesor."
+          href="/revisor/evidencias/nueva"
+          icono={Files}
+          acento="esmeralda"
+        />
+        <TarjetaAcceso
+          titulo="Bandeja de revisión"
+          descripcion="Evidencias en revisión de sus programas asignados."
+          href="/revisor/bandeja"
+          icono={FileCheck2}
+          detalle={`${conteos.enRevision} pendientes`}
+          acento="cyan"
+        />
+      </div>
 
       <Card className="border-l-4 border-cyan-tecnico">
         <CardHeader>
