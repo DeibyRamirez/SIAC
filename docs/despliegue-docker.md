@@ -44,6 +44,8 @@ docker build -t siac-api:prod -f Backend/Dockerfile --target runtime Backend
 docker build -t siac-web:prod -f Frontend/Dockerfile --target runtime Frontend
 ```
 
+El Dockerfile del frontend define `SIAC_DOCKER_BUILD=true` para activar `output: 'standalone'` (Vercel y `pnpm build` local no lo usan).
+
 El CI valida estos mismos `docker build` sin publicar en ningún registro.
 
 ## Arranque (compose)

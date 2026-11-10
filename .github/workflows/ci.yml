@@ -154,7 +154,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: siac
         ports:
           - 5432:5432
@@ -164,15 +164,19 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/siac
-      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/siac
-      JWT_SECRETO: ci-only-not-for-production
+      DATABASE_URL: postgresql://postgres@127.0.0.1:5432/siac
+      DIRECT_URL: postgresql://postgres@127.0.0.1:5432/siac
       S3_USAR_ALMACEN_LOCAL: "true"
       FRONTEND_URL: http://localhost:3000
       CORREO_CANAL: ninguno
       CARRERAS_SYNC_HABILITADO: "false"
     steps:
       - uses: actions/checkout@v4
+      - name: Secretos efímeros para humo Docker (sin literales en el workflow)
+        run: |
+          jwt=$(openssl rand -hex 32)
+          echo "::add-mask::$jwt"
+          echo "JWT_SECRETO=$jwt" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v3
       - name: Build imagen API (runtime)
         run: docker build -t siac-api:ci -f Backend/Dockerfile --target runtime Backend
