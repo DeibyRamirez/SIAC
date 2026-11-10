@@ -11,6 +11,10 @@ import {
   ColorSemaforoVigencia,
   esEstadoRevisado,
 } from '../dominio/panel-siac';
+import {
+  ESTADOS_DOCUMENTO_APROBADO,
+  esDocumentoAprobado,
+} from '../dominio/maquina-estados-evidencia';
 import { PrismaService } from '../prisma/prisma.module';
 import { ETIQUETAS_GUIA, tramitePorTipo } from '../programas/catalogo-tramites-siac';
 
@@ -218,7 +222,7 @@ export class PaquetesRegistroVigenciaService {
         codigoGuia: { in: filtro.codigosGuia },
         ...(filtro.desde ? { createdAt: { gte: filtro.desde } } : {}),
         estado: {
-          in: [EstadoEvidencia.Cumple, EstadoEvidencia.Validado],
+          in: [...ESTADOS_DOCUMENTO_APROBADO],
         },
       },
       select: {
@@ -235,7 +239,7 @@ export class PaquetesRegistroVigenciaService {
     const ultimaAceptada = new Map<CodigoDocumentoGuia, (typeof evidencias)[0]>();
     for (const ev of evidencias) {
       if (!ev.codigoGuia || !esEstadoRevisado(ev.estado)) continue;
-      if (ev.estado !== EstadoEvidencia.Cumple && ev.estado !== EstadoEvidencia.Validado) continue;
+      if (!esDocumentoAprobado(ev.estado)) continue;
       if (!ultimaAceptada.has(ev.codigoGuia)) {
         ultimaAceptada.set(ev.codigoGuia, ev);
       }

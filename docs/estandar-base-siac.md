@@ -193,6 +193,7 @@ SIAC trata el `.docx` como un ZIP de XML.
 - No se aplana el documento a texto plano para “ver cambios”. Las marcas van sobre el preview que conserva tablas y estilos.
 - Comentarios de Word: `comments.xml`, relaciones y anclas válidas. Si el conteo de anclas no cuadra, se responde error; no se entrega un archivo que Word tenga que reparar.
 - Al abrir la versión N se incluyen los comentarios acumulados de la 1 a la N, con autor y cuerpo.
+- `GET /evidencias/:id/contenido-preview` renderiza el visor y no genera ni rota `firmaDescarga`. La descarga explícita para editar sigue en `GET /evidencias/:id/contenido` y sí firma. Dos descargas explícitas de la misma versión rotan el token: la primera descarga deja de ser válida para subir; siempre se sube el archivo de la descarga más reciente.
 - Selecciones cortas y citas que cruzan párrafos deben poder anclarse. Un campo largo (`hunkId`) no puede tumbar toda la transacción.
 
 ## 11. Identidad visual
