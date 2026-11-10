@@ -24,8 +24,8 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 FROM build AS prod-deps
+RUN pnpm exec prisma generate
 RUN pnpm prune --prod
-RUN if [ ! -d node_modules/.prisma ]; then pnpm exec prisma generate && pnpm prune --prod; fi
 
 FROM base AS runtime
 ENV NODE_ENV=production
