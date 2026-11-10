@@ -69,6 +69,15 @@ ALTER TABLE "CifraRelacionEntorno" RENAME COLUMN "fechaInicio" TO "fecha_inicio"
 ALTER TABLE "CifraRelacionEntorno" RENAME COLUMN "fechaFin" TO "fecha_fin";
 ALTER TABLE "CifraRelacionEntorno" RENAME COLUMN "estudiantesParticipantes" TO "estudiantes_participantes";
 
+-- Prisma nombra índices según la columna física (@map); alinear tras RENAME COLUMN (R-008.1a / migrate diff).
+ALTER INDEX "CifraEstudiante_periodoAcademico_idx" RENAME TO "CifraEstudiante_periodo_academico_idx";
+ALTER INDEX "CifraProfesor_periodoAcademico_idx" RENAME TO "CifraProfesor_periodo_academico_idx";
+ALTER INDEX "CifraEgresado_graduadosPeriodo_idx" RENAME TO "CifraEgresado_graduados_periodo_idx";
+ALTER INDEX "CifraInvestigacion_periodoAcademico_idx" RENAME TO "CifraInvestigacion_periodo_academico_idx";
+ALTER INDEX "CifraAseguramiento_periodoAcademico_idx" RENAME TO "CifraAseguramiento_periodo_academico_idx";
+ALTER INDEX "CifraBienestar_periodoAcademico_idx" RENAME TO "CifraBienestar_periodo_academico_idx";
+ALTER INDEX "CifraRelacionEntorno_periodoAcademico_idx" RENAME TO "CifraRelacionEntorno_periodo_academico_idx";
+
 CREATE OR REPLACE VIEW "v_powerbi_estudiantes" WITH (security_invoker = true) AS
 SELECT "id", "programa", "genero", "facultad", "semestre", "estrato",
        "valor_dimension", "periodo_academico", "enviadoEn"
