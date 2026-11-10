@@ -571,15 +571,15 @@ model Integrador {
 /// Fila de la hoja estudiantes. nombreEstudiante y codigoEstudiante son personales.
 model CifraEstudiante {
   id               String     @id @default(cuid())
-  nombreEstudiante String?    @db.VarChar(300)
+  nombreEstudiante String?    @map("nombre_estudiante") @db.VarChar(300)
   programa         String     @db.VarChar(300)
   genero           String     @db.VarChar(20)
   facultad         String     @db.VarChar(300)
   semestre         Int
   estrato          Int
-  valorDimension   Int
-  codigoEstudiante String     @db.VarChar(40)
-  periodoAcademico String     @db.VarChar(16)
+  valorDimension   Int        @map("valor_dimension")
+  codigoEstudiante String     @map("codigo_estudiante") @db.VarChar(40)
+  periodoAcademico String     @map("periodo_academico") @db.VarChar(16)
   integradorId     String
   integrador       Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
   enviadoEn        DateTime   @default(now())
@@ -591,13 +591,13 @@ model CifraEstudiante {
 /// Fila de la hoja profesores. nombreProfesor es personal.
 model CifraProfesor {
   id               String     @id @default(cuid())
-  nombreProfesor   String?    @db.VarChar(300)
+  nombreProfesor   String?    @map("nombre_profesor") @db.VarChar(300)
   programa         String     @db.VarChar(300)
   genero           String     @db.VarChar(20)
   facultad         String     @db.VarChar(300)
-  periodoInicio    String     @db.VarChar(16)
-  periodoFinal     String?    @db.VarChar(16)
-  periodoAcademico String     @db.VarChar(16)
+  periodoInicio    String     @map("periodo_inicio") @db.VarChar(16)
+  periodoFinal     String?    @map("periodo_final") @db.VarChar(16)
+  periodoAcademico String     @map("periodo_academico") @db.VarChar(16)
   estrato          Int
   integradorId     String
   integrador       Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
@@ -610,11 +610,11 @@ model CifraProfesor {
 /// Fila de la hoja egresados. nombreEgresado es personal.
 model CifraEgresado {
   id               String     @id @default(cuid())
-  nombreEgresado   String?    @db.VarChar(300)
+  nombreEgresado   String?    @map("nombre_egresado") @db.VarChar(300)
   programa         String     @db.VarChar(300)
   genero           String     @db.VarChar(20)
   facultad         String     @db.VarChar(300)
-  graduadosPeriodo String     @db.VarChar(16)
+  graduadosPeriodo String     @map("graduados_periodo") @db.VarChar(16)
   estrato          Int
   grado            String     @db.VarChar(40)
   nivel            String     @db.VarChar(20)
@@ -630,10 +630,10 @@ model CifraEgresado {
 model CifraInvestigacion {
   id                  String     @id @default(cuid())
   facultad            String     @db.VarChar(300)
-  grupoInvestigacion  String     @db.VarChar(300)
+  grupoInvestigacion  String     @map("grupo_investigacion") @db.VarChar(300)
   semillero           String     @db.VarChar(300)
-  periodoAcademico    String     @db.VarChar(16)
-  cantidadEstudiantes Int
+  periodoAcademico    String     @map("periodo_academico") @db.VarChar(16)
+  cantidadEstudiantes Int        @map("cantidad_estudiantes")
   genero              String     @db.VarChar(20)
   programa            String     @db.VarChar(300)
   integradorId        String
@@ -647,16 +647,16 @@ model CifraInvestigacion {
 /// Fila de la hoja aseguramiento.
 model CifraAseguramiento {
   id                    String     @id @default(cuid())
-  periodoAcademico      String     @db.VarChar(16)
+  periodoAcademico      String     @map("periodo_academico") @db.VarChar(16)
   programas             String     @db.VarChar(300)
   facultad              String     @db.VarChar(300)
   grado                 String     @db.VarChar(40)
   nivel                 String     @db.VarChar(20)
   acreditados           Int
   acreditables          Int
-  registrosCalificables Int
-  inicioSiac            DateTime   @db.Date
-  finalizacionSiac      DateTime   @db.Date
+  registrosCalificables Int        @map("registros_calificables")
+  inicioSiac            DateTime   @map("inicio_siac") @db.Date
+  finalizacionSiac      DateTime   @map("finalizacion_siac") @db.Date
   snies                 String     @db.VarChar(40)
   integradorId          String
   integrador            Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
@@ -668,31 +668,31 @@ model CifraAseguramiento {
 
 /// Fila de la hoja infraestructura. El reemplazo de lote es por sede, no por periodo.
 model CifraInfraestructura {
-  id                      String     @id @default(cuid())
-  sede                    String     @db.VarChar(200)
-  direccion               String     @db.VarChar(400)
-  numeroPisos             Int
-  estado                  String     @db.VarChar(80)
-  totalM2AreaConstruida   Decimal    @db.Decimal(12, 2)
-  totalM2AreaTerreno      Decimal    @db.Decimal(12, 2)
-  cantidadSalonesClase    Int
-  areaM2SalonClase        Decimal    @db.Decimal(12, 2)
-  cantidadSalasSistemas   Int
-  areaM2SalasSistemas     Decimal    @db.Decimal(12, 2)
-  cantidadLaboratorios    Int
-  areaM2Laboratorios      Decimal    @db.Decimal(12, 2)
-  cantidadAuditorios      Int
-  areaM2Auditorios        Decimal    @db.Decimal(12, 2)
-  cantidadSalasLectura    Int
-  areaM2SalasLectura      Decimal    @db.Decimal(12, 2)
-  cantidadZonasDeportivas Int
-  areaM2ZonasDeportivas   Decimal    @db.Decimal(12, 2)
-  cantidadCafeterias      Int
-  cantidadZonasEstudio    Int
-  cantidadZonasRecreativas Int
-  integradorId            String
-  integrador              Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
-  enviadoEn               DateTime   @default(now())
+  id                       String     @id @default(cuid())
+  sede                     String     @db.VarChar(200)
+  direccion                String     @db.VarChar(400)
+  numeroPisos              Int        @map("numero_pisos")
+  estado                   String     @db.VarChar(80)
+  totalM2AreaConstruida    Decimal    @map("total_m2_area_construida") @db.Decimal(12, 2)
+  totalM2AreaTerreno       Decimal    @map("total_m2_area_terreno") @db.Decimal(12, 2)
+  cantidadSalonesClase     Int        @map("cantidad_salones_clase")
+  areaM2SalonClase         Decimal    @map("area_m2_salon_clase") @db.Decimal(12, 2)
+  cantidadSalasSistemas    Int        @map("cantidad_salas_sistemas")
+  areaM2SalasSistemas      Decimal    @map("area_m2_salas_sistemas") @db.Decimal(12, 2)
+  cantidadLaboratorios     Int        @map("cantidad_laboratorios")
+  areaM2Laboratorios       Decimal    @map("area_m2_laboratorios") @db.Decimal(12, 2)
+  cantidadAuditorios       Int        @map("cantidad_auditorios")
+  areaM2Auditorios         Decimal    @map("area_m2_auditorios") @db.Decimal(12, 2)
+  cantidadSalasLectura     Int        @map("cantidad_salas_lectura")
+  areaM2SalasLectura       Decimal    @map("area_m2_salas_lectura") @db.Decimal(12, 2)
+  cantidadZonasDeportivas  Int        @map("cantidad_zonas_deportivas")
+  areaM2ZonasDeportivas    Decimal    @map("area_m2_zonas_deportivas") @db.Decimal(12, 2)
+  cantidadCafeterias       Int        @map("cantidad_cafeterias")
+  cantidadZonasEstudio     Int        @map("cantidad_zonas_estudio")
+  cantidadZonasRecreativas Int        @map("cantidad_zonas_recreativas")
+  integradorId             String
+  integrador               Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
+  enviadoEn                DateTime   @default(now())
 
   @@index([sede])
   @@index([integradorId])
@@ -700,18 +700,18 @@ model CifraInfraestructura {
 
 /// Bienestar por periodo, programa y servicio. La plantilla xlsx no trae esta hoja.
 model CifraBienestar {
-  id                 String     @id @default(cuid())
-  periodoAcademico   String     @db.VarChar(16)
-  facultad           String     @db.VarChar(300)
-  programa           String     @db.VarChar(300)
-  genero             String     @db.VarChar(20)
-  lineaBienestar     String     @db.VarChar(300)
-  servicio           String     @db.VarChar(300)
-  beneficiarios      Int
-  valorInvertidoCop  Decimal    @db.Decimal(14, 2)
-  integradorId       String
-  integrador         Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
-  enviadoEn          DateTime   @default(now())
+  id                String     @id @default(cuid())
+  periodoAcademico  String     @map("periodo_academico") @db.VarChar(16)
+  facultad          String     @db.VarChar(300)
+  programa          String     @db.VarChar(300)
+  genero            String     @db.VarChar(20)
+  lineaBienestar    String     @map("linea_bienestar") @db.VarChar(300)
+  servicio          String     @db.VarChar(300)
+  beneficiarios     Int
+  valorInvertidoCop Decimal    @map("valor_invertido_cop") @db.Decimal(14, 2)
+  integradorId      String
+  integrador        Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
+  enviadoEn         DateTime   @default(now())
 
   @@index([periodoAcademico])
   @@index([integradorId])
@@ -720,16 +720,16 @@ model CifraBienestar {
 /// Relaciones con el entorno por periodo, aliado y ámbito. La plantilla xlsx no trae esta hoja.
 model CifraRelacionEntorno {
   id                       String     @id @default(cuid())
-  periodoAcademico         String     @db.VarChar(16)
+  periodoAcademico         String     @map("periodo_academico") @db.VarChar(16)
   facultad                 String     @db.VarChar(300)
   programa                 String     @db.VarChar(300)
-  tipoRelacion             String     @db.VarChar(200)
+  tipoRelacion             String     @map("tipo_relacion") @db.VarChar(200)
   aliado                   String     @db.VarChar(300)
-  sectorAliado             String     @db.VarChar(200)
+  sectorAliado             String     @map("sector_aliado") @db.VarChar(200)
   ambito                   String     @db.VarChar(200)
-  fechaInicio              DateTime   @db.Date
-  fechaFin                 DateTime   @db.Date
-  estudiantesParticipantes Int
+  fechaInicio              DateTime   @map("fecha_inicio") @db.Date
+  fechaFin                 DateTime   @map("fecha_fin") @db.Date
+  estudiantesParticipantes Int        @map("estudiantes_participantes")
   integradorId             String
   integrador               Integrador @relation(fields: [integradorId], references: [id], onDelete: Restrict)
   enviadoEn                DateTime   @default(now())
