@@ -3792,7 +3792,7 @@
         ]
       },
       "post": {
-        "description": "Roles: Cargador. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nDocumento .docx de hasta 20 MB. La resolución MEN es la excepción PDF y no pasa por este flujo. 403 si el programa no está asignado.",
+        "description": "Roles: Cargador, Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nDocumento .docx de hasta 20 MB. La resolución MEN es la excepción PDF y no pasa por este flujo. 403 si el programa no está asignado. El Revisor puede enviar publicarComoVerificado=true para dejar G1–G4 en Cumple/Validado (autocertificación).",
         "operationId": "DocumentosController_crear",
         "parameters": [],
         "requestBody": {
@@ -3826,6 +3826,10 @@
                   },
                   "programaId": {
                     "description": "Obligatorio en G1/G2. Omitir en G3/G4.",
+                    "type": "string"
+                  },
+                  "publicarComoVerificado": {
+                    "description": "Solo Revisor: true o 1 para publicar como verificado al crear.",
                     "type": "string"
                   },
                   "requiereChecklistMaestro": {
@@ -3901,7 +3905,8 @@
           "Evidencias"
         ],
         "x-siac-roles": [
-          "Cargador"
+          "Cargador",
+          "Revisor"
         ]
       }
     },
@@ -4968,7 +4973,7 @@
     },
     "/api/v1/evidencias/{id}/enviar-revision": {
       "post": {
-        "description": "Roles: Cargador. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nPasa de Borrador a EnRevision y deja historial en la misma transacción.",
+        "description": "Roles: Cargador, Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nPasa de Borrador a EnRevision y deja historial en la misma transacción.",
         "operationId": "DocumentosController_enviarRevision",
         "parameters": [
           {
@@ -5055,7 +5060,8 @@
           "Evidencias"
         ],
         "x-siac-roles": [
-          "Cargador"
+          "Cargador",
+          "Revisor"
         ]
       }
     },

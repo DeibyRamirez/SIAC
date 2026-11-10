@@ -148,6 +148,12 @@ export class DocumentosService {
   ) {
 
     this.validarArchivo(archivo);
+    const publicarVerificado = this.esPublicarComoVerificado(dto.publicarComoVerificado);
+    if (publicarVerificado && usuario.rol !== RolUsuario.Revisor) {
+      throw new BadRequestException(
+        'Solo el revisor puede publicar una evidencia como verificada al cargarla.',
+      );
+    }
     this.exigirPeriodoCargable(dto.periodo, usuario);
 
     const requiereChecklistLegacy =
@@ -333,7 +339,9 @@ export class DocumentosService {
 
         EstadoEvidencia.Borrador,
 
-        'Evidencia cargada',
+        publicarVerificado
+          ? 'Evidencia cargada por revisor (pendiente de cerrar verificación)'
+          : 'Evidencia cargada',
 
         usuario.id,
 
@@ -341,9 +349,17 @@ export class DocumentosService {
 
 
 
-      const actualizada = await this.evidenciaRepo.buscarPorId(evidencia.id);
+      let actualizada = await this.evidenciaRepo.buscarPorId(evidencia.id);
 
       if (!actualizada) throw new NotFoundException('Evidencia no encontrada tras la carga.');
+
+      if (publicarVerificado) {
+        actualizada = await this.publicarEvidenciaVerificadaPorRevisor(
+          actualizada.id,
+          codigoGuia ?? null,
+          usuario,
+        );
+      }
 
       return actualizada;
 
@@ -363,6 +379,90 @@ export class DocumentosService {
 
     return usuario.rol === RolUsuario.SuperAdmin;
 
+  }
+
+  private esPublicarComoVerificado(valor?: string): boolean {
+    if (!valor) return false;
+    const normalizado = valor.trim().toLowerCase();
+    return normalizado === 'true' || normalizado === '1' || normalizado === 'si' || normalizado === 'sí';
+  }
+
+  /**
+   * Revisor corrige y cierra el trámite en un solo paso (G1/G3 → Cumple; G2/G4 → Validado).
+   */
+  private async publicarEvidenciaVerificadaPorRevisor(
+    evidenciaId: string,
+    codigoGuia: CodigoDocumentoGuia | null,
+    revisor: UsuarioToken,
+  ) {
+    if (!codigoGuia) {
+      throw new BadRequestException(
+        'Para publicar como verificado debe indicar la guía del documento (G1–G4).',
+      );
+    }
+
+    const numeroRevision = 1;
+    const mensajeHistorial =
+      'Cargado y verificado por el revisor (autocertificación; documento corregido sin depender del profesor).';
+
+    let estadoFinal: EstadoEvidencia;
+    let puntajeActual: number | null = null;
+    let totalCondicionesActual: number | null = null;
+
+    if (codigoGuia === CodigoDocumentoGuia.G1) {
+      estadoFinal = EstadoEvidencia.Cumple;
+      puntajeActual = TOTAL_CONDICIONES_DOCUMENTO_MAESTRO;
+      totalCondicionesActual = TOTAL_CONDICIONES_DOCUMENTO_MAESTRO;
+      await this.evidenciaRepo.guardarEvaluacionesCondicion(
+        evidenciaId,
+        numeroRevision,
+        revisor.id,
+        CODIGOS_CONDICION_DOCUMENTO_MAESTRO.map((codigo) => ({
+          codigoCondicion: codigo,
+          cumple: true,
+          observacion: undefined,
+        })),
+      );
+    } else if (codigoGuia === CodigoDocumentoGuia.G3) {
+      estadoFinal = EstadoEvidencia.Cumple;
+      puntajeActual = TOTAL_CONDICIONES_INSTITUCIONALES;
+      totalCondicionesActual = TOTAL_CONDICIONES_INSTITUCIONALES;
+      await this.evidenciaRepo.guardarEvaluacionesCondicionInstitucional(
+        evidenciaId,
+        numeroRevision,
+        revisor.id,
+        CODIGOS_CONDICION_INSTITUCIONAL.map((codigo) => ({
+          codigoCondicion: codigo,
+          cumple: true,
+          observacion: undefined,
+        })),
+      );
+    } else if (
+      codigoGuia === CodigoDocumentoGuia.G2 ||
+      codigoGuia === CodigoDocumentoGuia.G4
+    ) {
+      estadoFinal = EstadoEvidencia.Validado;
+    } else {
+      throw new BadRequestException('La guía indicada no admite publicación verificada.');
+    }
+
+    await this.evidenciaRepo.actualizar(evidenciaId, {
+      estado: estadoFinal,
+      ...(puntajeActual !== null && totalCondicionesActual !== null
+        ? { puntajeActual, totalCondicionesActual }
+        : {}),
+    });
+
+    await this.evidenciaRepo.registrarHistorial(
+      evidenciaId,
+      estadoFinal,
+      mensajeHistorial,
+      revisor.id,
+    );
+
+    const actualizada = await this.evidenciaRepo.buscarPorId(evidenciaId);
+    if (!actualizada) throw new NotFoundException('Evidencia no encontrada tras la publicación.');
+    return actualizada;
   }
 
   /**
@@ -771,17 +871,11 @@ export class DocumentosService {
 
 
     if (
-
       !this.esSuperAdmin(usuario) &&
-
-      usuario.rol === RolUsuario.Cargador &&
-
+      (usuario.rol === RolUsuario.Cargador || usuario.rol === RolUsuario.Revisor) &&
       evidencia.autorId !== usuario.id
-
     ) {
-
       throw new ForbiddenException('Solo puede enviar sus propias evidencias.');
-
     }
 
 

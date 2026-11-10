@@ -39,6 +39,10 @@ const CAMPOS_EVIDENCIA = {
   documentoRequeridoId: { type: 'string' },
   requiereChecklistMaestro: { type: 'string' },
   codigoGuia: { type: 'string', enum: ['G1', 'G2', 'G3', 'G4'] },
+  publicarComoVerificado: {
+    type: 'string',
+    description: 'Solo Revisor: true o 1 para publicar como verificado al crear.',
+  },
 };
 
 @ApiTags('Evidencias')
@@ -48,13 +52,15 @@ export class DocumentosController {
   constructor(private readonly documentosService: DocumentosService) {}
 
   @Post()
-  @Roles(RolUsuario.Cargador)
+  @Roles(RolUsuario.Cargador, RolUsuario.Revisor)
   @AlcancePrograma({ campoCuerpo: 'programaId', modo: 'escritura' })
   @ApiContrato({
     resumen: 'Crea una evidencia con archivo',
-    roles: ['Cargador'],
+    roles: ['Cargador', 'Revisor'],
     creacion: true,
-    detalle: 'Documento .docx de hasta 20 MB. La resolución MEN es la excepción PDF y no pasa por este flujo. 403 si el programa no está asignado.',
+    detalle:
+      'Documento .docx de hasta 20 MB. La resolución MEN es la excepción PDF y no pasa por este flujo. 403 si el programa no está asignado. ' +
+      'El Revisor puede enviar publicarComoVerificado=true para dejar G1–G4 en Cumple/Validado (autocertificación).',
   })
   @ApiMultipart({ archivo: PROPIEDAD_ARCHIVO_DOCX, ...CAMPOS_EVIDENCIA }, ['archivo', 'nombre', 'periodo'])
   @UseInterceptors(FileInterceptor('archivo'))
@@ -367,11 +373,11 @@ export class DocumentosController {
   }
 
   @Post(':id/enviar-revision')
-  @Roles(RolUsuario.Cargador)
+  @Roles(RolUsuario.Cargador, RolUsuario.Revisor)
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
   @ApiContrato({
     resumen: 'Envía la evidencia a revisión',
-    roles: ['Cargador'],
+    roles: ['Cargador', 'Revisor'],
     creacion: true,
     tambien: [404, 409],
     detalle: 'Pasa de Borrador a EnRevision y deja historial en la misma transacción.',

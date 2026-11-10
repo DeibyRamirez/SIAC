@@ -86,6 +86,19 @@ function ContenidoDetalle() {
     nonce: number
   } | null>(null)
   const [comentarioActivoId, setComentarioActivoId] = useState<string | null>(null)
+  const [observacionActivaCodigo, setObservacionActivaCodigo] = useState<string | null>(null)
+
+  function irAObservacionCondicion(codigo: string, texto?: string | null) {
+    if (!texto?.trim()) return
+    if (observacionActivaCodigo === codigo) {
+      setObservacionActivaCodigo(null)
+      setAnclaResaltada(null)
+      return
+    }
+    setComentarioActivoId(null)
+    setObservacionActivaCodigo(codigo)
+    setAnclaResaltada({ quote: texto.trim(), nonce: Date.now() })
+  }
   const [evaluacionesInstitucionales, setEvaluacionesInstitucionales] = useState<
     EvaluacionCondicionInstitucionalEvidencia[]
   >([])
@@ -340,6 +353,10 @@ function ContenidoDetalle() {
           puntaje={evidencia.puntajeActual}
           totalCondiciones={evidencia.totalCondicionesActual}
           titulo="Evaluación G1 — condiciones de programa"
+          observacionActivaCodigo={observacionActivaCodigo}
+          onObservacionClick={(item) =>
+            irAObservacionCondicion(item.codigoCondicion, item.quote)
+          }
         />
       )}
 
@@ -375,6 +392,7 @@ function ContenidoDetalle() {
                         setAnclaResaltada(null)
                         return
                       }
+                      setObservacionActivaCodigo(null)
                       setComentarioActivoId(idComentario)
                       setAnclaResaltada({
                         anchor: comentario.anchor,
@@ -411,6 +429,10 @@ function ContenidoDetalle() {
             etiquetaCondicionInstitucional(
               codigo as EvaluacionCondicionInstitucionalEvidencia['codigoCondicion'],
             )
+          }
+          observacionActivaCodigo={observacionActivaCodigo}
+          onObservacionClick={(item) =>
+            irAObservacionCondicion(item.codigoCondicion, item.quote)
           }
         />
       )}

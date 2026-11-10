@@ -75,7 +75,11 @@ interface ContextoAlmacen {
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-    opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
+    opciones?: {
+      requiereChecklistMaestro?: boolean
+      codigoGuia?: string
+      publicarComoVerificado?: boolean
+    },
   ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void
@@ -314,7 +318,11 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
     async (
       evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
       archivo?: File,
-      opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
+      opciones?: {
+        requiereChecklistMaestro?: boolean
+        codigoGuia?: string
+        publicarComoVerificado?: boolean
+      },
     ) => {
       if (!apiDisponible()) {
         throw new Error('Las evidencias solo se pueden cargar con la API disponible.')
@@ -333,6 +341,9 @@ export function ProveedorAlmacen({ children }: { children: React.ReactNode }) {
         formData.append('codigoGuia', opciones.codigoGuia)
       } else if (opciones?.requiereChecklistMaestro) {
         formData.append('requiereChecklistMaestro', 'true')
+      }
+      if (opciones?.publicarComoVerificado) {
+        formData.append('publicarComoVerificado', 'true')
       }
 
       const creada = await crearEvidenciaApi(formData)

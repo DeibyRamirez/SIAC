@@ -6,10 +6,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
 import { ControlesPaginacion } from '@/components/siac/controles-paginacion'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
+import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import {
   PanelDetalleRevisionRevisor,
   type ModoDetalleRevisionRevisor,
 } from '@/components/siac/panel-detalle-revision-revisor'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
 import type { EvaluacionCondicionResumenItem } from '@/components/siac/resumen-observaciones-por-condicion'
 import { MensajeCargando } from '@/components/siac/estado-carga-lista'
 import { EncabezadoPagina, PanelVacio } from '@/components/siac/tarjeta-acceso'
@@ -47,6 +49,7 @@ export default function MisRevisionesRevisorPage() {
 }
 
 function ContenidoMisRevisiones() {
+  const { sesion } = usarSesion()
   const [filas, setFilas] = useState<FilaRevisionRevisorApi[]>([])
   const [pagina, setPagina] = useState(1)
   const [total, setTotal] = useState(0)
@@ -184,7 +187,13 @@ function ContenidoMisRevisiones() {
                       <InsigniaEstado estado={fila.estado} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <BotonReemplazarDocumento
+                          evidenciaId={fila.evidenciaId}
+                          estado={fila.estado}
+                          rol={sesion?.rol}
+                          onReemplazado={() => void cargar()}
+                        />
                         <Button size="sm" variant="outline" onClick={() => abrirDetalle(fila)}>
                           Ver observaciones
                         </Button>
