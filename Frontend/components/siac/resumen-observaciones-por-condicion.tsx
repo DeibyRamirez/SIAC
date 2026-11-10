@@ -28,6 +28,13 @@ interface ResumenObservacionesPorCondicionProps {
   resolverEtiqueta?: (codigo: string) => string
   /** Si true, solo lista condiciones que no cumplen. */
   soloFallos?: boolean
+  /** Al pulsar una observación, ubicar la cita en el visor del documento. */
+  onObservacionClick?: (item: {
+    codigoCondicion: string
+    quote?: string | null
+  }) => void
+  /** Código de la condición cuya observación está resaltada en el visor. */
+  observacionActivaCodigo?: string | null
 }
 
 export function ResumenObservacionesPorCondicion({
@@ -37,6 +44,8 @@ export function ResumenObservacionesPorCondicion({
   titulo = 'Evaluación por condiciones del documento',
   resolverEtiqueta = etiquetaCondicionPrograma,
   soloFallos = false,
+  onObservacionClick,
+  observacionActivaCodigo = null,
 }: ResumenObservacionesPorCondicionProps) {
   const lista = soloFallos ? evaluaciones.filter((ev) => !ev.cumple) : evaluaciones
 
@@ -77,7 +86,23 @@ export function ResumenObservacionesPorCondicion({
                 {resolverEtiqueta(ev.codigoCondicion)}
               </p>
               {!ev.cumple && ev.observacion ? (
-                <p className="mt-0.5 text-muted-foreground">{ev.observacion}</p>
+                onObservacionClick ? (
+                  <button
+                    type="button"
+                    aria-pressed={observacionActivaCodigo === ev.codigoCondicion}
+                    className="mt-0.5 w-full rounded-md px-1 py-0.5 text-left text-muted-foreground underline-offset-2 hover:bg-muted/60 hover:underline"
+                    onClick={() =>
+                      onObservacionClick({
+                        codigoCondicion: ev.codigoCondicion,
+                        quote: ev.observacion,
+                      })
+                    }
+                  >
+                    {ev.observacion}
+                  </button>
+                ) : (
+                  <p className="mt-0.5 text-muted-foreground">{ev.observacion}</p>
+                )
               ) : null}
               {!ev.cumple && !ev.observacion ? (
                 <p className="mt-0.5 text-sm text-destructive/80">
