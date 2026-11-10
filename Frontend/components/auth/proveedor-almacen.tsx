@@ -75,7 +75,11 @@ interface ContextoAlmacen {
   crearEvidencia: (
     evidencia: Omit<Evidencia, 'id' | 'fechaCarga' | 'estado'>,
     archivo?: File,
-    opciones?: { requiereChecklistMaestro?: boolean; codigoGuia?: string },
+    opciones?: {
+      requiereChecklistMaestro?: boolean
+      codigoGuia?: string
+      publicarComoVerificado?: boolean
+    },
   ) => Promise<Evidencia>
   actualizarEvidencia: (id: string, cambios: Partial<Evidencia>) => void
   eliminarEvidencia: (id: string) => void

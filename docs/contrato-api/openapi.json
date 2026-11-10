@@ -3829,7 +3829,7 @@
                     "type": "string"
                   },
                   "publicarComoVerificado": {
-                    "description": "Solo Revisor: true o 1 para publicar como Cumple/Validado al crear.",
+                    "description": "Solo Revisor: true o 1 para publicar como verificado al crear.",
                     "type": "string"
                   },
                   "requiereChecklistMaestro": {
