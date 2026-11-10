@@ -164,11 +164,13 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/siac
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/siac
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/siac
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/siac
       JWT_SECRETO: ci-only-not-for-production
       S3_USAR_ALMACEN_LOCAL: "true"
       FRONTEND_URL: http://localhost:3000
+      CORREO_CANAL: ninguno
+      CARRERAS_SYNC_HABILITADO: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -189,11 +191,24 @@ jobs:
             -e NODE_ENV=production \
             -e DATABASE_URL -e DIRECT_URL -e JWT_SECRETO \
             -e S3_USAR_ALMACEN_LOCAL -e FRONTEND_URL \
+            -e CORREO_CANAL -e CARRERAS_SYNC_HABILITADO \
             siac-api:ci
-          for i in $(seq 1 45); do
-            if curl -sf http://127.0.0.1:3001/api/v1/salud >/dev/null; then break; fi
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3001/api/v1/salud >/dev/null; then ok=1; break; fi
+            if ! docker ps -q --filter name=^siac-api-ci$ | grep -q .; then
+              echo "::error::El contenedor API se detuvo antes del health check"
+              docker logs siac-api-ci
+              exit 1
+            fi
             sleep 2
           done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::Timeout esperando /api/v1/salud"
+            docker logs siac-api-ci
+            curl -sv http://127.0.0.1:3001/api/v1/salud || true
+            exit 1
+          fi
           curl -sf http://127.0.0.1:3001/api/v1/salud
       - name: Arrancar frontend y comprobar respuesta HTTP
         run: |

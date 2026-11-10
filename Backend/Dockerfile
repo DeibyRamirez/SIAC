@@ -31,6 +31,7 @@ FROM base AS runtime
 ENV NODE_ENV=production
 ENV TZ=America/Bogota
 WORKDIR /app
+RUN mkdir -p /app/almacen-local && chown node:node /app/almacen-local
 USER node
 COPY --chown=node:node package.json pnpm-lock.yaml ./
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
