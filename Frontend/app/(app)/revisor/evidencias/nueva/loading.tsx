@@ -1,5 +1,6 @@
-import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
+import { EsqueletoPaginaApp } from '@/components/siac/esqueletos-paginas'
 
-export default function Loading() {
-  return <EsqueletoContenidoPagina tipo="formulario" />
+/** Carga de la ruta: marco de la app y el esqueleto de esta página. */
+export default function Cargando() {
+  return <EsqueletoPaginaApp ruta="/revisor/evidencias/nueva" />
 }
