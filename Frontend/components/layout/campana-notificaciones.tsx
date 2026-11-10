@@ -77,8 +77,16 @@ export function CampanaNotificaciones() {
           </span>
         ) : null}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-[100] w-80 max-h-[min(24rem,70vh)] overflow-y-auto">
-        <DropdownMenuGroup>
+      
+      {/* Se incrementó el sideOffset a 12 para separarlo más del appbar */}
+      <DropdownMenuContent 
+        align="end" 
+        side="bottom" 
+        sideOffset={12} 
+        className="z-[100] w-80 max-h-[min(24rem,70vh)] overflow-y-auto"
+      >
+        {/* Se añadió un pequeño padding superior (pt-2) para que "Notificaciones" no quede pegada al borde */}
+        <DropdownMenuGroup className="pt-2">
           <DropdownMenuLabel className="text-primary">Notificaciones</DropdownMenuLabel>
           {alertasPendientes.length > 0 ? (
             <DropdownMenuItem
