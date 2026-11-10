@@ -3,7 +3,7 @@
 import { EsqueletoContenidoPagina } from '@/components/siac/esqueletos-paginas'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
@@ -25,10 +25,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { usarVerificacionFirmaDocx } from '@/lib/hooks/usar-verificacion-firma-docx'
 import { apiDisponible } from '@/lib/servicios/cliente-api'
 import {
   enviarRevisionApi,
-  listarVersionesApi,
   obtenerComentariosEvidenciaApi,
   obtenerEvidenciaApi,
   obtenerHistorialApi,
@@ -39,7 +39,7 @@ import {
   obtenerEvaluacionesCondicionInstitucionalApi,
 } from '@/lib/servicios/evidencias.servicio'
 import type { Evidencia } from '@/lib/tipos'
-import { inspeccionarFirmaDocx } from '@/lib/utilidades/leer-firma-docx'
+import { DURACION_RESALTADO_COMENTARIO_MS } from '@/lib/utilidades/seleccion-docx'
 import {
   admiteCorreccion,
   formatoVisorDesdeArchivo,
@@ -69,11 +69,8 @@ function ContenidoDetalle() {
   const [cargando, setCargando] = useState(true)
   const [procesando, setProcesando] = useState(false)
   const [confirmarReenvio, setConfirmarReenvio] = useState(false)
-  const [firmaEsperada, setFirmaEsperada] = useState<string | null>(null)
-  const [estadoVerificacion, setEstadoVerificacion] = useState<
-    'inactivo' | 'verificando' | 'valido' | 'invalido'
-  >('inactivo')
-  const [mensajeVerificacion, setMensajeVerificacion] = useState<string | null>(null)
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+  const verificacionFirma = usarVerificacionFirmaDocx()
   const [evaluacionesCondicion, setEvaluacionesCondicion] = useState<
     EvaluacionCondicionEvidencia[]
   >([])
@@ -86,6 +83,8 @@ function ContenidoDetalle() {
     nonce: number
   } | null>(null)
   const [comentarioActivoId, setComentarioActivoId] = useState<string | null>(null)
+  const [anclaAplicadaNonce, setAnclaAplicadaNonce] = useState<number | null>(null)
+  const [avisoAncla, setAvisoAncla] = useState<string | null>(null)
   const [evaluacionesInstitucionales, setEvaluacionesInstitucionales] = useState<
     EvaluacionCondicionInstitucionalEvidencia[]
   >([])
@@ -101,13 +100,12 @@ function ContenidoDetalle() {
       setCargando(true)
       try {
         if (apiDisponible()) {
-          const [ev, descarga, historial, evaluaciones, versiones, evaluacionesCi] =
+          const [ev, descarga, historial, evaluaciones, evaluacionesCi] =
             await Promise.all([
             obtenerEvidenciaApi(params.id),
             obtenerUrlDescargaApi(params.id).catch(() => null),
             obtenerHistorialApi(params.id).catch(() => []),
             obtenerEvaluacionesCondicionApi(params.id).catch(() => []),
-            listarVersionesApi(params.id).catch(() => []),
             obtenerEvaluacionesCondicionInstitucionalApi(params.id).catch(
               () => [],
             ),
@@ -120,12 +118,6 @@ function ContenidoDetalle() {
           setEvidencia(mapeada)
           setNombre(mapeada.nombre)
           if (descarga?.url) setUrlDocumento(descarga.url)
-
-          const firmaActiva =
-            versiones.find((v) => v.numero === (mapeada.version ?? 1))?.firmaDescarga ??
-            versiones[0]?.firmaDescarga ??
-            null
-          setFirmaEsperada(firmaActiva ?? null)
 
           const ultimoRechazo = historial
             .filter(
@@ -172,6 +164,39 @@ function ContenidoDetalle() {
     cargar()
   }, [params.id, datos.evidencias])
 
+  // El temporizador arranca cuando el visor confirma que la cita ya se resaltó:
+  // si el preview tarda, el comentario no se apaga antes de mostrarse.
+  useEffect(() => {
+    if (!comentarioActivoId || anclaAplicadaNonce === null) return
+    const temporizador = window.setTimeout(() => {
+      setComentarioActivoId(null)
+      setAnclaResaltada(null)
+      setAnclaAplicadaNonce(null)
+    }, DURACION_RESALTADO_COMENTARIO_MS)
+    return () => window.clearTimeout(temporizador)
+  }, [comentarioActivoId, anclaAplicadaNonce])
+
+  useEffect(() => {
+    if (!archivoNuevo) return
+    const avisar = (evento: BeforeUnloadEvent) => {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [archivoNuevo])
+
+  const manejarAnclaNoEncontrada = useCallback(() => {
+    setComentarioActivoId(null)
+    setAnclaResaltada(null)
+    setAnclaAplicadaNonce(null)
+    setAvisoAncla('No se encontró el fragmento en esta versión')
+  }, [])
+
+  const manejarAnclaAplicada = useCallback(() => {
+    setAnclaAplicadaNonce(Date.now())
+  }, [])
+
   if (cargando) {
     return <EsqueletoContenidoPagina tipo="detalle" />
   }
@@ -201,71 +226,17 @@ function ContenidoDetalle() {
 
   async function manejarArchivoCorregido(file: File | null) {
     setArchivoNuevo(file)
-    setMensajeVerificacion(null)
+    verificacionFirma.limpiar()
 
-    if (!file) {
-      setEstadoVerificacion('inactivo')
-      return
-    }
+    if (!file) return
 
-    if (!file.name.toLowerCase().endsWith('.docx')) {
-      const mensaje = 'Solo se permiten documentos Word (.docx).'
-      setEstadoVerificacion('invalido')
-      setMensajeVerificacion(mensaje)
+    const resultado = await verificacionFirma.verificar(file, params.id)
+    if (!resultado.valida) {
       setArchivoNuevo(null)
-      toast.error(mensaje)
+      toast.error(resultado.mensaje)
       return
     }
-
-    setEstadoVerificacion('verificando')
-    const { esDocxValido, firma } = await inspeccionarFirmaDocx(file)
-
-    if (!esDocxValido) {
-      const mensaje = 'El archivo no es un .docx válido.'
-      setEstadoVerificacion('invalido')
-      setMensajeVerificacion(mensaje)
-      setArchivoNuevo(null)
-      toast.error(mensaje)
-      return
-    }
-
-    let firmaVigente = firmaEsperada
-    if (apiDisponible()) {
-      const versiones = await listarVersionesApi(params.id).catch(() => null)
-      if (versiones) {
-        const vigente =
-          versiones.find((v) => v.numero === versionActual) ?? versiones[0]
-        firmaVigente = vigente?.firmaDescarga ?? null
-        setFirmaEsperada(firmaVigente)
-      }
-    }
-
-    if (firmaVigente && !firma) {
-      const mensaje =
-        'Falta la firma de versión SIAC; descarga el documento desde SIAC y vuelve a subirlo.'
-      setEstadoVerificacion('invalido')
-      setMensajeVerificacion(mensaje)
-      setArchivoNuevo(null)
-      toast.error(mensaje)
-      return
-    }
-
-    if (firmaVigente && firma && firma !== firmaVigente) {
-      const mensaje =
-        'La firma no coincide con la última descarga de esta evidencia. Descarga la última versión, corrige sobre ese archivo y vuelve a subirlo.'
-      setEstadoVerificacion('invalido')
-      setMensajeVerificacion(mensaje)
-      setArchivoNuevo(null)
-      toast.error(mensaje)
-      return
-    }
-
-    setEstadoVerificacion('valido')
-    const mensaje = firmaVigente
-      ? 'Documento correcto: firma de la última descarga verificada.'
-      : 'Documento cargado correctamente.'
-    setMensajeVerificacion(mensaje)
-    toast.success(mensaje)
+    toast.success(resultado.mensaje)
   }
 
   async function enviarARevision() {
@@ -274,7 +245,7 @@ function ContenidoDetalle() {
       toast.error('Debe cargar el documento .docx corregido antes de enviar a revisión.')
       return
     }
-    if (archivoNuevo && estadoVerificacion !== 'valido') {
+    if (archivoNuevo && verificacionFirma.estado !== 'valido') {
       toast.error(
         'El documento seleccionado no es válido. Descargue la última versión y corrija sobre ese archivo.',
       )
@@ -328,9 +299,18 @@ function ContenidoDetalle() {
         titulo={evidencia.nombre}
         descripcion="Consulta el documento, carga versiones corregidas y reenvía a revisión si aplica."
         accion={
-          <Link href="/cargador/evidencias">
-            <Button variant="outline">Volver al listado</Button>
-          </Link>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (archivoNuevo) {
+                setConfirmarSalida(true)
+                return
+              }
+              router.push('/cargador/evidencias')
+            }}
+          >
+            Volver al listado
+          </Button>
         }
       />
 
@@ -354,6 +334,11 @@ function ContenidoDetalle() {
             Al descargar el documento, estos comentarios se abren anclados al texto
             en Word/Google Docs. Pulsa uno para resaltar la cita en el visor.
           </p>
+          {avisoAncla ? (
+            <p role="status" className="mt-2 text-xs font-medium text-amber-800">
+              {avisoAncla}
+            </p>
+          ) : null}
           <ul className="mt-3 space-y-2">
             {comentariosRevisor.map((comentario, indice) => {
               const idComentario = `${comentario.anchor ?? comentario.hunkId ?? 'c'}-${indice}`
@@ -364,12 +349,14 @@ function ContenidoDetalle() {
                     type="button"
                     aria-pressed={activo}
                     className={cn(
-                      'w-full rounded-lg border bg-white p-3 text-left transition-colors',
+                      'w-full cursor-pointer rounded-lg border bg-white p-3 text-left transition-colors',
                       activo
                         ? 'border-fucsia ring-2 ring-fucsia/30'
                         : 'border-fucsia/20 hover:border-fucsia/50',
                     )}
                     onClick={() => {
+                      setAvisoAncla(null)
+                      setAnclaAplicadaNonce(null)
                       if (activo) {
                         setComentarioActivoId(null)
                         setAnclaResaltada(null)
@@ -461,6 +448,8 @@ function ContenidoDetalle() {
               evidenciaId={evidencia.id}
               versionDocumento={versionActual}
               anclaResaltada={anclaResaltada ?? undefined}
+              onAnclaNoEncontrada={manejarAnclaNoEncontrada}
+              onAnclaAplicada={manejarAnclaAplicada}
             />
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div>
@@ -513,23 +502,25 @@ function ContenidoDetalle() {
                   <ZonaCargaDocx
                     archivo={archivoNuevo}
                     onArchivoSeleccionado={manejarArchivoCorregido}
-                    deshabilitado={procesando || estadoVerificacion === 'verificando'}
+                    deshabilitado={
+                      procesando || verificacionFirma.estado === 'verificando'
+                    }
                   />
-                  {estadoVerificacion === 'verificando' && (
+                  {verificacionFirma.estado === 'verificando' && (
                     <p className="text-xs text-muted-foreground">
-                      Verificando que sea el documento de la última versión…
+                      Verificando firma…
                     </p>
                   )}
-                  {mensajeVerificacion && (
+                  {verificacionFirma.mensaje && (
                     <p
                       className={cn(
                         'rounded-lg px-3 py-2 text-xs',
-                        estadoVerificacion === 'valido'
+                        verificacionFirma.estado === 'valido'
                           ? 'bg-emerald-50 text-emerald-700'
                           : 'bg-red-50 text-red-700',
                       )}
                     >
-                      {mensajeVerificacion}
+                      {verificacionFirma.mensaje}
                     </p>
                   )}
                 </div>
@@ -539,8 +530,8 @@ function ContenidoDetalle() {
                   onClick={() => setConfirmarReenvio(true)}
                   disabled={
                     procesando ||
-                    estadoVerificacion === 'verificando' ||
-                    (!!archivoNuevo && estadoVerificacion === 'invalido') ||
+                    verificacionFirma.estado === 'verificando' ||
+                    verificacionFirma.estado === 'invalido' ||
                     (esRechazada && !archivoNuevo)
                   }
                 >
@@ -572,6 +563,19 @@ function ContenidoDetalle() {
         cargando={procesando}
         onConfirmar={enviarARevision}
         onCancelar={() => setConfirmarReenvio(false)}
+      />
+
+      <DialogoConfirmacion
+        abierto={confirmarSalida}
+        titulo="¿Descartar el documento seleccionado?"
+        descripcion="El archivo corregido aún no se ha enviado. Si sales ahora, se descartará y se mantendrá la versión vigente."
+        etiquetaConfirmar="Sí, salir"
+        variant="destructive"
+        onConfirmar={() => {
+          setConfirmarSalida(false)
+          router.push('/cargador/evidencias')
+        }}
+        onCancelar={() => setConfirmarSalida(false)}
       />
     </div>
   )

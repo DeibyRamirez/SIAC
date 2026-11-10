@@ -27,6 +27,12 @@ interface VisorDocxPreviewProps {
   onComentarSeleccion?: (seleccion: SeleccionDocx) => void
   /** Ancla a resaltar/desplazar cuando el revisor/cargador pulsa un comentario. */
   anclaResaltada?: { anchor?: string; quote?: string; nonce: number }
+  /** Se llama si la cita ya no existe en la versión mostrada. */
+  onAnclaNoEncontrada?: () => void
+  /** Se llama cuando el resaltado ya quedó aplicado (para iniciar el temporizador). */
+  onAnclaAplicada?: () => void
+  /** Informa al contenedor si el preview sigue cargando (evita descargas concurrentes). */
+  onEstadoCarga?: (cargando: boolean) => void
   /** Cambios del diff a superponer inline sobre el documento renderizado. */
   anotaciones?: LineaAnotacion[]
 }
@@ -38,6 +44,9 @@ export function VisorDocxPreview({
   permitirSeleccion = false,
   onComentarSeleccion,
   anclaResaltada,
+  onAnclaNoEncontrada,
+  onAnclaAplicada,
+  onEstadoCarga,
   anotaciones,
 }: VisorDocxPreviewProps) {
   const contenedorRef = useRef<HTMLDivElement>(null)
@@ -47,6 +56,10 @@ export function VisorDocxPreview({
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null)
   const [seleccionPendiente, setSeleccionPendiente] =
     useState<SeleccionDocx | null>(null)
+
+  useEffect(() => {
+    onEstadoCarga?.(cargando)
+  }, [cargando, onEstadoCarga])
 
   useEffect(() => {
     const contenedor = contenedorRef.current
@@ -59,10 +72,10 @@ export function VisorDocxPreview({
       if (!nodo) return
       setCargando(true)
       setError(null)
+      nodo.innerHTML = ''
       try {
         const buffer = await cargarDocumento()
         if (cancelado) return
-        nodo.innerHTML = ''
         await renderAsync(buffer, nodo, undefined, {
           className: 'docx-preview-siac',
           inWrapper: true,
@@ -86,14 +99,20 @@ export function VisorDocxPreview({
   }, [cargarDocumento, claveRecarga])
 
   useEffect(() => {
-    if (cargando || !anclaResaltada) return
+    if (cargando || error || !anclaResaltada) return
     const contenedor = contenedorRef.current
     if (!contenedor) return
-    resaltarCita(contenedor, {
+    const resultado = resaltarCita(contenedor, {
       anchor: anclaResaltada.anchor,
       quote: anclaResaltada.quote,
     })
-  }, [anclaResaltada, cargando])
+    if (!resultado.encontrado) {
+      onAnclaNoEncontrada?.()
+      return
+    }
+    onAnclaAplicada?.()
+    return resultado.limpiar
+  }, [anclaResaltada, cargando, error, onAnclaNoEncontrada, onAnclaAplicada])
 
   useEffect(() => {
     if (cargando) return
