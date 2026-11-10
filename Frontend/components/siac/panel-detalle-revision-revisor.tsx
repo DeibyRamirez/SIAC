@@ -3,6 +3,10 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
+import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
+import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
+import { usarSesion } from '@/components/auth/proveedor-sesion'
+
 import { RegionCarga } from '@/components/siac/estado-carga-lista'
 import { EsqueletoFilas } from '@/components/siac/esqueletos'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
@@ -38,7 +42,11 @@ export function PanelDetalleRevisionRevisor({
   tituloChecklist = 'Evaluación por condiciones del documento',
   onCerrar,
 }: PanelDetalleRevisionRevisorProps) {
+  const { sesion } = usarSesion()
   const [soloFallos, setSoloFallos] = useState(false)
+  const [versionTrasReemplazo, setVersionTrasReemplazo] = useState(
+    fila.numeroRevision ?? fila.version ?? 1,
+  )
 
   const puntajeTexto = formatearPuntaje(fila.puntaje, fila.totalCondiciones)
   const alcanceLabel = fila.programa?.nombre ?? 'Institución (IES)'
@@ -110,6 +118,25 @@ export function PanelDetalleRevisionRevisor({
             Sin observaciones ni checklist registrados para esta versión.
           </p>
         )}
+
+        <div className="space-y-3 border-t border-primary/10 pt-4">
+          <p className="text-xs text-muted-foreground">
+            Descargue una versión con firma SIAC, corríjala en Word y suba la nueva versión si el
+            profesor no puede hacerlo.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <BotonReemplazarDocumento
+              evidenciaId={fila.evidenciaId}
+              estado={fila.estado}
+              rol={sesion?.rol}
+              onReemplazado={(ev) => setVersionTrasReemplazo(ev.version ?? versionTrasReemplazo)}
+            />
+          </div>
+          <HistorialVersionesEvidencia
+            evidenciaId={fila.evidenciaId}
+            versionActiva={versionTrasReemplazo}
+          />
+        </div>
       </div>
 
       <SheetFooter className="shrink-0 flex-row justify-end gap-2 border-t border-primary/10 px-4 py-3">
