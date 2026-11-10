@@ -1,0 +1,66 @@
+# SIAC — orquestación en servidor universitario (sin Postgres en el compose: BD externa).
+# Variables sensibles: archivo fuera del repositorio (véase docs/despliegue-docker.md).
+
+name: siac-prod
+
+services:
+  migrate:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+      target: tools
+    env_file:
+      - ${SIAC_ENV_FILE:-./siac.prod.env}
+    networks:
+      - siac-interna
+    restart: "no"
+    command: ["pnpm", "prisma:deploy"]
+
+  api:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+      target: runtime
+    env_file:
+      - ${SIAC_ENV_FILE:-./siac.prod.env}
+    environment:
+      NODE_ENV: production
+      PUERTO: "3001"
+    ports:
+      - "${SIAC_API_PUERTO:-3001}:3001"
+    networks:
+      - siac-interna
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - siac-almacen:/app/almacen-local
+    deploy:
+      replicas: 1
+
+  web:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      target: runtime
+    env_file:
+      - ${SIAC_ENV_FILE:-./siac.prod.env}
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      # Sobrescribe el archivo de entorno: el BFF llama al servicio `api` por la red interna.
+      API_URL_INTERNAL: http://api:3001/api/v1
+    ports:
+      - "${SIAC_WEB_PUERTO:-3000}:3000"
+    networks:
+      - siac-interna
+    depends_on:
+      - api
+
+networks:
+  siac-interna:
+    driver: bridge
+
+volumes:
+  siac-almacen:
+    name: siac-almacen
