@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -172,6 +172,59 @@ describe('CampanaNotificaciones (§6.7)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Sin alertas pendientes' }))
     expect(await screen.findByText('No hay alertas pendientes')).toBeInTheDocument()
   })
+
+  it('abre el panel completo con encabezado, contador y lista con scroll interno', async () => {
+    const muchas = Array.from({ length: 12 }, (_, indice) => ({
+      ...ALERTAS[0],
+      id: `a-muchas-${indice}`,
+      mensaje: `Alerta número ${indice + 1} de la bandeja.`,
+    }))
+    listarMock.mockResolvedValue(muchas)
+    renderCampana()
+
+    const disparador = await screen.findByRole('button', { name: '12 alertas pendientes' })
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(disparador)
+
+    await waitFor(() => {
+      expect(disparador).toHaveAttribute('aria-expanded', 'true')
+    })
+    expect(await screen.findByText('Notificaciones')).toBeVisible()
+    expect(screen.getByText('12 pendientes')).toBeInTheDocument()
+    const lista = screen.getByTestId('lista-notificaciones')
+    expect(lista).toHaveClass('overflow-y-auto')
+    expect(within(lista).getAllByText(/Alerta número/)).toHaveLength(12)
+  })
+
+  it('cierra con Escape y con clic fuera de la campana', async () => {
+    renderCampana()
+    const disparador = await abrirCampana()
+    expect(await screen.findByText('Notificaciones')).toBeVisible()
+
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByText('Notificaciones')).not.toBeInTheDocument()
+    })
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
+
+    await userEvent.click(disparador)
+    expect(await screen.findByText('Notificaciones')).toBeVisible()
+    await userEvent.click(document.body)
+    await waitFor(() => {
+      expect(screen.queryByText('Notificaciones')).not.toBeInTheDocument()
+    })
+  })
+
+  it.each(['SuperAdmin', 'Administrador', 'Revisor', 'Cargador'])(
+    'el panel se abre igual para el rol %s',
+    async (rol) => {
+      estadoSesion.rol = rol
+      renderCampana()
+      await abrirCampana()
+      expect(await screen.findByText('Notificaciones')).toBeVisible()
+      expect(screen.getByTestId('lista-notificaciones')).toBeInTheDocument()
+    },
+  )
 
   it('un error de red deja la campana vacía sin romper el layout', async () => {
     listarMock.mockRejectedValue(new Error('sin conexión'))

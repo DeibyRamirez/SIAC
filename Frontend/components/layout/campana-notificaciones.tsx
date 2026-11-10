@@ -6,13 +6,13 @@ import { Bell } from 'lucide-react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
+import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -77,43 +77,61 @@ export function CampanaNotificaciones() {
           </span>
         ) : null}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-[100] w-80 max-h-[min(24rem,70vh)] overflow-y-auto">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={20}
+        collisionPadding={8}
+        className="z-[300] w-[min(360px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+      >
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-primary">Notificaciones</DropdownMenuLabel>
-          {alertasPendientes.length > 0 ? (
-            <DropdownMenuItem
-              className="text-xs text-esmeralda"
-              onClick={() => marcarTodasAlertasLeidas()}
-            >
-              Marcar todas como leídas
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuSeparator />
-          {alertasPendientes.length === 0 ? (
-            <DropdownMenuItem disabled>No hay alertas pendientes</DropdownMenuItem>
-          ) : (
-            alertasPendientes.map((alerta) => {
-              const accion = rol
-                ? resolverAccionNotificacion(alerta.tipo, alerta.metadata, rol)
-                : null
-              return (
-                <DropdownMenuItem
-                  key={alerta.id}
-                  onClick={() => manejarSeleccion(alerta)}
-                  className="flex cursor-pointer flex-col items-start gap-1 py-2"
-                >
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-esmeralda">
-                    {etiquetaTipoNotificacion(alerta.tipo)}
-                  </span>
-                  <span className="text-sm text-pretty">{alerta.mensaje}</span>
-                  {accion ? (
-                    <span className="text-xs font-medium text-ring">{accion.etiqueta}</span>
-                  ) : null}
-                  <span className="text-xs text-muted-foreground">{alerta.fecha}</span>
-                </DropdownMenuItem>
-              )
-            })
-          )}
+          <div className="border-b border-primary/10 px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-primary">Notificaciones</span>
+              <Badge variant={alertasPendientes.length > 0 ? 'destructive' : 'secondary'}>
+                {alertasPendientes.length}{' '}
+                {alertasPendientes.length === 1 ? 'pendiente' : 'pendientes'}
+              </Badge>
+            </div>
+            {alertasPendientes.length > 0 ? (
+              <DropdownMenuItem
+                className="mt-2 cursor-pointer text-xs text-esmeralda"
+                onClick={() => marcarTodasAlertasLeidas()}
+              >
+                Marcar todas como leídas
+              </DropdownMenuItem>
+            ) : null}
+          </div>
+          <DropdownMenuSeparator className="mx-0" />
+          <div
+            data-testid="lista-notificaciones"
+            className="max-h-[min(480px,calc(100dvh-10rem))] overflow-y-auto p-1"
+          >
+            {alertasPendientes.length === 0 ? (
+              <DropdownMenuItem disabled>No hay alertas pendientes</DropdownMenuItem>
+            ) : (
+              alertasPendientes.map((alerta) => {
+                const accion = rol
+                  ? resolverAccionNotificacion(alerta.tipo, alerta.metadata, rol)
+                  : null
+                return (
+                  <DropdownMenuItem
+                    key={alerta.id}
+                    onClick={() => manejarSeleccion(alerta)}
+                    className="flex cursor-pointer flex-col items-start gap-1 py-2"
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-esmeralda">
+                      {etiquetaTipoNotificacion(alerta.tipo)}
+                    </span>
+                    <span className="text-sm text-pretty">{alerta.mensaje}</span>
+                    {accion ? (
+                      <span className="text-xs font-medium text-ring">{accion.etiqueta}</span>
+                    ) : null}
+                    <span className="text-xs text-muted-foreground">{alerta.fecha}</span>
+                  </DropdownMenuItem>
+                )
+              })
+            )}
+          </div>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
