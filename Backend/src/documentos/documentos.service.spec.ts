@@ -948,6 +948,107 @@ describe('DocumentosService · reglas de nueva carga', () => {
   });
 });
 
+describe('DocumentosService · carga verificada por revisor', () => {
+  const revisorCarga = { id: 'revisor-carga', rol: RolUsuario.Revisor };
+
+  async function archivoMinimo() {
+    return {
+      originalname: 'maestro.docx',
+      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 64,
+      buffer: Buffer.from(''),
+    } as Express.Multer.File;
+  }
+
+  it('publica G1 como Cumple 9/9 con evaluaciones al crear con publicarComoVerificado', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = await archivoMinimo();
+
+    await servicio.crearConArchivo(
+      {
+        nombre: 'Maestro',
+        programaId: 'prog-1',
+        periodo: '2099-1',
+        codigoGuia: CodigoDocumentoGuia.G1,
+        publicarComoVerificado: 'true',
+      },
+      archivo,
+      revisorCarga,
+    );
+
+    expect(repositorio.actualizar).toHaveBeenLastCalledWith(
+      'ev-1',
+      expect.objectContaining({
+        estado: EstadoEvidencia.Cumple,
+        puntajeActual: 9,
+        totalCondicionesActual: 9,
+      }),
+    );
+    expect(repositorio.guardarEvaluacionesCondicion).toHaveBeenCalledWith(
+      'ev-1',
+      1,
+      'revisor-carga',
+      expect.arrayContaining([
+        expect.objectContaining({ cumple: true }),
+      ]),
+    );
+  });
+
+  it('publica G2 como Validado al crear con publicarComoVerificado', async () => {
+    const repositorio = crearRepositorioFake();
+    const avanceProceso = {
+      calcularProgresoPrograma: jest.fn().mockResolvedValue({
+        guiasDisponiblesCarga: [CodigoDocumentoGuia.G2],
+        bloqueosCarga: [],
+        tipoTramite: 'RenovacionRegistroCalificado',
+      }),
+      calcularProgresoInstitucion: jest.fn(),
+    };
+    const servicio = crearServicio(repositorio, avanceProceso);
+    const archivo = await archivoMinimo();
+
+    await servicio.crearConArchivo(
+      {
+        nombre: 'Renovación',
+        programaId: 'prog-1',
+        periodo: '2099-1',
+        codigoGuia: CodigoDocumentoGuia.G2,
+        publicarComoVerificado: '1',
+      },
+      archivo,
+      revisorCarga,
+    );
+
+    expect(repositorio.actualizar).toHaveBeenLastCalledWith(
+      'ev-1',
+      expect.objectContaining({ estado: EstadoEvidencia.Validado }),
+    );
+  });
+
+  it('rechaza publicarComoVerificado si el usuario es Cargador', async () => {
+    const repositorio = crearRepositorioFake();
+    const servicio = crearServicio(repositorio);
+    const archivo = await archivoMinimo();
+
+    await expect(
+      servicio.crearConArchivo(
+        {
+          nombre: 'Maestro',
+          programaId: 'prog-1',
+          periodo: '2099-1',
+          codigoGuia: CodigoDocumentoGuia.G1,
+          publicarComoVerificado: 'true',
+        },
+        archivo,
+        { id: 'cargador-1', rol: RolUsuario.Cargador },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repositorio.crear).not.toHaveBeenCalled();
+  });
+});
+
 describe('DocumentosService · límite de tamaño .docx (20 MB)', () => {
   const cargador = { id: 'cargador-1', rol: RolUsuario.Cargador };
   const LIMITE = 20 * 1024 * 1024;
