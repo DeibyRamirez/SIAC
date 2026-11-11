@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+test
+**/*.spec.ts
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+almacen-local
+*.md
+!prisma/**/*.md

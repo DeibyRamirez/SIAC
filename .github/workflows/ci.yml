@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.33.2
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.33.2
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -145,3 +145,91 @@ jobs:
       - run: pnpm exec tsc --noEmit
       - run: pnpm test
       - run: pnpm build
+
+  docker:
+    name: Docker — build e humo API/web
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: siac
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d siac"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres@127.0.0.1:5432/siac
+      DIRECT_URL: postgresql://postgres@127.0.0.1:5432/siac
+      S3_USAR_ALMACEN_LOCAL: "true"
+      FRONTEND_URL: http://localhost:3000
+      CORREO_CANAL: ninguno
+      CARRERAS_SYNC_HABILITADO: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secretos efímeros para humo Docker (sin literales en el workflow)
+        run: |
+          jwt=$(openssl rand -hex 32)
+          echo "::add-mask::$jwt"
+          echo "JWT_SECRETO=$jwt" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build imagen API (runtime)
+        run: docker build -t siac-api:ci -f Backend/Dockerfile --target runtime Backend
+      - name: Build imagen API (tools)
+        run: docker build -t siac-api-tools:ci -f Backend/Dockerfile --target tools Backend
+      - name: Build imagen frontend
+        run: docker build -t siac-web:ci -f Frontend/Dockerfile --target runtime Frontend
+      - name: Aplicar migraciones en contenedor tools
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL -e DIRECT_URL \
+            siac-api-tools:ci pnpm prisma:deploy
+      - name: Arrancar API y comprobar /api/v1/salud
+        run: |
+          docker run -d --name siac-api-ci --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL -e DIRECT_URL -e JWT_SECRETO \
+            -e S3_USAR_ALMACEN_LOCAL -e FRONTEND_URL \
+            -e CORREO_CANAL -e CARRERAS_SYNC_HABILITADO \
+            siac-api:ci
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3001/api/v1/salud >/dev/null; then ok=1; break; fi
+            if ! docker ps -q --filter name=^siac-api-ci$ | grep -q .; then
+              echo "::error::El contenedor API se detuvo antes del health check"
+              docker logs siac-api-ci
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::Timeout esperando /api/v1/salud"
+            docker logs siac-api-ci
+            curl -sv http://127.0.0.1:3001/api/v1/salud || true
+            exit 1
+          fi
+          curl -sf http://127.0.0.1:3001/api/v1/salud
+      - name: Arrancar frontend y comprobar respuesta HTTP
+        run: |
+          docker run -d --name siac-web-ci --network host \
+            -e NODE_ENV=production \
+            -e API_URL_INTERNAL=http://127.0.0.1:3001/api/v1 \
+            -e HOSTNAME=0.0.0.0 \
+            -e PORT=3000 \
+            siac-web:ci
+          for i in $(seq 1 45); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
+            if echo "$code" | grep -qE '^(200|307|308)$'; then break; fi
+            sleep 2
+          done
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/)
+          echo "HTTP frontend: $code"
+          echo "$code" | grep -qE '^(200|307|308)$'
+      - name: Detener contenedores de humo
+        if: always()
+        run: docker rm -f siac-api-ci siac-web-ci 2>/dev/null || true
