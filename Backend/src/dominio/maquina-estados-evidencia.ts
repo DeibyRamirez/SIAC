@@ -1,5 +1,18 @@
 import { CodigoDocumentoGuia, EstadoEvidencia } from '@prisma/client';
 
+/** Estados que significan documento aprobado al 100 %. */
+export const ESTADOS_DOCUMENTO_APROBADO = [
+  EstadoEvidencia.Cumple,
+  EstadoEvidencia.Validado,
+] as const;
+
+/** Un documento aprobado al 100 % es Cumple (G1/G3) o Validado (G2/G4/legado). */
+export function esDocumentoAprobado(estado: EstadoEvidencia): boolean {
+  return ESTADOS_DOCUMENTO_APROBADO.includes(
+    estado as (typeof ESTADOS_DOCUMENTO_APROBADO)[number],
+  );
+}
+
 /**
  * Máquina de estados de la evidencia (HU-006, T-006.2).
  *

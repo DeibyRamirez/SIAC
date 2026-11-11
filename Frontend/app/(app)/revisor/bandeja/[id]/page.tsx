@@ -23,8 +23,6 @@ import {
 } from '@/components/siac/checklist-condiciones-institucionales'
 import { BarraAccionesDictamenRevisor } from '@/components/siac/barra-acciones-dictamen-revisor'
 import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
-import { HistorialVersionesEvidencia } from '@/components/siac/historial-versiones-evidencia'
-import { BotonReemplazarDocumento } from '@/components/siac/boton-reemplazar-documento'
 import { InsigniaEstado } from '@/components/siac/insignia-estado'
 import { EncabezadoPagina } from '@/components/siac/tarjeta-acceso'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -146,6 +144,7 @@ function ContenidoDictamen() {
   const [procesando, setProcesando] = useState(false)
   const [confirmarAprobar, setConfirmarAprobar] = useState(false)
   const [confirmarCorreccion, setConfirmarCorreccion] = useState(false)
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
   const [observacionesGenerales, setObservacionesGenerales] = useState('')
   const [comentariosInline, setComentariosInline] = useState<
     ComentarioInlineRevision[]
@@ -289,6 +288,28 @@ function ContenidoDictamen() {
     }
   }, [condiciones, condicionesInstitucionales, usaChecklistInstitucional])
   const textoPuntajePreview = `${puntajePreview.puntaje}/${puntajePreview.total}`
+  const hayDatosDictamen =
+    observacionesGenerales.trim().length > 0 ||
+    textoEdicionComentario.trim().length > 0 ||
+    comentariosInline.some((comentario) => comentario.body.trim().length > 0) ||
+    condiciones.some(
+      (condicion) =>
+        condicion.decision !== null || condicion.observacion.trim().length > 0,
+    ) ||
+    condicionesInstitucionales.some(
+      (condicion) =>
+        condicion.decision !== null || condicion.observacion.trim().length > 0,
+    )
+
+  useEffect(() => {
+    if (!hayDatosDictamen) return
+    const avisar = (evento: BeforeUnloadEvent) => {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [hayDatosDictamen])
 
   if (cargando) {
     return <EsqueletoContenidoPagina tipo="detalle" />
@@ -310,6 +331,15 @@ function ContenidoDictamen() {
   }
 
   const puedeDictaminar = evidencia.estado === 'EnRevision'
+
+  function solicitarSalida() {
+    if (hayDatosDictamen) {
+      setConfirmarSalida(true)
+      return
+    }
+    router.push('/revisor/bandeja')
+  }
+
   const todasCumplen = usaChecklistInstitucional
     ? condicionesInstitucionales.every((c) => c.decision === 'correcto')
     : condiciones.every((c) => c.decision === 'correcto')
@@ -710,16 +740,6 @@ function ContenidoDictamen() {
                 <p>{formatearFecha(evidencia.fechaCarga)}</p>
               </div>
             </div>
-            <BotonReemplazarDocumento
-              evidenciaId={evidencia.id}
-              estado={evidencia.estado}
-              rol="Revisor"
-              onReemplazado={() => window.location.reload()}
-            />
-            <HistorialVersionesEvidencia
-              evidenciaId={evidencia.id}
-              versionActiva={versionActual}
-            />
           </CardContent>
         </Card>
 
@@ -910,6 +930,7 @@ function ContenidoDictamen() {
               procesando={procesando}
               puedeDictaminar={puedeDictaminar}
               pistaDeshabilitado={pistaDeshabilitado}
+              onVolver={solicitarSalida}
             />
           </CardContent>
         </Card>
@@ -945,6 +966,19 @@ function ContenidoDictamen() {
         cargando={procesando}
         onConfirmar={() => enviarDictamen(false)}
         onCancelar={() => setConfirmarCorreccion(false)}
+      />
+
+      <DialogoConfirmacion
+        abierto={confirmarSalida}
+        titulo="¿Descartar los cambios del dictamen?"
+        descripcion="Se perderán las condiciones, observaciones y comentarios que aún no se han guardado. No se registrará ningún dictamen."
+        etiquetaConfirmar="Sí, descartar"
+        variant="destructive"
+        onConfirmar={() => {
+          setConfirmarSalida(false)
+          router.push('/revisor/bandeja')
+        }}
+        onCancelar={() => setConfirmarSalida(false)}
       />
     </div>
   )

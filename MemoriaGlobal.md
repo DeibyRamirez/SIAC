@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-11-05 |
+| **Última actualización** | 2026-11-09 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`Backend/package.json`) |
 | **Supabase** | Proyecto `Simulacion_siac` · ref `olknaoacxwenqlawxysx` · región `ca-central-1` |
@@ -395,6 +395,10 @@ Formato alternativo (`https://[ref].supabase.co/storage/v1/s3`) puede variar; si
 
 El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 entregado; **Sprint 2 / Etapa 2 cerrada** (criterios en `docs/etapa-2/README.md`); **Sprint 3 / Etapa 3 en curso** (HU-006, HU-007, HU-009). Verificación local CI-equivalente: 10/10/2026 — Jest 187 tests, E2E 34 tests (CP-E2E-01..05), Vitest 51 tests, builds OK. **12/10/2026 — S3-01 (HU-009):** modelo de cifras institucionales (`VariableCifra`, `CargaCifras`, `CifraIndicador`), ingesta API con `x-api-key` e importación Excel; Jest 204 tests, build backend y `tsc` frontend OK. **S3-02:** frontend de cifras (panel por categoría, importación Excel, diccionario de variables, página `/administrador/cifras`); Vitest 62 tests, `tsc` 0 y `next build` OK. **S3-03:** registros por categoría según `docs/plantillas-siac.xlsx` (6 modelos + esquemas tipados, reemplazo por periodo/sede, plantilla/JSON, feed Power BI); import real 15804/1351/1338/80/71/12 con 0 errores, Jest 228, Vitest 63 y builds OK. **16/10/2026 — S3-HU006 (cierre HU-006):** máquina de estados, observación obligatoria por condición, notificación al Cargador con correo escapado, una sola petición de dictamen, CP-E2E-04 reescrito y E2E nuevo G2/G4; Jest 305 y Vitest 102, builds OK (E2E pendientes de CI: sin BD de pruebas local). **16/10/2026 — S3-HU007 (cierre HU-007):** umbrales PO (aviso 24 / rojo 18) con `Vencido` distinto de `Rojo` y relectura sin redeploy; opción B del semáforo general (30 casos); outbox `NotificacionSalida` + `AlertaInApp.claveEvento` con procesador de reintentos y bitácora `GET /notificaciones/salida`; cron 6:00 America/Bogota idempotente (D-1 + transiciones de vigencia); plantillas de correo puras con snapshots; demo acelerada 300 s con `GET /programas/:id/vigencia` y polling 5 s; Jest 42 suites / 372 tests, Vitest 24 / 107, `tsc`, `next build` y `pnpm build` OK (E2E no ejecutados: sin BD de pruebas; migración `20261016120000` creada y pendiente de `prisma migrate deploy`). **16/10/2026 — S3-CIERRE (HU-007 + limpieza de datos):** umbrales editables vía `GET/PATCH /api/v1/configuracion/vigencia` (SuperAdmin/Administrador; DTO 1..84, aviso > rojo, Swagger) con tarjeta «Umbrales del semáforo» en `/administrador/vigencias`; E2E nuevos `umbrales-vigencia` y `alertas-vigencia` (CA3 con referencias inyectadas, outbox `Enviado`/`Fallido` y bitácora); `EvidenciaComentario` pasó de SQL crudo a Prisma tipado; retirados `prisma/aplicar-esquema-versionado.ts` y `prisma:repair-schema`; migración `20261016120000` ya aplicada; Jest 48 suites / 413, Vitest 29 / 129, `tsc`, `next build` y `pnpm build` OK (E2E se validan en CI).
 
+**09/11/2026 — S4-UX:** campana de notificaciones con portal por encima del header, ancho acotado al viewport y lista con scroll; comentarios del revisor clicables en el detalle del profesor con auto-scroll, cita normalizada, resaltado de 10 s y aviso si el fragmento no existe; el revisor sube versiones con la misma firma SIAC de la última descarga, sin cambiar el estado ni notificar al profesor (`EvidenciaVersion.subidoPorRol`, migración `20261109223925_version_revisor_rol`, sin aplicar). Jest 681 y Vitest 296 en verde; `tsc` y builds OK; E2E nuevo `version-revisor` para CI.
+
+**09/11/2026 — S4-UX-2:** `/revisor/revisiones` separa Observaciones (consulta read-only del último documento) e Historial de versiones mediante menú de tres puntos. El flujo del revisor valida el candidato con `POST /evidencias/:id/versiones/revisor/validar` (sin crear versión) y publica con `POST /evidencias/:id/versiones/revisor` (Cumple, firma vigente, `versionOrigen`, CAS y 409). `GET /contenido-preview` no rota firmas; `GET /contenido` sigue siendo la descarga explícita firmada. Confirmaciones con diálogo para guardar borrador, enviar a revisión, publicar versión y descartar candidato. Jest 687, Vitest 306; E2E `version-revisor` + `usabilidad` 17/17 en PostgreSQL 18 temporal. La creación de versiones (nuevo flujo y rutas heredadas) usa CAS por versión/estado/firma y claves internas únicas por intento para no borrar el archivo ganador. `pnpm build` del backend bloqueado por lock de Prisma de un `nest --watch` ajeno; `pnpm exec nest build` verde.
+
 - [x] `Programa.facultad` y `Programa.slug` únicos (migración segura; slug generado del nombre)
 - [x] `UsuarioPrograma` único por `(usuarioId, programaId)` con deduplicación previa
 - [x] `GuardAlcancePrograma` relee la asignación en cada petición (el JWT no lleva programas)
@@ -487,6 +491,15 @@ El estado oficial de los sprints vive en ClickUp. En el repositorio: Sprint 1 en
 ---
 
 ## 10. Registro de cambios
+
+### 2026-11-09 — S4-UX: notificaciones, auto-scroll y versión del revisor
+
+- [Frontend] `DropdownMenu` con Positioner `z-[300]`; campana con `sideOffset=20`, ancho `min(360px, 100vw-1rem)`, encabezado fijo con contador, lista `max-h-[min(480px,70vh)]` con scroll, cierre por Escape/clic fuera y `aria-expanded`.
+- [Frontend] Detalle del profesor: cita normalizada (espacios/saltos/mayúsculas), validación del ancla contra el texto, marks por nodo para citas multipárrafo, resaltado de 10 s con limpieza al cambiar de comentario y aviso «No se encontró el fragmento en esta versión».
+- [Backend] `POST /api/v1/evidencias/:id/reemplazo-documento` reutilizado por Revisor/Administrador: valida la firma de la última descarga, conserva el estado, registra `subidoPorRol` y no crea alertas ni correo. Fuera de alcance responde 403.
+- [Datos] Migración `20261109223925_version_revisor_rol`: `ALTER TABLE "EvidenciaVersion" ADD COLUMN "subidoPorRol" "RolUsuario";` (nullable, creada con `--create-only`, no aplicada).
+- [Frontend] Historial de versiones con autor, rol y etiqueta «Subida por revisor»; botón «Subir nueva versión» con ayuda de firma en bandeja y panel de Mis revisiones.
+- [Tests] Backend Jest 681 (4 nuevos de servicio), Frontend Vitest 296 (12 nuevos entre campana, selección, botón, historial y detalle); E2E `version-revisor.e2e-spec.ts` para CI.
 
 ### 2026-11-05 — Sin cuentas de demostración por rol
 

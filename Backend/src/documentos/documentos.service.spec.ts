@@ -142,6 +142,61 @@ function crearRepositorioFake() {
     buscarUsuarioNombre: jest.fn(async () => ({ nombre: 'Revisor Prueba' })),
     actualizarVersion: jest.fn(async () => ({})),
     registrarVersion: jest.fn(async () => ({})),
+    registrarVersionConCas: jest.fn(async (datos: {
+      versionOrigen: number;
+      estadoOrigen: EstadoEvidencia;
+      firmaOrigen?: string | null;
+      nuevaVersion: number;
+      nombreArchivo: string;
+      rutaArchivo: string;
+      mimeType?: string;
+      tamanoBytes?: number;
+      subidoPorId: string;
+      subidoPorRol: RolUsuario;
+    }) => {
+      if (
+        evidencia.version !== datos.versionOrigen ||
+        evidencia.estado !== datos.estadoOrigen
+      ) {
+        return null;
+      }
+      evidencia = {
+        ...evidencia,
+        version: datos.nuevaVersion,
+        nombreArchivo: datos.nombreArchivo,
+        rutaArchivo: datos.rutaArchivo,
+        mimeType: datos.mimeType ?? null,
+        tamanoBytes: datos.tamanoBytes ?? null,
+      } as typeof evidencia;
+      return { ...evidencia };
+    }),
+    publicarVersionRevisor: jest.fn(async (datos: {
+      versionOrigen: number;
+      firmaOrigen?: string | null;
+      nuevaVersion: number;
+      nombreArchivo: string;
+      rutaArchivo: string;
+      mimeType?: string;
+      tamanoBytes?: number;
+      subidoPorId: string;
+      subidoPorRol: RolUsuario;
+    }) => {
+      if (
+        evidencia.version !== datos.versionOrigen ||
+        evidencia.estado !== EstadoEvidencia.Cumple
+      ) {
+        return null;
+      }
+      evidencia = {
+        ...evidencia,
+        version: datos.nuevaVersion,
+        nombreArchivo: datos.nombreArchivo,
+        rutaArchivo: datos.rutaArchivo,
+        mimeType: datos.mimeType ?? null,
+        tamanoBytes: datos.tamanoBytes ?? null,
+      } as typeof evidencia;
+      return { ...evidencia };
+    }),
     eliminarVersion: jest.fn(async () => ({})),
     buscarPrograma: jest.fn(async () => ({
       id: 'prog-1',
@@ -866,13 +921,14 @@ describe('DocumentosService · descarga con comentarios del revisor', () => {
       tipoTramite: 'RenovacionRegistroCalificado',
       programaId: 'prog-1',
     });
-    expect(repositorio.registrarVersion).toHaveBeenCalledWith(
-      expect.objectContaining({ numero: 2, nombreArchivo: 'guia.docx' }),
+    expect(repositorio.registrarVersionConCas).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nuevaVersion: 2,
+        nombreArchivo: 'guia.docx',
+        estadoOrigen: EstadoEvidencia.Rechazado,
+      }),
     );
-    expect(repositorio.actualizar).toHaveBeenCalledWith(
-      'ev-1',
-      expect.objectContaining({ nombreArchivo: 'guia.docx' }),
-    );
+    expect(repositorio.actualizar).not.toHaveBeenCalled();
   });
 });
 
@@ -1002,5 +1058,286 @@ describe('DocumentosService · límite de tamaño .docx (20 MB)', () => {
     ).rejects.toThrow('El archivo supera el tamaño máximo de 20 MB.');
 
     expect(repositorio.crear).not.toHaveBeenCalled();
+  });
+});
+
+describe('DocumentosService · versión subida por el revisor', () => {
+  function crearServicioRevisor(
+    repositorio: ReturnType<typeof crearRepositorioFake>,
+    opciones: { asignado?: boolean; firmaInvalida?: boolean; buffer?: Buffer } = {},
+  ) {
+    const validarFirmaSubida = opciones.firmaInvalida
+      ? jest
+          .fn()
+          .mockRejectedValue(
+            new BadRequestException(
+              'Falta la firma de versión SIAC; descarga el documento desde SIAC y vuelve a subirlo.',
+            ),
+          )
+      : jest.fn().mockResolvedValue(undefined);
+    const notificaciones = { notificar: jest.fn(), notificarVarios: jest.fn() };
+    const servicio = new DocumentosService(
+      repositorio as never,
+      {
+        generarClaveEvidencia: jest.fn(() => 'evidencias/ev-1/v2/doc.docx'),
+        subirArchivo: jest.fn().mockResolvedValue(undefined),
+        eliminarArchivo: jest.fn().mockResolvedValue(undefined),
+        obtenerBuffer: jest.fn().mockResolvedValue(opciones.buffer ?? Buffer.from('docx')),
+      } as never,
+      notificaciones as never,
+      { idsRevisoresParaPrograma: jest.fn() } as never,
+      { recalcularPorcentajeAvance: jest.fn() } as never,
+      {
+        calcularProgresoPrograma: jest.fn(),
+        calcularProgresoInstitucion: jest.fn(),
+      } as never,
+      {
+        validarFirmaSubida,
+        validarEsDocxZip: jest.fn(),
+        firmarDescarga: jest.fn().mockResolvedValue(Buffer.from('firmado')),
+        inyectarComentariosWord: jest.fn().mockResolvedValue({ buffer: Buffer.from('docx'), inyectados: 0, omitidos: 0 }),
+        procesarDocxPostDictamen: jest.fn(),
+      } as never,
+      {
+        filtroVisibilidad: jest.fn(),
+        estaAsignado: jest.fn().mockResolvedValue(opciones.asignado ?? true),
+        idsProgramasAsignados: jest.fn(),
+      } as never,
+      prismaFake,
+    );
+    return { servicio, validarFirmaSubida, notificaciones };
+  }
+
+  function prepararRepositorio() {
+    const repositorio = crearRepositorioFake();
+    repositorio.evidencia = {
+      ...repositorio.evidencia,
+      estado: EstadoEvidencia.ConObservaciones,
+      version: 1,
+      nombreArchivo: 'documento.docx',
+      rutaArchivo: 'evidencias/ev-1/v1/documento.docx',
+    };
+    repositorio.buscarVersion.mockResolvedValue({
+      numero: 1,
+      rutaArchivo: 'evidencias/ev-1/v1/documento.docx',
+      nombreArchivo: 'documento.docx',
+      firmaDescarga: 'firma-v1',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    return repositorio;
+  }
+
+  const archivoRevisor = async () =>
+    ({
+      originalname: 'documento.docx',
+      mimetype:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: await crearDocxBuffer('Documento editado por el revisor'),
+      size: 300,
+    }) as Express.Multer.File;
+
+  it('Revisor en alcance sube v2, conserva el estado, registra su rol y no notifica', async () => {
+    const repositorio = prepararCumple();
+    const { servicio, validarFirmaSubida, notificaciones } = crearServicioRevisor(
+      repositorio,
+    );
+    const archivo = await archivoRevisor();
+
+    const resultado = await servicio.reemplazarDocumentoGestion(
+      'ev-1',
+      archivo,
+      { id: 'rev-1', rol: RolUsuario.Revisor },
+    );
+
+    expect(validarFirmaSubida).toHaveBeenCalledWith(archivo.buffer, 'firma-v1');
+    expect(repositorio.registrarVersionConCas).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nuevaVersion: 2,
+        subidoPorId: 'rev-1',
+        subidoPorRol: RolUsuario.Revisor,
+        estadoOrigen: EstadoEvidencia.Cumple,
+      }),
+    );
+    expect(resultado.estado).toBe(EstadoEvidencia.Cumple);
+    expect(repositorio.actualizar).not.toHaveBeenCalled();
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
+    expect(notificaciones.notificarVarios).not.toHaveBeenCalled();
+  });
+
+  it('rechaza el archivo sin la firma de la última descarga', async () => {
+    const repositorio = prepararCumple();
+    const { servicio } = crearServicioRevisor(repositorio, { firmaInvalida: true });
+    const archivo = await archivoRevisor();
+
+    await expect(
+      servicio.reemplazarDocumentoGestion('ev-1', archivo, {
+        id: 'rev-1',
+        rol: RolUsuario.Revisor,
+      }),
+    ).rejects.toThrow(/Falta la firma de versión SIAC/i);
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+  });
+
+  it('el revisor debe descargar primero: sin firma vigente rechaza la subida', async () => {
+    const repositorio = prepararCumple();
+    repositorio.buscarVersion.mockResolvedValue({
+      numero: 1,
+      rutaArchivo: 'evidencias/ev-1/v1/documento.docx',
+      nombreArchivo: 'documento.docx',
+      firmaDescarga: null,
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const { servicio } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    await expect(
+      servicio.reemplazarDocumentoGestion('ev-1', archivo, {
+        id: 'rev-1',
+        rol: RolUsuario.Revisor,
+      }),
+    ).rejects.toThrow(/Descarga el documento firmado/i);
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+  });
+
+  it('rechaza al revisor fuera del alcance del programa (403)', async () => {
+    const repositorio = prepararRepositorio();
+    const { servicio } = crearServicioRevisor(repositorio, { asignado: false });
+    const archivo = await archivoRevisor();
+
+    await expect(
+      servicio.reemplazarDocumentoGestion('ev-1', archivo, {
+        id: 'rev-ajeno',
+        rol: RolUsuario.Revisor,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+  });
+
+  it('el Cargador conserva su flujo y también registra el rol de la versión', async () => {
+    const repositorio = prepararRepositorio();
+    repositorio.evidencia = {
+      ...repositorio.evidencia,
+      estado: EstadoEvidencia.Rechazado,
+      autorId: 'autor-1',
+    };
+    const { servicio } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    await servicio.reemplazarArchivo('ev-1', archivo, {
+      id: 'autor-1',
+      rol: RolUsuario.Cargador,
+    });
+
+    expect(repositorio.registrarVersionConCas).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nuevaVersion: 2,
+        subidoPorId: 'autor-1',
+        subidoPorRol: RolUsuario.Cargador,
+        estadoOrigen: EstadoEvidencia.Rechazado,
+      }),
+    );
+  });
+
+  function prepararCumple() {
+    const repositorio = prepararRepositorio();
+    repositorio.evidencia = {
+      ...repositorio.evidencia,
+      estado: EstadoEvidencia.Cumple,
+      version: 1,
+    };
+    return repositorio;
+  }
+
+  it('validar un candidato no crea versión, no cambia estado ni rota la firma', async () => {
+    const repositorio = prepararCumple();
+    const { servicio } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    const resultado = await servicio.validarVersionRevisor('ev-1', archivo, {
+      id: 'rev-1',
+      rol: RolUsuario.Revisor,
+    });
+
+    expect(resultado).toMatchObject({
+      versionOrigen: 1,
+      nuevaVersion: 2,
+      nombreArchivo: 'documento.docx',
+    });
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+    expect(repositorio.publicarVersionRevisor).not.toHaveBeenCalled();
+    expect(repositorio.actualizarVersion).not.toHaveBeenCalled();
+    expect(repositorio.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('publicar crea una sola versión, conserva Cumple y no notifica', async () => {
+    const repositorio = prepararCumple();
+    const { servicio, notificaciones } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    const resultado = await servicio.publicarVersionRevisor(
+      'ev-1',
+      archivo,
+      1,
+      { id: 'rev-1', rol: RolUsuario.Revisor },
+    );
+
+    expect(repositorio.publicarVersionRevisor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        versionOrigen: 1,
+        nuevaVersion: 2,
+        subidoPorId: 'rev-1',
+        subidoPorRol: RolUsuario.Revisor,
+      }),
+    );
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+    expect(resultado.estado).toBe(EstadoEvidencia.Cumple);
+    expect(resultado.version).toBe(2);
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
+    expect(notificaciones.notificarVarios).not.toHaveBeenCalled();
+  });
+
+  it('publicar con versión de origen distinta responde 409 sin escribir', async () => {
+    const repositorio = prepararCumple();
+    const { servicio } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    await expect(
+      servicio.publicarVersionRevisor('ev-1', archivo, 2, {
+        id: 'rev-1',
+        rol: RolUsuario.Revisor,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repositorio.publicarVersionRevisor).not.toHaveBeenCalled();
+  });
+
+  it('la ruta heredada rechaza al revisor si el estado vigente no es Cumple', async () => {
+    const repositorio = prepararRepositorio();
+    const { servicio } = crearServicioRevisor(repositorio);
+    const archivo = await archivoRevisor();
+
+    await expect(
+      servicio.reemplazarDocumentoGestion('ev-1', archivo, {
+        id: 'rev-1',
+        rol: RolUsuario.Revisor,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repositorio.registrarVersionConCas).not.toHaveBeenCalled();
+  });
+
+  it('la vista previa no firma ni actualiza firmaDescarga', async () => {
+    const repositorio = prepararCumple();
+    const { servicio } = crearServicioRevisor(repositorio, {
+      buffer: await crearDocxBuffer('Vista previa sin firma'),
+    });
+
+    const archivo = await servicio.obtenerPreviewArchivo('ev-1', {
+      id: 'rev-1',
+      rol: RolUsuario.Revisor,
+    });
+
+    expect(archivo.buffer).toBeDefined();
+    expect(repositorio.actualizarVersion).not.toHaveBeenCalled();
   });
 });

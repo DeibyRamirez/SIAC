@@ -4,6 +4,7 @@ import type {
   EtapaAcreditacion,
   Evidencia,
 } from '@/lib/tipos'
+import { esDocumentoAprobado } from '@/lib/utilidades-siac'
 
 export type EstadoEtapaSIAC = 'Completada' | 'EnProgreso' | 'Pendiente' | 'ConObservaciones'
 
@@ -59,7 +60,7 @@ function evidenciaPorDocumento(
 export function porcentajeAvanceEvidencia(
   evidencia: Pick<Evidencia, 'estado' | 'puntajeActual' | 'totalCondicionesActual'>,
 ): number {
-  if (evidencia.estado === 'Cumple' || evidencia.estado === 'Validado') return 100
+  if (esDocumentoAprobado(evidencia.estado)) return 100
   if (evidencia.estado === 'Rechazado') return 0
   if (
     evidencia.puntajeActual !== null &&
@@ -84,7 +85,7 @@ function calcularProgresoEtapa(
     return {
       documentoId: doc.id,
       nombre: doc.nombre,
-      aceptado: evidencia?.estado === 'Validado' || evidencia?.estado === 'Cumple',
+      aceptado: evidencia ? esDocumentoAprobado(evidencia.estado) : false,
       rechazado:
         evidencia?.estado === 'Rechazado' || evidencia?.estado === 'ConObservaciones',
       porcentajeCompletitud,

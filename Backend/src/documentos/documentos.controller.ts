@@ -12,6 +12,8 @@ import {
   UploadedFile,
   UseInterceptors,
   StreamableFile,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,6 +21,13 @@ import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolUsuario } from '@prisma/client';
 import { DocumentosService } from './documentos.service';
 import { CrearEvidenciaDto, ActualizarEvidenciaDto, FiltrosEvidenciaDto } from './dto/evidencia.dto';
+import {
+  EvidenciaVersionDto,
+  PublicarVersionRevisorDto,
+  ValidacionVersionRevisorDto,
+  VerificacionFirmaDto,
+  VerificarFirmaDto,
+} from './dto/evidencia-version.dto';
 import { DictaminarDto } from '../aprobacion/dto/dictaminar.dto';
 import { Roles, RolesGuard } from '../common/guards/roles.guard';
 import { AlcancePrograma } from '../common/alcance/alcance-programa.decorator';
@@ -132,7 +141,12 @@ export class DocumentosController {
   @ApiContrato({
     resumen: 'Lista las versiones del documento',
     roles: ['autenticado'],
+    respuesta: EvidenciaVersionDto,
+    lista: true,
     tambien: [404],
+    detalle:
+      'No expone firmaDescarga, rutas internas ni textoBaseAuditoria. ' +
+      'El identificador de versión es el número real de EvidenciaVersion.',
   })
   listarVersiones(
     @Param('id') id: string,
@@ -180,6 +194,32 @@ export class DocumentosController {
     return this.documentosService.obtenerUrlDescarga(id, req.user, numeroVersion);
   }
 
+  @Get(':id/contenido-preview')
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
+  @ApiQuery({ name: 'version', required: false })
+  @ApiContrato({
+    resumen: 'Vista previa binaria sin rotar la firma',
+    roles: ['autenticado'],
+    binario: MIME_DOCX_SIAC,
+    tambien: [404],
+    detalle:
+      'Inyecta los comentarios acumulados y sirve el .docx para el visor. ' +
+      'No genera ni persiste firmaDescarga; la descarga explícita sigue en /contenido.',
+  })
+  async contenidoPreview(
+    @Param('id') id: string,
+    @Query('version') version: string,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    const numeroVersion = version ? parseInt(version, 10) : undefined;
+    const archivo = await this.documentosService.obtenerPreviewArchivo(
+      id,
+      req.user,
+      numeroVersion,
+    );
+    return this.archivoDocxComoStream(archivo);
+  }
+
   @Get(':id/contenido')
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
   @ApiQuery({ name: 'version', required: false })
@@ -200,10 +240,15 @@ export class DocumentosController {
       req.user,
       numeroVersion,
     );
-    const mimeDocx =
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return this.archivoDocxComoStream(archivo);
+  }
+
+  private archivoDocxComoStream(archivo: {
+    buffer: Buffer;
+    nombreArchivo: string;
+  }) {
     return new StreamableFile(archivo.buffer, {
-      type: mimeDocx,
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       disposition: `inline; filename="${encodeURIComponent(archivo.nombreArchivo)}"`,
     });
   }
@@ -312,6 +357,27 @@ export class DocumentosController {
     return this.documentosService.actualizar(id, dto, req.user);
   }
 
+  @Post(':id/firma/verificar')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RolUsuario.Cargador, RolUsuario.Revisor)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'lectura' })
+  @ApiContrato({
+    resumen: 'Verifica la firma embebida de un .docx sin efectos secundarios',
+    roles: ['Cargador', 'Revisor'],
+    respuesta: VerificacionFirmaDto,
+    tambien: [404],
+    detalle:
+      'Compara el token leído en el navegador con firmaDescarga de la versión vigente. ' +
+      'No genera, rota ni persiste firmas; tampoco crea versiones.',
+  })
+  verificarFirma(
+    @Param('id') id: string,
+    @Body() dto: VerificarFirmaDto,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.verificarFirmaEvidencia(id, dto.firma, req.user);
+  }
+
   @Patch(':id/archivo')
   @Roles(RolUsuario.Cargador)
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'escritura' })
@@ -335,11 +401,14 @@ export class DocumentosController {
   @Roles(RolUsuario.Revisor, RolUsuario.Administrador)
   @AlcancePrograma({ parametroEvidencia: 'id', modo: 'gestion' })
   @ApiContrato({
-    resumen: 'Reemplaza el documento aunque esté validado',
+    resumen: 'Sube una nueva versión del documento (Revisor/Administrador)',
     roles: ['Revisor', 'Administrador'],
     creacion: true,
     tambien: [404],
-    detalle: 'Crea una versión. El borrador lo sigue gestionando su autor.',
+    detalle:
+      'Crea una versión sin cambiar el estado de la evidencia y sin notificar al profesor. ' +
+      'Exige la misma firma SIAC de la última descarga que la corrección del profesor; fuera ' +
+      'del alcance del revisor responde 403. El borrador lo sigue gestionando su autor.',
   })
   @ApiMultipart({ archivo: PROPIEDAD_ARCHIVO_DOCX }, ['archivo'])
   @UseInterceptors(FileInterceptor('archivo'))
@@ -349,6 +418,68 @@ export class DocumentosController {
     @Request() req: { user: { id: string; rol: RolUsuario } },
   ) {
     return this.documentosService.reemplazarDocumentoGestion(id, archivo, req.user);
+  }
+
+  @Post(':id/versiones/revisor/validar')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RolUsuario.Revisor)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'gestion' })
+  @ApiContrato({
+    resumen: 'Valida un candidato del revisor sin crear la versión',
+    roles: ['Revisor'],
+    respuesta: ValidacionVersionRevisorDto,
+    tambien: [404, 409],
+    detalle:
+      'Exige documento aprobado (Cumple o Validado), alcance del programa, .docx de máximo 20 MB y la firma ' +
+      'de la última descarga. No crea EvidenciaVersion ni modifica el estado o las firmas.',
+  })
+  @ApiMultipart({ archivo: PROPIEDAD_ARCHIVO_DOCX }, ['archivo'])
+  @UseInterceptors(FileInterceptor('archivo'))
+  validarVersionRevisor(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.validarVersionRevisor(id, archivo, req.user);
+  }
+
+  @Post(':id/versiones/revisor')
+  @Roles(RolUsuario.Revisor)
+  @AlcancePrograma({ parametroEvidencia: 'id', modo: 'gestion' })
+  @ApiContrato({
+    resumen: 'Publica la nueva versión preparada por el revisor',
+    roles: ['Revisor'],
+    creacion: true,
+    tambien: [404, 409],
+    detalle:
+      'Revalida alcance, estado aprobado (Cumple o Validado), firma y versionOrigen. Si la ' +
+      'versión o el estado cambiaron responde 409 sin sobrescribir. Conserva el estado y no ' +
+      'genera alertas ni correo.',
+  })
+  @ApiMultipart(
+    {
+      archivo: PROPIEDAD_ARCHIVO_DOCX,
+      versionOrigen: {
+        type: 'integer',
+        minimum: 1,
+        description: 'Versión vigente sobre la que se preparó el candidato.',
+      },
+    },
+    ['archivo', 'versionOrigen'],
+  )
+  @UseInterceptors(FileInterceptor('archivo'))
+  publicarVersionRevisor(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File,
+    @Body() dto: PublicarVersionRevisorDto,
+    @Request() req: { user: { id: string; rol: RolUsuario } },
+  ) {
+    return this.documentosService.publicarVersionRevisor(
+      id,
+      archivo,
+      dto.versionOrigen,
+      req.user,
+    );
   }
 
   @Delete(':id')

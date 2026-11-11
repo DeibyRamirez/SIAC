@@ -103,7 +103,7 @@ function ContenidoDetalleAdmin() {
       <EncabezadoPagina
         etiqueta="Consulta documental"
         titulo={evidencia.nombre}
-        descripcion="Visualización de evidencia. Puede reemplazar el documento; la versión anterior queda en el historial."
+        descripcion="Visualización de evidencia. Puede subir una nueva versión; la anterior queda en el historial."
         accion={
           <Link href="/administrador/busqueda">
             <Button variant="outline">Volver al listado</Button>

@@ -1,4 +1,5 @@
 import type { Evidencia } from '@/lib/tipos'
+import { esDocumentoAprobado } from '@/lib/utilidades-siac'
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -41,7 +42,7 @@ export function calcularDistribucionEstadosAdministrador(
   let enRevision = 0
   let enCorreccion = 0
   for (const { estado } of filtrarEvidenciasVisiblesAdministrador(evidencias)) {
-    if (estado === 'Validado' || estado === 'Cumple') validadas++
+    if (esDocumentoAprobado(estado)) validadas++
     else if (estado === 'EnRevision') enRevision++
     else if (estado === 'ConObservaciones' || estado === 'Rechazado') enCorreccion++
   }

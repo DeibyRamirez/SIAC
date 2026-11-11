@@ -1,12 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
 import { PlantillaPaginaApp } from '@/components/layout/shell-aplicacion'
+import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import {
   PasoSeleccionContextoCarga,
   type ContextoCargaEvidencia,
@@ -118,6 +118,10 @@ function ContenidoNuevaEvidencia() {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [accionPendiente, setAccionPendiente] = useState<'borrador' | 'revision' | null>(
+    null,
+  )
+  const [confirmarCancelacion, setConfirmarCancelacion] = useState(false)
   const [extrayendo, setExtrayendo] = useState(false)
   const [intentoCargaProgreso, setIntentoCargaProgreso] = useState(0)
   const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
@@ -440,6 +444,45 @@ function ContenidoNuevaEvidencia() {
     }
   }
 
+  const hayCambios =
+    Boolean(archivo) ||
+    nombre.trim().length > 0 ||
+    (contextoCarga === 'programa' && programaId.trim().length > 0) ||
+    codigoGuia !== null ||
+    modalidad !== null ||
+    alcance !== null ||
+    periodoTocado.current
+
+  useEffect(() => {
+    if (!hayCambios || enviando) return
+    const avisar = (evento: BeforeUnloadEvent) => {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [hayCambios, enviando])
+
+  function solicitarGuardado(enviarARevision: boolean) {
+    if (!validarFormulario()) return
+    setAccionPendiente(enviarARevision ? 'revision' : 'borrador')
+  }
+
+  async function confirmarAccion() {
+    const accion = accionPendiente
+    if (!accion) return
+    await guardarDocumento(accion === 'revision')
+    setAccionPendiente(null)
+  }
+
+  function solicitarCancelacion() {
+    if (hayCambios) {
+      setConfirmarCancelacion(true)
+      return
+    }
+    router.push('/cargador/evidencias')
+  }
+
   return (
     <div className="space-y-6">
       <EncabezadoPagina
@@ -511,7 +554,7 @@ function ContenidoNuevaEvidencia() {
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault()
-                  guardarDocumento(false)
+                  solicitarGuardado(true)
                 }}
               >
                 <div className="flex items-center gap-2">
@@ -609,22 +652,29 @@ function ContenidoNuevaEvidencia() {
                   a revisión del revisor de calidad.
                 </p>
                 <div className="flex flex-col gap-2">
-                  <Button type="submit" disabled={enviando || extrayendo}>
-                    {enviando ? 'Subiendo archivo…' : 'Guardar borrador'}
+                  <Button
+                    type="button"
+                    disabled={enviando || extrayendo}
+                    onClick={() => solicitarGuardado(true)}
+                  >
+                    {enviando ? 'Enviando…' : 'Enviar a revisión'}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
                     disabled={enviando || extrayendo}
-                    onClick={() => guardarDocumento(true)}
+                    onClick={() => solicitarGuardado(false)}
                   >
-                    {enviando ? 'Enviando…' : 'Enviar a revisión'}
+                    {enviando ? 'Guardando…' : 'Guardar borrador'}
                   </Button>
-                  <Link href="/cargador/evidencias">
-                    <Button type="button" variant="outline" className="w-full">
-                      Cancelar
-                    </Button>
-                  </Link>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={solicitarCancelacion}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -642,6 +692,39 @@ function ContenidoNuevaEvidencia() {
           </CardContent>
         </Card>
       </div>
+
+      <DialogoConfirmacion
+        abierto={accionPendiente !== null}
+        titulo={
+          accionPendiente === 'revision'
+            ? '¿Enviar la evidencia a revisión?'
+            : '¿Guardar como borrador?'
+        }
+        descripcion={
+          accionPendiente === 'revision'
+            ? `Se guardará «${nombre || 'el documento'}» y se enviará a revisión. Mientras esté en revisión no podrás editarlo.`
+            : `Se guardará «${nombre || 'el documento'}» como borrador para continuar después.`
+        }
+        etiquetaConfirmar={
+          accionPendiente === 'revision' ? 'Sí, enviar' : 'Sí, guardar'
+        }
+        cargando={enviando}
+        onConfirmar={() => void confirmarAccion()}
+        onCancelar={() => setAccionPendiente(null)}
+      />
+
+      <DialogoConfirmacion
+        abierto={confirmarCancelacion}
+        titulo="¿Descartar los datos de la carga?"
+        descripcion="Se perderán el archivo, el nombre y los metadatos seleccionados. No se creará ninguna evidencia."
+        etiquetaConfirmar="Sí, descartar"
+        variant="destructive"
+        onConfirmar={() => {
+          setConfirmarCancelacion(false)
+          router.push('/cargador/evidencias')
+        }}
+        onCancelar={() => setConfirmarCancelacion(false)}
+      />
     </div>
   )
 }

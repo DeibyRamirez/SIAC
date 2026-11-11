@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.module';
 
-import { CodigoDocumentoGuia, Evidencia, EstadoEvidencia, Prisma } from '@prisma/client';
+import { CodigoDocumentoGuia, Evidencia, EstadoEvidencia, Prisma, RolUsuario } from '@prisma/client';
 
 import { TOTAL_CONDICIONES_DOCUMENTO_MAESTRO } from '../dominio/condiciones-documento-maestro';
 
@@ -411,6 +411,8 @@ export class EvidenciaRepositorio {
 
     subidoPorId: string;
 
+    subidoPorRol?: RolUsuario;
+
   }) {
 
     return this.prisma.evidenciaVersion.create({ data: datos });
@@ -418,6 +420,100 @@ export class EvidenciaRepositorio {
   }
 
 
+
+  /**
+   * Registra una versión con compare-and-swap sobre Evidencia.version y estado.
+   * Si otra petición cambió la versión o el estado, no escribe nada y devuelve null.
+   */
+  async registrarVersionConCas(datos: {
+    evidenciaId: string;
+    versionOrigen: number;
+    estadoOrigen: EstadoEvidencia;
+    estadoHistorial: EstadoEvidencia;
+    firmaOrigen: string | null;
+    nuevaVersion: number;
+    nombreArchivo: string;
+    rutaArchivo: string;
+    mimeType?: string;
+    tamanoBytes?: number;
+    subidoPorId: string;
+    subidoPorRol: RolUsuario;
+    observacionHistorial: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      // Bloquea la versión de origen y falla si una descarga concurrente rotó la firma.
+      const versionBloqueada = await tx.evidenciaVersion.updateMany({
+        where: {
+          evidenciaId: datos.evidenciaId,
+          numero: datos.versionOrigen,
+          firmaDescarga: datos.firmaOrigen,
+        },
+        data: { firmaDescarga: datos.firmaOrigen },
+      });
+      if (versionBloqueada.count === 0) return null;
+
+      const actualizada = await tx.evidencia.updateMany({
+        where: {
+          id: datos.evidenciaId,
+          version: datos.versionOrigen,
+          estado: datos.estadoOrigen,
+        },
+        data: {
+          version: datos.nuevaVersion,
+          nombreArchivo: datos.nombreArchivo,
+          rutaArchivo: datos.rutaArchivo,
+          mimeType: datos.mimeType,
+          tamanoBytes: datos.tamanoBytes,
+          fechaCarga: new Date(),
+        },
+      });
+      if (actualizada.count === 0) return null;
+
+      await tx.evidenciaVersion.create({
+        data: {
+          evidenciaId: datos.evidenciaId,
+          numero: datos.nuevaVersion,
+          nombreArchivo: datos.nombreArchivo,
+          rutaArchivo: datos.rutaArchivo,
+          mimeType: datos.mimeType,
+          tamanoBytes: datos.tamanoBytes,
+          subidoPorId: datos.subidoPorId,
+          subidoPorRol: datos.subidoPorRol,
+        },
+      });
+
+      await tx.historialEvidencia.create({
+        data: {
+          evidenciaId: datos.evidenciaId,
+          estado: datos.estadoHistorial,
+          observacion: datos.observacionHistorial,
+          actorId: datos.subidoPorId,
+        },
+      });
+
+      this.invalidarCachePanel();
+      return tx.evidencia.findUniqueOrThrow({ where: { id: datos.evidenciaId } });
+    });
+  }
+
+  /** Variante del flujo nuevo: conserva el estado aprobado (Cumple o Validado). */
+  async publicarVersionRevisor(datos: {
+    evidenciaId: string;
+    versionOrigen: number;
+    estadoOrigen: EstadoEvidencia;
+    estadoHistorial: EstadoEvidencia;
+    firmaOrigen: string | null;
+    nuevaVersion: number;
+    nombreArchivo: string;
+    rutaArchivo: string;
+    mimeType?: string;
+    tamanoBytes?: number;
+    subidoPorId: string;
+    subidoPorRol: RolUsuario;
+    observacionHistorial: string;
+  }) {
+    return this.registrarVersionConCas(datos);
+  }
 
   async actualizarVersion(
     evidenciaId: string,
@@ -450,17 +546,21 @@ export class EvidenciaRepositorio {
 
 
   listarVersiones(evidenciaId: string) {
-
     return this.prisma.evidenciaVersion.findMany({
-
       where: { evidenciaId },
-
-      include: { subidoPor: { select: { id: true, nombre: true } } },
-
+      select: {
+        id: true,
+        numero: true,
+        nombreArchivo: true,
+        mimeType: true,
+        tamanoBytes: true,
+        subidoPorId: true,
+        subidoPorRol: true,
+        createdAt: true,
+        subidoPor: { select: { id: true, nombre: true } },
+      },
       orderBy: { numero: 'desc' },
-
     });
-
   }
 
 

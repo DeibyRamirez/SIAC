@@ -6,6 +6,7 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import {
   CodigoDocumentoGuia,
@@ -42,7 +43,10 @@ import {
   REGEX_PERIODO_ACADEMICO,
 } from '../dominio/periodo-academico';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
-import { transicionPermitida } from '../dominio/maquina-estados-evidencia';
+import {
+  esDocumentoAprobado,
+  transicionPermitida,
+} from '../dominio/maquina-estados-evidencia';
 
 import {
 
@@ -309,6 +313,8 @@ export class DocumentosService {
 
         subidoPorId: usuario.id,
 
+        subidoPorRol: usuario.rol,
+
       });
 
 
@@ -499,12 +505,6 @@ export class DocumentosService {
 
     );
 
-    if (versionRegistro?.firmaDescarga) {
-      await this.docx.validarFirmaSubida(
-        archivo.buffer,
-        versionRegistro.firmaDescarga,
-      );
-    }
 
 
 
@@ -549,10 +549,11 @@ export class DocumentosService {
 
 
   /**
-   * Usabilidad: Revisor y Administrador pueden subir o reemplazar el documento aunque ya esté
-   * validado. Se conserva la versión anterior en EvidenciaVersion (quién la subió y cuándo), el
-   * estado no cambia y el historial registra quién reemplazó y en qué estado. Sigue sujeto a la RLS
-   * (el Borrador ajeno no es visible) y al alcance del programa (Revisor asignado).
+   * Revisor y Administrador suben una nueva versión incluso si el documento ya está validado.
+   * Se conserva la versión anterior en EvidenciaVersion (quién y con qué rol la subió), el
+   * estado no cambia y no se genera AlertaInApp ni correo para el profesor. La firma se valida
+   * igual que en la corrección del Cargador; el alcance se comprueba en obtenerPorId (programa
+   * asignado o proceso institucional).
    */
   async reemplazarDocumentoGestion(
     id: string,
@@ -571,6 +572,14 @@ export class DocumentosService {
     if (evidencia.estado === EstadoEvidencia.Borrador) {
       throw new BadRequestException('El borrador lo gestiona su autor; envíelo a revisión primero.');
     }
+    if (
+      usuario.rol === RolUsuario.Revisor &&
+      !esDocumentoAprobado(evidencia.estado)
+    ) {
+      throw new ConflictException(
+        'Solo se puede subir una nueva versión cuando el documento está aprobado (Cumple o Validado).',
+      );
+    }
     const versionRegistro = await this.evidenciaRepo.buscarVersion(id, evidencia.version ?? 1);
     const nuevaVersion = (evidencia.version ?? 1) + 1;
     return this.guardarNuevaVersion(
@@ -579,17 +588,198 @@ export class DocumentosService {
       archivo,
       usuario,
       `Documento reemplazado por ${usuario.rol} (versión ${nuevaVersion}, estado ${evidencia.estado} conservado)`,
+      true,
     );
+  }
+
+  /**
+   * Verifica sin efectos secundarios que el token leído en el navegador sea el de
+   * la última descarga firmada de la versión vigente. No firma, no rota ni escribe.
+   */
+  async verificarFirmaEvidencia(
+    id: string,
+    firma: string,
+    usuario: UsuarioToken,
+  ) {
+    const evidencia = await this.obtenerPorId(id, usuario);
+    const versionRegistro = await this.evidenciaRepo.buscarVersion(
+      id,
+      evidencia.version ?? 1,
+    );
+    const firmaVigente = versionRegistro?.firmaDescarga?.trim() ?? null;
+    const valida = Boolean(firmaVigente && firma.trim() === firmaVigente);
+    return {
+      valida,
+      mensaje: valida
+        ? 'Documento válido: corresponde a la última descarga'
+        : 'Este archivo no corresponde a la última descarga de la evidencia. Descarga de nuevo el documento y edita esa copia.',
+    };
+  }
+
+  /**
+   * Valida un candidato del revisor sin crear versión ni tocar firmas. El archivo
+   * permanece en el navegador hasta que el usuario confirme la publicación.
+   */
+  async validarVersionRevisor(
+    id: string,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+  ) {
+    this.validarArchivo(archivo);
+    const preparado = await this.prepararCandidatoRevisor(id, archivo, usuario);
+    return {
+      versionOrigen: preparado.versionOrigen,
+      nuevaVersion: preparado.nuevaVersion,
+      nombreArchivo: preparado.nombreArchivo,
+      mimeType: archivo.mimetype,
+      tamanoBytes: archivo.size,
+      mensaje: 'Documento validado. Aún no se ha creado ninguna versión.',
+    };
+  }
+
+  /**
+   * Publica el candidato con compare-and-swap sobre la versión y el estado aprobado
+   * (Cumple o Validado). Si otra petición cambió la base, responde 409 sin sobrescribir.
+   */
+  async publicarVersionRevisor(
+    id: string,
+    archivo: Express.Multer.File,
+    versionOrigen: number,
+    usuario: UsuarioToken,
+  ) {
+    this.validarArchivo(archivo);
+    const preparado = await this.prepararCandidatoRevisor(
+      id,
+      archivo,
+      usuario,
+      versionOrigen,
+    );
+    const contexto = await this.contextoAlmacenamientoEvidencia(preparado.evidencia);
+    const claveBase = this.almacenamiento.generarClaveEvidencia(
+      id,
+      preparado.nombreArchivo,
+      preparado.nuevaVersion,
+      contexto,
+    );
+    // Clave interna única por intento: si dos publicaciones compiten, el perdedor
+    // puede borrar su archivo sin tocar el de la versión ganadora. El nombre visible
+    // de la versión sigue siendo el original.
+    const extension = /\.[^.]+$/.exec(claveBase)?.[0] ?? '';
+    const clave = `${claveBase.slice(0, claveBase.length - extension.length)}-${randomUUID()}${extension}`;
+
+    await this.almacenamiento.subirArchivo(
+      archivo.buffer,
+      clave,
+      'evidencias',
+      archivo.mimetype,
+    );
+
+    try {
+      const actualizada = await this.evidenciaRepo.publicarVersionRevisor({
+        evidenciaId: id,
+        versionOrigen: preparado.versionOrigen,
+        estadoOrigen: preparado.evidencia.estado,
+        estadoHistorial: preparado.evidencia.estado,
+        firmaOrigen: preparado.firmaOrigen,
+        nuevaVersion: preparado.nuevaVersion,
+        nombreArchivo: preparado.nombreArchivo,
+        rutaArchivo: clave,
+        mimeType: archivo.mimetype,
+        tamanoBytes: archivo.size,
+        subidoPorId: usuario.id,
+        subidoPorRol: usuario.rol,
+        observacionHistorial: `Versión ${preparado.nuevaVersion} publicada por ${usuario.rol} (estado ${preparado.evidencia.estado} conservado)`,
+      });
+      if (!actualizada) {
+        throw new ConflictException(
+          'La evidencia cambió mientras preparabas la versión. Actualiza y vuelve a intentarlo.',
+        );
+      }
+      return actualizada;
+    } catch (err) {
+      await this.almacenamiento
+        .eliminarArchivo(clave, 'evidencias')
+        .catch(() => undefined);
+      if ((err as { code?: string }).code === 'P2002') {
+        throw new ConflictException(
+          'Ya existe una versión con ese número. Actualiza el historial y vuelve a intentarlo.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async prepararCandidatoRevisor(
+    id: string,
+    archivo: Express.Multer.File,
+    usuario: UsuarioToken,
+    versionOrigenEsperada?: number,
+  ) {
+    if (usuario.rol !== RolUsuario.Revisor && !this.esSuperAdmin(usuario)) {
+      throw new ForbiddenException('Solo el Revisor puede preparar versiones desde este flujo.');
+    }
+    const evidencia = await this.obtenerPorId(id, usuario);
+    if (!esDocumentoAprobado(evidencia.estado)) {
+      throw new ConflictException(
+        'Solo se puede subir una nueva versión cuando el documento está aprobado (Cumple o Validado).',
+      );
+    }
+    const versionOrigen = evidencia.version ?? 1;
+    if (
+      versionOrigenEsperada !== undefined &&
+      versionOrigenEsperada !== versionOrigen
+    ) {
+      throw new ConflictException(
+        'La versión vigente cambió mientras preparabas el documento. Actualiza y vuelve a intentarlo.',
+      );
+    }
+    const versionRegistro = await this.evidenciaRepo.buscarVersion(id, versionOrigen);
+    if (!versionRegistro) {
+      throw new NotFoundException('Versión vigente no encontrada.');
+    }
+    if (!versionRegistro.firmaDescarga) {
+      throw new BadRequestException(
+        'Descarga el documento firmado antes de subir una nueva versión.',
+      );
+    }
+    await this.docx.validarFirmaSubida(archivo.buffer, versionRegistro.firmaDescarga);
+
+    return {
+      evidencia,
+      versionOrigen,
+      nuevaVersion: versionOrigen + 1,
+      firmaOrigen: versionRegistro.firmaDescarga,
+      nombreArchivo:
+        versionRegistro.nombreArchivo?.trim() ||
+        evidencia.nombreArchivo?.trim() ||
+        decodificarNombreArchivoMultipart(archivo.originalname),
+    };
   }
 
   /** Registra la versión nueva, conserva la anterior y deja constancia en el historial. */
   private async guardarNuevaVersion(
     evidencia: Awaited<ReturnType<DocumentosService['obtenerPorId']>>,
-    versionRegistro: { nombreArchivo?: string | null } | null,
+    versionRegistro: {
+      nombreArchivo?: string | null;
+      firmaDescarga?: string | null;
+    } | null,
     archivo: Express.Multer.File,
     usuario: UsuarioToken,
     textoHistorial: string,
+    requiereFirmaDescarga = false,
   ) {
+    if (requiereFirmaDescarga && !versionRegistro?.firmaDescarga) {
+      throw new BadRequestException(
+        'Descarga el documento firmado antes de subir una nueva versión.',
+      );
+    }
+    // Misma regla para Cargador y Revisor: si la versión vigente se descargó, el archivo
+    // subido debe traer exactamente la firma de esa descarga.
+    await this.docx.validarFirmaSubida(
+      archivo.buffer,
+      versionRegistro?.firmaDescarga,
+    );
+
     const nuevaVersion = (evidencia.version ?? 1) + 1;
 
     // El nombre del archivo no se renombra al subir correcciones: se conserva el
@@ -600,115 +790,54 @@ export class DocumentosService {
       decodificarNombreArchivoMultipart(archivo.originalname);
 
     const contextoClave = await this.contextoAlmacenamientoEvidencia(evidencia);
-    const clave = this.almacenamiento.generarClaveEvidencia(
+    const claveBase = this.almacenamiento.generarClaveEvidencia(
       evidencia.id,
       nombreArchivoOriginal,
       nuevaVersion,
       contextoClave,
     );
+    const extension = /\.[^.]+$/.exec(claveBase)?.[0] ?? '';
+    const clave = `${claveBase.slice(0, claveBase.length - extension.length)}-${randomUUID()}${extension}`;
 
-    const snapshotAnterior = {
-
-      nombreArchivo: evidencia.nombreArchivo,
-
-      rutaArchivo: evidencia.rutaArchivo,
-
-      mimeType: evidencia.mimeType,
-
-      tamanoBytes: evidencia.tamanoBytes,
-
-      version: evidencia.version ?? 1,
-
-    };
-
-
+    await this.almacenamiento.subirArchivo(
+      archivo.buffer,
+      clave,
+      'evidencias',
+      archivo.mimetype,
+    );
 
     try {
-
-      await this.evidenciaRepo.registrarVersion({
-
+      const actualizada = await this.evidenciaRepo.registrarVersionConCas({
         evidenciaId: evidencia.id,
-
-        numero: nuevaVersion,
-
+        versionOrigen: evidencia.version ?? 1,
+        estadoOrigen: evidencia.estado,
+        estadoHistorial: evidencia.estado,
+        firmaOrigen: versionRegistro?.firmaDescarga ?? null,
+        nuevaVersion,
         nombreArchivo: nombreArchivoOriginal,
-
         rutaArchivo: clave,
-
         mimeType: archivo.mimetype,
-
         tamanoBytes: archivo.size,
-
         subidoPorId: usuario.id,
-
+        subidoPorRol: usuario.rol,
+        observacionHistorial: textoHistorial,
       });
-
-
-
-      await this.evidenciaRepo.actualizar(evidencia.id, {
-
-        nombreArchivo: nombreArchivoOriginal,
-
-        rutaArchivo: clave,
-
-        mimeType: archivo.mimetype,
-
-        tamanoBytes: archivo.size,
-
-        version: nuevaVersion,
-
-        fechaCarga: new Date(),
-
-      });
-
-
-
-      await this.almacenamiento.subirArchivo(
-
-        archivo.buffer,
-
-        clave,
-
-        'evidencias',
-
-        archivo.mimetype,
-
-      );
-
-
-
-      await this.evidenciaRepo.registrarHistorial(
-
-        evidencia.id,
-
-        evidencia.estado,
-
-        textoHistorial,
-
-        usuario.id,
-
-      );
-
-
-
-      const actualizada = await this.evidenciaRepo.buscarPorId(evidencia.id);
-
-      if (!actualizada) throw new NotFoundException('Evidencia no encontrada tras la nueva versión.');
-
+      if (!actualizada) {
+        throw new ConflictException(
+          'La evidencia cambió mientras se preparaba la nueva versión. Actualiza y vuelve a intentarlo.',
+        );
+      }
       return actualizada;
-
     } catch (err) {
-
-      await this.evidenciaRepo
-
-        .eliminarVersion(evidencia.id, nuevaVersion)
-
+      await this.almacenamiento
+        .eliminarArchivo(clave, 'evidencias')
         .catch(() => undefined);
-
-      await this.evidenciaRepo.actualizar(evidencia.id, snapshotAnterior).catch(() => undefined);
-
+      if ((err as { code?: string }).code === 'P2002') {
+        throw new ConflictException(
+          'Ya existe una versión con ese número. Actualiza el historial y vuelve a intentarlo.',
+        );
+      }
       throw err;
-
     }
   }
 
@@ -1415,13 +1544,27 @@ export class DocumentosService {
 
 
   async obtenerContenidoArchivo(
-
     id: string,
-
     usuario: UsuarioToken,
-
     version?: number,
+  ): Promise<{ buffer: Buffer; nombreArchivo: string; mimeType: string }> {
+    return this.obtenerArchivoEvidencia(id, usuario, version, true);
+  }
 
+  /** Vista previa: inyecta comentarios pero no genera ni rota `firmaDescarga`. */
+  async obtenerPreviewArchivo(
+    id: string,
+    usuario: UsuarioToken,
+    version?: number,
+  ): Promise<{ buffer: Buffer; nombreArchivo: string; mimeType: string }> {
+    return this.obtenerArchivoEvidencia(id, usuario, version, false);
+  }
+
+  private async obtenerArchivoEvidencia(
+    id: string,
+    usuario: UsuarioToken,
+    version: number | undefined,
+    firmarDescarga: boolean,
   ): Promise<{ buffer: Buffer; nombreArchivo: string; mimeType: string }> {
 
     const evidencia = await this.obtenerPorId(id, usuario);
@@ -1528,27 +1671,21 @@ export class DocumentosService {
       }
     }
 
-    // Firma única por descarga: liga el archivo servido a esta evidencia/versión.
-    const firmaDescarga = this.docx.generarValorFirma(id, numeroVersion);
+    // Solo una descarga explícita firma y rota el token. La vista previa no toca la BD.
+    if (firmarDescarga) {
+      const firmaDescarga = this.docx.generarValorFirma(id, numeroVersion);
 
-    try {
+      try {
+        buffer = await this.docx.firmarDescarga(buffer, firmaDescarga);
 
-      buffer = await this.docx.firmarDescarga(buffer, firmaDescarga);
-
-      await this.evidenciaRepo.actualizarVersion(id, numeroVersion, {
-
-        firmaDescarga,
-
-      });
-
-    } catch (err) {
-
-      this.logger.warn(
-
-        `No se pudo firmar la descarga de evidencia ${id} v${numeroVersion}: ${err instanceof Error ? err.message : err}`,
-
-      );
-
+        await this.evidenciaRepo.actualizarVersion(id, numeroVersion, {
+          firmaDescarga,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo firmar la descarga de evidencia ${id} v${numeroVersion}: ${err instanceof Error ? err.message : err}`,
+        );
+      }
     }
 
 

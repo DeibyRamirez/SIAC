@@ -829,6 +829,59 @@
         ],
         "type": "object"
       },
+      "EvidenciaVersionDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mimeType": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nombreArchivo": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "number"
+          },
+          "subidoPor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UsuarioVersionDto"
+              }
+            ],
+            "nullable": true
+          },
+          "subidoPorId": {
+            "type": "string"
+          },
+          "subidoPorRol": {
+            "enum": [
+              "Cargador",
+              "Revisor",
+              "Administrador",
+              "SuperAdmin"
+            ],
+            "type": "string"
+          },
+          "tamanoBytes": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "numero",
+          "nombreArchivo",
+          "subidoPorId",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "InformePowerBiMetadatosDto": {
         "properties": {
           "activo": {
@@ -1541,6 +1594,79 @@
           "correo",
           "rol",
           "responsableProcesoInstitucional"
+        ],
+        "type": "object"
+      },
+      "UsuarioVersionDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "type": "object"
+      },
+      "ValidacionVersionRevisorDto": {
+        "properties": {
+          "mensaje": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "nombreArchivo": {
+            "type": "string"
+          },
+          "nuevaVersion": {
+            "type": "number"
+          },
+          "tamanoBytes": {
+            "type": "number"
+          },
+          "versionOrigen": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "versionOrigen",
+          "nuevaVersion",
+          "nombreArchivo",
+          "mimeType",
+          "tamanoBytes",
+          "mensaje"
+        ],
+        "type": "object"
+      },
+      "VerificacionFirmaDto": {
+        "properties": {
+          "mensaje": {
+            "type": "string"
+          },
+          "valida": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valida",
+          "mensaje"
+        ],
+        "type": "object"
+      },
+      "VerificarFirmaDto": {
+        "properties": {
+          "firma": {
+            "description": "Valor SIAC_FIRMA_VERSION extraído del .docx.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "firma"
         ],
         "type": "object"
       }
@@ -4774,6 +4900,105 @@
         ]
       }
     },
+    "/api/v1/evidencias/{id}/contenido-preview": {
+      "get": {
+        "description": "Cualquier usuario con sesión válida.\n\nInyecta los comentarios acumulados y sirve el .docx para el visor. No genera ni persiste firmaDescarga; la descarga explícita sigue en /contenido.",
+        "operationId": "DocumentosController_contenidoPreview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "500": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Vista previa binaria sin rotar la firma",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "autenticado"
+        ]
+      }
+    },
     "/api/v1/evidencias/{id}/descargar": {
       "get": {
         "description": "Cualquier usuario con sesión válida.",
@@ -5241,6 +5466,107 @@
         ]
       }
     },
+    "/api/v1/evidencias/{id}/firma/verificar": {
+      "post": {
+        "description": "Roles: Cargador, Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nCompara el token leído en el navegador con firmaDescarga de la versión vigente. No genera, rota ni persiste firmas; tampoco crea versiones.",
+        "operationId": "DocumentosController_verificarFirma",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificarFirmaDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificacionFirmaDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Verifica la firma embebida de un .docx sin efectos secundarios",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "Cargador",
+          "Revisor"
+        ]
+      }
+    },
     "/api/v1/evidencias/{id}/historial": {
       "get": {
         "description": "Cualquier usuario con sesión válida.",
@@ -5326,7 +5652,7 @@
     },
     "/api/v1/evidencias/{id}/reemplazo-documento": {
       "post": {
-        "description": "Roles: Revisor, Administrador. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nCrea una versión. El borrador lo sigue gestionando su autor.",
+        "description": "Roles: Revisor, Administrador. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nCrea una versión sin cambiar el estado de la evidencia y sin notificar al profesor. Exige la misma firma SIAC de la última descarga que la corrección del profesor; fuera del alcance del revisor responde 403. El borrador lo sigue gestionando su autor.",
         "operationId": "DocumentosController_reemplazarDocumentoGestion",
         "parameters": [
           {
@@ -5418,7 +5744,7 @@
             "jwt": []
           }
         ],
-        "summary": "Reemplaza el documento aunque esté validado",
+        "summary": "Sube una nueva versión del documento (Revisor/Administrador)",
         "tags": [
           "Evidencias"
         ],
@@ -5430,7 +5756,7 @@
     },
     "/api/v1/evidencias/{id}/versiones": {
       "get": {
-        "description": "Cualquier usuario con sesión válida.",
+        "description": "Cualquier usuario con sesión válida.\n\nNo expone firmaDescarga, rutas internas ni textoBaseAuditoria. El identificador de versión es el número real de EvidenciaVersion.",
         "operationId": "DocumentosController_listarVersiones",
         "parameters": [
           {
@@ -5444,6 +5770,16 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvidenciaVersionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
             "description": "Resultado de la operación."
           },
           "400": {
@@ -5508,6 +5844,245 @@
         ],
         "x-siac-roles": [
           "autenticado"
+        ]
+      }
+    },
+    "/api/v1/evidencias/{id}/versiones/revisor": {
+      "post": {
+        "description": "Roles: Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nRevalida alcance, estado aprobado (Cumple o Validado), firma y versionOrigen. Si la versión o el estado cambiaron responde 409 sin sobrescribir. Conserva el estado y no genera alertas ni correo.",
+        "operationId": "DocumentosController_publicarVersionRevisor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "archivo": {
+                    "description": "Documento .docx. Tamaño máximo 20 MB.",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "versionOrigen": {
+                    "description": "Versión vigente sobre la que se preparó el candidato.",
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "archivo",
+                  "versionOrigen"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Conflicto de estado o de unicidad."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Publica la nueva versión preparada por el revisor",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "Revisor"
+        ]
+      }
+    },
+    "/api/v1/evidencias/{id}/versiones/revisor/validar": {
+      "post": {
+        "description": "Roles: Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nExige documento aprobado (Cumple o Validado), alcance del programa, .docx de máximo 20 MB y la firma de la última descarga. No crea EvidenciaVersion ni modifica el estado o las firmas.",
+        "operationId": "DocumentosController_validarVersionRevisor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "archivo": {
+                    "description": "Documento .docx. Tamaño máximo 20 MB.",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "archivo"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidacionVersionRevisorDto"
+                }
+              }
+            },
+            "description": "Resultado de la operación."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Cuerpo, consulta o regla de negocio inválidos."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El rol o el alcance del programa no permiten la operación."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "El recurso no existe o el archivo no está disponible."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Conflicto de estado o de unicidad."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Error no controlado o de base de datos. Fuera de production y solo en 500 puede incluir detalle."
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Valida un candidato del revisor sin crear la versión",
+        "tags": [
+          "Evidencias"
+        ],
+        "x-siac-roles": [
+          "Revisor"
         ]
       }
     },
