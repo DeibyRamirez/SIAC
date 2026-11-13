@@ -4,7 +4,11 @@
  */
 import { OrigenDato, PrismaClient, RolUsuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { esHostDesechable, hostDeUrlBaseDatos } from '../src/common/config/host-base-datos';
+import {
+  abortarScriptSiProduccion,
+  esHostDesechable,
+  hostDeUrlBaseDatos,
+} from '../src/common/config/host-base-datos';
 
 const LONGITUD_MINIMA = 12;
 
@@ -40,6 +44,7 @@ const FILAS = [
 ] as const;
 
 function verificarEntorno(): string {
+  abortarScriptSiProduccion('newman');
   const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '';
   const host = hostDeUrlBaseDatos(url);
   if (!esHostDesechable(host)) {

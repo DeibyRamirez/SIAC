@@ -1871,6 +1871,16 @@
             },
             "description": "Token ausente, vencido, credenciales inválidas o usuario inactivo."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHttpDto"
+                }
+              }
+            },
+            "description": "Demasiadas solicitudes para esta clave. El límite se cuenta por minuto."
+          },
           "500": {
             "content": {
               "application/json": {

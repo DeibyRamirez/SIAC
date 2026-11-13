@@ -15,13 +15,18 @@ import {
   TipoTramiteSIAC,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { esHostDesechable, hostDeUrlBaseDatos } from '../src/common/config/host-base-datos';
+import {
+  abortarScriptSiProduccion,
+  esHostDesechable,
+  hostDeUrlBaseDatos,
+} from '../src/common/config/host-base-datos';
 import { crearDocxE2E } from '../test/utilidades/docx-e2e';
 
 const REPO = join(__dirname, '../..');
 const SALIDA = join(REPO, 'docs/pruebas/postman/fixtures-newman.ids.json');
 
 function verificarHost(): void {
+  abortarScriptSiProduccion('newman-fixtures');
   const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '';
   const host = hostDeUrlBaseDatos(url);
   if (!esHostDesechable(host)) {

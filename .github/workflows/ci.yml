@@ -41,6 +41,8 @@ jobs:
       JWT_SECRETO: ci-only-not-for-production
       S3_USAR_ALMACEN_LOCAL: "true"
       CARRERAS_SYNC_HABILITADO: "false"
+      AUTH_LOGIN_LIMITE_INTENTOS: "500"
+      TRUST_PROXY: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -98,6 +100,8 @@ jobs:
           CORREO_CANAL: ninguno
           NODE_ENV: development
           PUERTO: "3001"
+          AUTH_LOGIN_LIMITE_INTENTOS: "500"
+          TRUST_PROXY: "false"
           NEWMAN_CLAVE_PRUEBA: ci-newman-clave-desechable-16
           NEWMAN_BASE_URL: http://127.0.0.1:3001/api/v1
         run: |

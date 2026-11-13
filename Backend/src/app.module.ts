@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { configuracionEnv } from './common/config/configuracion.env';
 import { PrismaModule } from './prisma/prisma.module';
@@ -23,9 +24,17 @@ import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { SaludModule } from './salud/salud.module';
 import { CifrasInstitucionalesModule } from './cifras-institucionales/cifras-institucionales.module';
 import { MiddlewareContextoRls } from './prisma/middleware-contexto-rls';
+import { limiteLoginIntentos, limiteLoginTtlMs } from './common/config/limites-auth';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuracionEnv] }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'login', ttl: limiteLoginTtlMs(), limit: limiteLoginIntentos() },
+        { name: 'cifras', ttl: 60_000, limit: 120 },
+      ],
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     ConfiguracionModule,
