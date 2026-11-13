@@ -15,8 +15,11 @@ Defínalas en el `env_file`; **no** las commitee ni las pase por argumentos de b
 
 | Variable | Uso |
 |----------|-----|
-| `DATABASE_URL` | Conexión de la API (pooler / rol aplicación). |
+| `DATABASE_URL` | Conexión de la API (pooler / rol aplicación **`siac_app`**, nunca el dueño `postgres`). |
 | `DIRECT_URL` | Migraciones y scripts Prisma (rol con permisos DDL). |
+| `AUTH_LOGIN_LIMITE_INTENTOS` | Intentos de login por IP por ventana (por defecto `5`). |
+| `AUTH_LOGIN_LIMITE_TTL_MS` | Ventana del límite de login en ms (por defecto `60000`). |
+| `TRUST_PROXY` | `false`, `true` o número de saltos de proxy para `req.ip` (rate limit). En producción, si no se define, se asume `1` detrás del reverse proxy. Use `false` solo si la API recibe tráfico directo sin proxy. |
 | `JWT_SECRETO` | Firma de tokens (producción, ≥ 32 caracteres aleatorios). |
 | `FRONTEND_URL` | Enlaces en correos y CORS si aplica. |
 | `CORS_ORIGENES` | Orígenes permitidos (opcional si solo hay BFF). |
@@ -32,6 +35,39 @@ Defínalas en el `env_file`; **no** las commitee ni las pase por argumentos de b
 | `PUERTO` / `PORT` | Puerto HTTP del API (3001 por defecto). |
 
 **No usar en imagen:** secretos en `ARG`/`ENV` del Dockerfile, ni `start:despliegue` (las migraciones van en el servicio `migrate`).
+
+## Paso obligatorio: rol `siac_app` con LOGIN (RLS)
+
+Las migraciones crean `siac_app` con `NOLOGIN`. **La API en producción debe conectarse con ese rol**, no con el dueño de la base (`postgres`), porque el dueño tiene `BYPASSRLS` y las políticas de Row Level Security no se aplican.
+
+1. Tras el primer `migrate` (servicio `migrate` o `pnpm prisma:deploy` con `DIRECT_URL` del dueño), habilite el login del rol de aplicación en el motor PostgreSQL institucional (SQL Editor o `psql`). Use una contraseña larga generada en el gestor de secretos; **no** la pegue en el repositorio ni en `env_file` versionado:
+
+   ```sql
+   ALTER ROLE siac_app LOGIN PASSWORD '<contraseña-larga-aleatoria>';
+   ```
+
+2. Compruebe que el rol no es superusuario ni tiene `BYPASSRLS`:
+
+   ```sql
+   SELECT rolname, rolcanlogin, rolbypassrls FROM pg_roles WHERE rolname = 'siac_app';
+   ```
+
+3. En el `env_file` del compose, asigne **`DATABASE_URL` al usuario `siac_app`** (mismo host/puerto que usa el pooler o la institución). Mantenga **`DIRECT_URL`** con el rol de migración (dueño o rol DDL).
+
+4. Al arrancar, la API registra una **advertencia** (sin detener el proceso) si `DATABASE_URL` apunta a `postgres`, a un superusuario o a un rol con `BYPASSRLS`.
+
+Detalle ampliado (Supabase/Render): `docs/despliegue.md` §9.
+
+## Proxy, IP del cliente y límite de login
+
+`POST /api/v1/auth/login` aplica **5 intentos por minuto por IP** (configurable con `AUTH_LOGIN_LIMITE_INTENTOS` y `AUTH_LOGIN_LIMITE_TTL_MS`) y responde **429** al superar el cupo.
+
+- Con **`TRUST_PROXY=false`** (o en desarrollo, por defecto), Express **no** confía en `X-Forwarded-For`: el contador usa la IP del socket. Un cliente no puede falsear la IP salvo que llegue tráfico directo a Node.
+- Con **`TRUST_PROXY=1`** (valor por defecto en `NODE_ENV=production` si no se define otra cosa), la IP del cliente la fija el **primer** reverse proxy de confianza (nginx, balanceador o el proxy del servidor universitario). **No exponga el puerto 3001 de la API a Internet sin proxy**: si alguien conecta directamente a Node, podría enviar un `X-Forwarded-For` arbitrario.
+
+Coloque el reverse proxy delante de `api` en `docker-compose.prod.yml` o en la capa institucional y deje `TRUST_PROXY=1` salvo que TI confirme un arreglo distinto (p. ej. dos saltos: `TRUST_PROXY=2`).
+
+No existen en la API endpoints de refresh token ni de recuperación de contraseña en el alcance actual; solo se limita el login.
 
 ## Construcción de imágenes
 

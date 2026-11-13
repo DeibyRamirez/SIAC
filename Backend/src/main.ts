@@ -10,6 +10,9 @@ import {
   validarEntornoProduccion,
 } from './common/config/servidor';
 import { advertirLimiteConexionesBaseDatos } from './common/config/advertir-pool-base-datos';
+import { advertirRolAplicacionBaseDatos } from './common/config/advertir-rol-base-datos';
+import { configurarConfianzaProxy } from './common/config/confianza-proxy';
+import { PrismaService } from './prisma/prisma.module';
 
 function registrarManejadoresErroresProceso(): void {
   process.on('unhandledRejection', (motivo: unknown) => {
@@ -35,6 +38,7 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+  configurarConfianzaProxy(app);
   app.enableShutdownHooks(); // Permite que la aplicación escuche eventos de apagado para realizar tareas de limpieza antes de cerrar.
   app.setGlobalPrefix("api/v1");
 
@@ -62,6 +66,9 @@ async function bootstrap() {
     const documento = crearDocumentoOpenApi(app);
     SwaggerModule.setup('api/docs', app, documento);
   }
+
+  const prisma = app.get(PrismaService);
+  await advertirRolAplicacionBaseDatos(prisma);
 
   // Render inyecta PORT y exige escuchar en 0.0.0.0; en local se usa PUERTO (3001).
   const puerto = resolverPuerto();

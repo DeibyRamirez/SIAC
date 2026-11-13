@@ -22,6 +22,8 @@ RUN pnpm exec prisma generate && pnpm exec nest build
 FROM build AS tools
 ENV NODE_ENV=production
 WORKDIR /app
+# Scripts de prueba Newman y demo destructiva no deben existir en la imagen de mantenimiento de producción.
+RUN rm -f prisma/preparar-usuarios-newman.ts prisma/preparar-fixtures-newman.ts prisma/demo-vigencia.ts
 
 FROM build AS prod-deps
 RUN pnpm exec prisma generate

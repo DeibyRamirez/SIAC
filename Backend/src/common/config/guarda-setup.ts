@@ -1,4 +1,4 @@
-import { esHostDesechable, hostDeUrlBaseDatos } from './host-base-datos';
+import { abortarScriptSiProduccion, esHostDesechable, hostDeUrlBaseDatos } from './host-base-datos';
 
 /** Bandera explícita para permitir `pnpm prisma:setup` contra una BD remota/compartida. */
 export const BANDERA_SETUP_REMOTO = 'SIAC_PERMITIR_SETUP_REMOTO';
@@ -17,6 +17,13 @@ export interface ResultadoGuardaSetup {
  * Revisa DATABASE_URL y, si existe, DIRECT_URL (la que usa `prisma migrate`).
  */
 export function evaluarGuardaSetup(entorno: VariablesEntorno): ResultadoGuardaSetup {
+  if (entorno.NODE_ENV === 'production') {
+    return {
+      permitido: false,
+      motivo:
+        'NODE_ENV=production: prisma:setup no puede ejecutarse en producción (use prisma:deploy y tareas operativas puntuales).',
+    };
+  }
   if (entorno[BANDERA_SETUP_REMOTO] === 'true') {
     return {
       permitido: true,
