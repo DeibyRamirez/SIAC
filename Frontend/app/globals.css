@@ -99,9 +99,11 @@ textarea {
   font: inherit;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 /* ——— Utilidades institucionales ——— */
@@ -255,7 +257,10 @@ a {
 
 /* Resaltado de citas: reglas ::highlight en /siac-highlight.css (evita warning de PostCSS). */
 mark[data-siac-cita] {
-  background-color: rgba(250, 204, 21, 0.45);
+  background-color: #fde68a;
+  box-shadow: 0 0 0 2px rgba(202, 138, 4, 0.75);
+  border-radius: 2px;
+  color: inherit;
 }
 
 /* Marcas inline de "Ver cambios" sobre el render del .docx (conserva formato) */

@@ -270,6 +270,8 @@ model EvidenciaVersion {
   textoBaseAuditoria String?   @db.Text
   subidoPorId        String
   subidoPor          Usuario   @relation(fields: [subidoPorId], references: [id])
+  /// Rol con el que se subió la versión (Cargador, Revisor, Administrador o SuperAdmin).
+  subidoPorRol       RolUsuario?
   createdAt          DateTime  @default(now())
 
   @@unique([evidenciaId, numero])

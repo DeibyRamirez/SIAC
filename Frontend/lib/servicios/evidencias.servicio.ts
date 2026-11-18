@@ -1,7 +1,7 @@
 import { peticionApi } from './cliente-api';
 import type { CodigoCondicionDocumentoMaestro } from '@/lib/condiciones-documento-maestro';
 import type { CodigoCondicionInstitucional } from '@/lib/condiciones-institucionales';
-import type { CodigoDocumentoGuia, Evidencia, EstadoEvidencia } from '@/lib/tipos';
+import type { CodigoDocumentoGuia, Evidencia, EstadoEvidencia, RolUsuario } from '@/lib/tipos';
 import { mapearEvidenciaDesdeApi } from '@/lib/utilidades-siac';
 
 export interface RespuestaPaginada<T> {
@@ -21,18 +21,26 @@ export interface FiltrosEvidenciaApi {
   limite?: number;
 }
 
+/** DTO público de versión: sin rutas internas, firma ni texto de auditoría. */
 export interface EvidenciaVersionApi {
   id: string;
-  evidenciaId: string;
   numero: number;
   nombreArchivo: string;
-  rutaArchivo: string;
-  mimeType?: string;
-  tamanoBytes?: number;
-  firmaDescarga?: string | null;
+  mimeType?: string | null;
+  tamanoBytes?: number | null;
   subidoPorId: string;
+  subidoPorRol?: RolUsuario | null;
   createdAt: string;
-  subidoPor?: { id: string; nombre: string };
+  subidoPor?: { id: string; nombre: string } | null;
+}
+
+export interface ValidacionVersionRevisorApi {
+  versionOrigen: number;
+  nuevaVersion: number;
+  nombreArchivo: string;
+  mimeType: string;
+  tamanoBytes: number;
+  mensaje: string;
 }
 
 export async function obtenerEvidenciaApi(id: string): Promise<Evidencia> {
@@ -107,6 +115,48 @@ export async function reemplazarDocumentoGestionApi(
     method: 'POST',
     body: formData,
   });
+}
+
+/** Revisor: valida un candidato sin crear EvidenciaVersion ni tocar firmas. */
+export async function validarVersionRevisorApi(
+  id: string,
+  archivo: File,
+): Promise<ValidacionVersionRevisorApi> {
+  const formData = new FormData()
+  formData.append('archivo', archivo)
+  return peticionApi<ValidacionVersionRevisorApi>(
+    `/evidencias/${id}/versiones/revisor/validar`,
+    { method: 'POST', body: formData },
+  )
+}
+
+/** Revisor: publica el candidato ya validado; el backend revalida todo. */
+export async function publicarVersionRevisorApi(
+  id: string,
+  archivo: File,
+  versionOrigen: number,
+): Promise<Evidencia> {
+  const formData = new FormData()
+  formData.append('archivo', archivo)
+  formData.append('versionOrigen', String(versionOrigen))
+  return peticionApi<Evidencia>(`/evidencias/${id}/versiones/revisor`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+/** Verifica en backend el token de firma leído en el navegador, sin efectos secundarios. */
+export async function verificarFirmaEvidenciaApi(
+  id: string,
+  firma: string,
+): Promise<{ valida: boolean; mensaje: string }> {
+  return peticionApi<{ valida: boolean; mensaje: string }>(
+    `/evidencias/${id}/firma/verificar`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ firma }),
+    },
+  )
 }
 
 export async function eliminarEvidenciaApi(id: string): Promise<void> {
@@ -211,6 +261,9 @@ export interface ComentarioEvidenciaApi {
   anchor?: string
   quote?: string
   texto: string
+  numeroVersion?: number
+  autor?: string | null
+  createdAt?: string
 }
 
 export async function obtenerComentariosEvidenciaApi(

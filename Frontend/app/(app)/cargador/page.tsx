@@ -10,7 +10,7 @@ import { EsqueletoTarjetas } from '@/components/siac/esqueletos'
 import { TablaEvidencias } from '@/components/siac/tabla-evidencias'
 import { TarjetaKpi } from '@/components/siac/tarjeta-kpi'
 import { EncabezadoPagina, TarjetaAcceso } from '@/components/siac/tarjeta-acceso'
-import { obtenerSaludo } from '@/lib/utilidades-siac'
+import { esDocumentoAprobado, obtenerSaludo } from '@/lib/utilidades-siac'
 
 export default function InicioCargadorPage() {
   return (
@@ -29,7 +29,7 @@ function ContenidoInicioCargador() {
   const borradores = misEvidencias.filter((e) => e.estado === 'Borrador').length
   const enRevision = misEvidencias.filter((e) => e.estado === 'EnRevision').length
   const validadas = misEvidencias.filter(
-    (e) => e.estado === 'Validado' || e.estado === 'Cumple',
+    (e) => esDocumentoAprobado(e.estado),
   ).length
 
   return (

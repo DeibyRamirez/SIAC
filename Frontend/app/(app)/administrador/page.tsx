@@ -52,7 +52,12 @@ import {
   type ProgresoProcesoSIAC,
 } from '@/lib/servicios/progreso-programa.servicio'
 import { usarCargaConSesion } from '@/lib/hooks/usar-carga-con-sesion'
-import { contarEvidenciasPendientes, manejarCambioSelect, obtenerSaludo } from '@/lib/utilidades-siac'
+import {
+  contarEvidenciasPendientes,
+  esDocumentoAprobado,
+  manejarCambioSelect,
+  obtenerSaludo,
+} from '@/lib/utilidades-siac'
 
 export default function ResumenAdministradorPage() {
   return (
@@ -151,7 +156,7 @@ function ContenidoResumen() {
 
   const validadas = useMemo(
     () =>
-      evidenciasPanelAdmin.filter((e) => e.estado === 'Validado' || e.estado === 'Cumple').length,
+      evidenciasPanelAdmin.filter((e) => esDocumentoAprobado(e.estado)).length,
     [evidenciasPanelAdmin],
   )
   const enProceso = useMemo(

@@ -51,6 +51,22 @@ export async function obtenerContenidoEvidenciaApi(
   return leerCuerpoBinario(respuesta, 'evidencias/contenido')
 }
 
+/** Vista previa: no genera ni rota la firma de la versión. */
+export async function obtenerPreviewEvidenciaApi(
+  id: string,
+  version?: number,
+): Promise<ArrayBuffer> {
+  const query = version !== undefined ? `?version=${version}` : ''
+  const respuesta = await fetch(
+    `${URL_BASE_CLIENTE}/evidencias/${id}/contenido-preview${query}`,
+    { credentials: 'include' },
+  )
+  if (!respuesta.ok) {
+    throw new Error('No se pudo obtener la vista previa del documento.')
+  }
+  return leerCuerpoBinario(respuesta, 'evidencias/contenido-preview')
+}
+
 export async function obtenerContenidoPlantillaApi(id: string): Promise<ArrayBuffer> {
   const respuesta = await fetch(`${URL_BASE_CLIENTE}/plantillas/${id}/contenido`, {
     credentials: 'include',

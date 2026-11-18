@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { usarAlmacen } from '@/components/auth/proveedor-almacen'
 import { usarSesion } from '@/components/auth/proveedor-sesion'
+import { DialogoConfirmacion } from '@/components/siac/dialogo-confirmacion'
 import {
   PasoSeleccionContextoCarga,
   type ContextoCargaEvidencia,
@@ -49,6 +49,9 @@ import {
 } from '@/lib/utilidades/catalogo-tramites-siac'
 
 export type ModoFormularioNuevaEvidencia = 'cargador' | 'revisor'
+
+/** borrador · revision (cargador) · verificado (revisor publica Cumple/Validado). */
+type AccionGuardado = 'borrador' | 'revision' | 'verificado'
 
 interface FormularioNuevaEvidenciaProps {
   modo: ModoFormularioNuevaEvidencia
@@ -120,6 +123,8 @@ function ContenidoNuevaEvidencia({ modo }: FormularioNuevaEvidenciaProps) {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [accionPendiente, setAccionPendiente] = useState<AccionGuardado | null>(null)
+  const [confirmarCancelacion, setConfirmarCancelacion] = useState(false)
   const [extrayendo, setExtrayendo] = useState(false)
   const [intentoCargaProgreso, setIntentoCargaProgreso] = useState(0)
   const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
@@ -456,6 +461,73 @@ function ContenidoNuevaEvidencia({ modo }: FormularioNuevaEvidenciaProps) {
     }
   }
 
+  const rutaSalida = esRevisor ? '/revisor' : '/cargador/evidencias'
+
+  const hayCambios =
+    Boolean(archivo) ||
+    nombre.trim().length > 0 ||
+    (contextoCarga === 'programa' && programaId.trim().length > 0) ||
+    codigoGuia !== null ||
+    modalidad !== null ||
+    alcance !== null ||
+    periodoTocado.current
+
+  useEffect(() => {
+    if (!hayCambios || enviando) return
+    const avisar = (evento: BeforeUnloadEvent) => {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [hayCambios, enviando])
+
+  function solicitarGuardado(accion: AccionGuardado) {
+    if (!validarFormulario()) return
+    setAccionPendiente(accion)
+  }
+
+  async function confirmarAccion() {
+    const accion = accionPendiente
+    if (!accion) return
+    await guardarDocumento({
+      enviarARevision: accion === 'revision',
+      publicarComoVerificado: accion === 'verificado',
+    })
+    setAccionPendiente(null)
+  }
+
+  function solicitarCancelacion() {
+    if (hayCambios) {
+      setConfirmarCancelacion(true)
+      return
+    }
+    router.push(rutaSalida)
+  }
+
+  const nombreVisible = nombre || 'el documento'
+  const textosConfirmacion: Record<
+    AccionGuardado,
+    { titulo: string; descripcion: string; confirmar: string }
+  > = {
+    revision: {
+      titulo: '¿Enviar la evidencia a revisión?',
+      descripcion: `Se guardará «${nombreVisible}» y se enviará a revisión. Mientras esté en revisión no podrás editarlo.`,
+      confirmar: 'Sí, enviar',
+    },
+    borrador: {
+      titulo: '¿Guardar como borrador?',
+      descripcion: `Se guardará «${nombreVisible}» como borrador para continuar después.`,
+      confirmar: 'Sí, guardar',
+    },
+    verificado: {
+      titulo: '¿Publicar como verificado?',
+      descripcion: `Se publicará «${nombreVisible}» a su nombre como Cumple o Validado según la guía, sin pasar por el profesor. Quedará registrado en el historial.`,
+      confirmar: 'Sí, publicar',
+    },
+  }
+  const confirmacionActual = accionPendiente ? textosConfirmacion[accionPendiente] : null
+
   return (
     <div className="space-y-6">
       <EncabezadoPagina
@@ -531,11 +603,7 @@ function ContenidoNuevaEvidencia({ modo }: FormularioNuevaEvidenciaProps) {
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault()
-                  if (esRevisor) {
-                    guardarDocumento({ publicarComoVerificado: true })
-                  } else {
-                    guardarDocumento({})
-                  }
+                  solicitarGuardado(esRevisor ? 'verificado' : 'revision')
                 }}
               >
                 <div className="flex items-center gap-2">
@@ -634,37 +702,39 @@ function ContenidoNuevaEvidencia({ modo }: FormularioNuevaEvidenciaProps) {
                     : 'Guarda como borrador para revisar y continuar después, o envía directamente a revisión del revisor de calidad.'}
                 </p>
                 <div className="flex flex-col gap-2">
-                  <Button type="submit" disabled={enviando || extrayendo}>
+                  <Button
+                    type="button"
+                    disabled={enviando || extrayendo}
+                    onClick={() => solicitarGuardado(esRevisor ? 'verificado' : 'revision')}
+                  >
                     {enviando
-                      ? 'Subiendo archivo…'
+                      ? esRevisor
+                        ? 'Publicando…'
+                        : 'Enviando…'
                       : esRevisor
                         ? 'Publicar como verificado'
+                        : 'Enviar a revisión'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={enviando || extrayendo}
+                    onClick={() => solicitarGuardado('borrador')}
+                  >
+                    {enviando
+                      ? 'Guardando…'
+                      : esRevisor
+                        ? 'Guardar solo como borrador'
                         : 'Guardar borrador'}
                   </Button>
-                  {!esRevisor ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={enviando || extrayendo}
-                      onClick={() => guardarDocumento({ enviarARevision: true })}
-                    >
-                      {enviando ? 'Enviando…' : 'Enviar a revisión'}
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={enviando || extrayendo}
-                      onClick={() => guardarDocumento({})}
-                    >
-                      {enviando ? 'Guardando…' : 'Guardar solo como borrador'}
-                    </Button>
-                  )}
-                  <Link href={esRevisor ? '/revisor' : '/cargador/evidencias'}>
-                    <Button type="button" variant="outline" className="w-full">
-                      Cancelar
-                    </Button>
-                  </Link>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={solicitarCancelacion}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -682,6 +752,29 @@ function ContenidoNuevaEvidencia({ modo }: FormularioNuevaEvidenciaProps) {
           </CardContent>
         </Card>
       </div>
+
+      <DialogoConfirmacion
+        abierto={confirmacionActual !== null}
+        titulo={confirmacionActual?.titulo ?? ''}
+        descripcion={confirmacionActual?.descripcion ?? ''}
+        etiquetaConfirmar={confirmacionActual?.confirmar}
+        cargando={enviando}
+        onConfirmar={() => void confirmarAccion()}
+        onCancelar={() => setAccionPendiente(null)}
+      />
+
+      <DialogoConfirmacion
+        abierto={confirmarCancelacion}
+        titulo="¿Descartar los datos de la carga?"
+        descripcion="Se perderán el archivo, el nombre y los metadatos seleccionados. No se creará ninguna evidencia."
+        etiquetaConfirmar="Sí, descartar"
+        variant="destructive"
+        onConfirmar={() => {
+          setConfirmarCancelacion(false)
+          router.push(rutaSalida)
+        }}
+        onCancelar={() => setConfirmarCancelacion(false)}
+      />
     </div>
   )
 }

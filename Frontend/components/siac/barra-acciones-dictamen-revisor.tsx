@@ -17,6 +17,8 @@ export interface BarraAccionesDictamenRevisorProps {
   puedeDictaminar: boolean
   pistaDeshabilitado?: string
   rutaVolver?: string
+  /** Si se entrega, permite confirmar el descarte de cambios antes de salir. */
+  onVolver?: () => void
 }
 
 export function BarraAccionesDictamenRevisor({
@@ -30,6 +32,7 @@ export function BarraAccionesDictamenRevisor({
   puedeDictaminar,
   pistaDeshabilitado,
   rutaVolver = '/revisor/bandeja',
+  onVolver,
 }: BarraAccionesDictamenRevisorProps) {
   const accionesInactivas = !puedeDictaminar || procesando
 
@@ -71,16 +74,30 @@ export function BarraAccionesDictamenRevisor({
       ) : null}
 
       <div className="mt-3 border-t border-primary/10 pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className="min-h-10 w-full justify-center gap-2 sm:w-auto sm:justify-start"
-          render={<Link href={rutaVolver} />}
-        >
-          <ArrowLeft className="size-4 shrink-0" aria-hidden />
-          Volver
-        </Button>
+        {onVolver ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="min-h-10 w-full justify-center gap-2 sm:w-auto sm:justify-start"
+            onClick={onVolver}
+          >
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
+            Volver
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="min-h-10 w-full justify-center gap-2 sm:w-auto sm:justify-start"
+            render={<Link href={rutaVolver} />}
+            nativeButton={false}
+          >
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
+            Volver
+          </Button>
+        )}
       </div>
     </div>
   )

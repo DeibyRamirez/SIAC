@@ -156,6 +156,11 @@ export function formatearFechaHora(fechaIso: string): string {
   })
 }
 
+/** G1/G3 se aprueban como Cumple; G2/G4 (y legado) como Validado. */
+export function esDocumentoAprobado(estado: EstadoEvidencia): boolean {
+  return estado === 'Cumple' || estado === 'Validado'
+}
+
 export function etiquetaEstadoEvidencia(estado: EstadoEvidencia): string {
   return etiquetasEstado[estado]
 }

@@ -10,8 +10,8 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { esUrlPdf } from '@/lib/constantes/documentos'
 import {
   obtenerBlobDocxEvidenciaApi,
-  obtenerContenidoEvidenciaApi,
   obtenerContenidoPlantillaApi,
+  obtenerPreviewEvidenciaApi,
 } from '@/lib/servicios/descarga-binaria'
 import { cn } from '@/lib/utils'
 import type { LineaAnotacion } from '@/lib/utilidades/anotar-diff-docx'
@@ -53,6 +53,10 @@ interface VisorDocumentoInlineProps {
   onComentarSeleccion?: (seleccion: SeleccionDocx) => void
   /** Ancla/cita a resaltar/desplazar cuando se pulsa un comentario del panel. */
   anclaResaltada?: { anchor?: string; quote?: string; nonce: number }
+  /** Aviso cuando la cita del comentario no existe en la versión mostrada. */
+  onAnclaNoEncontrada?: () => void
+  /** Confirma que el resaltado ya se aplicó (inicia el temporizador de 10 s). */
+  onAnclaAplicada?: () => void
 }
 
 export function VisorDocumentoInline({
@@ -71,6 +75,8 @@ export function VisorDocumentoInline({
   pieCambios,
   onComentarSeleccion,
   anclaResaltada,
+  onAnclaNoEncontrada,
+  onAnclaAplicada,
 }: VisorDocumentoInlineProps) {
   const urlBase = urlDocumento?.trim() ?? ''
   const urlEfectiva =
@@ -84,7 +90,7 @@ export function VisorDocumentoInline({
 
   const cargarDocx = useCallback(async () => {
     if (evidenciaId) {
-      return obtenerContenidoEvidenciaApi(evidenciaId, versionDocumento)
+      return obtenerPreviewEvidenciaApi(evidenciaId, versionDocumento)
     }
     if (plantillaId) {
       return obtenerContenidoPlantillaApi(plantillaId)
@@ -93,6 +99,7 @@ export function VisorDocumentoInline({
   }, [evidenciaId, plantillaId, versionDocumento])
 
   const [descargando, setDescargando] = useState(false)
+  const [previewCargando, setPreviewCargando] = useState(usarPreviewDocx)
 
   const descargarDocxBinario = useCallback(async () => {
     setDescargando(true)
@@ -170,7 +177,12 @@ export function VisorDocumentoInline({
                 variant="ghost"
                 size="sm"
                 className="text-white hover:bg-zinc-700 hover:text-white"
-                disabled={usarPreviewDocx && descargando}
+                disabled={usarPreviewDocx && (descargando || previewCargando)}
+                title={
+                  usarPreviewDocx && previewCargando
+                    ? 'Espera a que termine la vista previa para descargar la versión firmada.'
+                    : undefined
+                }
                 onClick={() => {
                   if (usarPreviewDocx) {
                     void descargarDocxBinario()
@@ -202,6 +214,9 @@ export function VisorDocumentoInline({
             permitirSeleccion={Boolean(onComentarSeleccion)}
             onComentarSeleccion={onComentarSeleccion}
             anclaResaltada={anclaResaltada}
+            onAnclaNoEncontrada={onAnclaNoEncontrada}
+            onAnclaAplicada={onAnclaAplicada}
+            onEstadoCarga={setPreviewCargando}
             anotaciones={modoCambios?.activo ? anotacionesCambios : undefined}
           />
         ) : puedePrevisualizarPdf ? (

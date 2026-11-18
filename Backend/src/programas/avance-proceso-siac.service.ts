@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.module';
 import { calcularAvancePonderado, esEstadoRevisado, redondear2 } from '../dominio/panel-siac';
 import { esGuiaSinPuntaje } from '../dominio/guias-documento';
+import { esDocumentoAprobado } from '../dominio/maquina-estados-evidencia';
 import {
   ESTADOS_BLOQUEAN_NUEVA_EVIDENCIA_MISMA_GUIA,
   ESTADOS_REQUIEREN_CORRECCION_EN_LUGAR,
@@ -371,9 +372,7 @@ function construirDocumentosProgreso(
       estado: evidencia?.estado ?? null,
       puntaje: evidencia?.puntajeActual ?? null,
       totalCondiciones: evidencia?.totalCondicionesActual ?? null,
-      aceptado:
-        evidencia?.estado === EstadoEvidencia.Cumple ||
-        evidencia?.estado === EstadoEvidencia.Validado,
+      aceptado: evidencia ? esDocumentoAprobado(evidencia.estado) : false,
       conObservaciones: evidencia?.estado === EstadoEvidencia.ConObservaciones,
       rechazado: evidencia?.estado === EstadoEvidencia.Rechazado,
       porcentajeBruto,
@@ -394,7 +393,7 @@ export function porcentajeInternoEvidencia(evidencia: {
   puntajeActual: number | null;
   totalCondicionesActual: number | null;
 }): number {
-  if (evidencia.estado === EstadoEvidencia.Cumple || evidencia.estado === EstadoEvidencia.Validado) {
+  if (esDocumentoAprobado(evidencia.estado)) {
     return 100;
   }
   if (evidencia.estado === EstadoEvidencia.Rechazado) return 0;

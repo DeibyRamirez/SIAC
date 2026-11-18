@@ -7,4 +7,5 @@
 
 ::highlight(siac-comentario) {
   background-color: rgba(251, 191, 36, 0.85);
+  text-decoration: underline 2px rgba(202, 138, 4, 0.9);
 }

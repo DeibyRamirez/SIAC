@@ -1,9 +1,19 @@
 import request from 'supertest';
+import type { Response } from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { CodigoDocumentoGuia, EstadoEvidencia, RolUsuario } from '@prisma/client';
 import { ContextoE2E, crearAppE2E, iniciarSesion, limpiarDatosNegocio } from '../utilidades/app-e2e';
 import { asignarPrograma, crearEvidencia, crearPrograma, crearUsuarioE2E } from '../utilidades/datos-e2e';
 import { MIME_DOCX, crearDocxE2E } from '../utilidades/docx-e2e';
+
+function parserBinario(
+  respuesta: Response,
+  callback: (error: Error | null, cuerpo: Buffer) => void,
+): void {
+  const fragmentos: Buffer[] = [];
+  respuesta.on('data', (fragmento: Buffer) => fragmentos.push(fragmento));
+  respuesta.on('end', () => callback(null, Buffer.concat(fragmentos)));
+}
 
 /**
  * Usabilidad (28/10/2026):
@@ -42,15 +52,27 @@ describe('Usabilidad: reemplazo de documento validado y límite de texto', () =>
     tokenRevisorAjeno = ctx.app.get(JwtService).sign({ sub: ajeno.id, correo: ajeno.correo, rol: ajeno.rol });
 
     const evidencia = await crearEvidencia(ctx.prisma, {
-      nombre: 'Documento validado',
+      nombre: 'Documento Cumple',
       autorId: cargadorId,
       programaId,
       codigoGuia: CodigoDocumentoGuia.G1,
-      estado: EstadoEvidencia.Validado,
+      estado: EstadoEvidencia.Cumple,
     });
     evidenciaId = evidencia.id;
+    const docxInicial = await crearDocxE2E('Documento Cumple');
+    ctx.almacen.archivos.set('e2e/v1.docx', {
+      buffer: docxInicial,
+      tipo: 'evidencias',
+      mimeType: MIME_DOCX,
+    });
     await ctx.prisma.evidenciaVersion.create({
-      data: { evidenciaId, numero: 1, nombreArchivo: 'Documento validado.docx', rutaArchivo: 'e2e/v1.docx', subidoPorId: cargadorId },
+      data: {
+        evidenciaId,
+        numero: 1,
+        nombreArchivo: 'Documento Cumple.docx',
+        rutaArchivo: 'e2e/v1.docx',
+        subidoPorId: cargadorId,
+      },
     });
   });
 
@@ -61,27 +83,60 @@ describe('Usabilidad: reemplazo de documento validado y límite de texto', () =>
     await ctx.app.close();
   });
 
-  const subir = async (token: string, nombre: string, esperado: number) => {
-    const docx = await crearDocxE2E(nombre);
-    return request(servidor())
-      .post(`/api/v1/evidencias/${evidenciaId}/reemplazo-documento`)
+  const subirBuffer = (
+    id: string,
+    token: string,
+    docx: Buffer,
+    nombre: string,
+    esperado: number,
+  ) =>
+    request(servidor())
+      .post(`/api/v1/evidencias/${id}/reemplazo-documento`)
       .set('Authorization', `Bearer ${token}`)
       .attach('archivo', docx, { filename: `${nombre}.docx`, contentType: MIME_DOCX })
       .expect(esperado);
+
+  const descargarFirmado = async (id: string, token: string, version: number) => {
+    const descarga = await request(servidor())
+      .get(`/api/v1/evidencias/${id}/contenido?version=${version}`)
+      .set('Authorization', `Bearer ${token}`)
+      .buffer(true)
+      .parse(parserBinario)
+      .expect(200);
+    return descarga.body as Buffer;
   };
 
   it('Cargador no puede usar el reemplazo de gestión (403)', async () => {
-    await subir(tokenCargador, 'cargador', 403);
+    await subirBuffer(
+      evidenciaId,
+      tokenCargador,
+      await crearDocxE2E('cargador'),
+      'cargador',
+      403,
+    );
   });
 
   it('Revisor sin el programa asignado recibe 403', async () => {
-    await subir(tokenRevisorAjeno, 'ajeno', 403);
+    await subirBuffer(
+      evidenciaId,
+      tokenRevisorAjeno,
+      await crearDocxE2E('ajeno'),
+      'ajeno',
+      403,
+    );
   });
 
-  it('Revisor asignado reemplaza el documento Validado: versión 2, estado conservado, auditoría', async () => {
-    const { body } = await subir(tokenRevisor, 'revisor', 201);
+  it('Revisor asignado reemplaza el documento Cumple: versión 2, estado conservado, auditoría', async () => {
+    const firmado = await descargarFirmado(evidenciaId, tokenRevisor, 1);
+    const { body } = await subirBuffer(
+      evidenciaId,
+      tokenRevisor,
+      firmado,
+      'revisor',
+      201,
+    );
     expect(body.version).toBe(2);
-    expect(body.estado).toBe(EstadoEvidencia.Validado);
+    expect(body.estado).toBe(EstadoEvidencia.Cumple);
     const versiones = await ctx.prisma.evidenciaVersion.findMany({ where: { evidenciaId }, orderBy: { numero: 'asc' } });
     expect(versiones.map((v) => [v.numero, v.subidoPorId])).toEqual([
       [1, cargadorId],
@@ -92,11 +147,43 @@ describe('Usabilidad: reemplazo de documento validado y límite de texto', () =>
     expect(historial?.createdAt).toBeInstanceOf(Date);
   });
 
-  it('Administrador (sin asignación) también reemplaza: versión 3', async () => {
-    const { body } = await subir(tokenAdmin, 'admin', 201);
-    expect(body.version).toBe(3);
-    const v3 = await ctx.prisma.evidenciaVersion.findFirstOrThrow({ where: { evidenciaId, numero: 3 } });
-    expect(v3.subidoPorId).toBe(adminId);
+  it('Administrador (sin asignación) también reemplaza con su propia evidencia', async () => {
+    const evidenciaAdmin = await crearEvidencia(ctx.prisma, {
+      nombre: 'Documento admin Cumple',
+      autorId: cargadorId,
+      programaId,
+      codigoGuia: CodigoDocumentoGuia.G1,
+      estado: EstadoEvidencia.Cumple,
+    });
+    const docx = await crearDocxE2E('Documento admin Cumple');
+    ctx.almacen.archivos.set('e2e/admin-v1.docx', {
+      buffer: docx,
+      tipo: 'evidencias',
+      mimeType: MIME_DOCX,
+    });
+    await ctx.prisma.evidenciaVersion.create({
+      data: {
+        evidenciaId: evidenciaAdmin.id,
+        numero: 1,
+        nombreArchivo: 'Documento admin Cumple.docx',
+        rutaArchivo: 'e2e/admin-v1.docx',
+        subidoPorId: cargadorId,
+      },
+    });
+
+    const firmado = await descargarFirmado(evidenciaAdmin.id, tokenAdmin, 1);
+    const { body } = await subirBuffer(
+      evidenciaAdmin.id,
+      tokenAdmin,
+      firmado,
+      'admin',
+      201,
+    );
+    expect(body.version).toBe(2);
+    const v2 = await ctx.prisma.evidenciaVersion.findFirstOrThrow({
+      where: { evidenciaId: evidenciaAdmin.id, numero: 2 },
+    });
+    expect(v2.subidoPorId).toBe(adminId);
   });
 
   it('dictamen con observación de 601 caracteres responde 400', async () => {

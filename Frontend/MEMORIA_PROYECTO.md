@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Última actualización** | 2026-11-04 |
+| **Última actualización** | 2026-11-09 |
 | **Versión frontend** | `0.1.0` (`Frontend/package.json`) |
 | **Versión backend** | `0.1.0` (`backend/package.json`) |
 | **Rama activa** | Simulación SIAC — implementación completa |
@@ -282,6 +282,7 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 | [x] | B6 | Flujo aprobación + vigencias + cron | P0 | AprobacionModule + VigenciasModule |
 | [x] | F11 | Capa servicios HTTP frontend | P0 | `lib/servicios/` |
 | [x] | F12 | Asignación de programas y flujo sin semilla | P0 | `/administrador/usuarios`, cargador, revisor |
+| [x] | F13 | S4-UX: campana, auto-scroll de comentarios y versión del revisor | P1 | 09/11/2026 |
 | [ ] | F9 | Pruebas manuales con stakeholders CUAC | P1 | Checklist HU-003 a HU-011 |
 
 ### DevOps
@@ -309,6 +310,21 @@ En el prototipo, `ProveedorAlmacen` simula estas operaciones; al integrar backen
 ---
 
 ## 14. Registro de cambios (changelog de memoria)
+
+### 2026-11-09 — S4-UX-2: flujo de versiones del revisor
+
+- [Revisor] `/revisor/revisiones` usa un menú accesible de tres puntos con «Observaciones» e «Historial de versiones». Observaciones es read-only (documento vigente + datos básicos, sin checklist ni formulario); Historial centraliza la preparación, validación, previsualización y publicación de versiones.
+- [Versiones] El revisor solo puede iniciar el flujo si la evidencia actual está en «Cumple». Seleccionar un archivo lo valida en backend y lo muestra como candidato no publicado; publicar abre confirmación y crear una sola versión, cancelar pide descarte. No hay `window.location.reload()` en el flujo nuevo.
+- [Firma] El visor usa `GET /contenido-preview` (no rota `firmaDescarga`); la descarga explícita sigue usando `GET /contenido` y firma. Dos descargas explícitas de la misma versión siguen rotando el token: se debe subir el archivo de la descarga más reciente.
+- [Confirmaciones] «Enviar a revisión» es la acción principal y «Guardar borrador» la secundaria; ambas piden confirmación. Volver/cancelar con datos o candidato pide descarte. Se retiró `window.confirm` del reemplazo heredado.
+- [Tests] Vitest 51 archivos / 306 tests; `tsc --noEmit` y `next build` OK.
+
+### 2026-11-09 — S4-UX: campana, comentarios y versión del revisor
+
+- [Layout] La campana se abre en un portal por encima del header (`z-[300]`), con ancho `min(360px, 100vw-1rem)`, encabezado y contador fijos, lista con scroll interno, cierre por Escape/clic fuera y `aria-expanded`.
+- [Profesor] Los comentarios del revisor son botones accesibles; al pulsarlos el visor DOCX hace scroll suave y resalta la cita 10 s. La búsqueda normaliza espacios/saltos/mayúsculas, valida el ancla y marca citas multipárrafo; si no aparece, muestra «No se encontró el fragmento en esta versión».
+- [Revisor] «Subir nueva versión» con ayuda de firma en `/revisor/bandeja/[id]` y en el detalle de Mis revisiones; el historial muestra fecha, autor, rol y «Subida por revisor», y cada descarga sigue firmando el documento.
+- [Tests] Vitest 49 archivos / 296 tests; `tsc --noEmit` y `next build` OK.
 
 ### 2026-11-04 — Enlaces seguros reportEmbed en el dashboard
 
