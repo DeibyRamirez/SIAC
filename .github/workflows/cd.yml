@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  PNPM_VERSION: "10"
+  PNPM_VERSION: "10.33.2"
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: pnpm
           cache-dependency-path: |
             Backend/pnpm-lock.yaml
@@ -64,6 +64,19 @@ jobs:
             Frontend/package.json
             Frontend/pnpm-lock.yaml
           retention-days: 14
+
+  docker-images:
+    name: Build imágenes Docker (sin publicar)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API runtime
+        run: docker build -f Backend/Dockerfile --target runtime Backend
+      - name: Build API tools
+        run: docker build -f Backend/Dockerfile --target tools Backend
+      - name: Build frontend runtime
+        run: docker build -f Frontend/Dockerfile --target runtime Frontend
 
   deploy-backend:
     name: Deploy backend

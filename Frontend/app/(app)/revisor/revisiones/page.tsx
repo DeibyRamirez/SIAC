@@ -33,7 +33,11 @@ import {
   type FilaRevisionRevisorApi,
 } from '@/lib/servicios/evidencias.servicio'
 import { LIMITE_FILAS_TABLA } from '@/lib/constantes/paginacion'
-import { formatearFechaHora, formatearPuntaje } from '@/lib/utilidades-siac'
+import {
+  esDocumentoAprobado,
+  formatearFechaHora,
+  formatearPuntaje,
+} from '@/lib/utilidades-siac'
 
 export default function MisRevisionesRevisorPage() {
   return (
@@ -174,6 +178,19 @@ function ContenidoMisRevisiones() {
                             >
                               Historial de versiones
                             </DropdownMenuItem>
+                            {esDocumentoAprobado(fila.estado) ? (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                nativeButton={false}
+                                render={
+                                  <Link
+                                    href={`/revisor/revisiones/${fila.evidenciaId}/versiones?subir=1`}
+                                  />
+                                }
+                              >
+                                Subir nueva versión
+                              </DropdownMenuItem>
+                            ) : null}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         {fila.estado === 'EnRevision' && (

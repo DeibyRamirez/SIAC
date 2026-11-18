@@ -5,7 +5,11 @@ import { OrigenDato, PrismaClient, RolUsuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { AlmacenamientoService } from '../../src/almacenamiento/almacenamiento.service';
-import { esHostDesechable, hostDeUrlBaseDatos } from '../../src/common/config/host-base-datos';
+import {
+  abortarScriptSiProduccion,
+  esHostDesechable,
+  hostDeUrlBaseDatos,
+} from '../../src/common/config/host-base-datos';
 import { FiltroExcepcionHttp } from '../../src/common/filters/http-exception.filter';
 import { PrismaService } from '../../src/prisma/prisma.module';
 import { AlmacenamientoMemoria } from './almacenamiento-memoria';
@@ -92,6 +96,7 @@ export interface ContextoE2E {
  * Para otro host hay que declararlo explícitamente con SIAC_E2E_PERMITIR_BD_REMOTA=true.
  */
 export function verificarBaseDeDatosDesechable(): void {
+  abortarScriptSiProduccion('e2e');
   const url = process.env.DATABASE_URL ?? '';
   let host = '';
   try {

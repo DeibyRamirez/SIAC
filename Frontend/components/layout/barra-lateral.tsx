@@ -53,6 +53,7 @@ function itemsCargador(): ItemNavegacion[] {
 function itemsRevisor(): ItemNavegacion[] {
   return [
     { href: '/revisor', etiqueta: 'Resumen general', icono: LayoutDashboard },
+    { href: '/revisor/evidencias/nueva', etiqueta: 'Cargar trámite', icono: Files },
     { href: '/revisor/bandeja', etiqueta: 'Bandeja de revisión', icono: FileCheck2, mostrarBadge: true },
     { href: '/revisor/revisiones', etiqueta: 'Mis revisiones', icono: ClipboardCheck },
   ]

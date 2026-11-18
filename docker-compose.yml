@@ -5,7 +5,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      # Solo desarrollo local: autenticación trust (sin contraseña en el repositorio).
+      POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_DB: siac
     ports:
       - "5433:5432"

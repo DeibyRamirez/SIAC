@@ -22,8 +22,12 @@ const politicaSeguridadContenido = [
   'https://*.msftauth.net',
 ].join(' ')
 
+/** Build Docker en el servidor: `SIAC_DOCKER_BUILD=true`. Vercel no soporta `output: 'standalone'`. */
+const buildDocker = process.env.SIAC_DOCKER_BUILD === 'true'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(buildDocker ? { output: 'standalone' } : {}),
   images: {
     unoptimized: true,
   },

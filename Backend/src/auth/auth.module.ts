@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
+import { GuardiaTasaLogin } from './guardia-tasa-login';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { UsuarioRepositorio } from '../usuarios/usuario.repositorio';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, UsuarioRepositorio],
+  providers: [AuthService, JwtStrategy, UsuarioRepositorio, GuardiaTasaLogin],
   exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

@@ -1765,7 +1765,7 @@
               ]
             },
             "url": "{{baseUrl}}/evidencias",
-            "description": "positivo\n\nRoles: Cargador. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nDocumento .docx de hasta 20 MB. La resolución MEN es la excepción PDF y no pasa por este flujo. 403 si el programa no está asignado."
+            "description": "positivo\n\nRoles: Cargador, Revisor. SuperAdmin también puede: RolesGuard lo deja pasar aunque el rol no esté en la lista.\n\nDocumento .docx de hasta 20 MB. Campo opcional `publicarComoVerificado` (`true`/`1`) solo Revisor: publica G1/G3 en Cumple y G2/G4 en Validado al crear. 403 si el programa no está asignado."
           },
           "event": [
             {

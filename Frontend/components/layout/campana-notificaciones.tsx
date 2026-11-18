@@ -79,6 +79,7 @@ export function CampanaNotificaciones() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
+        side="bottom"
         sideOffset={20}
         collisionPadding={8}
         className="z-[300] w-[min(360px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden p-0"

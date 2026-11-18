@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ApiContrato } from '../openapi/api-contrato';
 import { CifrasInstitucionalesService } from './cifras-institucionales.service';
 import { ConsultaCifrasDto, EnvioCifrasDto, ResultadoEnvioCifrasDto } from './dto/cifras.dto';
@@ -24,6 +24,7 @@ const ESQUEMA_PAGINA = {
 
 @ApiTags('Cifras institucionales')
 @Controller('integracion/cifras-institucionales')
+@SkipThrottle({ login: true })
 @UseGuards(GuardiaTasaCifras, GuardiaClaveApi)
 export class CifrasInstitucionalesController {
   constructor(private readonly cifras: CifrasInstitucionalesService) {}

@@ -53,6 +53,15 @@ export class CrearEvidenciaDto {
   @IsEnum(CodigoDocumentoGuia)
   @IsOptional()
   codigoGuia?: CodigoDocumentoGuia;
+
+  /**
+   * En multipart llega como texto (`true` / `1`). Solo el Revisor puede usarlo:
+   * publica G1–G4 como verificado sin pasar por revisión del profesor.
+   */
+  @ApiPropertyOptional({ description: 'Solo Revisor: publicar como Cumple/Validado al crear.' })
+  @IsString()
+  @IsOptional()
+  publicarComoVerificado?: string;
 }
 
 export class ActualizarEvidenciaDto {

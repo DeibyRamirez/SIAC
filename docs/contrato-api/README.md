@@ -134,7 +134,7 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | PATCH | `/api/v1/estructura/etapas/{id}` | Administrador | Actualiza una etapa |
 | DELETE | `/api/v1/estructura/etapas/{id}` | Administrador | Elimina una etapa |
 | GET | `/api/v1/evidencias` | autenticado | Lista evidencias visibles para el usuario |
-| POST | `/api/v1/evidencias` | Cargador | Crea una evidencia con archivo |
+| POST | `/api/v1/evidencias` | Cargador, Revisor | Crea una evidencia con archivo (`publicarComoVerificado` solo Revisor) |
 | GET | `/api/v1/evidencias/conteos` | autenticado | Cuenta evidencias por estado dentro del alcance |
 | GET | `/api/v1/evidencias/mis-revisiones-revisor` | Revisor | Envíos a revisión del revisor, paginados |
 | POST | `/api/v1/evidencias/parsear-excel` | Cargador, Administrador | Lee un Excel y devuelve filas interpretadas, sin guardarlas |
@@ -147,7 +147,7 @@ La columna Rol es la de `x-siac-roles` en el OpenAPI. Recordatorio: SuperAdmin a
 | GET | `/api/v1/evidencias/{id}/contenido` | autenticado | Contenido binario del documento |
 | GET | `/api/v1/evidencias/{id}/descargar` | autenticado | URL firmada del archivo |
 | POST | `/api/v1/evidencias/{id}/dictamen` | Revisor | Dictamina una evidencia en revisión |
-| POST | `/api/v1/evidencias/{id}/enviar-revision` | Cargador | Envía la evidencia a revisión |
+| POST | `/api/v1/evidencias/{id}/enviar-revision` | Cargador, Revisor | Envía la evidencia a revisión (solo borradores propios) |
 | GET | `/api/v1/evidencias/{id}/evaluaciones-condicion` | autenticado | Checklist G1 de una revisión |
 | GET | `/api/v1/evidencias/{id}/evaluaciones-condicion-institucional` | autenticado | Checklist G3 de una revisión |
 | GET | `/api/v1/evidencias/{id}/historial` | autenticado | Historial de estados de la evidencia |

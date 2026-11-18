@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -59,6 +59,10 @@ function ContenidoHistorialVersiones() {
   const [cargandoDiff, setCargandoDiff] = useState(false)
   const [errorDiff, setErrorDiff] = useState<string | null>(null)
   const [dialogoVersionAbierto, setDialogoVersionAbierto] = useState(false)
+  // «Subir nueva versión» desde el menú de Mis revisiones llega con ?subir=1.
+  const searchParams = useSearchParams()
+  const subirSolicitado = searchParams?.get('subir') === '1'
+  const dialogoAutoAbierto = useRef(false)
 
   const cargar = useCallback(
     async (seleccionar?: number) => {
@@ -179,6 +183,12 @@ function ContenidoHistorialVersiones() {
     setErrorDiff(null)
     await cargar(mapeada.version)
   }
+
+  useEffect(() => {
+    if (!subirSolicitado || dialogoAutoAbierto.current || !evidencia) return
+    dialogoAutoAbierto.current = true
+    if (esDocumentoAprobado(evidencia.estado)) setDialogoVersionAbierto(true)
+  }, [subirSolicitado, evidencia])
 
   if (cargando && !evidencia) {
     return <EsqueletoContenidoPagina tipo="detalle" />

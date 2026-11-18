@@ -9,12 +9,14 @@ import {
   HttpStatus,
   NotImplementedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
 import { ApiContrato } from '../openapi/api-contrato';
 import { UsuarioSesionDto } from '../openapi/modelos-respuesta';
 import { AuthService } from './auth.service';
 import { IniciarSesionDto, RespuestaAuthDto } from './dto/auth.dto';
+import { GuardiaTasaLogin } from './guardia-tasa-login';
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -23,12 +25,14 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @SkipThrottle({ cifras: true })
+  @UseGuards(GuardiaTasaLogin)
   @ApiContrato({
     resumen: 'Inicia sesión con correo institucional y contraseña',
     roles: ['publico'],
     respuesta: RespuestaAuthDto,
     descripcionRespuesta: 'JWT y datos públicos del usuario. El estado HTTP es 200.',
-    tambien: [401],
+    tambien: [401, 429],
     detalle:
       'El correo debe pertenecer al dominio institucional. Un usuario inactivo recibe 401 y no obtiene token.',
   })

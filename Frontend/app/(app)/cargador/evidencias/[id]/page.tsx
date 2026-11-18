@@ -85,6 +85,21 @@ function ContenidoDetalle() {
   const [comentarioActivoId, setComentarioActivoId] = useState<string | null>(null)
   const [anclaAplicadaNonce, setAnclaAplicadaNonce] = useState<number | null>(null)
   const [avisoAncla, setAvisoAncla] = useState<string | null>(null)
+  const [observacionActivaCodigo, setObservacionActivaCodigo] = useState<string | null>(null)
+
+  function irAObservacionCondicion(codigo: string, texto?: string | null) {
+    if (!texto?.trim()) return
+    setAvisoAncla(null)
+    setAnclaAplicadaNonce(null)
+    if (observacionActivaCodigo === codigo) {
+      setObservacionActivaCodigo(null)
+      setAnclaResaltada(null)
+      return
+    }
+    setComentarioActivoId(null)
+    setObservacionActivaCodigo(codigo)
+    setAnclaResaltada({ quote: texto.trim(), nonce: Date.now() })
+  }
   const [evaluacionesInstitucionales, setEvaluacionesInstitucionales] = useState<
     EvaluacionCondicionInstitucionalEvidencia[]
   >([])
@@ -320,6 +335,10 @@ function ContenidoDetalle() {
           puntaje={evidencia.puntajeActual}
           totalCondiciones={evidencia.totalCondicionesActual}
           titulo="Evaluación G1 — condiciones de programa"
+          observacionActivaCodigo={observacionActivaCodigo}
+          onObservacionClick={(item) =>
+            irAObservacionCondicion(item.codigoCondicion, item.quote)
+          }
         />
       )}
 
@@ -362,6 +381,7 @@ function ContenidoDetalle() {
                         setAnclaResaltada(null)
                         return
                       }
+                      setObservacionActivaCodigo(null)
                       setComentarioActivoId(idComentario)
                       setAnclaResaltada({
                         anchor: comentario.anchor,
@@ -398,6 +418,10 @@ function ContenidoDetalle() {
             etiquetaCondicionInstitucional(
               codigo as EvaluacionCondicionInstitucionalEvidencia['codigoCondicion'],
             )
+          }
+          observacionActivaCodigo={observacionActivaCodigo}
+          onObservacionClick={(item) =>
+            irAObservacionCondicion(item.codigoCondicion, item.quote)
           }
         />
       )}

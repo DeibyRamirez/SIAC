@@ -33,4 +33,14 @@ describe('evaluarGuardaSetup (pnpm prisma:setup)', () => {
     expect(evaluarGuardaSetup({ DATABASE_URL: REMOTA, [BANDERA_SETUP_REMOTO]: 'true' }).permitido).toBe(true);
     expect(evaluarGuardaSetup({ DATABASE_URL: REMOTA, [BANDERA_SETUP_REMOTO]: '1' }).permitido).toBe(false);
   });
+
+  it('rechaza siempre con NODE_ENV=production aunque exista SIAC_PERMITIR_SETUP_REMOTO', () => {
+    const resultado = evaluarGuardaSetup({
+      NODE_ENV: 'production',
+      DATABASE_URL: LOCAL,
+      [BANDERA_SETUP_REMOTO]: 'true',
+    });
+    expect(resultado.permitido).toBe(false);
+    expect(resultado.motivo).toMatch(/NODE_ENV=production/);
+  });
 });
