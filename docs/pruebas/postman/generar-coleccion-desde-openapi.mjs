@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Genera la colección Postman F-05 desde docs/contrato-api/openapi.json (108 operaciones).
+ * Genera la colección Postman F-05 desde docs/contrato-api/openapi.json (todas sus operaciones).
  */
 import fs from 'node:fs';
 import path from 'node:path';

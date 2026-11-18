@@ -30,7 +30,7 @@ Comprobado el 18 de noviembre de 2026 (hora de Bogotá):
 | API | [https://siac-backend-tad8.onrender.com/api/v1](https://siac-backend-tad8.onrender.com/api/v1) |
 | Salud del backend | [https://siac-backend-tad8.onrender.com/api/v1/salud](https://siac-backend-tad8.onrender.com/api/v1/salud) — responde `{ "estado": "ok", "baseDatos": "ok", ... }` cuando PostgreSQL contesta |
 
-La interfaz Swagger **no** está publicada en ese backend (`/api/docs` responde 404). Es intencional: solo se monta si `NODE_ENV` no es `production`. Véase [Documentación de la API](#documentación-de-la-api).
+Swagger del backend: `https://siac-backend-tad8.onrender.com/api/docs`. En producción solo se publica si en Render están `SWAGGER_HABILITADO=true`, `SWAGGER_USUARIO` y `SWAGGER_CLAVE`, y pide usuario y clave (HTTP Basic). Sin esas variables responde 404. Véase [Documentación de la API](#documentación-de-la-api).
 
 El plan declarado para el backend en [`render.yaml`](render.yaml) es el plan gratuito de Render: el servicio puede dormirse tras unos 15 minutos sin tráfico. El arranque en frío puede tardar cerca de un minuto. El workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) hace `GET /api/v1/salud` cada 10 minutos cuando está configurada la variable de repositorio `BACKEND_URL`.
 
@@ -128,7 +128,15 @@ El contrato OpenAPI 3.0.0 está versionado en el repositorio y cubre **112 opera
 - Guía (roles, errores, paginación): [`docs/contrato-api/README.md`](docs/contrato-api/README.md)
 - En GitHub: [docs/contrato-api/openapi.json](https://github.com/DeibyRamirez/SIAC/blob/develop_v2/docs/contrato-api/openapi.json)
 
-La interfaz HTML de Swagger se genera con `@nestjs/swagger` (`Backend/src/openapi/documento-openapi.ts`) y se monta en **`http://localhost:3001/api/docs`** solo cuando `NODE_ENV` no es `production`. En el backend publicado no está disponible.
+La interfaz HTML de Swagger se genera con `@nestjs/swagger` (`Backend/src/openapi/documento-openapi.ts`) y se monta en `/api/docs` (fuera del prefijo `/api/v1`). El documento también se sirve en `/api/docs-json` y `/api/docs-yaml`.
+
+| Entorno | Comportamiento |
+|---------|----------------|
+| Desarrollo / pruebas (`NODE_ENV` distinto de `production`) | `http://localhost:3001/api/docs`, sin autenticación. |
+| Producción con `SWAGGER_HABILITADO=true`, `SWAGGER_USUARIO` y `SWAGGER_CLAVE` (≥ 12 caracteres) | `https://<backend>/api/docs`, protegido con HTTP Basic. Sin credenciales o con credenciales incorrectas responde `401`. |
+| Producción sin `SWAGGER_HABILITADO=true`, o sin usuario o clave | No se monta (`404`). Si falta usuario o clave se registra un aviso `[configuración]` al arrancar. |
+
+La comparación de credenciales es en tiempo constante (`Backend/src/openapi/acceso-swagger.ts`, con pruebas en `acceso-swagger.spec.ts`). Las credenciales se entregan por un canal aparte (sobre o gestor de contraseñas), nunca en el repositorio. En la interfaz, el botón **Authorize** acepta el JWT de `POST /api/v1/auth/login` para probar los endpoints protegidos.
 
 Hay una prueba que compara, clave por clave, el documento generado desde el código con `openapi.json`: `Backend/src/openapi/contrato-openapi.spec.ts`.
 
@@ -149,6 +157,8 @@ node docs/pruebas/postman/generar-coleccion-desde-openapi.mjs
 ```
 
 Artefactos: [`docs/pruebas/postman/SIAC-api-v1.postman_collection.json`](docs/pruebas/postman/SIAC-api-v1.postman_collection.json) y el entorno [`docs/pruebas/postman/siac-local.postman_environment.json`](docs/pruebas/postman/siac-local.postman_environment.json). Cómo ejecutar Newman solo contra localhost está en [`docs/pruebas/README.md`](docs/pruebas/README.md). No debe correrse contra Vercel ni Render.
+
+Cobertura de la colección frente al contrato (verificada el 18 de noviembre de 2026): **108 de 112** operaciones. Las 4 que faltan llegaron con el PR #31 (vista previa y versión del revisor) y están listadas en [`COBERTURA-SWAGGER.md`](docs/pruebas/postman/COBERTURA-SWAGGER.md).
 
 Autenticación de la API (salvo endpoints públicos y cifras institucionales):
 
@@ -222,7 +232,7 @@ pnpm start:dev
 
 - `pnpm prisma:deploy` aplica las migraciones (incluyen el catálogo de trámites G1–G4 y la institución).
 - `pnpm prisma:seed` solo asegura la fila `ConfiguracionSIAC`; no crea usuarios, programas, evidencias ni plantillas de ejemplo.
-- El API queda en `http://localhost:3001/api/v1`. Salud: `http://localhost:3001/api/v1/salud`. Swagger (fuera de production): `http://localhost:3001/api/docs`.
+- El API queda en `http://localhost:3001/api/v1`. Salud: `http://localhost:3001/api/v1/salud`. Swagger (sin autenticación fuera de production): `http://localhost:3001/api/docs`.
 
 `pnpm prisma:setup` (migraciones + verificación + semilla + backfill en un solo paso) es **solo para una base local**: aborta si `DATABASE_URL` o `DIRECT_URL` apuntan a un host que no sea `localhost`, `127.0.0.1` o el servicio `postgres` de CI. Para un caso excepcional y deliberado contra una base remota hay que declarar `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal. Render no usa este script: aplica las migraciones con `start:despliegue`.
 

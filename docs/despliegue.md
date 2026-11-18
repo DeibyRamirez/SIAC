@@ -68,7 +68,7 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
    - La app escucha en `0.0.0.0:$PORT` (Render inyecta `PORT`; en local sigue `PUERTO=3001`).
 3. Diligenciar las variables que pide el Blueprint (todas vienen con `sync: false`, sin valores). Ver la tabla de la sección 5.
 4. Primer despliegue: revisar en **Logs** las líneas `prisma migrate deploy` (31 migraciones), `SIAC API escuchando en el puerto …` y las advertencias `[configuración]`.
-5. Probar: `https://<servicio>.onrender.com/api/v1/salud` y `https://<servicio>.onrender.com/api/docs`.
+5. Probar: `https://<servicio>.onrender.com/api/v1/salud` y, si `SWAGGER_HABILITADO=true`, `https://<servicio>.onrender.com/api/docs` (pide usuario y clave HTTP Basic; sin ellas responde 401). Sin `SWAGGER_HABILITADO=true` responde 404.
 
 ### 2.1 Keep-alive (mitiga el sueño del plan free)
 
@@ -133,6 +133,9 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `DIRECT_URL` | Sí | Pooler sesión `:5432` (migraciones) |
 | `JWT_SECRETO` | Sí | Cadena aleatoria larga (≥ 32 caracteres). Sin ella no arranca |
 | `JWT_EXPIRACION` | No | `8h` por defecto |
+| `SWAGGER_HABILITADO` | No | `true` publica Swagger en `/api/docs` con HTTP Basic. Vacío o `false`: no se publica |
+| `SWAGGER_USUARIO` | Si `SWAGGER_HABILITADO=true` | Usuario HTTP Basic de la documentación |
+| `SWAGGER_CLAVE` | Si `SWAGGER_HABILITADO=true` | Clave HTTP Basic (≥ 12 caracteres). Si falta, Swagger no se monta |
 | `DOMINIO_INSTITUCIONAL` | No | `uniautonoma.edu.co` por defecto |
 | `CORS_ORIGENES` | Sí (tras Vercel) | `https://<proyecto>.vercel.app[,https://dominio-propio]` |
 | `FRONTEND_URL` | Sí (tras Vercel) | `https://<proyecto>.vercel.app` |
