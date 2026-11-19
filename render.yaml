@@ -45,6 +45,13 @@ services:
         sync: false
       - key: DOMINIO_INSTITUCIONAL
         sync: false
+      # --- Documentación de la API (Swagger en /api/docs, protegido con HTTP Basic) ---
+      - key: SWAGGER_HABILITADO # true para publicar /api/docs; vacío o false = no se publica
+        sync: false
+      - key: SWAGGER_USUARIO
+        sync: false
+      - key: SWAGGER_CLAVE # mínimo 12 caracteres
+        sync: false
       # --- CORS y enlaces de correo ---
       - key: CORS_ORIGENES # https://<proyecto>.vercel.app[,https://dominio-propio]
         sync: false

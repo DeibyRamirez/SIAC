@@ -4,9 +4,28 @@ Generado: 2026-11-07T20:38:22.217Z
 
 ## Conteo
 
+> **Actualización 18/11/2026.** Tras fusionar `main` en `develop_v2` (commit `f6424eb`), `docs/contrato-api/openapi.json` tiene **112 operaciones** (93 rutas). La colección `SIAC-api-v1` (113 peticiones) **no se ha regenerado** desde el 7/11 y cubre **108 de 112**. La tabla de abajo es la matriz original del 7/11 (108 operaciones).
+
 | Concepto | Cantidad |
 |----------|----------:|
-| Operaciones HTTP en `openapi.json` | **108** |
+| Operaciones HTTP en `openapi.json` (18/11/2026) | **112** |
+| Operaciones cubiertas por la colección actual | **108** |
+| Operaciones sin petición en la colección | **4** |
+
+Operaciones sin cubrir (añadidas por el PR #31; regenerar con `node docs/pruebas/postman/generar-coleccion-desde-openapi.mjs` y definir su expectativa en `resolver-expectativas-newman.mjs`):
+
+| Método | Ruta |
+|--------|------|
+| GET | `/api/v1/evidencias/{id}/contenido-preview` |
+| POST | `/api/v1/evidencias/{id}/firma/verificar` |
+| POST | `/api/v1/evidencias/{id}/versiones/revisor` |
+| POST | `/api/v1/evidencias/{id}/versiones/revisor/validar` |
+
+Matriz original (7/11/2026):
+
+| Concepto | Cantidad |
+|----------|----------:|
+| Operaciones HTTP en `openapi.json` (7/11/2026) | **108** |
 | Cubiertas en carpetas API (sin duplicar login/perfil/salud) | **105** |
 | Cubiertas solo en 00 / 98 (login, salud, perfil/errores) | **3** |
 | **Total cubiertas (108)** | **108** |

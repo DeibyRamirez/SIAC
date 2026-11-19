@@ -8,7 +8,8 @@ Contrato OpenAPI 3 de los endpoints que ya existen en el backend NestJS. No aña
 | Generación | `SwaggerModule.createDocument` en `Backend/src/openapi/documento-openapi.ts` |
 | Decoradores | Controladores y DTOs (`@nestjs/swagger`) |
 | Prueba de coincidencia | `Backend/src/openapi/contrato-openapi.spec.ts` |
-| Interfaz HTML | `GET /api/docs`, solo si `NODE_ENV` no es `production` |
+| Interfaz HTML | `GET /api/docs` (JSON: `/api/docs-json`, YAML: `/api/docs-yaml`). Fuera de producción, sin autenticación. En producción, solo con `SWAGGER_HABILITADO=true` y HTTP Basic (`SWAGGER_USUARIO` / `SWAGGER_CLAVE`) |
+| Control de acceso | `Backend/src/openapi/acceso-swagger.ts` (pruebas en `acceso-swagger.spec.ts`) |
 
 El prefijo de todas las rutas es `/api/v1`. En el JSON las rutas ya lo incluyen.
 

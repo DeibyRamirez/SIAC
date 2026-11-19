@@ -33,6 +33,9 @@ Defínalas en el `env_file`; **no** las commitee ni las pase por argumentos de b
 | Variables S3 (`S3_*`) | Si `S3_USAR_ALMACEN_LOCAL=false`. |
 | `CORREO_*` / Resend | Canal de notificaciones (opcional). |
 | `PUERTO` / `PORT` | Puerto HTTP del API (3001 por defecto). |
+| `SWAGGER_HABILITADO` | `true` para publicar Swagger en `/api/docs` (por defecto no se publica en producción). |
+| `SWAGGER_USUARIO` | Usuario HTTP Basic de `/api/docs`, `/api/docs-json` y `/api/docs-yaml`. |
+| `SWAGGER_CLAVE` | Clave HTTP Basic (mínimo 12 caracteres). Si falta usuario o clave, Swagger no se monta y se registra un aviso. |
 
 **No usar en imagen:** secretos en `ARG`/`ENV` del Dockerfile, ni `start:despliegue` (las migraciones van en el servicio `migrate`).
 

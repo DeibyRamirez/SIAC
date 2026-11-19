@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 
-/** La interfaz HTML de Swagger no se publica en producción (Render). */
+/**
+ * La interfaz HTML de Swagger se publica sin autenticación solo fuera de producción.
+ * En producción la decisión la toma `resolverAccesoSwagger` (acceso-swagger.ts): SWAGGER_HABILITADO + HTTP Basic.
+ */
 export function exponerInterfazSwagger(nodeEnv: string | undefined = process.env.NODE_ENV): boolean {
   return nodeEnv !== 'production';
 }

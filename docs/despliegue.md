@@ -34,17 +34,16 @@ flowchart LR
 3. **Storage**: crear los buckets **privados** `evidencias`, `plantillas` y `documentos` (los nombres se pueden cambiar con `S3_BUCKET*`).
 4. **Storage → S3 Connection**: copiar el endpoint (`https://<ref>.storage.supabase.co/storage/v1/s3`), la región y generar un par **Access key / Secret key** (`S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 5. Base vacía: no hace falta ejecutar SQL a mano. Las 31 migraciones (incluidas las de cifras de `develop_v3`, que crean y luego retiran las tablas de cifras) se aplicaron sin errores sobre una base vacía y sin drift frente a `schema.prisma` (verificado el 16/10/2026).
-6. **Primer administrador** (solo si la tabla `Usuario` está vacía, desde un equipo con la cadena de Supabase en variables de la terminal, nunca en un `.env` versionado). `pnpm prisma:seed` ya no crea usuarios. Las migraciones no insertan cuentas.
+6. **Primer administrador** (solo si la tabla `Usuario` está vacía; nunca en un `.env` versionado). `pnpm prisma:seed` no crea usuarios y las migraciones no insertan cuentas.
    ```powershell
    cd Backend
-   $env:DATABASE_URL = "<DIRECT_URL de Supabase>"; $env:DIRECT_URL = $env:DATABASE_URL
-   $env:PRIMER_ADMIN_NOMBRE = "<nombre>"
-   $env:PRIMER_ADMIN_CORREO = "<correo@uniautonoma.edu.co>"
-   $env:PRIMER_ADMIN_CLAVE = "<clave de al menos 12 caracteres, solo en esta terminal>"
+   # Si Backend/.env ya tiene DATABASE_URL y DIRECT_URL (archivo ignorado por git), omita estas dos líneas.
+   $env:DATABASE_URL = "<cadena real: pooler transacción :6543>"
+   $env:DIRECT_URL = "<cadena real: pooler sesión :5432>"
    pnpm prisma:primer-admin
-   Remove-Item Env:DATABASE_URL, Env:DIRECT_URL, Env:PRIMER_ADMIN_NOMBRE, Env:PRIMER_ADMIN_CORREO, Env:PRIMER_ADMIN_CLAVE
+   Remove-Item Env:DATABASE_URL, Env:DIRECT_URL
    ```
-   El comando aborta si ya hay usuarios. Los demás roles se crean después desde la aplicación, con la sesión de ese SuperAdmin.
+   Reemplace las cadenas `<...>` por las reales de la sección 1.2 (sin dejar los ángulos). El comando pregunta nombre, correo y clave en la terminal: la clave se escribe oculta y no queda en el historial, en `.env` ni en el repositorio; aborta si ya hay usuarios. Para automatización sin terminal interactiva se aceptan `PRIMER_ADMIN_NOMBRE`, `PRIMER_ADMIN_CORREO` y `PRIMER_ADMIN_CLAVE` solo en el entorno del proceso (nunca en `.env`). Los demás roles se crean después desde la aplicación, con la sesión de ese SuperAdmin.
 7. **`pnpm prisma:setup` no se usa contra Supabase.** Encadena `migrate deploy`, verificación, la semilla de configuración (sin usuarios) y el backfill, y tiene una guarda (`Backend/prisma/guarda-setup.ts`, lógica en `src/common/config/guarda-setup.ts`) que aborta si `DATABASE_URL` o `DIRECT_URL` no son locales (`localhost`, `127.0.0.1`, `postgres` de CI). Solo con `SIAC_PERMITIR_SETUP_REMOTO=true` en la terminal se permite un host remoto, de forma deliberada. En Supabase las migraciones las aplica Render (`start:despliegue`). El primer administrador es el paso 6, no el arranque del servicio.
 8. Plan gratuito de Supabase: el proyecto se **pausa** tras una semana sin actividad; reactivarlo desde el panel antes de una demostración.
 
@@ -68,7 +67,7 @@ El repositorio trae `render.yaml` (Blueprint) en la raíz.
    - La app escucha en `0.0.0.0:$PORT` (Render inyecta `PORT`; en local sigue `PUERTO=3001`).
 3. Diligenciar las variables que pide el Blueprint (todas vienen con `sync: false`, sin valores). Ver la tabla de la sección 5.
 4. Primer despliegue: revisar en **Logs** las líneas `prisma migrate deploy` (31 migraciones), `SIAC API escuchando en el puerto …` y las advertencias `[configuración]`.
-5. Probar: `https://<servicio>.onrender.com/api/v1/salud` y `https://<servicio>.onrender.com/api/docs`.
+5. Probar: `https://<servicio>.onrender.com/api/v1/salud` y, si `SWAGGER_HABILITADO=true`, `https://<servicio>.onrender.com/api/docs` (pide usuario y clave HTTP Basic; sin ellas responde 401). Sin `SWAGGER_HABILITADO=true` responde 404.
 
 ### 2.1 Keep-alive (mitiga el sueño del plan free)
 
@@ -133,6 +132,9 @@ Las Vercel Functions aceptan como máximo **4,5 MB** de cuerpo por petición o r
 | `DIRECT_URL` | Sí | Pooler sesión `:5432` (migraciones) |
 | `JWT_SECRETO` | Sí | Cadena aleatoria larga (≥ 32 caracteres). Sin ella no arranca |
 | `JWT_EXPIRACION` | No | `8h` por defecto |
+| `SWAGGER_HABILITADO` | No | `true` publica Swagger en `/api/docs` con HTTP Basic. Vacío o `false`: no se publica |
+| `SWAGGER_USUARIO` | Si `SWAGGER_HABILITADO=true` | Usuario HTTP Basic de la documentación |
+| `SWAGGER_CLAVE` | Si `SWAGGER_HABILITADO=true` | Clave HTTP Basic (≥ 12 caracteres). Si falta, Swagger no se monta |
 | `DOMINIO_INSTITUCIONAL` | No | `uniautonoma.edu.co` por defecto |
 | `CORS_ORIGENES` | Sí (tras Vercel) | `https://<proyecto>.vercel.app[,https://dominio-propio]` |
 | `FRONTEND_URL` | Sí (tras Vercel) | `https://<proyecto>.vercel.app` |

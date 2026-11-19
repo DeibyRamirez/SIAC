@@ -3,7 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { FiltroExcepcionHttp } from './common/filters/http-exception.filter';
-import { crearDocumentoOpenApi, exponerInterfazSwagger } from './openapi/documento-openapi';
+import { crearDocumentoOpenApi } from './openapi/documento-openapi';
+import {
+  crearMiddlewareBasicSwagger,
+  resolverAccesoSwagger,
+  RUTA_SWAGGER,
+} from './openapi/acceso-swagger';
 import {
   resolverOrigenesCors,
   resolverPuerto,
@@ -61,10 +66,19 @@ async function bootstrap() {
 
   app.useGlobalFilters(new FiltroExcepcionHttp());
 
-  // La UI queda fuera de producción. El contrato versionado vive en docs/contrato-api/openapi.json.
-  if (exponerInterfazSwagger()) {
+  // Swagger: libre fuera de producción; en producción solo con SWAGGER_HABILITADO=true y HTTP Basic
+  // (SWAGGER_USUARIO / SWAGGER_CLAVE). El contrato versionado vive en docs/contrato-api/openapi.json.
+  const accesoSwagger = resolverAccesoSwagger();
+  accesoSwagger.advertencias.forEach((mensaje) => console.warn(`[configuración] ${mensaje}`));
+  if (accesoSwagger.montar) {
+    if (accesoSwagger.credenciales) {
+      // Debe registrarse antes de SwaggerModule.setup para cubrir /api/docs, sus recursos y /api/docs-json|yaml.
+      app.use(crearMiddlewareBasicSwagger(accesoSwagger.credenciales));
+    }
     const documento = crearDocumentoOpenApi(app);
-    SwaggerModule.setup('api/docs', app, documento);
+    SwaggerModule.setup(RUTA_SWAGGER, app, documento, {
+      customSiteTitle: 'SIAC API — Documentación',
+    });
   }
 
   const prisma = app.get(PrismaService);
@@ -73,7 +87,9 @@ async function bootstrap() {
   // Render inyecta PORT y exige escuchar en 0.0.0.0; en local se usa PUERTO (3001).
   const puerto = resolverPuerto();
   await app.listen(puerto, '0.0.0.0');
-  const swagger = exponerInterfazSwagger() ? ', Swagger en /api/docs' : '';
+  const swagger = accesoSwagger.montar
+    ? `, Swagger en /${RUTA_SWAGGER}${accesoSwagger.credenciales ? ' (protegido con HTTP Basic)' : ''}`
+    : '';
   console.log(`SIAC API escuchando en el puerto ${puerto} (prefijo /api/v1${swagger})`);
   console.log(`CORS permitido para: ${origenesCors.join(', ') || '(ningún origen)'}`);
 }
