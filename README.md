@@ -238,17 +238,14 @@ pnpm start:dev
 
 #### Primer SuperAdmin
 
-La base arranca sin usuarios. El primer SuperAdmin se crea una sola vez, con variables en la terminal (no en un archivo versionado). La clave debe tener al menos 12 caracteres y el correo debe ser del dominio institucional. El comando aborta si ya hay usuarios.
+La base arranca sin usuarios. El primer SuperAdmin se crea una sola vez desde una terminal interactiva: el comando pregunta nombre, correo (del dominio institucional) y clave (mínimo 12 caracteres). La clave se escribe oculta, no queda en el historial ni en ningún archivo. El comando aborta si ya hay usuarios.
 
 ```bash
 cd Backend
-PRIMER_ADMIN_NOMBRE="Nombre Apellido" \
-PRIMER_ADMIN_CORREO="correo@uniautonoma.edu.co" \
-PRIMER_ADMIN_CLAVE="clave-de-al-menos-12" \
 pnpm prisma:primer-admin
 ```
 
-En PowerShell el equivalente está en [`docs/despliegue.md`](docs/despliegue.md). Con esa sesión se crean los demás roles, se asignan programas (o se sincronizan por CSV) y se suben las plantillas desde la biblioteca.
+Para automatización sin terminal interactiva se aceptan `PRIMER_ADMIN_NOMBRE`, `PRIMER_ADMIN_CORREO` y `PRIMER_ADMIN_CLAVE` solo en el entorno del proceso (nunca en `.env`). Los pasos contra Supabase están en [`docs/despliegue.md`](docs/despliegue.md). Con esa sesión se crean los demás roles, se asignan programas (o se sincronizan por CSV) y se suben las plantillas desde la biblioteca.
 
 Si el arranque con `pnpm start:dev` resulta lento en la terminal, se puede compilar y ejecutar el build:
 

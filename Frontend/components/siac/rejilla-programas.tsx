@@ -282,7 +282,7 @@ export function RejillaProgramas({
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Avance acreditación</span>
+                    <span className="text-muted-foreground">Avance registro calificable</span>
                     <span className="font-semibold text-esmeralda">{programa.porcentajeAvance}%</span>
                   </div>
                   <Progress
